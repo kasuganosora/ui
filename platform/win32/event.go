@@ -267,9 +267,11 @@ func wndProc(hwnd, msg, wParam, lParam uintptr) uintptr {
 
 	case WM_SETCURSOR:
 		if loword(lParam) == 1 { // HTCLIENT
-			if w.currentCursor != 0 {
-				procSetCursor.Call(w.currentCursor)
+			cursor := w.currentCursor
+			if cursor == 0 {
+				cursor = w.cursorHandles[0] // fallback to arrow
 			}
+			procSetCursor.Call(cursor)
 			return 1
 		}
 

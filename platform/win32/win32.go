@@ -46,6 +46,10 @@ var (
 	procAdjustWindowRectEx   = user32.NewProc("AdjustWindowRectEx")
 	procSetCursor            = user32.NewProc("SetCursor")
 	procLoadCursorW          = user32.NewProc("LoadCursorW")
+	procCreateCursor         = user32.NewProc("CreateCursor")
+	procDestroyCursor        = user32.NewProc("DestroyCursor")
+	procGetIconInfo          = user32.NewProc("GetIconInfo")
+	procCreateIconIndirect   = user32.NewProc("CreateIconIndirect")
 	procSetCapture           = user32.NewProc("SetCapture")
 	procReleaseCapture       = user32.NewProc("ReleaseCapture")
 	procGetCursorPos         = user32.NewProc("GetCursorPos")
@@ -88,7 +92,11 @@ var (
 
 // gdi32 functions
 var (
-	procGetDeviceCaps = gdi32.NewProc("GetDeviceCaps")
+	procGetDeviceCaps  = gdi32.NewProc("GetDeviceCaps")
+	procGetObject      = gdi32.NewProc("GetObjectW")
+	procGetBitmapBits  = gdi32.NewProc("GetBitmapBits")
+	procCreateBitmap   = gdi32.NewProc("CreateBitmap")
+	procDeleteObject   = gdi32.NewProc("DeleteObject")
 )
 
 // shcore functions (DPI awareness)
@@ -394,6 +402,24 @@ type CANDIDATEFORM struct {
 	DwStyle uint32
 	PtCurrentPos POINT
 	RcArea  RECT
+}
+
+type ICONINFO struct {
+	FIcon    int32   // TRUE = icon, FALSE = cursor
+	XHotspot uint32
+	YHotspot uint32
+	HbmMask  uintptr
+	HbmColor uintptr
+}
+
+type BITMAP struct {
+	BmType       int32
+	BmWidth      int32
+	BmHeight     int32
+	BmWidthBytes int32
+	BmPlanes     uint16
+	BmBitsPixel  uint16
+	BmBits       uintptr
 }
 
 // ---- Helper functions ----

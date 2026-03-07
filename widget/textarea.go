@@ -64,6 +64,7 @@ func NewTextArea(tree *core.Tree, cfg *Config) *TextArea {
 			ta.cursorPos = pos
 			ta.selAnchor = -1
 		}
+		ta.updateIMEPosition()
 	})
 
 	ta.tree.AddHandler(ta.id, event.MouseDown, func(e *event.Event) {
@@ -108,6 +109,7 @@ func NewTextArea(tree *core.Tree, cfg *Config) *TextArea {
 		if e.Char != 0 {
 			ta.deleteSelection()
 			ta.insertChar(e.Char)
+			ta.updateIMEPosition()
 		}
 	})
 
@@ -126,6 +128,7 @@ func NewTextArea(tree *core.Tree, cfg *Config) *TextArea {
 				ta.cutSelection()
 			case event.KeyV:
 				ta.paste()
+				ta.updateIMEPosition()
 			}
 			return
 		}
@@ -135,18 +138,21 @@ func NewTextArea(tree *core.Tree, cfg *Config) *TextArea {
 		case event.KeyEnter:
 			ta.deleteSelection()
 			ta.insertChar('\n')
+			ta.updateIMEPosition()
 		case event.KeyBackspace:
 			if ta.hasSelection() {
 				ta.deleteSelection()
 			} else {
 				ta.deleteBack()
 			}
+			ta.updateIMEPosition()
 		case event.KeyDelete:
 			if ta.hasSelection() {
 				ta.deleteSelection()
 			} else {
 				ta.deleteForward()
 			}
+			ta.updateIMEPosition()
 		case event.KeyArrowLeft:
 			if shift {
 				ta.startSelection()
@@ -161,6 +167,7 @@ func NewTextArea(tree *core.Tree, cfg *Config) *TextArea {
 					ta.cursorPos--
 				}
 			}
+			ta.updateIMEPosition()
 		case event.KeyArrowRight:
 			if shift {
 				ta.startSelection()
@@ -175,6 +182,7 @@ func NewTextArea(tree *core.Tree, cfg *Config) *TextArea {
 					ta.cursorPos++
 				}
 			}
+			ta.updateIMEPosition()
 		case event.KeyArrowUp:
 			if shift {
 				ta.startSelection()
@@ -182,6 +190,7 @@ func NewTextArea(tree *core.Tree, cfg *Config) *TextArea {
 				ta.selAnchor = -1
 			}
 			ta.moveCursorVertical(-1)
+			ta.updateIMEPosition()
 		case event.KeyArrowDown:
 			if shift {
 				ta.startSelection()
@@ -189,6 +198,7 @@ func NewTextArea(tree *core.Tree, cfg *Config) *TextArea {
 				ta.selAnchor = -1
 			}
 			ta.moveCursorVertical(1)
+			ta.updateIMEPosition()
 		case event.KeyHome:
 			if shift {
 				ta.startSelection()
@@ -196,6 +206,7 @@ func NewTextArea(tree *core.Tree, cfg *Config) *TextArea {
 				ta.selAnchor = -1
 			}
 			ta.cursorPos = ta.lineStart(ta.cursorPos)
+			ta.updateIMEPosition()
 		case event.KeyEnd:
 			if shift {
 				ta.startSelection()
@@ -203,6 +214,7 @@ func NewTextArea(tree *core.Tree, cfg *Config) *TextArea {
 				ta.selAnchor = -1
 			}
 			ta.cursorPos = ta.lineEnd(ta.cursorPos)
+			ta.updateIMEPosition()
 		}
 	})
 
@@ -435,74 +447,173 @@ func (ta *TextArea) showContextMenu(clientX, clientY int) {
 	}
 }
 
-// --- Line helpers ---
+// --- Visual line helpers (soft word wrap) ---
 
-// lines splits the value into visual lines.
-func (ta *TextArea) lines() []string {
-	if ta.value == "" {
-		return []string{""}
-	}
-	return strings.Split(ta.value, "\n")
+// visualLine represents one visual (possibly wrapped) line of text.
+type visualLine struct {
+	text      string // display text of this visual line
+	runeStart int    // rune offset in ta.value where this line starts
+	runeCount int    // number of runes in this visual line
 }
 
-// runeOffsetToLineCol converts a rune offset to (line, col).
-func (ta *TextArea) runeOffsetToLineCol(pos int) (line, col int) {
-	runes := []rune(ta.value)
-	if pos > len(runes) {
-		pos = len(runes)
+// contentWidth returns the available text width inside the textarea.
+func (ta *TextArea) contentWidth() float32 {
+	bounds := ta.Bounds()
+	return bounds.Width - ta.config.SpaceSM*2
+}
+
+// visualLines breaks the value into visual lines, wrapping at contentW.
+func (ta *TextArea) visualLines(contentW float32) []visualLine {
+	if ta.value == "" {
+		return []visualLine{{text: "", runeStart: 0, runeCount: 0}}
 	}
-	for i := 0; i < pos; i++ {
-		if runes[i] == '\n' {
-			line++
-			col = 0
+
+	logicalLines := strings.Split(ta.value, "\n")
+	var result []visualLine
+	runeOff := 0
+
+	for i, ll := range logicalLines {
+		if i > 0 {
+			runeOff++ // account for \n
+		}
+		runes := []rune(ll)
+		if len(runes) == 0 {
+			result = append(result, visualLine{text: "", runeStart: runeOff, runeCount: 0})
+			continue
+		}
+
+		if contentW <= 0 {
+			// No layout yet, don't wrap
+			result = append(result, visualLine{text: ll, runeStart: runeOff, runeCount: len(runes)})
+			runeOff += len(runes)
+			continue
+		}
+
+		// Break logical line into visual lines by character width
+		start := 0
+		for start < len(runes) {
+			end := start
+			for end < len(runes) {
+				w := ta.measureRunes(runes[start : end+1])
+				if w > contentW && end > start {
+					break
+				}
+				end++
+			}
+			result = append(result, visualLine{
+				text:      string(runes[start:end]),
+				runeStart: runeOff + start,
+				runeCount: end - start,
+			})
+			start = end
+		}
+		runeOff += len(runes)
+	}
+
+	return result
+}
+
+// runeOffsetToVisualLineCol maps a rune offset to (visual line index, column).
+func (ta *TextArea) runeOffsetToVisualLineCol(pos int, contentW float32) (int, int) {
+	vlines := ta.visualLines(contentW)
+	rlen := ta.runeLen()
+	if pos > rlen {
+		pos = rlen
+	}
+	if pos < 0 {
+		pos = 0
+	}
+
+	line := 0
+	for i, vl := range vlines {
+		if vl.runeStart <= pos {
+			line = i
 		} else {
-			col++
+			break
 		}
 	}
-	return
+	return line, pos - vlines[line].runeStart
 }
 
-// lineColToRuneOffset converts (line, col) to a rune offset.
-func (ta *TextArea) lineColToRuneOffset(line, col int) int {
-	ll := ta.lines()
-	if line >= len(ll) {
-		line = len(ll) - 1
-	}
+// visualLineColToRuneOffset maps (visual line index, column) to a rune offset.
+func (ta *TextArea) visualLineColToRuneOffset(line, col int, contentW float32) int {
+	vlines := ta.visualLines(contentW)
 	if line < 0 {
 		line = 0
 	}
-	offset := 0
-	for i := 0; i < line; i++ {
-		offset += len([]rune(ll[i])) + 1 // +1 for \n
+	if line >= len(vlines) {
+		line = len(vlines) - 1
 	}
-	lineRunes := len([]rune(ll[line]))
-	if col > lineRunes {
-		col = lineRunes
+	vl := vlines[line]
+	if col < 0 {
+		col = 0
 	}
-	return offset + col
+	if col > vl.runeCount {
+		col = vl.runeCount
+	}
+	return vl.runeStart + col
 }
 
-// lineStart returns the rune offset of the start of the line containing pos.
+// lineStart returns the rune offset of the start of the visual line containing pos.
 func (ta *TextArea) lineStart(pos int) int {
-	line, _ := ta.runeOffsetToLineCol(pos)
-	return ta.lineColToRuneOffset(line, 0)
+	contentW := ta.contentWidth()
+	line, _ := ta.runeOffsetToVisualLineCol(pos, contentW)
+	return ta.visualLineColToRuneOffset(line, 0, contentW)
 }
 
-// lineEnd returns the rune offset of the end of the line containing pos.
+// lineEnd returns the rune offset of the end of the visual line containing pos.
 func (ta *TextArea) lineEnd(pos int) int {
-	line, _ := ta.runeOffsetToLineCol(pos)
-	ll := ta.lines()
-	if line < len(ll) {
-		return ta.lineColToRuneOffset(line, len([]rune(ll[line])))
+	contentW := ta.contentWidth()
+	vlines := ta.visualLines(contentW)
+	line, _ := ta.runeOffsetToVisualLineCol(pos, contentW)
+	if line < len(vlines) {
+		return ta.visualLineColToRuneOffset(line, vlines[line].runeCount, contentW)
 	}
 	return ta.runeLen()
 }
 
 // moveCursorVertical moves the cursor up (dir=-1) or down (dir=1).
 func (ta *TextArea) moveCursorVertical(dir int) {
-	line, col := ta.runeOffsetToLineCol(ta.cursorPos)
+	contentW := ta.contentWidth()
+	line, col := ta.runeOffsetToVisualLineCol(ta.cursorPos, contentW)
 	newLine := line + dir
-	ta.cursorPos = ta.lineColToRuneOffset(newLine, col)
+	ta.cursorPos = ta.visualLineColToRuneOffset(newLine, col, contentW)
+}
+
+// updateIMEPosition tells the OS where to place the IME candidate window.
+func (ta *TextArea) updateIMEPosition() {
+	cfg := ta.config
+	if cfg.Window == nil {
+		return
+	}
+	bounds := ta.Bounds()
+	padLeft := cfg.SpaceSM
+	padTop := cfg.SpaceSM
+	lineH := cfg.FontSize * cfg.LineHeight
+	contentW := bounds.Width - padLeft*2
+
+	vlines := ta.visualLines(contentW)
+	vLine, vCol := ta.runeOffsetToVisualLineCol(ta.cursorPos, contentW)
+	cx := float32(0)
+	if vLine < len(vlines) {
+		lineRunes := []rune(vlines[vLine].text)
+		if vCol > len(lineRunes) {
+			vCol = len(lineRunes)
+		}
+		cx = ta.measureRunes(lineRunes[:vCol])
+	}
+
+	var lh float32
+	if cfg.TextRenderer != nil {
+		lh = cfg.TextRenderer.LineHeight(cfg.FontSize)
+	} else {
+		lh = cfg.FontSize * 1.2
+	}
+
+	cursorX := bounds.X + padLeft + cx
+	cursorY := bounds.Y + padTop + float32(vLine)*lineH + (lineH-lh)/2
+
+	cfg.Window.SetIMEPosition(uimath.NewRect(cursorX, cursorY, 1, lh))
 }
 
 // --- Hit testing ---
@@ -521,6 +632,7 @@ func (ta *TextArea) hitTestChar(localX, localY float32) int {
 	padLeft := cfg.SpaceSM
 	padTop := cfg.SpaceSM
 	lineH := cfg.FontSize * cfg.LineHeight
+	contentW := bounds.Width - padLeft*2
 
 	relX := localX - bounds.X - padLeft
 	relY := localY - bounds.Y - padTop
@@ -528,17 +640,17 @@ func (ta *TextArea) hitTestChar(localX, localY float32) int {
 		relY = 0
 	}
 
+	vlines := ta.visualLines(contentW)
 	lineIdx := int(relY / lineH)
-	ll := ta.lines()
-	if lineIdx >= len(ll) {
-		lineIdx = len(ll) - 1
+	if lineIdx >= len(vlines) {
+		lineIdx = len(vlines) - 1
 	}
 	if lineIdx < 0 {
 		lineIdx = 0
 	}
 
-	// Find character within line
-	lineRunes := []rune(ll[lineIdx])
+	// Find character within visual line
+	lineRunes := []rune(vlines[lineIdx].text)
 	col := 0
 	if relX > 0 {
 		for i := 1; i <= len(lineRunes); i++ {
@@ -564,7 +676,7 @@ func (ta *TextArea) hitTestChar(localX, localY float32) int {
 	}
 
 done:
-	return ta.lineColToRuneOffset(lineIdx, col)
+	return ta.visualLineColToRuneOffset(lineIdx, col, contentW)
 }
 
 // --- Drawing ---
@@ -620,21 +732,29 @@ func (ta *TextArea) Draw(buf *render.CommandBuffer) {
 	}
 
 	if displayText != "" {
-		ll := strings.Split(displayText, "\n")
-		for i, line := range ll {
+		var vlines []visualLine
+		if displayText == ta.value {
+			vlines = ta.visualLines(contentW)
+		} else {
+			// Placeholder: no wrapping needed, just split on newlines
+			for _, l := range strings.Split(displayText, "\n") {
+				vlines = append(vlines, visualLine{text: l})
+			}
+		}
+		for i, vl := range vlines {
 			y := bounds.Y + padTop + float32(i)*lineH
 			if y > bounds.Y+bounds.Height {
 				break
 			}
-			if line == "" {
+			if vl.text == "" {
 				continue
 			}
 			if cfg.TextRenderer != nil {
 				lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 				ty := y + (lineH-lh)/2
-				cfg.TextRenderer.DrawText(buf, line, bounds.X+padLeft, ty, cfg.FontSize, contentW, textColor, 1)
+				cfg.TextRenderer.DrawText(buf, vl.text, bounds.X+padLeft, ty, cfg.FontSize, contentW, textColor, 1)
 			} else {
-				textW := float32(len(line)) * cfg.FontSize * 0.55
+				textW := float32(len([]rune(vl.text))) * cfg.FontSize * 0.55
 				if textW > contentW {
 					textW = contentW
 				}
@@ -653,18 +773,18 @@ func (ta *TextArea) Draw(buf *render.CommandBuffer) {
 	if focused && !ta.disabled {
 		ms := time.Now().UnixMilli()
 		if (ms/500)%2 == 0 {
-			line, col := ta.runeOffsetToLineCol(ta.cursorPos)
-			ll := ta.lines()
+			vlines := ta.visualLines(contentW)
+			vLine, vCol := ta.runeOffsetToVisualLineCol(ta.cursorPos, contentW)
 			cx := float32(0)
-			if line < len(ll) {
-				lineRunes := []rune(ll[line])
-				if col > len(lineRunes) {
-					col = len(lineRunes)
+			if vLine < len(vlines) {
+				lineRunes := []rune(vlines[vLine].text)
+				if vCol > len(lineRunes) {
+					vCol = len(lineRunes)
 				}
-				cx = ta.measureRunes(lineRunes[:col])
+				cx = ta.measureRunes(lineRunes[:vCol])
 			}
 			cursorX := bounds.X + padLeft + cx
-			cursorY := bounds.Y + padTop + float32(line)*lineH
+			cursorY := bounds.Y + padTop + float32(vLine)*lineH
 			var cursorH float32
 			if cfg.TextRenderer != nil {
 				cursorH = cfg.TextRenderer.LineHeight(cfg.FontSize)
@@ -684,13 +804,13 @@ func (ta *TextArea) Draw(buf *render.CommandBuffer) {
 func (ta *TextArea) drawSelection(buf *render.CommandBuffer, bounds uimath.Rect, padLeft, padTop, lineH, contentW float32) {
 	cfg := ta.config
 	lo, hi := ta.selMin(), ta.selMax()
-	loLine, loCol := ta.runeOffsetToLineCol(lo)
-	hiLine, hiCol := ta.runeOffsetToLineCol(hi)
+	loLine, loCol := ta.runeOffsetToVisualLineCol(lo, contentW)
+	hiLine, hiCol := ta.runeOffsetToVisualLineCol(hi, contentW)
 
 	selColor := uimath.ColorHex("#1677ff")
 	selColor.A = 0.3
 
-	ll := ta.lines()
+	vlines := ta.visualLines(contentW)
 
 	var lh float32
 	if cfg.TextRenderer != nil {
@@ -699,8 +819,8 @@ func (ta *TextArea) drawSelection(buf *render.CommandBuffer, bounds uimath.Rect,
 		lh = cfg.FontSize * 1.2
 	}
 
-	for lineIdx := loLine; lineIdx <= hiLine && lineIdx < len(ll); lineIdx++ {
-		lineRunes := []rune(ll[lineIdx])
+	for lineIdx := loLine; lineIdx <= hiLine && lineIdx < len(vlines); lineIdx++ {
+		lineRunes := []rune(vlines[lineIdx].text)
 		startCol := 0
 		endCol := len(lineRunes)
 		if lineIdx == loLine {

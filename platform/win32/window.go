@@ -38,8 +38,9 @@ type Window struct {
 	savedRect     RECT
 
 	// Cursor
-	currentCursor uintptr
+	currentCursor  uintptr
 	cursorInClient bool
+	cursorHandles  [12]uintptr // pre-loaded system cursor handles
 
 	// IME position (client area coords, stored for use during WM_IME_STARTCOMPOSITION)
 	imeX, imeY int32
@@ -124,8 +125,32 @@ func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 	w.fbWidth = int(float32(w.width) * w.dpiScale)
 	w.fbHeight = int(float32(w.height) * w.dpiScale)
 
-	// Load default cursor
-	w.currentCursor, _, _ = procLoadCursorW.Call(0, uintptr(IDC_ARROW))
+	// Pre-load all system cursor handles
+	cursorIDs := [12]uint16{
+		IDC_ARROW,    // CursorArrow     = 0
+		IDC_IBEAM,    // CursorIBeam     = 1
+		IDC_CROSS,    // CursorCrosshair = 2
+		IDC_HAND,     // CursorHand      = 3
+		IDC_SIZEWE,   // CursorHResize   = 4
+		IDC_SIZENS,   // CursorVResize   = 5
+		IDC_SIZENWSE, // CursorNWSEResize= 6
+		IDC_SIZENESW, // CursorNESWResize= 7
+		IDC_SIZEALL,  // CursorAllResize = 8
+		IDC_NO,       // CursorNotAllowed= 9
+		IDC_WAIT,     // CursorWait      = 10
+		0,            // CursorNone      = 11
+	}
+	for i, id := range cursorIDs {
+		if id != 0 {
+			w.cursorHandles[i], _, _ = procLoadCursorW.Call(0, uintptr(id))
+		}
+	}
+	// Replace system IBeam with a custom cursor that has a black stem
+	// and white outline, avoiding the XOR-inversion visibility problem.
+	if h := createCustomIBeamCursor(w.hinstance); h != 0 {
+		w.cursorHandles[platform.CursorIBeam] = h
+	}
+	w.currentCursor = w.cursorHandles[platform.CursorArrow]
 
 	if opts.Visible {
 		// Defer the actual ShowWindow call until the first PollEvents.
@@ -293,40 +318,175 @@ func (w *Window) SetMaxSize(width, height int) {
 	w.maxHeight = height
 }
 
+// createCustomIBeamCursor loads the system IDC_IBEAM cursor, reads its
+// monochrome mask, converts the XOR-inverted pixels to solid black, and
+// adds a 1px white outline around them. This fixes the visibility problem
+// where the system IBeam uses XOR pixel inversion and becomes invisible
+// on mid-tone backgrounds.
+func createCustomIBeamCursor(hinstance uintptr) uintptr {
+	// Load the system IBeam cursor
+	sysCursor, _, _ := procLoadCursorW.Call(0, uintptr(IDC_IBEAM))
+	if sysCursor == 0 {
+		return 0
+	}
+
+	// Get cursor info (hotspot + mask bitmap)
+	var info ICONINFO
+	ret, _, _ := procGetIconInfo.Call(sysCursor, uintptr(unsafe.Pointer(&info)))
+	if ret == 0 {
+		return 0
+	}
+	// GetIconInfo creates copies of bitmaps; we must delete them when done.
+	defer func() {
+		if info.HbmMask != 0 {
+			procDeleteObject.Call(info.HbmMask)
+		}
+		if info.HbmColor != 0 {
+			procDeleteObject.Call(info.HbmColor)
+		}
+	}()
+
+	// Get mask bitmap dimensions
+	var bm BITMAP
+	ret, _, _ = procGetObject.Call(info.HbmMask, unsafe.Sizeof(bm), uintptr(unsafe.Pointer(&bm)))
+	if ret == 0 {
+		return 0
+	}
+
+	w := int(bm.BmWidth)
+	// For monochrome cursors (no color bitmap), the mask is double-height:
+	// top half = AND mask, bottom half = XOR mask
+	isMonochrome := info.HbmColor == 0
+	h := int(bm.BmHeight)
+	cursorH := h
+	if isMonochrome {
+		cursorH = h / 2
+	}
+	bytesPerRow := int(bm.BmWidthBytes)
+	totalBytes := int(bm.BmWidthBytes) * int(bm.BmHeight)
+
+	// Read mask bits
+	maskBits := make([]byte, totalBytes)
+	ret, _, _ = procGetBitmapBits.Call(info.HbmMask, uintptr(totalBytes), uintptr(unsafe.Pointer(&maskBits[0])))
+	if ret == 0 {
+		return 0
+	}
+
+	// Helper to read a bit from the mask
+	getBit := func(data []byte, x, y, stride int) bool {
+		return data[y*stride+x/8]&(0x80>>uint(x%8)) != 0
+	}
+
+	// Identify "cursor shape" pixels from the original masks.
+	// For monochrome: AND in top half, XOR in bottom half
+	// Cursor shape pixels are where XOR=1 (either inverted or white).
+	// We also consider AND=0,XOR=0 as shape (black pixels).
+	isShape := func(x, y int) bool {
+		if x < 0 || x >= w || y < 0 || y >= cursorH {
+			return false
+		}
+		if isMonochrome {
+			andBit := getBit(maskBits, x, y, bytesPerRow)
+			xorBit := getBit(maskBits, x, y+cursorH, bytesPerRow)
+			// Shape = inverted(AND=1,XOR=1) or black(AND=0,XOR=0) or white(AND=0,XOR=1)
+			// Transparent = AND=1,XOR=0
+			return !(andBit && !xorBit)
+		}
+		// Color cursor: AND=0 means opaque
+		andBit := getBit(maskBits, x, y, bytesPerRow)
+		return !andBit
+	}
+
+	// Build new AND and XOR masks:
+	// - Shape pixels → black (AND=0, XOR=0)
+	// - 1px outline around shape → white (AND=0, XOR=1)
+	// - Everything else → transparent (AND=1, XOR=0)
+	newSize := bytesPerRow * cursorH
+	newAND := make([]byte, newSize)
+	newXOR := make([]byte, newSize)
+
+	// Start all transparent
+	for i := range newAND {
+		newAND[i] = 0xFF
+	}
+
+	setBit := func(data []byte, x, y, stride int, val bool) {
+		idx := y*stride + x/8
+		mask := byte(0x80 >> uint(x%8))
+		if val {
+			data[idx] |= mask
+		} else {
+			data[idx] &^= mask
+		}
+	}
+
+	// First pass: add white outline (1px border around every shape pixel)
+	for y := 0; y < cursorH; y++ {
+		for x := 0; x < w; x++ {
+			if isShape(x, y) {
+				// Expand outline to neighbors
+				for dy := -1; dy <= 1; dy++ {
+					for dx := -1; dx <= 1; dx++ {
+						nx, ny := x+dx, y+dy
+						if nx >= 0 && nx < w && ny >= 0 && ny < cursorH {
+							setBit(newAND, nx, ny, bytesPerRow, false) // AND=0 (opaque)
+							setBit(newXOR, nx, ny, bytesPerRow, true)  // XOR=1 (white)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Second pass: shape pixels → black (overwrite the white outline center)
+	for y := 0; y < cursorH; y++ {
+		for x := 0; x < w; x++ {
+			if isShape(x, y) {
+				setBit(newAND, x, y, bytesPerRow, false) // AND=0 (opaque)
+				setBit(newXOR, x, y, bytesPerRow, false) // XOR=0 (black)
+			}
+		}
+	}
+
+	// Create new monochrome mask bitmap (double height: AND on top, XOR on bottom)
+	combinedMask := make([]byte, newSize*2)
+	copy(combinedMask[:newSize], newAND)
+	copy(combinedMask[newSize:], newXOR)
+
+	hbmMask, _, _ := procCreateBitmap.Call(
+		uintptr(w), uintptr(cursorH*2), 1, 1,
+		uintptr(unsafe.Pointer(&combinedMask[0])),
+	)
+	if hbmMask == 0 {
+		return 0
+	}
+
+	newInfo := ICONINFO{
+		FIcon:    0, // cursor
+		XHotspot: info.XHotspot,
+		YHotspot: info.YHotspot,
+		HbmMask:  hbmMask,
+		HbmColor: 0, // monochrome
+	}
+	cursor, _, _ := procCreateIconIndirect.Call(uintptr(unsafe.Pointer(&newInfo)))
+	procDeleteObject.Call(hbmMask)
+	return cursor
+}
+
 func (w *Window) SetCursor(cursor platform.CursorShape) {
-	var id uint16
-	switch cursor {
-	case platform.CursorArrow:
-		id = IDC_ARROW
-	case platform.CursorIBeam:
-		id = IDC_IBEAM
-	case platform.CursorCrosshair:
-		id = IDC_CROSS
-	case platform.CursorHand:
-		id = IDC_HAND
-	case platform.CursorHResize:
-		id = IDC_SIZEWE
-	case platform.CursorVResize:
-		id = IDC_SIZENS
-	case platform.CursorNWSEResize:
-		id = IDC_SIZENWSE
-	case platform.CursorNESWResize:
-		id = IDC_SIZENESW
-	case platform.CursorAllResize:
-		id = IDC_SIZEALL
-	case platform.CursorNotAllowed:
-		id = IDC_NO
-	case platform.CursorWait:
-		id = IDC_WAIT
-	case platform.CursorNone:
+	if cursor == platform.CursorNone {
 		w.currentCursor = 0
 		procSetCursor.Call(0)
 		return
-	default:
-		id = IDC_ARROW
 	}
-
-	h, _, _ := procLoadCursorW.Call(0, uintptr(id))
+	idx := int(cursor)
+	if idx < 0 || idx >= len(w.cursorHandles) {
+		idx = int(platform.CursorArrow)
+	}
+	h := w.cursorHandles[idx]
+	if h == 0 {
+		h = w.cursorHandles[platform.CursorArrow]
+	}
 	w.currentCursor = h
 	procSetCursor.Call(h)
 }

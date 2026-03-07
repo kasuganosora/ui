@@ -134,6 +134,12 @@ func (a *textDrawerAdapter) MeasureText(text string, fontSize float32) float32 {
 // mouseDownTarget tracks which element received MouseDown for click synthesis.
 var mouseDownTarget core.ElementID
 
+// lastHoverTarget tracks the previously hovered element for MouseEnter/Leave synthesis.
+var lastHoverTarget core.ElementID
+
+// lastCursorIsIBeam tracks whether the current cursor is IBeam to avoid flickering.
+var lastCursorIsIBeam bool
+
 // contentWidget is the scrollable content area (set by buildUI).
 var contentWidget *widget.Content
 
@@ -797,14 +803,45 @@ func handleEvent(tree *core.Tree, dispatcher *core.Dispatcher, evt *event.Event,
 			}
 		}
 
-		if target != core.InvalidElementID {
-			// Update hover state
-			if evt.Type == event.MouseMove {
-				tree.Walk(tree.Root(), func(id core.ElementID, _ int) bool {
-					tree.SetHovered(id, id == target)
-					return true
-				})
+		// Update hover state and cursor shape on mouse move
+		if evt.Type == event.MouseMove {
+			tree.Walk(tree.Root(), func(id core.ElementID, _ int) bool {
+				tree.SetHovered(id, id == target)
+				return true
+			})
+			if target != lastHoverTarget {
+				if lastHoverTarget != core.InvalidElementID {
+					dispatcher.Dispatch(lastHoverTarget, &event.Event{Type: event.MouseLeave})
+				}
+				if target != core.InvalidElementID {
+					dispatcher.Dispatch(target, &event.Event{Type: event.MouseEnter})
+				}
+				lastHoverTarget = target
 			}
+			// Update cursor shape: IBeam if target or any ancestor is an input
+			isInput := false
+			for id := target; id != core.InvalidElementID; {
+				if e := tree.Get(id); e != nil {
+					if e.Type() == core.TypeInput {
+						isInput = true
+						break
+					}
+					id = e.ParentID()
+				} else {
+					break
+				}
+			}
+			if isInput != lastCursorIsIBeam {
+				if isInput {
+					win.SetCursor(platform.CursorIBeam)
+				} else {
+					win.SetCursor(platform.CursorArrow)
+				}
+				lastCursorIsIBeam = isInput
+			}
+		}
+
+		if target != core.InvalidElementID {
 			dispatcher.Dispatch(target, evt)
 
 			// Synthesize MouseClick from MouseDown+MouseUp on same element

@@ -2464,26 +2464,29 @@ func TestTextAreaLineHelpers(t *testing.T) {
 	cfg := DefaultConfig()
 	ta := NewTextArea(tree, cfg)
 	ta.SetValue("AB\nCD\nEF")
+	// Set bounds wide enough so no wrapping occurs
+	setBounds(tree, ta, 0, 0, 400, 200)
+	contentW := ta.contentWidth()
 
-	// lines
-	ll := ta.lines()
-	if len(ll) != 3 {t.Errorf("expected 3 lines, got %d", len(ll))}
+	// visualLines
+	vl := ta.visualLines(contentW)
+	if len(vl) != 3 {t.Errorf("expected 3 visual lines, got %d", len(vl))}
 
-	// runeOffsetToLineCol
-	line, col := ta.runeOffsetToLineCol(0)
+	// runeOffsetToVisualLineCol
+	line, col := ta.runeOffsetToVisualLineCol(0, contentW)
 	if line != 0 || col != 0 {t.Errorf("got %d,%d", line, col)}
-	line, col = ta.runeOffsetToLineCol(3) // after "AB\n"
+	line, col = ta.runeOffsetToVisualLineCol(3, contentW) // after "AB\n"
 	if line != 1 || col != 0 {t.Errorf("got %d,%d", line, col)}
-	line, col = ta.runeOffsetToLineCol(5) // "CD" on line 1
+	line, col = ta.runeOffsetToVisualLineCol(5, contentW) // "CD" on line 1
 	if line != 1 || col != 2 {t.Errorf("got %d,%d", line, col)}
 
-	// lineColToRuneOffset
-	if ta.lineColToRuneOffset(0, 0) != 0 {t.Error("bad offset")}
-	if ta.lineColToRuneOffset(1, 0) != 3 {t.Error("bad offset")}
-	if ta.lineColToRuneOffset(2, 1) != 7 {t.Error("bad offset")}
+	// visualLineColToRuneOffset
+	if ta.visualLineColToRuneOffset(0, 0, contentW) != 0 {t.Error("bad offset")}
+	if ta.visualLineColToRuneOffset(1, 0, contentW) != 3 {t.Error("bad offset")}
+	if ta.visualLineColToRuneOffset(2, 1, contentW) != 7 {t.Error("bad offset")}
 	// Clamping
-	if ta.lineColToRuneOffset(99, 0) != 6 {t.Errorf("got %d", ta.lineColToRuneOffset(99, 0))}
-	if ta.lineColToRuneOffset(0, 99) != 2 {t.Errorf("got %d", ta.lineColToRuneOffset(0, 99))}
+	if ta.visualLineColToRuneOffset(99, 0, contentW) != 6 {t.Errorf("got %d", ta.visualLineColToRuneOffset(99, 0, contentW))}
+	if ta.visualLineColToRuneOffset(0, 99, contentW) != 2 {t.Errorf("got %d", ta.visualLineColToRuneOffset(0, 99, contentW))}
 
 	// lineStart / lineEnd
 	if ta.lineStart(4) != 3 {t.Errorf("got %d", ta.lineStart(4))} // pos 4 = line 1
@@ -2848,9 +2851,10 @@ func TestTextAreaEmptyLines(t *testing.T) {
 	cfg := DefaultConfig()
 	ta := NewTextArea(tree, cfg)
 	ta.SetValue("")
-	ll := ta.lines()
-	if len(ll) != 1 {t.Errorf("expected 1, got %d", len(ll))}
-	if ll[0] != "" {t.Errorf("expected empty string, got '%s'", ll[0])}
+	setBounds(tree, ta, 0, 0, 400, 200)
+	vl := ta.visualLines(ta.contentWidth())
+	if len(vl) != 1 {t.Errorf("expected 1, got %d", len(vl))}
+	if vl[0].text != "" {t.Errorf("expected empty string, got '%s'", vl[0].text)}
 }
 
 // ==================== Coverage boost tests ====================
