@@ -277,7 +277,16 @@ func (t *Tree) SetEnabled(id ElementID, enabled bool) {
 }
 
 // SetFocused sets the focused state. Only one element should be focused at a time.
+// When setting focus to true, any previously focused element is automatically unfocused.
 func (t *Tree) SetFocused(id ElementID, focused bool) {
+	if focused {
+		for eid, elem := range t.elements {
+			if elem != nil && elem.focused && eid != id {
+				elem.focused = false
+				t.markDirty(eid, DirtyPaint)
+			}
+		}
+	}
 	if elem := t.elements[id]; elem != nil {
 		elem.focused = focused
 		t.markDirty(id, DirtyPaint)

@@ -92,19 +92,33 @@ func (b *Button) bgColor() uimath.Color {
 	if b.disabled {
 		return cfg.DisabledColor
 	}
+	elem := b.Element()
+	hovered := elem != nil && elem.IsHovered()
+
 	switch b.variant {
 	case ButtonPrimary:
-		elem := b.Element()
 		if b.pressed {
 			return cfg.ActiveColor
 		}
-		if elem != nil && elem.IsHovered() {
+		if hovered {
 			return cfg.HoverColor
 		}
 		return cfg.PrimaryColor
 	case ButtonSecondary:
+		if b.pressed {
+			return uimath.ColorHex("#e6e6e6")
+		}
+		if hovered {
+			return uimath.ColorHex("#f5f5f5")
+		}
 		return cfg.BgColor
 	case ButtonText, ButtonLink:
+		if b.pressed {
+			return uimath.ColorHex("#e6f4ff")
+		}
+		if hovered {
+			return uimath.ColorHex("#f0f5ff")
+		}
 		return uimath.ColorTransparent
 	default:
 		return cfg.PrimaryColor
@@ -116,14 +130,35 @@ func (b *Button) textColor() uimath.Color {
 	if b.disabled {
 		return cfg.BgColor
 	}
+	elem := b.Element()
+	hovered := elem != nil && elem.IsHovered()
+
 	switch b.variant {
 	case ButtonPrimary:
 		return uimath.ColorWhite
 	case ButtonSecondary:
+		if b.pressed {
+			return cfg.ActiveColor
+		}
+		if hovered {
+			return cfg.HoverColor
+		}
 		return cfg.TextColor
 	case ButtonText:
+		if b.pressed {
+			return cfg.ActiveColor
+		}
+		if hovered {
+			return cfg.HoverColor
+		}
 		return cfg.PrimaryColor
 	case ButtonLink:
+		if b.pressed {
+			return cfg.ActiveColor
+		}
+		if hovered {
+			return cfg.HoverColor
+		}
 		return cfg.PrimaryColor
 	default:
 		return uimath.ColorWhite
@@ -140,13 +175,22 @@ func (b *Button) Draw(buf *render.CommandBuffer) {
 
 	// Background
 	bg := b.bgColor()
+	elem := b.Element()
+	hovered := elem != nil && elem.IsHovered()
 	borderClr := cfg.BorderColor
 	borderW := cfg.BorderWidth
-	if b.variant == ButtonText || b.variant == ButtonLink {
+
+	switch b.variant {
+	case ButtonPrimary:
 		borderClr = uimath.ColorTransparent
 		borderW = 0
-	}
-	if b.variant == ButtonPrimary {
+	case ButtonSecondary:
+		if b.pressed {
+			borderClr = cfg.ActiveColor
+		} else if hovered {
+			borderClr = cfg.HoverColor
+		}
+	case ButtonText, ButtonLink:
 		borderClr = uimath.ColorTransparent
 		borderW = 0
 	}
