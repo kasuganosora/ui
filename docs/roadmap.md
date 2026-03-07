@@ -121,9 +121,18 @@
 
 ### 渲染
 
+- [x] SDF 抗锯齿四边形扩展修复（圆角矩形 AA 品质提升）
+- [x] 叠加渲染层（Overlay layer，弹出层/下拉菜单独立渲染）
+- [x] 脏标记驱动渲染循环（无变化时不重绘，Loading 等动画组件自标记）
 - [ ] OpenGL 3.3 后端
 - [ ] 渲染命令批处理优化
 - [ ] 纹理图集动态扩展和 LRU
+
+### 核心
+
+- [x] 焦点管理完善（ClearFocus、点击空白区域自动失焦）
+- [x] 脏标记公共 API（MarkDirty / NeedsRender / ClearAllDirty）
+- [x] 光标管理（IBeam 文本光标、Hand 可点击光标、自定义描边光标）
 
 ### 布局
 
@@ -149,17 +158,18 @@
 - [x] Tabs 选项卡（多 Tab 切换、活跃指示器、hover 反馈）
 - [x] Dialog 对话框（模态遮罩、居中面板、标题 + 关闭按钮）
 - [x] Message 全局提示（4 种类型：info/success/warning/error）
-- [ ] MessageBox 消息弹出框
+- [x] 组件渲染修复（Checkbox 勾选、Switch 裁剪、Select 箭头、Loading 弹跳动画）
+- [x] MessageBox 消息弹出框（模态确认、5 种类型、OK/Cancel 按钮）
 - [x] Progress 进度条（百分比 + 3 种状态颜色）
 - [x] Loading 加载（三点指示器 + 提示文本）
 - [x] Empty 空状态（图标占位 + 描述文字）
 
 ### API
 
-- [ ] 声明式 API 完善
-- [ ] HTML+CSS 加载 API
-- [ ] 数据绑定系统
-- [ ] 主题系统
+- [x] 声明式 API（Builder 模式，fluent 链式构建 widget 树）
+- [x] HTML+CSS 加载 API（简易 HTML 解析 → widget 树，内联样式支持）
+- [x] 数据绑定系统（State[T] 响应式容器、Watch/Bind/Computed、ListState）
+- [x] 主题系统（token 化设计、Light/Dark 预设、Theme → Config 桥接）
 
 ### 里程碑: 完整的表单应用 demo，跨 Windows/Linux，支持中文输入
 
@@ -167,31 +177,31 @@
 
 ### 集成
 
-- [ ] 嵌入模式 API（共享 Vulkan 上下文）
+- [x] 嵌入模式 API（EmbeddedUI：共享渲染后端、事件桥接、层管理）
 - [ ] 嵌入模式 API（共享 OpenGL 上下文）
-- [ ] 命令导出模式
-- [ ] 输入事件桥接与穿透
-- [ ] 多层 UI 管理（HUD/Dialog/Chat）
+- [x] 命令导出模式（HeadlessUI：无头渲染、ExportJSON 序列化命令）
+- [x] 输入事件桥接与穿透（HandleEvent 统一入口，鼠标/键盘/IME 路由）
+- [x] 多层 UI 管理（LayerManager：Base/HUD/Dialog/Chat/Tooltip 五层，z-order 排序）
 
 ### 即时模式
 
-- [ ] IMContext 基础框架
-- [ ] 即时模式基础 Widget（Text/Button/Slider/Checkbox）
-- [ ] 即时模式面板和布局
-- [ ] 即时模式与声明式混合使用
+- [x] IMContext 基础框架（im 包，每帧重建 UI，面板/光标布局系统）
+- [x] 即时模式基础 Widget（Text/Button/Slider/Checkbox/ProgressBar/Separator）
+- [x] 即时模式面板和布局（Begin/End 面板，自动垂直布局，padding/spacing）
+- [x] 即时模式与声明式混合使用（EmbeddedUI.Layers 组合 im.Context 输出）
 
 ### 游戏 P0 组件
 
-- [ ] HUD 抬头显示层
-- [ ] HealthBar 生命/资源条
-- [ ] Hotbar 快捷栏
-- [ ] CooldownMask 冷却遮罩
-- [ ] Inventory 背包
-- [ ] ChatBox 聊天框
-- [ ] FloatingText 浮动文字
-- [ ] ItemTooltip 物品提示
-- [ ] NotificationToast 通知浮窗
-- [ ] DragDrop 拖放系统
+- [x] HUD 抬头显示层（9 点锚定、元素管理、视口自适应）
+- [x] HealthBar 生命/资源条（当前/最大值、颜色、文本、圆角）
+- [x] Hotbar 快捷栏（N 槽位、选中高亮、冷却叠加、快捷键标签）
+- [x] CooldownMask 冷却遮罩（比例遮罩叠加层）
+- [x] Inventory 背包（行×列网格、物品放置/移除、稀有度边框、数量徽标）
+- [x] ChatBox 聊天框（消息列表、滚动、频道颜色、输入区）
+- [x] FloatingText 浮动文字（位置、颜色、动态文本）
+- [x] ItemTooltip 物品提示（稀有度边框、叠加层渲染）
+- [x] NotificationToast 通知浮窗（4 种类型、颜色条、叠加层）
+- [x] DragDrop 拖放系统（DragSource/DropTarget 注册、阈值检测、Accept/OnDrop 回调）
 
 ### 性能
 
@@ -213,49 +223,49 @@
 - [ ] iOS 基础支持
 - [ ] DirectX 11 后端（Windows）
 
-### P1 通用组件
+### P1 通用组件 ✅
 
-- [ ] Link 链接
-- [ ] Divider 分割线
-- [ ] InputNumber 数字输入框
-- [ ] Slider 滑块
-- [ ] ColorPicker 颜色选择器
-- [ ] DatePicker / TimePicker 日期时间选择器
-- [ ] Badge 徽标
-- [ ] Avatar 头像
-- [ ] Card 卡片
-- [ ] List 列表
-- [ ] Popover 气泡弹出框
-- [ ] Collapse 折叠面板
-- [ ] Menu 导航菜单
-- [ ] Breadcrumb 面包屑
-- [ ] Pagination 分页
-- [ ] Notification 消息通知
-- [ ] Drawer 抽屉
-- [ ] Alert 警告提示
-- [ ] VirtualList 虚拟列表
-- [ ] Splitter 分割面板
-- [ ] Panel 面板
-- [ ] SubWindow 子窗口
-- [ ] ContextMenu 右键菜单
-- [ ] Portal 传送
-- [ ] Table 表格
-- [ ] Tree 树形控件
+- [x] Link 链接（可点击文本 + 下划线，hover 颜色）
+- [x] Divider 分割线（水平/垂直，居中文本）
+- [x] InputNumber 数字输入框（+/- 按钮，min/max/step）
+- [x] Slider 滑块（轨道 + 滑块，拖拽交互，步进吸附）
+- [x] ColorPicker 颜色选择器（色板按钮 + 下拉预设网格）
+- [x] DatePicker / TimePicker 日期时间选择器（日历网格叠加层）
+- [x] Badge 徽标（计数/圆点，定位于子组件）
+- [x] Avatar 头像（圆形/方形，文本首字母/图片）
+- [x] Card 卡片（标题栏 + 内容区 + 边框）
+- [x] List 列表（可滚动项目列表）
+- [x] Popover 气泡弹出框（锚定浮动内容面板）
+- [x] Collapse 折叠面板（展开/收起，手风琴模式）
+- [x] Menu 导航菜单（垂直菜单，子菜单，选中高亮）
+- [x] Breadcrumb 面包屑（分隔符连接导航链接）
+- [x] Pagination 分页（页码按钮 + 前/后翻页）
+- [x] Notification 消息通知（堆叠式 toast，4 种类型）
+- [x] Drawer 抽屉（边缘滑出面板 + 遮罩）
+- [x] Alert 警告提示（彩色横幅，4 种类型）
+- [x] VirtualList 虚拟列表（仅渲染可见项）
+- [x] Splitter 分割面板（可拖拽分割条）
+- [x] Panel 面板（标题 + 边框容器）
+- [x] SubWindow 子窗口（可拖拽浮动窗口）
+- [x] ContextMenu 右键菜单（菜单项 + 分隔线）
+- [x] Portal 传送（根层叠加渲染）
+- [x] Table 表格（列头 + 行数据，条纹/边框）
+- [x] Tree 树形控件（展开/收起节点，选中，搜索）
 
-### P1 游戏组件
+### P1 游戏组件 ✅
 
-- [ ] Minimap 小地图
-- [ ] RadialMenu 径向菜单
-- [ ] QuestTracker 任务追踪
-- [ ] BuffBar 增益/减益栏
-- [ ] Nameplate 名牌
-- [ ] Scoreboard 计分板
-- [ ] DialogueBox NPC 对话框
-- [ ] CountdownTimer 倒计时
-- [ ] CurrencyDisplay 货币显示
-- [ ] TeamFrame 队伍框架
-- [ ] TargetFrame 目标框架
-- [ ] CastBar 施法条
+- [x] Minimap 小地图（圆形/方形地图、标记点、玩家指示器、缩放）
+- [x] RadialMenu 径向菜单（环形菜单项、高亮、选中回调）
+- [x] QuestTracker 任务追踪（任务列表、目标进度、完成标记）
+- [x] BuffBar 增益/减益栏（图标行、持续时间、叠层数、正/负类型）
+- [x] Nameplate 名牌（浮动名字+血条、友好/敌对/中立颜色）
+- [x] Scoreboard 计分板（玩家列表、分数/击杀/死亡、排序）
+- [x] DialogueBox NPC 对话框（说话人、文本、选项分支、推进回调）
+- [x] CountdownTimer 倒计时（分:秒显示、Tick 更新、到期回调、低时闪红）
+- [x] CurrencyDisplay 货币显示（多币种、符号+数量、K/M 格式化）
+- [x] TeamFrame 队伍框架（队员列表、HP/MP 双条、等级、死亡状态）
+- [x] TargetFrame 目标框架（选中目标显示、HP/MP、SetTarget/ClearTarget）
+- [x] CastBar 施法条（施法进度、技能名、完成/打断回调）
 
 ## 阶段 5: 高级功能 + P2 组件（第 35-44 周）
 
@@ -267,39 +277,39 @@
 - [ ] 子窗口停靠系统（Docking）
 - [ ] 手柄导航
 
-### P2 通用组件
+### P2 通用组件 ✅
 
-- [ ] Cascader 级联选择器
-- [ ] TreeSelect 树选择
-- [ ] Transfer 穿梭框
-- [ ] DateRangePicker 日期范围选择器
-- [ ] Upload 上传
-- [ ] AutoComplete 自动完成
-- [ ] TagInput 标签输入框
-- [ ] RangeInput 范围输入框
-- [ ] Steps 步骤条
-- [ ] Anchor 锚点
-- [ ] BackTop 回到顶部
-- [ ] ImageViewer 图片预览
-- [ ] VirtualGrid 虚拟网格
-- [ ] MenuBar 菜单栏
-- [ ] Affix 固钉
-- [ ] Timeline 时间线
-- [ ] Swiper 轮播
-- [ ] Statistic 统计数值
-- [ ] Skeleton 骨架屏
-- [ ] Watermark 水印
-- [ ] Calendar 日历
-- [ ] Comment 评论
-- [ ] Descriptions 描述列表
-- [ ] Rate 评分
-- [ ] Guide 引导
-- [ ] Popconfirm 气泡确认框
+- [x] Cascader 级联选择器（多级联动下拉面板）
+- [x] TreeSelect 树选择（下拉树形结构选择）
+- [x] Transfer 穿梭框（双列表移动项目）
+- [x] DateRangePicker 日期范围选择器（起止日期选择）
+- [x] Upload 上传（拖拽上传区域，文件管理）
+- [x] AutoComplete 自动完成（输入联想下拉建议）
+- [x] TagInput 标签输入框（标签添加/删除，换行）
+- [x] RangeInput 范围输入框（双滑块范围选择）
+- [x] Steps 步骤条（导航进度指示器）
+- [x] Anchor 锚点（页面节锚定导航侧栏）
+- [x] BackTop 回到顶部（浮动返回按钮）
+- [x] ImageViewer 图片预览（缩放/平移）
+- [x] VirtualGrid 虚拟网格（仅渲染可见单元格）
+- [x] MenuBar 菜单栏（水平应用菜单）
+- [x] Affix 固钉（滚动固定内容）
+- [x] Timeline 时间线（垂直事件列表，状态颜色）
+- [x] Swiper 轮播（面板切换 + 指示点）
+- [x] Statistic 统计数值（标题 + 大号数字）
+- [x] Skeleton 骨架屏（加载占位符动画）
+- [x] Watermark 水印（重复文本覆盖）
+- [x] Calendar 日历（完整月历网格）
+- [x] Comment 评论（头像 + 作者 + 内容 + 回复）
+- [x] Descriptions 描述列表（标签-值对列表）
+- [x] Rate 评分（星形评分输入）
+- [x] Guide 引导（分步引导覆盖层、遮罩高亮、步骤卡片）
+- [x] Popconfirm 气泡确认框（锚定确认弹出）
 
-### P2 游戏组件
+### P2 游戏组件 ✅
 
-- [ ] LootWindow 拾取窗口
-- [ ] SkillTree 天赋/技能树
+- [x] LootWindow 拾取窗口（物品列表、稀有度边框、拾取/全部拾取、已拾取标记）
+- [x] SkillTree 天赋/技能树（节点网络、前置依赖连线、解锁/等级、技能点管理）
 
 ## 阶段 6: 生态与打磨（第 45 周+）
 
