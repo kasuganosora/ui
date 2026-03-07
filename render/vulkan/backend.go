@@ -12,8 +12,6 @@ import (
 	"github.com/kasuganosora/ui/render"
 )
 
-const maxFramesInFlight = 2
-
 // Backend implements render.Backend using Vulkan.
 type Backend struct {
 	loader *Loader
@@ -31,12 +29,12 @@ type Backend struct {
 	renderPass RenderPass
 
 	commandPool    CommandPool
-	commandBuffers [maxFramesInFlight]CommandBuffer
+	commandBuffers []CommandBuffer
 
-	// Synchronization
-	imageAvailableSems [maxFramesInFlight]Semaphore
-	renderFinishedSems [maxFramesInFlight]Semaphore
-	inFlightFences     [maxFramesInFlight]Fence
+	// Synchronization (sized per swapchain image)
+	imageAvailableSems []Semaphore
+	renderFinishedSems []Semaphore
+	inFlightFences     []Fence
 	currentFrame       int
 
 	// Pipelines
@@ -54,8 +52,8 @@ type Backend struct {
 	texDescPool      DescriptorPool
 
 	// Dynamic vertex buffer for per-frame data
-	vertexBuffers [maxFramesInFlight]Buffer
-	vertexMemory  [maxFramesInFlight]DeviceMemory
+	vertexBuffers []Buffer
+	vertexMemory  []DeviceMemory
 	vertexSize    uint64
 
 	// State
@@ -192,8 +190,11 @@ func (b *Backend) Init(window platform.Window) error {
 		return err
 	}
 
-	// Create vertex buffers
-	for i := 0; i < maxFramesInFlight; i++ {
+	// Create vertex buffers (one per swapchain image)
+	vbCount := int(b.swapchain.imageCount)
+	b.vertexBuffers = make([]Buffer, vbCount)
+	b.vertexMemory = make([]DeviceMemory, vbCount)
+	for i := 0; i < vbCount; i++ {
 		b.vertexBuffers[i], b.vertexMemory[i], err = b.createBuffer(
 			b.vertexSize,
 			BufferUsageVertexBufferBit,
@@ -402,11 +403,13 @@ func (b *Backend) createCommandResources() error {
 		return fmt.Errorf("vulkan: vkCreateCommandPool failed: %v", Result(r))
 	}
 
+	n := b.swapchain.imageCount
+	b.commandBuffers = make([]CommandBuffer, n)
 	allocInfo := commandBufferAllocateInfo{
 		SType:              StructureTypeCommandBufferAllocateInfo,
 		CommandPool:        b.commandPool,
 		Level:              CommandBufferLevelPrimary,
-		CommandBufferCount: maxFramesInFlight,
+		CommandBufferCount: n,
 	}
 
 	r, _, _ = syscallN(b.loader.vkAllocateCommandBuffers,
@@ -435,13 +438,18 @@ type fenceCreateInfo struct {
 }
 
 func (b *Backend) createSyncObjects() error {
+	n := int(b.swapchain.imageCount)
+	b.imageAvailableSems = make([]Semaphore, n)
+	b.renderFinishedSems = make([]Semaphore, n)
+	b.inFlightFences = make([]Fence, n)
+
 	semInfo := semaphoreCreateInfo{SType: StructureTypeSemaphoreCreateInfo}
 	fenceInfo := fenceCreateInfo{
 		SType: StructureTypeFenceCreateInfo,
 		Flags: FenceCreateSignaledBit,
 	}
 
-	for i := 0; i < maxFramesInFlight; i++ {
+	for i := 0; i < n; i++ {
 		r, _, _ := syscallN(b.loader.vkCreateSemaphore,
 			uintptr(b.device), uintptr(unsafe.Pointer(&semInfo)), 0,
 			uintptr(unsafe.Pointer(&b.imageAvailableSems[i])),
@@ -566,7 +574,7 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 	b.lastImageIndex = imageIndex
 	b.lastFrameValid = true
 
-	b.currentFrame = (b.currentFrame + 1) % maxFramesInFlight
+	b.currentFrame = (b.currentFrame + 1) % len(b.inFlightFences)
 }
 
 
@@ -684,7 +692,7 @@ func (b *Backend) submitEmpty() {
 	b.submitCommandBuffer(cmd, imageIndex)
 	b.lastImageIndex = imageIndex
 	b.lastFrameValid = true
-	b.currentFrame = (b.currentFrame + 1) % maxFramesInFlight
+	b.currentFrame = (b.currentFrame + 1) % len(b.inFlightFences)
 }
 
 // Resize implements render.Backend.
@@ -931,7 +939,7 @@ func (b *Backend) Destroy() {
 	}
 
 	// Destroy vertex buffers
-	for i := 0; i < maxFramesInFlight; i++ {
+	for i := range b.vertexBuffers {
 		b.destroyBuffer(b.vertexBuffers[i], b.vertexMemory[i])
 	}
 
@@ -964,7 +972,7 @@ func (b *Backend) Destroy() {
 	}
 
 	// Destroy sync objects
-	for i := 0; i < maxFramesInFlight; i++ {
+	for i := range b.inFlightFences {
 		syscallN(b.loader.vkDestroySemaphore, uintptr(b.device), uintptr(b.imageAvailableSems[i]), 0)
 		syscallN(b.loader.vkDestroySemaphore, uintptr(b.device), uintptr(b.renderFinishedSems[i]), 0)
 		syscallN(b.loader.vkDestroyFence, uintptr(b.device), uintptr(b.inFlightFences[i]), 0)
