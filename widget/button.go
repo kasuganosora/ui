@@ -1,0 +1,173 @@
+package widget
+
+import (
+	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/event"
+	"github.com/kasuganosora/ui/layout"
+	uimath "github.com/kasuganosora/ui/math"
+	"github.com/kasuganosora/ui/render"
+)
+
+// ButtonVariant controls the button appearance.
+type ButtonVariant uint8
+
+const (
+	ButtonPrimary   ButtonVariant = iota
+	ButtonSecondary
+	ButtonText
+	ButtonLink
+)
+
+// Button is an interactive button widget.
+type Button struct {
+	Base
+	label    string
+	variant  ButtonVariant
+	disabled bool
+	pressed  bool
+
+	onClick func()
+}
+
+// NewButton creates a button with the given label.
+func NewButton(tree *core.Tree, label string, cfg *Config) *Button {
+	if cfg == nil {
+		cfg = DefaultConfig()
+	}
+	b := &Button{
+		Base:    NewBase(tree, core.TypeButton, cfg),
+		label:   label,
+		variant: ButtonPrimary,
+	}
+	b.style.Display = layout.DisplayFlex
+	b.style.AlignItems = layout.AlignCenter
+	b.style.JustifyContent = layout.JustifyCenter
+	b.style.Height = layout.Px(cfg.ButtonHeight)
+	b.style.Padding = layout.EdgeValues{
+		Left:  layout.Px(cfg.SpaceMD),
+		Right: layout.Px(cfg.SpaceMD),
+	}
+	tree.SetProperty(b.id, "text", label)
+
+	b.tree.AddHandler(b.id, event.MouseDown, func(e *event.Event) {
+		if !b.disabled {
+			b.pressed = true
+		}
+	})
+	b.tree.AddHandler(b.id, event.MouseUp, func(e *event.Event) {
+		b.pressed = false
+	})
+	b.tree.AddHandler(b.id, event.MouseClick, func(e *event.Event) {
+		if !b.disabled && b.onClick != nil {
+			b.onClick()
+		}
+	})
+
+	return b
+}
+
+func (b *Button) Label() string          { return b.label }
+func (b *Button) Variant() ButtonVariant  { return b.variant }
+func (b *Button) IsDisabled() bool        { return b.disabled }
+func (b *Button) IsPressed() bool         { return b.pressed }
+
+func (b *Button) SetLabel(label string) {
+	b.label = label
+	b.tree.SetProperty(b.id, "text", label)
+}
+
+func (b *Button) SetVariant(v ButtonVariant) { b.variant = v }
+
+func (b *Button) SetDisabled(d bool) {
+	b.disabled = d
+	b.tree.SetEnabled(b.id, !d)
+}
+
+func (b *Button) OnClick(fn func()) {
+	b.onClick = fn
+}
+
+func (b *Button) bgColor() uimath.Color {
+	cfg := b.config
+	if b.disabled {
+		return cfg.DisabledColor
+	}
+	switch b.variant {
+	case ButtonPrimary:
+		elem := b.Element()
+		if b.pressed {
+			return cfg.ActiveColor
+		}
+		if elem != nil && elem.IsHovered() {
+			return cfg.HoverColor
+		}
+		return cfg.PrimaryColor
+	case ButtonSecondary:
+		return cfg.BgColor
+	case ButtonText, ButtonLink:
+		return uimath.ColorTransparent
+	default:
+		return cfg.PrimaryColor
+	}
+}
+
+func (b *Button) textColor() uimath.Color {
+	cfg := b.config
+	if b.disabled {
+		return cfg.BgColor
+	}
+	switch b.variant {
+	case ButtonPrimary:
+		return uimath.ColorWhite
+	case ButtonSecondary:
+		return cfg.TextColor
+	case ButtonText:
+		return cfg.PrimaryColor
+	case ButtonLink:
+		return cfg.PrimaryColor
+	default:
+		return uimath.ColorWhite
+	}
+}
+
+func (b *Button) Draw(buf *render.CommandBuffer) {
+	bounds := b.Bounds()
+	if bounds.IsEmpty() {
+		return
+	}
+
+	cfg := b.config
+
+	// Background
+	bg := b.bgColor()
+	borderClr := cfg.BorderColor
+	borderW := cfg.BorderWidth
+	if b.variant == ButtonText || b.variant == ButtonLink {
+		borderClr = uimath.ColorTransparent
+		borderW = 0
+	}
+	if b.variant == ButtonPrimary {
+		borderClr = uimath.ColorTransparent
+		borderW = 0
+	}
+
+	buf.DrawRect(render.RectCmd{
+		Bounds:      bounds,
+		FillColor:   bg,
+		BorderColor: borderClr,
+		BorderWidth: borderW,
+		Corners:     uimath.CornersAll(cfg.BorderRadius),
+	}, 0, 1)
+
+	// Label text
+	if b.label != "" {
+		buf.DrawText(render.TextCmd{
+			X:        bounds.X + bounds.Width/2,
+			Y:        bounds.Y + bounds.Height/2,
+			Color:    b.textColor(),
+			FontSize: cfg.FontSize,
+		}, 1, 1)
+	}
+
+	b.DrawChildren(buf)
+}
