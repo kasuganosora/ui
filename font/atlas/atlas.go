@@ -206,7 +206,7 @@ func (a *Atlas) Upload() error {
 			Width:  a.width,
 			Height: a.height,
 			Format: render.TextureFormatR8,
-			Filter: render.TextureFilterNearest,
+			Filter: render.TextureFilterLinear,
 			Data:   a.pixels,
 		})
 		if err != nil {
