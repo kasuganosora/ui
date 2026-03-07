@@ -28,6 +28,10 @@ type layoutNode struct {
 type Result struct {
 	X, Y          float32
 	Width, Height float32
+	// ContentWidth/ContentHeight track the total extent of children.
+	// Non-zero only for overflow:scroll/auto containers.
+	ContentWidth  float32
+	ContentHeight float32
 }
 
 // Bounds returns the result as a Rect.
@@ -50,9 +54,12 @@ func (r Result) ContentBounds(style *Style, parentWidth float32) uimath.Rect {
 // Engine is the layout domain service.
 // It takes a tree of nodes with styles and computes positions/sizes.
 type Engine struct {
-	nodes    []layoutNode
-	roots    []NodeID
-	measurer TextMeasurer
+	nodes      []layoutNode
+	roots      []NodeID
+	measurer   TextMeasurer
+	fixedNodes []int // indices of position:fixed elements, laid out after everything
+	vpWidth    float32
+	vpHeight   float32
 }
 
 // New creates a new layout engine.
@@ -69,6 +76,7 @@ func (e *Engine) SetTextMeasurer(m TextMeasurer) {
 func (e *Engine) Clear() {
 	e.nodes = e.nodes[:0]
 	e.roots = e.roots[:0]
+	e.fixedNodes = e.fixedNodes[:0]
 }
 
 // AddNode adds a node and returns its ID.
@@ -114,6 +122,10 @@ func (e *Engine) AddRoot(id NodeID) {
 
 // Compute performs layout computation for all root nodes.
 func (e *Engine) Compute(viewportWidth, viewportHeight float32) {
+	e.vpWidth = viewportWidth
+	e.vpHeight = viewportHeight
+	e.fixedNodes = e.fixedNodes[:0]
+
 	for _, rootID := range e.roots {
 		root := &e.nodes[rootID]
 
@@ -137,6 +149,11 @@ func (e *Engine) Compute(viewportWidth, viewportHeight float32) {
 		root.result.Height = rootH
 
 		e.layoutNode(int(rootID), rootW, viewportHeight)
+	}
+
+	// Layout fixed elements relative to the viewport
+	for _, nodeIdx := range e.fixedNodes {
+		e.layoutAbsolute(nodeIdx, viewportWidth, viewportHeight)
 	}
 }
 
@@ -168,6 +185,8 @@ func (e *Engine) layoutNode(nodeIdx int, availWidth, availHeight float32) {
 	switch style.Display {
 	case DisplayFlex:
 		e.layoutFlex(nodeIdx, availWidth, availHeight)
+	case DisplayGrid:
+		e.layoutGrid(nodeIdx, availWidth, availHeight)
 	case DisplayBlock:
 		e.layoutBlock(nodeIdx, availWidth, availHeight)
 	default:

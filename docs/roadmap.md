@@ -129,11 +129,14 @@
 
 - [ ] HTML 解析器
 - [ ] CSS 选择器匹配
-- [ ] Grid（CSS Grid）布局算法
+- [x] Grid（CSS Grid）布局算法（template-columns/rows, fr/px/pct/auto, gap, 显式/自动放置, span）
 - [x] Absolute 定位（已在 layout 引擎实现）
 - [x] Relative 定位（流内偏移，不影响兄弟布局）
-- [ ] Fixed 定位
-- [ ] overflow: scroll/auto
+- [x] Flex 容器 auto 高度（Column/Row 按内容自适应尺寸）
+- [x] Flex 子项内容自适应（intrinsic sizing，递归测量子树）
+- [x] Flex Order 属性（稳定排序，保持源码顺序）
+- [x] Fixed 定位（相对视口定位，脱离正常流）
+- [x] overflow: scroll/auto（内容尺寸追踪，OverflowAuto 类型）
 
 ### 组件 P0（输入 + 反馈 + 数据展示）
 

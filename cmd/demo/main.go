@@ -274,15 +274,29 @@ func run() error {
 		w32.OnResize(renderFrame)
 	}
 
+	needsRedraw := true // first frame always renders
+
 	for !win.ShouldClose() {
 		// Poll events
 		events := plat.PollEvents()
+		if len(events) > 0 {
+			needsRedraw = true
+		}
 		for i := range events {
 			handleEvent(tree, dispatcher, &events[i], win)
 		}
 
-		// Render
-		renderFrame()
+		// Check if tree was mutated (layout/paint dirty)
+		if tree.NeedsRender() {
+			needsRedraw = true
+		}
+
+		// Render only when something changed
+		if needsRedraw {
+			renderFrame()
+			tree.ClearAllDirty()
+			needsRedraw = false
+		}
 
 		// FPS counter (console)
 		frameCount++

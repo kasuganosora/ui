@@ -320,9 +320,9 @@ func TestDivDrawScrollable(t *testing.T) {
 
 	buf := render.NewCommandBuffer()
 	d.Draw(buf)
-	// rect + clip
-	if buf.Len() != 2 {
-		t.Errorf("expected 2 commands (rect+clip), got %d", buf.Len())
+	// rect + pushclip + popclip
+	if buf.Len() != 3 {
+		t.Errorf("expected 3 commands (rect+pushclip+popclip), got %d", buf.Len())
 	}
 }
 

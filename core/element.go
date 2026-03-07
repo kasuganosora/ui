@@ -151,6 +151,21 @@ func (t *Tree) Get(id ElementID) *Element {
 	return t.elements[id]
 }
 
+// NeedsRender returns true if the root element is dirty (needs repaint).
+func (t *Tree) NeedsRender() bool {
+	root := t.elements[t.root]
+	return root != nil && root.IsDirty(DirtyPaint|DirtyLayout)
+}
+
+// ClearAllDirty clears all dirty flags on all elements in the tree.
+func (t *Tree) ClearAllDirty() {
+	for _, elem := range t.elements {
+		if elem != nil {
+			elem.dirty = DirtyNone
+		}
+	}
+}
+
 // CreateElement creates a new element and adds it to the tree (unparented).
 func (t *Tree) CreateElement(elemType ElementType) ElementID {
 	elem := NewElement(t.allocID(), elemType)
@@ -339,6 +354,11 @@ func (t *Tree) ClearDirty(id ElementID, flags DirtyFlags) {
 	if elem := t.elements[id]; elem != nil {
 		elem.dirty &^= flags
 	}
+}
+
+// MarkDirty marks an element (and its ancestors) as needing repaint.
+func (t *Tree) MarkDirty(id ElementID) {
+	t.markDirty(id, DirtyPaint)
 }
 
 func (t *Tree) markDirty(id ElementID, flags DirtyFlags) {

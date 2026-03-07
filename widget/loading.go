@@ -48,6 +48,9 @@ func (l *Loading) Draw(buf *render.CommandBuffer) {
 		return
 	}
 
+	// Request continuous redraws for animation
+	l.tree.MarkDirty(l.id)
+
 	cfg := l.config
 	color := cfg.PrimaryColor
 

@@ -8,6 +8,7 @@ const (
 	DisplayFlex                   // Flexbox container
 	DisplayInline                 // Inline flow
 	DisplayNone                   // Hidden, removed from layout
+	DisplayGrid                   // CSS Grid container
 )
 
 // Position determines positioning behavior.
@@ -16,6 +17,7 @@ type Position uint8
 const (
 	PositionRelative Position = iota
 	PositionAbsolute
+	PositionFixed // Positioned relative to viewport root
 )
 
 // FlexDirection determines the main axis direction.
@@ -91,6 +93,7 @@ const (
 	OverflowVisible Overflow = iota
 	OverflowHidden
 	OverflowScroll
+	OverflowAuto // Scroll only when content overflows
 )
 
 // Value represents a CSS dimension value. Value object.
@@ -185,6 +188,22 @@ type Style struct {
 	FlexBasis  Value
 	AlignSelf  AlignSelf
 	Order      int
+
+	// Grid container properties
+	GridTemplateColumns []TrackSize // Column track definitions
+	GridTemplateRows    []TrackSize // Row track definitions
+
+	// Grid item properties
+	GridColumnStart int // 1-based column start line (0 = auto)
+	GridColumnEnd   int // 1-based column end line (0 = auto)
+	GridRowStart    int // 1-based row start line (0 = auto)
+	GridRowEnd      int // 1-based row end line (0 = auto)
+}
+
+// TrackSize defines the size of a grid track (row or column).
+type TrackSize struct {
+	Value Value   // Px or Pct size
+	Fr    float32 // Fractional unit (like flex-grow); 0 means use Value
 }
 
 // DefaultStyle returns the default style (block display, auto sizing).
@@ -233,3 +252,15 @@ func (s *Style) IsRow() bool {
 func (s *Style) IsReverse() bool {
 	return s.FlexDirection == FlexDirectionRowReverse || s.FlexDirection == FlexDirectionColumnReverse
 }
+
+// TrackPx creates a fixed pixel track size.
+func TrackPx(v float32) TrackSize { return TrackSize{Value: Px(v)} }
+
+// TrackPct creates a percentage track size.
+func TrackPct(v float32) TrackSize { return TrackSize{Value: Pct(v)} }
+
+// TrackFr creates a fractional track size (like 1fr, 2fr).
+func TrackFr(v float32) TrackSize { return TrackSize{Fr: v} }
+
+// TrackAuto creates an auto-sized track.
+func TrackAuto() TrackSize { return TrackSize{} }

@@ -986,3 +986,464 @@ func TestEngineReuse(t *testing.T) {
 	e.Compute(200, 200)
 	expectResult(t, e, child2, "second", 0, 0, 200, 50)
 }
+
+// === Flex auto height tests ===
+
+func TestFlexColumnAutoHeight(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:       DisplayFlex,
+		FlexDirection: FlexDirectionColumn,
+		Width:         Px(200),
+		// Height auto (zero value)
+	})
+	a := e.AddNode(Style{FlexBasis: Px(50)})
+	b := e.AddNode(Style{FlexBasis: Px(80)})
+	e.SetChildren(root, []NodeID{a, b})
+	e.AddRoot(root)
+	e.Compute(200, 600)
+
+	r := e.GetResult(root)
+	if !approx(r.Height, 130) {
+		t.Errorf("flex column auto height: expected 130, got %.1f", r.Height)
+	}
+}
+
+func TestFlexColumnAutoHeightWithGap(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:       DisplayFlex,
+		FlexDirection: FlexDirectionColumn,
+		Width:         Px(200),
+		Gap:           10,
+	})
+	a := e.AddNode(Style{FlexBasis: Px(50)})
+	b := e.AddNode(Style{FlexBasis: Px(80)})
+	e.SetChildren(root, []NodeID{a, b})
+	e.AddRoot(root)
+	e.Compute(200, 600)
+
+	r := e.GetResult(root)
+	// 50 + 80 + 10 gap = 140
+	if !approx(r.Height, 140) {
+		t.Errorf("flex column auto height with gap: expected 140, got %.1f", r.Height)
+	}
+}
+
+func TestFlexColumnAutoHeightWithPadding(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:       DisplayFlex,
+		FlexDirection: FlexDirectionColumn,
+		Width:         Px(200),
+		Padding:       EdgeValues{Top: Px(10), Bottom: Px(10)},
+	})
+	a := e.AddNode(Style{FlexBasis: Px(50)})
+	e.SetChildren(root, []NodeID{a})
+	e.AddRoot(root)
+	e.Compute(200, 600)
+
+	r := e.GetResult(root)
+	// 50 + 10 top + 10 bottom = 70
+	if !approx(r.Height, 70) {
+		t.Errorf("flex column auto height with padding: expected 70, got %.1f", r.Height)
+	}
+}
+
+func TestFlexRowAutoHeight(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:       DisplayFlex,
+		FlexDirection: FlexDirectionRow,
+		Width:         Px(300),
+	})
+	a := e.AddNode(Style{FlexBasis: Px(100), Height: Px(60)})
+	b := e.AddNode(Style{FlexBasis: Px(100), Height: Px(40)})
+	e.SetChildren(root, []NodeID{a, b})
+	e.AddRoot(root)
+	e.Compute(300, 600)
+
+	r := e.GetResult(root)
+	// Auto height = max cross (60)
+	if !approx(r.Height, 60) {
+		t.Errorf("flex row auto height: expected 60, got %.1f", r.Height)
+	}
+}
+
+// === Flex Order tests ===
+
+func TestFlexOrder(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:       DisplayFlex,
+		FlexDirection: FlexDirectionRow,
+		Width:         Px(300),
+		Height:        Px(100),
+	})
+	a := e.AddNode(Style{FlexBasis: Px(100), Order: 2})
+	b := e.AddNode(Style{FlexBasis: Px(100), Order: 1})
+	c := e.AddNode(Style{FlexBasis: Px(100), Order: 0})
+	e.SetChildren(root, []NodeID{a, b, c})
+	e.AddRoot(root)
+	e.Compute(300, 100)
+
+	// c (order 0) first, then b (order 1), then a (order 2)
+	rc := e.GetResult(c)
+	rb := e.GetResult(b)
+	ra := e.GetResult(a)
+	if !approx(rc.X, 0) {
+		t.Errorf("c (order 0) should be at X=0, got %.1f", rc.X)
+	}
+	if !approx(rb.X, 100) {
+		t.Errorf("b (order 1) should be at X=100, got %.1f", rb.X)
+	}
+	if !approx(ra.X, 200) {
+		t.Errorf("a (order 2) should be at X=200, got %.1f", ra.X)
+	}
+}
+
+func TestFlexOrderStableSort(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:       DisplayFlex,
+		FlexDirection: FlexDirectionRow,
+		Width:         Px(300),
+		Height:        Px(100),
+	})
+	// All same order: should preserve source order
+	a := e.AddNode(Style{FlexBasis: Px(100)})
+	b := e.AddNode(Style{FlexBasis: Px(100)})
+	c := e.AddNode(Style{FlexBasis: Px(100)})
+	e.SetChildren(root, []NodeID{a, b, c})
+	e.AddRoot(root)
+	e.Compute(300, 100)
+
+	expectResult(t, e, a, "a", 0, 0, 100, 100)
+	expectResult(t, e, b, "b", 100, 0, 100, 100)
+	expectResult(t, e, c, "c", 200, 0, 100, 100)
+}
+
+// === Intrinsic sizing tests ===
+
+func TestFlexIntrinsicSizingNestedColumn(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:       DisplayFlex,
+		FlexDirection: FlexDirectionRow,
+		Width:         Px(400),
+		Height:        Px(300),
+	})
+	// Child is a column flex with no explicit width; contains children with explicit heights
+	col := e.AddNode(Style{
+		Display:       DisplayFlex,
+		FlexDirection: FlexDirectionColumn,
+	})
+	c1 := e.AddNode(Style{Height: Px(40), Width: Px(80)})
+	c2 := e.AddNode(Style{Height: Px(60), Width: Px(120)})
+	e.SetChildren(col, []NodeID{c1, c2})
+
+	filler := e.AddNode(Style{FlexGrow: 1})
+	e.SetChildren(root, []NodeID{col, filler})
+	e.AddRoot(root)
+	e.Compute(400, 300)
+
+	// col should have intrinsic width = max child width = 120
+	rc := e.GetResult(col)
+	if !approx(rc.Width, 120) {
+		t.Errorf("intrinsic column width: expected 120, got %.1f", rc.Width)
+	}
+}
+
+// === Fixed positioning tests ===
+
+func TestFixedPosition(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{Display: DisplayBlock, Width: Px(800), Height: Px(600)})
+	// A fixed element inside a deeply nested structure
+	container := e.AddNode(Style{
+		Display: DisplayBlock, Width: Px(400), Height: Px(300),
+		Padding: EdgeValues{Left: Px(50), Top: Px(50)},
+	})
+	fixed := e.AddNode(Style{
+		Display:  DisplayBlock,
+		Position: PositionFixed,
+		Left:     Px(10), Top: Px(20),
+		Width: Px(100), Height: Px(50),
+	})
+	normal := e.AddNode(Style{Display: DisplayBlock, Height: Px(80)})
+	e.SetChildren(container, []NodeID{fixed, normal})
+	e.SetChildren(root, []NodeID{container})
+	e.AddRoot(root)
+	e.Compute(800, 600)
+
+	// Fixed element: positioned relative to viewport (800x600), not parent
+	expectResult(t, e, fixed, "fixed", 10, 20, 100, 50)
+	// Normal element should flow at container content start (50, 50), not after fixed
+	// Container width=400, padding left=50 only, so content width = 350
+	expectResult(t, e, normal, "normal after fixed", 50, 50, 350, 80)
+}
+
+func TestFixedPositionInFlex(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display: DisplayFlex, FlexDirection: FlexDirectionRow,
+		Width: Px(600), Height: Px(400),
+	})
+	a := e.AddNode(Style{FlexBasis: Px(200)})
+	fixed := e.AddNode(Style{
+		Position: PositionFixed,
+		Left: Px(0), Top: Px(0),
+		Width: Px(600), Height: Px(40),
+	})
+	b := e.AddNode(Style{FlexBasis: Px(200)})
+	e.SetChildren(root, []NodeID{a, fixed, b})
+	e.AddRoot(root)
+	e.Compute(600, 400)
+
+	// Fixed element relative to viewport
+	expectResult(t, e, fixed, "fixed in flex", 0, 0, 600, 40)
+	// a and b should be laid out as if fixed doesn't exist
+	expectResult(t, e, a, "a", 0, 0, 200, 400)
+	expectResult(t, e, b, "b", 200, 0, 200, 400)
+}
+
+// === Overflow content tracking tests ===
+
+func TestOverflowScrollContentSize(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:       DisplayFlex,
+		FlexDirection: FlexDirectionColumn,
+		Width:         Px(200),
+		Height:        Px(100),
+		Overflow:      OverflowScroll,
+	})
+	a := e.AddNode(Style{FlexBasis: Px(80)})
+	b := e.AddNode(Style{FlexBasis: Px(80)})
+	e.SetChildren(root, []NodeID{a, b})
+	e.AddRoot(root)
+	e.Compute(200, 100)
+
+	r := e.GetResult(root)
+	// Content height = 80 + 80 = 160 (overflows the 100px container)
+	if !approx(r.ContentHeight, 160) {
+		t.Errorf("overflow content height: expected 160, got %.1f", r.ContentHeight)
+	}
+}
+
+func TestOverflowAutoBlockContentSize(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:  DisplayBlock,
+		Width:    Px(200),
+		Height:   Px(100),
+		Overflow: OverflowAuto,
+	})
+	a := e.AddNode(Style{Display: DisplayBlock, Height: Px(60)})
+	b := e.AddNode(Style{Display: DisplayBlock, Height: Px(80)})
+	e.SetChildren(root, []NodeID{a, b})
+	e.AddRoot(root)
+	e.Compute(200, 100)
+
+	r := e.GetResult(root)
+	// Content height = 60 + 80 = 140
+	if !approx(r.ContentHeight, 140) {
+		t.Errorf("overflow auto block content height: expected 140, got %.1f", r.ContentHeight)
+	}
+}
+
+// === CSS Grid layout tests ===
+
+func TestGridBasic2x2(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:             DisplayGrid,
+		Width:               Px(200),
+		Height:              Px(200),
+		GridTemplateColumns: []TrackSize{TrackPx(100), TrackPx(100)},
+		GridTemplateRows:    []TrackSize{TrackPx(100), TrackPx(100)},
+	})
+	a := e.AddNode(Style{})
+	b := e.AddNode(Style{})
+	c := e.AddNode(Style{})
+	d := e.AddNode(Style{})
+	e.SetChildren(root, []NodeID{a, b, c, d})
+	e.AddRoot(root)
+	e.Compute(200, 200)
+
+	expectResult(t, e, a, "a", 0, 0, 100, 100)
+	expectResult(t, e, b, "b", 100, 0, 100, 100)
+	expectResult(t, e, c, "c", 0, 100, 100, 100)
+	expectResult(t, e, d, "d", 100, 100, 100, 100)
+}
+
+func TestGridWithGap(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:             DisplayGrid,
+		Width:               Px(210),
+		Height:              Px(210),
+		GridTemplateColumns: []TrackSize{TrackPx(100), TrackPx(100)},
+		GridTemplateRows:    []TrackSize{TrackPx(100), TrackPx(100)},
+		Gap:                 10,
+	})
+	a := e.AddNode(Style{})
+	b := e.AddNode(Style{})
+	c := e.AddNode(Style{})
+	d := e.AddNode(Style{})
+	e.SetChildren(root, []NodeID{a, b, c, d})
+	e.AddRoot(root)
+	e.Compute(210, 210)
+
+	expectResult(t, e, a, "a", 0, 0, 100, 100)
+	expectResult(t, e, b, "b", 110, 0, 100, 100)
+	expectResult(t, e, c, "c", 0, 110, 100, 100)
+	expectResult(t, e, d, "d", 110, 110, 100, 100)
+}
+
+func TestGridFrUnits(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:             DisplayGrid,
+		Width:               Px(300),
+		Height:              Px(100),
+		GridTemplateColumns: []TrackSize{TrackFr(1), TrackFr(2)},
+		GridTemplateRows:    []TrackSize{TrackPx(100)},
+	})
+	a := e.AddNode(Style{})
+	b := e.AddNode(Style{})
+	e.SetChildren(root, []NodeID{a, b})
+	e.AddRoot(root)
+	e.Compute(300, 100)
+
+	// 1fr = 100, 2fr = 200
+	expectResult(t, e, a, "a", 0, 0, 100, 100)
+	expectResult(t, e, b, "b", 100, 0, 200, 100)
+}
+
+func TestGridFrWithFixedColumn(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:             DisplayGrid,
+		Width:               Px(400),
+		Height:              Px(100),
+		GridTemplateColumns: []TrackSize{TrackPx(100), TrackFr(1), TrackFr(1)},
+		GridTemplateRows:    []TrackSize{TrackPx(100)},
+	})
+	a := e.AddNode(Style{})
+	b := e.AddNode(Style{})
+	c := e.AddNode(Style{})
+	e.SetChildren(root, []NodeID{a, b, c})
+	e.AddRoot(root)
+	e.Compute(400, 100)
+
+	// Remaining = 400 - 100 = 300, each fr = 150
+	expectResult(t, e, a, "a", 0, 0, 100, 100)
+	expectResult(t, e, b, "b", 100, 0, 150, 100)
+	expectResult(t, e, c, "c", 250, 0, 150, 100)
+}
+
+func TestGridExplicitPlacement(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:             DisplayGrid,
+		Width:               Px(300),
+		Height:              Px(200),
+		GridTemplateColumns: []TrackSize{TrackPx(100), TrackPx(100), TrackPx(100)},
+		GridTemplateRows:    []TrackSize{TrackPx(100), TrackPx(100)},
+	})
+	// Place item at column 3, row 1 (1-based)
+	a := e.AddNode(Style{GridColumnStart: 3, GridRowStart: 1})
+	// Auto-placed item fills first available cell
+	b := e.AddNode(Style{})
+	e.SetChildren(root, []NodeID{a, b})
+	e.AddRoot(root)
+	e.Compute(300, 200)
+
+	expectResult(t, e, a, "a at col3,row1", 200, 0, 100, 100)
+	expectResult(t, e, b, "b auto", 0, 0, 100, 100)
+}
+
+func TestGridColumnSpan(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:             DisplayGrid,
+		Width:               Px(300),
+		Height:              Px(200),
+		GridTemplateColumns: []TrackSize{TrackPx(100), TrackPx(100), TrackPx(100)},
+		GridTemplateRows:    []TrackSize{TrackPx(100), TrackPx(100)},
+	})
+	// Spans 2 columns
+	a := e.AddNode(Style{GridColumnStart: 1, GridColumnEnd: 3, GridRowStart: 1})
+	b := e.AddNode(Style{})
+	e.SetChildren(root, []NodeID{a, b})
+	e.AddRoot(root)
+	e.Compute(300, 200)
+
+	// a spans col 1-2 (0-based: 0,1), width = 100 + 100 = 200
+	expectResult(t, e, a, "a spanning", 0, 0, 200, 100)
+	// b auto-placed at first available: col 2 row 0
+	expectResult(t, e, b, "b auto", 200, 0, 100, 100)
+}
+
+func TestGridAutoHeight(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:             DisplayGrid,
+		Width:               Px(200),
+		GridTemplateColumns: []TrackSize{TrackPx(100), TrackPx(100)},
+		GridTemplateRows:    []TrackSize{TrackPx(50), TrackPx(80)},
+		Gap:                 10,
+	})
+	a := e.AddNode(Style{})
+	b := e.AddNode(Style{})
+	c := e.AddNode(Style{})
+	e.SetChildren(root, []NodeID{a, b, c})
+	e.AddRoot(root)
+	e.Compute(200, 600)
+
+	r := e.GetResult(root)
+	// Auto height = 50 + 10 gap + 80 = 140
+	if !approx(r.Height, 140) {
+		t.Errorf("grid auto height: expected 140, got %.1f", r.Height)
+	}
+}
+
+func TestGridPercentColumns(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:             DisplayGrid,
+		Width:               Px(400),
+		Height:              Px(100),
+		GridTemplateColumns: []TrackSize{TrackPct(25), TrackPct(75)},
+		GridTemplateRows:    []TrackSize{TrackPx(100)},
+	})
+	a := e.AddNode(Style{})
+	b := e.AddNode(Style{})
+	e.SetChildren(root, []NodeID{a, b})
+	e.AddRoot(root)
+	e.Compute(400, 100)
+
+	expectResult(t, e, a, "a 25%", 0, 0, 100, 100)
+	expectResult(t, e, b, "b 75%", 100, 0, 300, 100)
+}
+
+func TestGridWithPadding(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display:             DisplayGrid,
+		Width:               Px(220),
+		Height:              Px(120),
+		GridTemplateColumns: []TrackSize{TrackPx(100), TrackPx(100)},
+		GridTemplateRows:    []TrackSize{TrackPx(100)},
+		Padding:             EdgeValues{Top: Px(10), Left: Px(10)},
+	})
+	a := e.AddNode(Style{})
+	b := e.AddNode(Style{})
+	e.SetChildren(root, []NodeID{a, b})
+	e.AddRoot(root)
+	e.Compute(220, 120)
+
+	expectResult(t, e, a, "a", 10, 10, 100, 100)
+	expectResult(t, e, b, "b", 110, 10, 100, 100)
+}

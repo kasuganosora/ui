@@ -1,5 +1,7 @@
 package layout
 
+import "sort"
+
 // flexLine represents a single line of flex items (when wrapping).
 type flexLine struct {
 	items       []int   // indices into children slice
@@ -43,9 +45,15 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 	isRow := style.IsRow()
 	mainSize := containerW
 	crossSize := containerH
+	mainAuto := false // true when main axis dimension is auto (content-sized)
 	if !isRow {
 		mainSize = containerH
 		crossSize = containerW
+	}
+	if isRow && style.Width.IsAuto() && node.result.Width == 0 {
+		mainAuto = true
+	} else if !isRow && style.Height.IsAuto() && node.result.Height == 0 {
+		mainAuto = true
 	}
 
 	gap := style.MainGap()
@@ -65,7 +73,18 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 			absoluteChildren = append(absoluteChildren, childIdx)
 			continue
 		}
+		if cs.Position == PositionFixed {
+			e.fixedNodes = append(e.fixedNodes, childIdx)
+			continue
+		}
 		children = append(children, childIdx)
+	}
+
+	// Sort by Order property (stable to preserve source order for equal values)
+	if len(children) > 1 {
+		sort.SliceStable(children, func(i, j int) bool {
+			return e.nodes[children[i]].style.Order < e.nodes[children[j]].style.Order
+		})
 	}
 
 	if len(children) == 0 {
@@ -105,17 +124,26 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 		}
 
 		if basis == 0 && cs.FlexBasis.IsAuto() {
-			// Content-based sizing: use intrinsic size
-			basis = childBoxMain
+			// Content-based sizing: measure children to determine intrinsic size
+			intrinsic := e.measureIntrinsicMain(childIdx, isRow, containerW, containerH)
+			if intrinsic > childBoxMain {
+				basis = intrinsic
+			} else {
+				basis = childBoxMain
+			}
 		}
 
 		// Min/max main
 		var minMain, maxMain float32
+		defaultMax := mainSize
+		if mainAuto {
+			defaultMax = 1e6 // unconstrained when auto-sized
+		}
 		if isRow {
 			if v, ok := cs.MinWidth.Resolve(mainSize); ok {
 				minMain = v
 			}
-			maxMain = mainSize
+			maxMain = defaultMax
 			if v, ok := cs.MaxWidth.Resolve(mainSize); ok {
 				maxMain = v
 			}
@@ -123,7 +151,7 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 			if v, ok := cs.MinHeight.Resolve(mainSize); ok {
 				minMain = v
 			}
-			maxMain = mainSize
+			maxMain = defaultMax
 			if v, ok := cs.MaxHeight.Resolve(mainSize); ok {
 				maxMain = v
 			}
@@ -152,7 +180,12 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 		totalGaps := gap * float32(len(line.items)-1)
 		freeSpace := mainSize - line.mainSize - totalGaps
 
-		if freeSpace > 0 && line.totalGrow > 0 {
+		// When main axis is auto-sized, skip grow/shrink — items keep hypothetical sizes
+		if mainAuto {
+			for _, idx := range line.items {
+				items[idx].finalMain = items[idx].hypotheticalMain
+			}
+		} else if freeSpace > 0 && line.totalGrow > 0 {
 			// Grow
 			for _, idx := range line.items {
 				cs := &e.nodes[children[idx]].style
@@ -346,6 +379,81 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 		crossPos += line.crossSize + crossGap + crossSpacing
 	}
 
+	// If container size is auto, size to content
+	if style.Height.IsAuto() && node.result.Height == 0 {
+		if isRow {
+			// Row: auto height = total cross size of lines + cross gaps + vertical padding/border
+			totalCross := float32(0)
+			for i, line := range lines {
+				totalCross += line.crossSize
+				if i > 0 {
+					totalCross += crossGap
+				}
+			}
+			node.result.Height = totalCross + innerOffsetV
+		} else {
+			// Column: auto height = total main sizes + main gaps + vertical padding/border
+			totalMain := float32(0)
+			for _, line := range lines {
+				for _, idx := range line.items {
+					totalMain += items[idx].finalMain
+				}
+			}
+			totalMain += gap * float32(len(children)-1)
+			node.result.Height = totalMain + innerOffsetV
+		}
+		node.result.Height = constrainSize(node.result.Height, availHeight, style.MinHeight, style.MaxHeight)
+	}
+	if style.Width.IsAuto() && node.result.Width == 0 {
+		if !isRow {
+			// Column: auto width = max cross size of lines + horizontal padding/border
+			totalCross := float32(0)
+			for _, line := range lines {
+				if line.crossSize > totalCross {
+					totalCross = line.crossSize
+				}
+			}
+			node.result.Width = totalCross + innerOffsetH
+		} else {
+			// Row: auto width = total main sizes + main gaps + horizontal padding/border
+			totalMain := float32(0)
+			for _, line := range lines {
+				for _, idx := range line.items {
+					totalMain += items[idx].finalMain
+				}
+			}
+			totalMain += gap * float32(len(children)-1)
+			node.result.Width = totalMain + innerOffsetH
+		}
+		node.result.Width = constrainSize(node.result.Width, availWidth, style.MinWidth, style.MaxWidth)
+	}
+
+	// Track content extent for scrollable containers
+	if style.Overflow == OverflowScroll || style.Overflow == OverflowAuto {
+		// Compute total content extent from final item sizes
+		contentMain := float32(0)
+		contentCross := float32(0)
+		for _, line := range lines {
+			lineMain := float32(0)
+			for _, idx := range line.items {
+				lineMain += items[idx].finalMain
+			}
+			lineMain += gap * float32(len(line.items)-1)
+			if lineMain > contentMain {
+				contentMain = lineMain
+			}
+			contentCross += line.crossSize
+		}
+		contentCross += crossGap * float32(len(lines)-1)
+		if isRow {
+			node.result.ContentWidth = contentMain
+			node.result.ContentHeight = contentCross
+		} else {
+			node.result.ContentWidth = contentCross
+			node.result.ContentHeight = contentMain
+		}
+	}
+
 	// Layout absolute children relative to this container
 	for _, childIdx := range absoluteChildren {
 		e.layoutAbsolute(childIdx, node.result.Width, node.result.Height)
@@ -433,4 +541,120 @@ func (e *Engine) justifyMainAxis(justify JustifyContent, line flexLine, items []
 		return 0, 0
 	}
 	return 0, 0
+}
+
+// measureIntrinsicMain measures the intrinsic main-axis size of a node by
+// doing a preliminary layout of its children. This is used when a flex item
+// has auto basis and no explicit size.
+func (e *Engine) measureIntrinsicMain(nodeIdx int, parentIsRow bool, availW, availH float32) float32 {
+	node := &e.nodes[nodeIdx]
+	cs := &node.style
+
+	children := node.children
+	if len(children) == 0 {
+		// Leaf node: check for text content
+		if node.text != "" && e.measurer != nil {
+			w, h := e.measurer.MeasureText(node.text, 0, 14, availW)
+			if parentIsRow {
+				return w
+			}
+			return h
+		}
+		return 0
+	}
+
+	cPadH, cPadV := resolveEdgesTotal(cs.Padding, availW)
+	cBdrH, cBdrV := resolveEdgesTotal(cs.Border, availW)
+	boxH := cPadH + cBdrH
+	boxV := cPadV + cBdrV
+
+	childIsRow := cs.IsRow()
+	gap := cs.MainGap()
+
+	total := float32(0)
+	maxCross := float32(0)
+
+	for _, cid := range children {
+		child := &e.nodes[int(cid)]
+		if child.style.Display == DisplayNone {
+			continue
+		}
+
+		var childMain float32
+		if childIsRow {
+			if !child.style.Width.IsAuto() {
+				childMain, _ = child.style.Width.Resolve(availW)
+			} else if !child.style.FlexBasis.IsAuto() {
+				childMain, _ = child.style.FlexBasis.Resolve(availW)
+			} else {
+				childMain = e.measureIntrinsicMain(int(cid), true, availW, availH)
+			}
+		} else {
+			if !child.style.Height.IsAuto() {
+				childMain, _ = child.style.Height.Resolve(availH)
+			} else if !child.style.FlexBasis.IsAuto() {
+				childMain, _ = child.style.FlexBasis.Resolve(availH)
+			} else {
+				childMain = e.measureIntrinsicMain(int(cid), false, availW, availH)
+			}
+		}
+
+		if total > 0 {
+			total += gap
+		}
+		total += childMain
+
+		if childMain > maxCross {
+			maxCross = childMain
+		}
+	}
+
+	// For the parent's main axis: if this node's children flow along
+	// the same axis as parent, sum them; otherwise use max cross.
+	if parentIsRow {
+		if childIsRow {
+			return total + boxH
+		}
+		// This node is column, parent is row: width = max child width
+		// We need cross-axis measurement
+		maxW := float32(0)
+		for _, cid := range children {
+			child := &e.nodes[int(cid)]
+			if child.style.Display == DisplayNone {
+				continue
+			}
+			var w float32
+			if !child.style.Width.IsAuto() {
+				w, _ = child.style.Width.Resolve(availW)
+			} else {
+				w = e.measureIntrinsicMain(int(cid), true, availW, availH)
+			}
+			if w > maxW {
+				maxW = w
+			}
+		}
+		return maxW + boxH
+	}
+	// parentIsRow == false (parent is column)
+	if !childIsRow {
+		return total + boxV
+	}
+	// This node is row, parent is column: height = max child height
+	maxH := float32(0)
+	for _, cid := range children {
+		child := &e.nodes[int(cid)]
+		if child.style.Display == DisplayNone {
+			continue
+		}
+		var h float32
+		if !child.style.Height.IsAuto() {
+			h, _ = child.style.Height.Resolve(availH)
+		} else {
+			h = e.measureIntrinsicMain(int(cid), false, availW, availH)
+		}
+		if h > maxH {
+			maxH = h
+		}
+	}
+	return maxH + boxV
 }

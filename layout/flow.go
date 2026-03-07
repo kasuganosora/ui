@@ -39,6 +39,11 @@ func (e *Engine) layoutBlock(nodeIdx int, availWidth, availHeight float32) {
 			absoluteChildren = append(absoluteChildren, childIdx)
 			continue
 		}
+		// Fixed children are positioned relative to viewport
+		if cs.Position == PositionFixed {
+			e.fixedNodes = append(e.fixedNodes, childIdx)
+			continue
+		}
 
 		// Resolve child margins
 		mTop, _, mBottom, mLeft := resolveEdges(cs.Margin, contentW)
@@ -84,6 +89,12 @@ func (e *Engine) layoutBlock(nodeIdx int, availWidth, availHeight float32) {
 		autoHeight := cursorY + padBottom + bdrBottom
 		autoHeight = constrainSize(autoHeight, availHeight, style.MinHeight, style.MaxHeight)
 		node.result.Height = autoHeight
+	}
+
+	// Track content extent for scrollable containers
+	if style.Overflow == OverflowScroll || style.Overflow == OverflowAuto {
+		node.result.ContentHeight = cursorY - contentY // total children height
+		node.result.ContentWidth = contentW
 	}
 
 	// Layout absolute children relative to this container

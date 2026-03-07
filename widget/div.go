@@ -74,4 +74,8 @@ func (d *Div) Draw(buf *render.CommandBuffer) {
 	}
 
 	d.DrawChildren(buf)
+
+	if d.scrollable {
+		buf.PopClip()
+	}
 }
