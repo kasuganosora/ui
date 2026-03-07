@@ -31,6 +31,7 @@
 - [x] 纹理系统（CreateTexture/UpdateTexture GPU 资源、staging buffer、布局转换）
 - [x] 描述符集基础设施（布局、池、分配、combined image sampler）
 - [x] 裁剪（Scissor）— CmdClip 支持
+- [x] 渲染命令稳定排序（sort.SliceStable，修复光标闪烁导致 UI 元素消失）
 
 ### 截图与验收测试基础设施 ✅
 
@@ -58,13 +59,15 @@
 - [x] 中文分词引擎（结巴算法，DAG + DP，纯 Go 零依赖）
 - [x] 分词感知换行与截断（词边界断行、字/词级截断 + 省略号）
 - [x] TextRenderer 集成层（shaper → atlas → render 命令桥接）
+- [x] DPI 感知字体渲染（pt→px 按 DPI 缩放，基础设施层处理）
+- [x] 字形图集双线性过滤（消除文本锯齿，匹配 Windows 原生质量）
 - [x] 单元测试覆盖率 90%+（font 95.1%, atlas 96.5%, segment 98.3%, textrender 91.2%, freetype 92.2%）
 
 ### 核心 ✅
 
 - [x] 元素树（创建、挂载、卸载、递归销毁）
 - [x] 事件分发（冒泡/捕获）— W3C 三阶段模型（capture → target → bubble）
-- [x] 焦点管理（SetFocused）
+- [x] 焦点管理（SetFocused，自动互斥——同一时刻仅一个元素获焦）
 - [x] 脏标记与增量更新（DirtyLayout / DirtyPaint / DirtyStyle）
 - [x] 命中测试（HitTest 深度优先）
 
@@ -82,9 +85,9 @@
 ### 组件 P0（基础 + 布局 + 核心输入） ✅
 
 - [x] Text 文本
-- [x] Button 按钮（Primary/Secondary/Text/Link 四种变体，hover/press/disabled 状态）
+- [x] Button 按钮（Primary/Secondary/Text/Link 四种变体，hover/press/disabled 状态，全变体视觉反馈）
 - [x] Icon 图标（纹理 + 着色）
-- [x] Input 输入框（键盘输入、光标移动、删除、placeholder、焦点、禁用）
+- [x] Input 输入框（键盘输入、光标闪烁、删除、placeholder、焦点、禁用、文本选择、剪贴板、右键菜单、IME 定位）
 - [x] Div / ScrollView 容器（背景、边框、圆角、裁剪滚动）
 - [x] Grid 栅格（Row + Col，24 列系统，gutter/offset）
 - [x] Layout 布局（Header/Content/Footer/Aside）
@@ -110,7 +113,8 @@
 
 ### 平台
 
-- [x] Windows IME 基础支持（IMM32 组合/候选）
+- [x] Windows IME 完善支持（IMM32 组合/候选、CFS_EXCLUDE 精准定位、WM_IME_STARTCOMPOSITION 时机）
+- [x] Windows 原生右键菜单（TrackPopupMenu、ClientToScreen）
 - [ ] Windows IME 完整支持（TSF）
 - [ ] Linux 平台层（X11）
 - [ ] Linux 输入和基础 IME
