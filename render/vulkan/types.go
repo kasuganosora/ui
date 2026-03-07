@@ -257,7 +257,7 @@ type ShaderStageFlags uint32
 
 const (
 	ShaderStageVertexBit   ShaderStageFlags = 0x00000001
-	ShaderStageFragmentBit ShaderStageFlags = 0x00000002
+	ShaderStageFragmentBit ShaderStageFlags = 0x00000010
 )
 
 // Vertex input rate

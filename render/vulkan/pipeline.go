@@ -343,7 +343,6 @@ func (b *Backend) createRectPipeline() error {
 	if Result(r) != Success {
 		return fmt.Errorf("vulkan: vkCreatePipelineLayout failed: %v", Result(r))
 	}
-
 	// Graphics pipeline
 	pipelineInfo := graphicsPipelineCreateInfo{
 		SType:               StructureTypeGraphicsPipelineCreateInfo,
