@@ -97,6 +97,7 @@ func (e *Element) IsEnabled() bool       { return e.enabled }
 func (e *Element) IsFocused() bool       { return e.focused }
 func (e *Element) IsHovered() bool       { return e.hovered }
 func (e *Element) IsDirty(flags DirtyFlags) bool { return e.dirty&flags != 0 }
+func (e *Element) HasHandler(t event.Type) bool { return len(e.handlers[t]) > 0 }
 
 func (e *Element) Property(key string) (any, bool) {
 	v, ok := e.properties[key]
@@ -290,6 +291,16 @@ func (t *Tree) SetFocused(id ElementID, focused bool) {
 	if elem := t.elements[id]; elem != nil {
 		elem.focused = focused
 		t.markDirty(id, DirtyPaint)
+	}
+}
+
+// ClearFocus removes focus from all elements.
+func (t *Tree) ClearFocus() {
+	for eid, elem := range t.elements {
+		if elem != nil && elem.focused {
+			elem.focused = false
+			t.markDirty(eid, DirtyPaint)
+		}
 	}
 }
 

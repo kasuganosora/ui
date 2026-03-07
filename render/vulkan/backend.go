@@ -635,6 +635,14 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 	commands := buf.Commands()
 	b.renderAllCommands(cmd, commands)
 
+	// Render overlays (dropdowns, tooltips) after all normal commands.
+	// Reset scissor to full viewport so overlays are not clipped.
+	overlays := buf.Overlays()
+	if len(overlays) > 0 {
+		syscallN(b.loader.vkCmdSetScissor, uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&scissor)))
+		b.renderAllCommands(cmd, overlays)
+	}
+
 	// Unmap vertex buffer
 	b.unmapVertexBuffer()
 

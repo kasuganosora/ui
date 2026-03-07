@@ -114,19 +114,30 @@ func (c *Checkbox) Draw(buf *render.CommandBuffer) {
 		if c.disabled {
 			checkColor = cfg.DisabledColor
 		}
-		// Draw a simple checkmark as two small rectangles (L shape)
-		cx := boxRect.X + 4
-		cy := boxRect.Y + checkboxBoxSize/2
-		// Horizontal bar
-		buf.DrawRect(render.RectCmd{
-			Bounds:    uimath.NewRect(cx, cy, 8, 2),
-			FillColor: checkColor,
-		}, 1, 1)
-		// Vertical bar (short left part)
-		buf.DrawRect(render.RectCmd{
-			Bounds:    uimath.NewRect(cx, cy-3, 2, 5),
-			FillColor: checkColor,
-		}, 1, 1)
+		// Draw a ✓ shape using small rectangles along two line segments:
+		// Stroke 1: top-left down to bottom-center (short leg)
+		// Stroke 2: bottom-center up to top-right (long leg)
+		ox := boxRect.X + 3
+		oy := boxRect.Y + 3
+		const pw = float32(2) // pen width
+		// Points relative to box interior (10x10 area):
+		// P0=(1,5) → P1=(3.5,8) → P2=(9,2)
+		// Short leg: (1,5) → (3.5,8) — 3 steps
+		steps := [][2]float32{{1, 5}, {2, 6.5}, {3, 7.5}, {3.5, 8}}
+		for _, p := range steps {
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(ox+p[0], oy+p[1], pw, pw),
+				FillColor: checkColor,
+			}, 1, 1)
+		}
+		// Long leg: (3.5,8) → (9,2) — 6 steps
+		steps = [][2]float32{{4.5, 7}, {5.5, 6}, {6.5, 5}, {7.5, 4}, {8.5, 3}, {9, 2}}
+		for _, p := range steps {
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(ox+p[0], oy+p[1], pw, pw),
+				FillColor: checkColor,
+			}, 1, 1)
+		}
 	}
 
 	// Draw label

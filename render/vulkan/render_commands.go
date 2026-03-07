@@ -88,10 +88,28 @@ func (b *Backend) renderSingleRect(cmd CommandBuffer, c render.Command) {
 	logW := float32(b.width) / b.dpiScale
 	logH := float32(b.height) / b.dpiScale
 
-	ndcX := (x / logW) * 2 - 1
-	ndcY := (y / logH) * 2 - 1
-	ndcW := (w / logW) * 2
-	ndcH := (h / logH) * 2
+	// Expand the quad by a small padding so the SDF anti-aliasing band
+	// has room beyond the shape boundary. Without this, pill shapes and
+	// large corner radii get their outer edge clipped at the quad border.
+	pad := float32(1.0) // 1 logical pixel
+	qx := x - pad
+	qy := y - pad
+	qw := w + pad*2
+	qh := h + pad*2
+
+	ndcX := (qx / logW) * 2 - 1
+	ndcY := (qy / logH) * 2 - 1
+	ndcW := (qw / logW) * 2
+	ndcH := (qh / logH) * 2
+
+	// UV maps from slightly outside [0,1] so the SDF center stays correct.
+	// Original rect maps to UV [pad/qw, 1-pad/qw] x [pad/qh, 1-pad/qh].
+	// We remap so the shader's (fragUV - 0.5) * rectSize still works:
+	// UV corners become -pad/w .. 1+pad/w (in terms of the original rect).
+	uvL := -pad / w
+	uvT := -pad / h
+	uvR := 1.0 + pad/w
+	uvB := 1.0 + pad/h
 
 	r := rect.FillColor.R
 	g := rect.FillColor.G
@@ -114,19 +132,19 @@ func (b *Backend) renderSingleRect(cmd CommandBuffer, c render.Command) {
 	}
 
 	v0 := rv
-	v0.PosX = ndcX; v0.PosY = ndcY; v0.U = 0; v0.V = 0
+	v0.PosX = ndcX; v0.PosY = ndcY; v0.U = uvL; v0.V = uvT
 	v0.ColorR = r; v0.ColorG = g; v0.ColorB = bl; v0.ColorA = a
 
 	v1 := rv
-	v1.PosX = ndcX + ndcW; v1.PosY = ndcY; v1.U = 1; v1.V = 0
+	v1.PosX = ndcX + ndcW; v1.PosY = ndcY; v1.U = uvR; v1.V = uvT
 	v1.ColorR = r; v1.ColorG = g; v1.ColorB = bl; v1.ColorA = a
 
 	v2 := rv
-	v2.PosX = ndcX + ndcW; v2.PosY = ndcY + ndcH; v2.U = 1; v2.V = 1
+	v2.PosX = ndcX + ndcW; v2.PosY = ndcY + ndcH; v2.U = uvR; v2.V = uvB
 	v2.ColorR = r; v2.ColorG = g; v2.ColorB = bl; v2.ColorA = a
 
 	v3 := rv
-	v3.PosX = ndcX; v3.PosY = ndcY + ndcH; v3.U = 0; v3.V = 1
+	v3.PosX = ndcX; v3.PosY = ndcY + ndcH; v3.U = uvL; v3.V = uvB
 	v3.ColorR = r; v3.ColorG = g; v3.ColorB = bl; v3.ColorA = a
 
 	vertices := [6]RectVertex{v0, v1, v2, v0, v2, v3}

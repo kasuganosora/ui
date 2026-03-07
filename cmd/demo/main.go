@@ -137,8 +137,8 @@ var mouseDownTarget core.ElementID
 // lastHoverTarget tracks the previously hovered element for MouseEnter/Leave synthesis.
 var lastHoverTarget core.ElementID
 
-// lastCursorIsIBeam tracks whether the current cursor is IBeam to avoid flickering.
-var lastCursorIsIBeam bool
+// lastCursor tracks the current cursor shape to avoid redundant SetCursor calls.
+var lastCursor = platform.CursorArrow
 
 // contentWidget is the scrollable content area (set by buildUI).
 var contentWidget *widget.Content
@@ -818,12 +818,16 @@ func handleEvent(tree *core.Tree, dispatcher *core.Dispatcher, evt *event.Event,
 				}
 				lastHoverTarget = target
 			}
-			// Update cursor shape: IBeam if target or any ancestor is an input
-			isInput := false
+			// Update cursor shape based on element type
+			wantCursor := platform.CursorArrow
 			for id := target; id != core.InvalidElementID; {
 				if e := tree.Get(id); e != nil {
 					if e.Type() == core.TypeInput {
-						isInput = true
+						wantCursor = platform.CursorIBeam
+						break
+					}
+					if e.Type() == core.TypeButton || e.HasHandler(event.MouseClick) {
+						wantCursor = platform.CursorHand
 						break
 					}
 					id = e.ParentID()
@@ -831,17 +835,32 @@ func handleEvent(tree *core.Tree, dispatcher *core.Dispatcher, evt *event.Event,
 					break
 				}
 			}
-			if isInput != lastCursorIsIBeam {
-				if isInput {
-					win.SetCursor(platform.CursorIBeam)
-				} else {
-					win.SetCursor(platform.CursorArrow)
-				}
-				lastCursorIsIBeam = isInput
+			if wantCursor != lastCursor {
+				win.SetCursor(wantCursor)
+				lastCursor = wantCursor
 			}
 		}
 
 		if target != core.InvalidElementID {
+			// On MouseDown, blur focused element if clicking outside any input
+			if evt.Type == event.MouseDown {
+				isInput := false
+				for id := target; id != core.InvalidElementID; {
+					if e := tree.Get(id); e != nil {
+						if e.Type() == core.TypeInput {
+							isInput = true
+							break
+						}
+						id = e.ParentID()
+					} else {
+						break
+					}
+				}
+				if !isInput {
+					tree.ClearFocus()
+				}
+			}
+
 			dispatcher.Dispatch(target, evt)
 
 			// Synthesize MouseClick from MouseDown+MouseUp on same element

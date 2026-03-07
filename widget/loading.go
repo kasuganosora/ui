@@ -1,6 +1,9 @@
 package widget
 
 import (
+	"math"
+	"time"
+
 	"github.com/kasuganosora/ui/core"
 	"github.com/kasuganosora/ui/layout"
 	uimath "github.com/kasuganosora/ui/math"
@@ -12,10 +15,11 @@ const (
 	loadingDotSize = float32(6)
 )
 
-// Loading displays a loading indicator (three dots).
+// Loading displays a loading indicator (three dots with animation).
 type Loading struct {
 	Base
-	tip string
+	tip   string
+	start time.Time
 }
 
 // NewLoading creates a loading indicator.
@@ -24,7 +28,8 @@ func NewLoading(tree *core.Tree, cfg *Config) *Loading {
 		cfg = DefaultConfig()
 	}
 	l := &Loading{
-		Base: NewBase(tree, core.TypeCustom, cfg),
+		Base:  NewBase(tree, core.TypeCustom, cfg),
+		start: time.Now(),
 	}
 	l.style.Display = layout.DisplayFlex
 	l.style.AlignItems = layout.AlignCenter
@@ -46,20 +51,38 @@ func (l *Loading) Draw(buf *render.CommandBuffer) {
 	cfg := l.config
 	color := cfg.PrimaryColor
 
-	// Draw three dots in a row
+	// Animated three dots: each dot bounces up with a phase offset
+	elapsed := float32(time.Since(l.start).Seconds())
+	const period = float32(1.2) // full cycle duration in seconds
+
 	dotY := bounds.Y + (bounds.Height-loadingDotSize)/2
 	if l.tip != "" {
-		dotY -= cfg.FontSize // shift up to make room for tip
+		dotY -= cfg.FontSize
 	}
 	totalDotsW := loadingDotSize*3 + cfg.SpaceSM*2
 	dotX := bounds.X + (bounds.Width-totalDotsW)/2
 
 	for i := 0; i < 3; i++ {
+		// Each dot has a phase offset: 0, 0.15, 0.3 seconds
+		phase := elapsed - float32(i)*0.15
+		// Normalize to [0, period), then compute bounce
+		t := float32(math.Mod(float64(phase), float64(period))) / period
+		// Bounce: active during first half, using sin curve
+		bounce := float32(0)
+		if t < 0.5 {
+			bounce = float32(math.Sin(float64(t) * 2 * math.Pi)) * 6
+		}
+		// Opacity: brighter when bouncing
+		opacity := float32(0.35)
+		if t < 0.5 {
+			opacity = 0.35 + 0.65*float32(math.Sin(float64(t)*2*math.Pi))
+		}
+
 		buf.DrawRect(render.RectCmd{
-			Bounds:  uimath.NewRect(dotX, dotY, loadingDotSize, loadingDotSize),
+			Bounds:    uimath.NewRect(dotX, dotY-bounce, loadingDotSize, loadingDotSize),
 			FillColor: color,
-			Corners: uimath.CornersAll(loadingDotSize / 2),
-		}, 0, 1)
+			Corners:   uimath.CornersAll(loadingDotSize / 2),
+		}, 0, opacity)
 		dotX += loadingDotSize + cfg.SpaceSM
 	}
 

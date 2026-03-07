@@ -24,8 +24,9 @@ type Select struct {
 	disabled    bool
 	open        bool
 
-	optionIDs []core.ElementID
-	onChange  func(value string)
+	optionIDs  []core.ElementID
+	backdropID core.ElementID
+	onChange   func(value string)
 }
 
 // NewSelect creates a select dropdown.
@@ -99,9 +100,23 @@ func (s *Select) selectedLabel() string {
 
 func (s *Select) createOptionElements() {
 	s.destroyOptionElements()
+	rootID := s.tree.Root()
+
+	// Create a fullscreen backdrop to capture clicks outside the dropdown
+	s.backdropID = s.tree.CreateElement(core.TypeCustom)
+	s.tree.AppendChild(rootID, s.backdropID)
+	s.tree.SetLayout(s.backdropID, core.LayoutResult{
+		Bounds: uimath.NewRect(0, 0, 1e6, 1e6),
+	})
+	s.tree.AddHandler(s.backdropID, event.MouseClick, func(e *event.Event) {
+		s.open = false
+		s.destroyOptionElements()
+	})
+
 	for i, opt := range s.options {
 		eid := s.tree.CreateElement(core.TypeCustom)
 		s.tree.SetProperty(eid, "text", opt.Label)
+		s.tree.AppendChild(rootID, eid)
 		s.optionIDs = append(s.optionIDs, eid)
 
 		if !opt.Disabled {
@@ -119,6 +134,10 @@ func (s *Select) createOptionElements() {
 }
 
 func (s *Select) destroyOptionElements() {
+	if s.backdropID != core.InvalidElementID {
+		s.tree.DestroyElement(s.backdropID)
+		s.backdropID = core.InvalidElementID
+	}
 	for _, eid := range s.optionIDs {
 		s.tree.DestroyElement(eid)
 	}
@@ -197,18 +216,34 @@ func (s *Select) Draw(buf *render.CommandBuffer) {
 		}
 	}
 
-	// Arrow indicator (simple triangle using a small rect)
-	arrowX := bounds.X + bounds.Width - cfg.SpaceSM - selectArrowSize
-	arrowY := bounds.Y + (bounds.Height-selectArrowSize)/2
+	// Arrow indicator: down-pointing chevron (∨)
 	arrowColor := cfg.TextColor
 	if s.disabled {
 		arrowColor = cfg.DisabledColor
 	}
-	// Down arrow: horizontal bar
-	buf.DrawRect(render.RectCmd{
-		Bounds:    uimath.NewRect(arrowX, arrowY+selectArrowSize/2, selectArrowSize, 2),
-		FillColor: arrowColor,
-	}, 1, 1)
+	chevW := float32(8)  // total width of chevron
+	chevH := float32(4)  // total height of chevron
+	dot := float32(1.5)  // size of each dot
+	cx := bounds.X + bounds.Width - cfg.SpaceSM - chevW/2 // center X
+	cy := bounds.Y + (bounds.Height-chevH)/2              // top Y
+	steps := 5
+	for i := 0; i <= steps; i++ {
+		t := float32(i) / float32(steps)
+		// Left leg: top-left to bottom-center
+		lx := cx - chevW/2*(1-t)
+		ly := cy + chevH*t
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(lx-dot/2, ly-dot/2, dot, dot),
+			FillColor: arrowColor,
+		}, 1, 1)
+		// Right leg: top-right to bottom-center
+		rx := cx + chevW/2*(1-t)
+		ry := cy + chevH*t
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(rx-dot/2, ry-dot/2, dot, dot),
+			FillColor: arrowColor,
+		}, 1, 1)
+	}
 
 	// Dropdown panel
 	if s.open {
@@ -228,37 +263,54 @@ func (s *Select) drawDropdown(buf *render.CommandBuffer, triggerBounds uimath.Re
 	dropY := triggerBounds.Y + triggerBounds.Height + 4
 	dropRect := uimath.NewRect(triggerBounds.X, dropY, triggerBounds.Width, dropH)
 
-	// Dropdown background
-	buf.DrawRect(render.RectCmd{
+	// Draw dropdown as overlay — escapes parent clip regions
+	// Shadow
+	shadowOffset := float32(2)
+	shadowBlur := float32(8)
+	buf.DrawOverlay(render.RectCmd{
+		Bounds:    uimath.NewRect(dropRect.X+shadowOffset, dropRect.Y+shadowOffset, dropRect.Width+shadowBlur, dropRect.Height+shadowBlur),
+		FillColor: uimath.RGBA(0, 0, 0, 0.12),
+		Corners:   uimath.CornersAll(cfg.BorderRadius + 2),
+	}, 100, 1)
+
+	// Background
+	buf.DrawOverlay(render.RectCmd{
 		Bounds:      dropRect,
 		FillColor:   uimath.ColorWhite,
 		BorderColor: cfg.BorderColor,
 		BorderWidth: 1,
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
-	}, 10, 1)
+	}, 101, 1)
 
-	// Options
+	// Options — also update element bounds for hit testing
 	y := dropY
 	for i, opt := range s.options {
 		optRect := uimath.NewRect(triggerBounds.X, y, triggerBounds.Width, optH)
+
+		// Set layout bounds on option element so hit test can find it
+		if i < len(s.optionIDs) {
+			s.tree.SetLayout(s.optionIDs[i], core.LayoutResult{
+				Bounds: optRect,
+			})
+		}
 
 		// Hover
 		if i < len(s.optionIDs) {
 			optElem := s.tree.Get(s.optionIDs[i])
 			if optElem != nil && optElem.IsHovered() {
-				buf.DrawRect(render.RectCmd{
+				buf.DrawOverlay(render.RectCmd{
 					Bounds:    optRect,
 					FillColor: uimath.ColorHex("#f5f5f5"),
-				}, 11, 1)
+				}, 102, 1)
 			}
 		}
 
 		// Selected indicator
 		if opt.Value == s.value {
-			buf.DrawRect(render.RectCmd{
+			buf.DrawOverlay(render.RectCmd{
 				Bounds:    optRect,
 				FillColor: uimath.ColorHex("#e6f4ff"),
-			}, 11, 1)
+			}, 102, 1)
 		}
 
 		// Option label
@@ -275,7 +327,10 @@ func (s *Select) drawDropdown(buf *render.CommandBuffer, triggerBounds uimath.Re
 			tx := optRect.X + cfg.SpaceSM
 			ty := optRect.Y + (optH-lh)/2
 			maxW := optRect.Width - cfg.SpaceSM*2
+			// Draw text into main commands, then move to overlay
+			before := buf.Len()
 			cfg.TextRenderer.DrawText(buf, opt.Label, tx, ty, cfg.FontSize, maxW, textColor, 1)
+			buf.MoveToOverlay(before, 103)
 		} else {
 			textW := float32(len(opt.Label)) * cfg.FontSize * 0.55
 			maxW := optRect.Width - cfg.SpaceSM*2
@@ -285,11 +340,11 @@ func (s *Select) drawDropdown(buf *render.CommandBuffer, triggerBounds uimath.Re
 			textH := cfg.FontSize * 1.2
 			tx := optRect.X + cfg.SpaceSM
 			ty := optRect.Y + (optH-textH)/2
-			buf.DrawRect(render.RectCmd{
+			buf.DrawOverlay(render.RectCmd{
 				Bounds:    uimath.NewRect(tx, ty, textW, textH),
 				FillColor: textColor,
 				Corners:   uimath.CornersAll(2),
-			}, 12, 1)
+			}, 103, 1)
 		}
 
 		y += optH

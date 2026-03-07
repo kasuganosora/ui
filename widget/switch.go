@@ -35,6 +35,7 @@ func NewSwitch(tree *core.Tree, cfg *Config) *Switch {
 	s.style.AlignItems = layout.AlignCenter
 	s.style.Width = layout.Px(switchWidth)
 	s.style.Height = layout.Px(switchHeight)
+	s.style.FlexShrink = 0
 
 	s.tree.AddHandler(s.id, event.MouseClick, func(e *event.Event) {
 		if !s.disabled {
@@ -66,7 +67,6 @@ func (s *Switch) Draw(buf *render.CommandBuffer) {
 	if bounds.IsEmpty() {
 		return
 	}
-
 	cfg := s.config
 	elem := s.Element()
 	hovered := elem != nil && elem.IsHovered()

@@ -79,18 +79,21 @@ type ClipCmd struct {
 // This is an aggregate root - external code must use its methods.
 type CommandBuffer struct {
 	commands []Command
+	overlays []Command // rendered after all commands, without clip
 }
 
 // NewCommandBuffer creates an empty command buffer.
 func NewCommandBuffer() *CommandBuffer {
 	return &CommandBuffer{
 		commands: make([]Command, 0, 256),
+		overlays: make([]Command, 0, 16),
 	}
 }
 
 // Reset clears all commands for reuse.
 func (cb *CommandBuffer) Reset() {
 	cb.commands = cb.commands[:0]
+	cb.overlays = cb.overlays[:0]
 }
 
 // DrawRect adds a rectangle draw command.
@@ -139,12 +142,58 @@ func (cb *CommandBuffer) PopClip() {
 	})
 }
 
+// DrawOverlay adds a rect command to the overlay layer.
+// Overlays are rendered after all normal commands with no clip applied.
+func (cb *CommandBuffer) DrawOverlay(cmd RectCmd, zOrder int32, opacity float32) {
+	cb.overlays = append(cb.overlays, Command{
+		Type:    CmdRect,
+		ZOrder:  zOrder,
+		Opacity: opacity,
+		Rect:    &cmd,
+	})
+}
+
+// DrawOverlayTextCmd adds a text command to the overlay layer.
+func (cb *CommandBuffer) DrawOverlayTextCmd(cmd TextCmd, zOrder int32, opacity float32) {
+	cb.overlays = append(cb.overlays, Command{
+		Type:    CmdText,
+		ZOrder:  zOrder,
+		Opacity: opacity,
+		Text:    &cmd,
+	})
+}
+
+// MoveToOverlay moves commands added after position 'from' (by count of
+// commands + overlays) from the main command list into the overlay list,
+// overriding their z-order.
+func (cb *CommandBuffer) MoveToOverlay(fromLen int, zOrder int32) {
+	// fromLen is the value of Len() before the commands were added.
+	// Since overlays count is unchanged, the new commands are in cb.commands.
+	mainBefore := fromLen - len(cb.overlays)
+	if mainBefore < 0 {
+		mainBefore = 0
+	}
+	if mainBefore >= len(cb.commands) {
+		return
+	}
+	for _, c := range cb.commands[mainBefore:] {
+		c.ZOrder = zOrder
+		cb.overlays = append(cb.overlays, c)
+	}
+	cb.commands = cb.commands[:mainBefore]
+}
+
 // Commands returns the collected commands (read-only view).
 func (cb *CommandBuffer) Commands() []Command {
 	return cb.commands
 }
 
+// Overlays returns the overlay commands (read-only view).
+func (cb *CommandBuffer) Overlays() []Command {
+	return cb.overlays
+}
+
 // Len returns the number of commands.
 func (cb *CommandBuffer) Len() int {
-	return len(cb.commands)
+	return len(cb.commands) + len(cb.overlays)
 }
