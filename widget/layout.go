@@ -85,10 +85,15 @@ func (h *Header) Draw(buf *render.CommandBuffer) {
 	h.DrawChildren(buf)
 }
 
-// Content is the main content area.
+// Content is the main content area with vertical scrolling support.
 type Content struct {
 	Base
-	bgColor uimath.Color
+	bgColor       uimath.Color
+	scrollY       float32
+	contentHeight float32 // total height of all children
+	scrollBarDrag bool    // true when dragging the scrollbar thumb
+	dragStartY    float32 // mouse Y when drag started
+	dragStartScrl float32 // scrollY when drag started
 }
 
 // NewContent creates a content section that grows to fill available space.
@@ -107,16 +112,165 @@ func NewContent(tree *core.Tree, cfg *Config) *Content {
 }
 
 func (c *Content) SetBgColor(clr uimath.Color) { c.bgColor = clr }
+func (c *Content) ScrollY() float32             { return c.scrollY }
+func (c *Content) ContentHeight() float32       { return c.contentHeight }
+func (c *Content) SetContentHeight(h float32)   { c.contentHeight = h }
+
+// ScrollBy adjusts scroll offset by delta, clamping to valid range.
+func (c *Content) ScrollBy(dy float32) {
+	c.scrollY += dy
+	c.clampScroll()
+}
+
+// ScrollTo sets the scroll offset, clamping to valid range.
+func (c *Content) ScrollTo(y float32) {
+	c.scrollY = y
+	c.clampScroll()
+}
+
+func (c *Content) clampScroll() {
+	bounds := c.Bounds()
+	maxScroll := c.contentHeight - bounds.Height
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if c.scrollY < 0 {
+		c.scrollY = 0
+	}
+	if c.scrollY > maxScroll {
+		c.scrollY = maxScroll
+	}
+}
+
+// scrollBarWidth is the width of the scrollbar track.
+const scrollBarWidth = 8
+
+// needsScroll returns true if content overflows the viewport.
+func (c *Content) needsScroll() bool {
+	bounds := c.Bounds()
+	return c.contentHeight > bounds.Height
+}
+
+// HandleWheel processes a mouse wheel event for scrolling.
+func (c *Content) HandleWheel(dy float32) {
+	c.ScrollBy(-dy * 40) // 40px per scroll tick
+}
+
+// HandleScrollBarDown starts a scrollbar thumb drag.
+func (c *Content) HandleScrollBarDown(globalY float32) bool {
+	if !c.needsScroll() {
+		return false
+	}
+	bounds := c.Bounds()
+	thumbY, thumbH := c.thumbRect(bounds)
+	if globalY >= thumbY && globalY <= thumbY+thumbH {
+		c.scrollBarDrag = true
+		c.dragStartY = globalY
+		c.dragStartScrl = c.scrollY
+		return true
+	}
+	return false
+}
+
+// HandleScrollBarMove updates scroll during a drag.
+func (c *Content) HandleScrollBarMove(globalY float32) {
+	if !c.scrollBarDrag {
+		return
+	}
+	bounds := c.Bounds()
+	trackH := bounds.Height - 4
+	thumbH := c.thumbHeight(bounds)
+	maxThumbY := trackH - thumbH
+	if maxThumbY <= 0 {
+		return
+	}
+	dy := globalY - c.dragStartY
+	maxScroll := c.contentHeight - bounds.Height
+	scrollDelta := dy * maxScroll / maxThumbY
+	c.scrollY = c.dragStartScrl + scrollDelta
+	c.clampScroll()
+}
+
+// HandleScrollBarUp ends a scrollbar drag.
+func (c *Content) HandleScrollBarUp() {
+	c.scrollBarDrag = false
+}
+
+// IsScrollBarDragging returns true if currently dragging the scrollbar.
+func (c *Content) IsScrollBarDragging() bool {
+	return c.scrollBarDrag
+}
+
+func (c *Content) thumbHeight(bounds uimath.Rect) float32 {
+	if c.contentHeight <= 0 {
+		return 0
+	}
+	ratio := bounds.Height / c.contentHeight
+	if ratio > 1 {
+		ratio = 1
+	}
+	h := (bounds.Height - 4) * ratio
+	if h < 20 {
+		h = 20
+	}
+	return h
+}
+
+func (c *Content) thumbRect(bounds uimath.Rect) (y, h float32) {
+	h = c.thumbHeight(bounds)
+	trackH := bounds.Height - 4
+	maxThumbY := trackH - h
+	maxScroll := c.contentHeight - bounds.Height
+	if maxScroll <= 0 {
+		return bounds.Y + 2, h
+	}
+	ratio := c.scrollY / maxScroll
+	return bounds.Y + 2 + maxThumbY*ratio, h
+}
 
 func (c *Content) Draw(buf *render.CommandBuffer) {
 	bounds := c.Bounds()
-	if !bounds.IsEmpty() && !c.bgColor.IsTransparent() {
+	if bounds.IsEmpty() {
+		return
+	}
+
+	// Background
+	if !c.bgColor.IsTransparent() {
 		buf.DrawRect(render.RectCmd{
 			Bounds:    bounds,
 			FillColor: c.bgColor,
 		}, 0, 1)
 	}
+
+	// Clip children to content area
+	buf.PushClip(bounds)
 	c.DrawChildren(buf)
+
+	// Draw scrollbar if content overflows
+	if c.needsScroll() {
+		trackX := bounds.X + bounds.Width - scrollBarWidth - 2
+		trackColor := uimath.RGBA(0, 0, 0, 0.05)
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(trackX, bounds.Y+2, scrollBarWidth, bounds.Height-4),
+			FillColor: trackColor,
+			Corners:   uimath.CornersAll(scrollBarWidth / 2),
+		}, 10, 1)
+
+		// Thumb
+		thumbY, thumbH := c.thumbRect(bounds)
+		thumbColor := uimath.RGBA(0, 0, 0, 0.25)
+		if c.scrollBarDrag {
+			thumbColor = uimath.RGBA(0, 0, 0, 0.45)
+		}
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(trackX, thumbY, scrollBarWidth, thumbH),
+			FillColor: thumbColor,
+			Corners:   uimath.CornersAll(scrollBarWidth / 2),
+		}, 11, 1)
+	}
+
+	// Reset clip so subsequent siblings (footer etc.) are not clipped
+	buf.PopClip()
 }
 
 // Footer is the bottom section of a Layout.
@@ -163,8 +317,10 @@ func (f *Footer) Draw(buf *render.CommandBuffer) {
 // Aside is a sidebar section.
 type Aside struct {
 	Base
-	bgColor uimath.Color
-	width   float32
+	bgColor     uimath.Color
+	width       float32
+	borderColor uimath.Color
+	borderWidth float32
 }
 
 // NewAside creates a sidebar section.
@@ -183,6 +339,10 @@ func NewAside(tree *core.Tree, cfg *Config) *Aside {
 }
 
 func (a *Aside) SetBgColor(c uimath.Color) { a.bgColor = c }
+func (a *Aside) SetBorderRight(w float32, c uimath.Color) {
+	a.borderWidth = w
+	a.borderColor = c
+}
 func (a *Aside) SetWidth(w float32) {
 	a.width = w
 	a.style.Width = layout.Px(w)
@@ -190,11 +350,22 @@ func (a *Aside) SetWidth(w float32) {
 
 func (a *Aside) Draw(buf *render.CommandBuffer) {
 	bounds := a.Bounds()
-	if !bounds.IsEmpty() && !a.bgColor.IsTransparent() {
+	if bounds.IsEmpty() {
+		return
+	}
+	if !a.bgColor.IsTransparent() {
 		buf.DrawRect(render.RectCmd{
 			Bounds:    bounds,
 			FillColor: a.bgColor,
 		}, 0, 1)
 	}
 	a.DrawChildren(buf)
+	// Right border divider
+	if a.borderWidth > 0 {
+		bx := bounds.X + bounds.Width - a.borderWidth
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(bx, bounds.Y, a.borderWidth, bounds.Height),
+			FillColor: a.borderColor,
+		}, 1, 1)
+	}
 }

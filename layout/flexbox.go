@@ -334,6 +334,7 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 
 			// Recursively layout child
 			e.layoutNode(children[idx], w, h)
+			e.applyRelativeOffset(children[idx], containerW, containerH)
 
 			if i < len(lineItems)-1 {
 				mainPos += childMainSize + mLeft + mRight + gap + mainSpacing

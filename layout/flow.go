@@ -73,7 +73,10 @@ func (e *Engine) layoutBlock(nodeIdx int, availWidth, availHeight float32) {
 		// Recursively layout child (this fills in height if auto)
 		e.layoutNode(childIdx, childW, availHeight-cursorY)
 
+		// Advance cursor BEFORE applying relative offset (offset doesn't affect flow)
 		cursorY = child.result.Y + child.result.Height + mBottom
+
+		e.applyRelativeOffset(childIdx, contentW, availHeight)
 	}
 
 	// If container height is auto AND not already sized by parent (flex), size to content

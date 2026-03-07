@@ -658,6 +658,231 @@ func TestAbsoluteInferHeight(t *testing.T) {
 	expectResult(t, e, child, "infer height", 0, 20, 100, 250)
 }
 
+// === Relative positioning tests ===
+
+func TestRelativePositionInBlock(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{Display: DisplayBlock, Width: Px(400), Height: Px(300)})
+	child1 := e.AddNode(Style{
+		Display:  DisplayBlock,
+		Position: PositionRelative,
+		Left:     Px(10), Top: Px(20),
+		Width: Px(100), Height: Px(50),
+	})
+	child2 := e.AddNode(Style{Display: DisplayBlock, Width: Px(100), Height: Px(50)})
+	e.SetChildren(root, []NodeID{child1, child2})
+	e.AddRoot(root)
+	e.Compute(400, 300)
+
+	// child1 flows at (0,0) then offset by left:10, top:20
+	expectResult(t, e, child1, "relative child1", 10, 20, 100, 50)
+	// child2 flows as if child1 is at its normal position (y=50), unaffected by offset
+	expectResult(t, e, child2, "sibling child2", 0, 50, 100, 50)
+}
+
+func TestRelativePositionRightBottom(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{Display: DisplayBlock, Width: Px(400), Height: Px(300)})
+	child := e.AddNode(Style{
+		Display:  DisplayBlock,
+		Position: PositionRelative,
+		Right:    Px(15), Bottom: Px(10),
+		Width: Px(100), Height: Px(50),
+	})
+	e.SetChildren(root, []NodeID{child})
+	e.AddRoot(root)
+	e.Compute(400, 300)
+
+	// Flows at (0,0), then offset by right:-15, bottom:-10
+	expectResult(t, e, child, "relative right/bottom", -15, -10, 100, 50)
+}
+
+func TestRelativePositionInFlex(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display: DisplayFlex, FlexDirection: FlexDirectionRow,
+		Width: Px(400), Height: Px(100),
+	})
+	child1 := e.AddNode(Style{
+		Position: PositionRelative,
+		Top:      Px(5), Left: Px(10),
+		Width: Px(100), Height: Px(50),
+	})
+	child2 := e.AddNode(Style{Width: Px(100), Height: Px(50)})
+	e.SetChildren(root, []NodeID{child1, child2})
+	e.AddRoot(root)
+	e.Compute(400, 100)
+
+	// child1 flows at (0,0) in flex row, then offset
+	expectResult(t, e, child1, "relative in flex", 10, 5, 100, 50)
+	// child2 positioned at x=100 (unaffected by child1's offset)
+	expectResult(t, e, child2, "flex sibling", 100, 0, 100, 50)
+}
+
+func TestRelativePositionNoOffset(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{Display: DisplayBlock, Width: Px(400), Height: Px(300)})
+	child := e.AddNode(Style{
+		Display:  DisplayBlock,
+		Position: PositionRelative,
+		Width:    Px(100), Height: Px(50),
+	})
+	e.SetChildren(root, []NodeID{child})
+	e.AddRoot(root)
+	e.Compute(400, 300)
+
+	// No offset values → stays at normal flow position
+	expectResult(t, e, child, "relative no offset", 0, 0, 100, 50)
+}
+
+func TestRelativePositionLeftTakesPriorityOverRight(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{Display: DisplayBlock, Width: Px(400), Height: Px(300)})
+	child := e.AddNode(Style{
+		Display:  DisplayBlock,
+		Position: PositionRelative,
+		Left:     Px(20), Right: Px(50),
+		Top: Px(10), Bottom: Px(30),
+		Width: Px(100), Height: Px(50),
+	})
+	e.SetChildren(root, []NodeID{child})
+	e.AddRoot(root)
+	e.Compute(400, 300)
+
+	// Left takes priority over Right; Top takes priority over Bottom (CSS spec)
+	expectResult(t, e, child, "left wins over right", 20, 10, 100, 50)
+}
+
+func TestRelativePositionRightOnlyInFlex(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display: DisplayFlex, FlexDirection: FlexDirectionRow,
+		Width: Px(400), Height: Px(100),
+	})
+	child := e.AddNode(Style{
+		Position: PositionRelative,
+		Right:    Px(10),
+		Width:    Px(80), Height: Px(40),
+	})
+	e.SetChildren(root, []NodeID{child})
+	e.AddRoot(root)
+	e.Compute(400, 100)
+
+	// Right only → X offset = -10 from normal flow position (0)
+	expectResult(t, e, child, "right only in flex", -10, 0, 80, 40)
+}
+
+func TestRelativePositionBottomOnlyInBlock(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{Display: DisplayBlock, Width: Px(400), Height: Px(300)})
+	child := e.AddNode(Style{
+		Display:  DisplayBlock,
+		Position: PositionRelative,
+		Bottom:   Px(5),
+		Width:    Px(100), Height: Px(50),
+	})
+	e.SetChildren(root, []NodeID{child})
+	e.AddRoot(root)
+	e.Compute(400, 300)
+
+	// Bottom only → Y offset = -5 from normal flow position (0)
+	expectResult(t, e, child, "bottom only", 0, -5, 100, 50)
+}
+
+func TestRelativePositionPercentOffset(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{Display: DisplayBlock, Width: Px(400), Height: Px(200)})
+	child := e.AddNode(Style{
+		Display:  DisplayBlock,
+		Position: PositionRelative,
+		Left:     Pct(10), Top: Pct(25),
+		Width: Px(100), Height: Px(50),
+	})
+	e.SetChildren(root, []NodeID{child})
+	e.AddRoot(root)
+	e.Compute(400, 200)
+
+	// Left: 10% of parent width (400) = 40, Top: 25% of parent height (200) = 50
+	expectResult(t, e, child, "percent offset", 40, 50, 100, 50)
+}
+
+func TestRelativePositionDoesNotAffectAutoHeight(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{Display: DisplayBlock, Width: Px(400)})
+	child1 := e.AddNode(Style{
+		Display:  DisplayBlock,
+		Position: PositionRelative,
+		Top:      Px(100),
+		Width:    Px(100), Height: Px(30),
+	})
+	child2 := e.AddNode(Style{Display: DisplayBlock, Width: Px(100), Height: Px(30)})
+	e.SetChildren(root, []NodeID{child1, child2})
+	e.AddRoot(root)
+	e.Compute(400, 600)
+
+	// Root auto height should be based on normal flow (30 + 30 = 60), not offset position
+	rootResult := e.GetResult(root)
+	if !approx(rootResult.Height, 60) {
+		t.Errorf("root auto height: expected 60, got %.1f", rootResult.Height)
+	}
+	// child2 at y=30, unaffected by child1's offset
+	expectResult(t, e, child2, "sibling unaffected", 0, 30, 100, 30)
+}
+
+func TestRelativePositionMultipleChildrenInFlex(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{
+		Display: DisplayFlex, FlexDirection: FlexDirectionRow,
+		Width: Px(300), Height: Px(100),
+	})
+	c1 := e.AddNode(Style{
+		Position: PositionRelative,
+		Top: Px(5), Left: Px(3),
+		Width: Px(100), Height: Px(50),
+	})
+	c2 := e.AddNode(Style{
+		Position: PositionRelative,
+		Bottom: Px(5), Right: Px(3),
+		Width: Px(100), Height: Px(50),
+	})
+	c3 := e.AddNode(Style{Width: Px(100), Height: Px(50)})
+	e.SetChildren(root, []NodeID{c1, c2, c3})
+	e.AddRoot(root)
+	e.Compute(300, 100)
+
+	// c1: flows at (0,0), offset (+3, +5)
+	expectResult(t, e, c1, "flex child1", 3, 5, 100, 50)
+	// c2: flows at (100,0), offset (-3, -5)
+	expectResult(t, e, c2, "flex child2", 97, -5, 100, 50)
+	// c3: flows at (200,0), no offset
+	expectResult(t, e, c3, "flex child3", 200, 0, 100, 50)
+}
+
+func TestRelativePositionAbsoluteChildIgnored(t *testing.T) {
+	e := New()
+	root := e.AddNode(Style{Display: DisplayBlock, Width: Px(400), Height: Px(300)})
+	absChild := e.AddNode(Style{
+		Display:  DisplayBlock,
+		Position: PositionAbsolute,
+		Left: Px(10), Top: Px(10),
+		Width: Px(50), Height: Px(50),
+	})
+	relChild := e.AddNode(Style{
+		Display:  DisplayBlock,
+		Position: PositionRelative,
+		Left: Px(5),
+		Width: Px(100), Height: Px(30),
+	})
+	e.SetChildren(root, []NodeID{absChild, relChild})
+	e.AddRoot(root)
+	e.Compute(400, 300)
+
+	// Absolute child positioned normally
+	expectResult(t, e, absChild, "absolute child", 10, 10, 50, 50)
+	// Relative child at flow position (0,0) offset +5 on X
+	expectResult(t, e, relChild, "relative child", 5, 0, 100, 30)
+}
+
 // === Nested layout tests ===
 
 func TestNestedFlexInBlock(t *testing.T) {

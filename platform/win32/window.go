@@ -144,7 +144,6 @@ func (w *Window) Size() (int, int) {
 func (w *Window) SetSize(width, height int) {
 	w.width = width
 	w.height = height
-
 	style, _, _ := procGetWindowLongPtrW.Call(w.hwnd, uintptr(uint32ToUintptr(GWLP_STYLE)))
 	exStyle, _, _ := procGetWindowLongPtrW.Call(w.hwnd, uintptr(uint32ToUintptr(GWLP_EXSTYLE)))
 

@@ -223,6 +223,26 @@ func (e *Engine) layoutAbsolute(nodeIdx int, parentWidth, parentHeight float32) 
 	e.layoutNode(nodeIdx, w, h)
 }
 
+// applyRelativeOffset offsets a relatively positioned element from its normal
+// flow position. The offset does not affect sibling layout.
+func (e *Engine) applyRelativeOffset(nodeIdx int, parentWidth, parentHeight float32) {
+	node := &e.nodes[nodeIdx]
+	style := &node.style
+	if style.Position != PositionRelative {
+		return
+	}
+	if v, ok := style.Left.Resolve(parentWidth); ok {
+		node.result.X += v
+	} else if v, ok := style.Right.Resolve(parentWidth); ok {
+		node.result.X -= v
+	}
+	if v, ok := style.Top.Resolve(parentHeight); ok {
+		node.result.Y += v
+	} else if v, ok := style.Bottom.Resolve(parentHeight); ok {
+		node.result.Y -= v
+	}
+}
+
 // childrenOf returns the child indices for a node.
 func (e *Engine) childrenOf(nodeIdx int) []int {
 	node := &e.nodes[nodeIdx]

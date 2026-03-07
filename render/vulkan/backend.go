@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"sort"
 	"unsafe"
 
 	uimath "github.com/kasuganosora/ui/math"
@@ -621,16 +620,10 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 	b.frameVertexOffset = 0
 	b.mapVertexBuffer()
 
-	// Process commands - sort by z-order
+	// Process commands in painters algorithm order (as emitted by the widget tree).
+	// The widget Draw methods already emit commands in the correct back-to-front order.
 	commands := buf.Commands()
-	sorted := make([]render.Command, len(commands))
-	copy(sorted, commands)
-	sort.SliceStable(sorted, func(i, j int) bool {
-		return sorted[i].ZOrder < sorted[j].ZOrder
-	})
-
-	// Render commands in z-order, handling clips inline
-	b.renderAllCommands(cmd, sorted)
+	b.renderAllCommands(cmd, commands)
 
 	// Unmap vertex buffer
 	b.unmapVertexBuffer()

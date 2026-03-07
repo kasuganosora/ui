@@ -415,6 +415,10 @@ func TestVisualInputRendering(t *testing.T) {
 		if b.Width < 10 || b.Height < 10 {
 			return true
 		}
+		// Skip inputs whose bounds are entirely off-screen
+		if int(b.Y) >= img.Bounds().Dy() || int(b.X) >= img.Bounds().Dx() {
+			return true
+		}
 		verifyRegionNotBlack(t, img, fmt.Sprintf("input_%d", id),
 			int(b.X), int(b.Y), int(b.Width), int(b.Height))
 		return true
@@ -479,8 +483,10 @@ func TestVisualMessageLoop(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			env.plat.PollEvents()
 			env.backend.BeginFrame()
+			env.textRenderer.BeginFrame()
 			env.buf.Reset()
 			root.Draw(env.buf)
+			env.textRenderer.Upload()
 			env.backend.Submit(env.buf)
 			env.backend.EndFrame()
 		}

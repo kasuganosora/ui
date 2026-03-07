@@ -131,6 +131,14 @@ func (cb *CommandBuffer) PushClip(bounds uimath.Rect) {
 	})
 }
 
+// PopClip resets the scissor to the full viewport (max bounds).
+func (cb *CommandBuffer) PopClip() {
+	cb.commands = append(cb.commands, Command{
+		Type: CmdClip,
+		Clip: &ClipCmd{Bounds: uimath.NewRect(0, 0, 1e6, 1e6)},
+	})
+}
+
 // Commands returns the collected commands (read-only view).
 func (cb *CommandBuffer) Commands() []Command {
 	return cb.commands

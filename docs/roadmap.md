@@ -131,24 +131,25 @@
 - [ ] CSS 选择器匹配
 - [ ] Grid（CSS Grid）布局算法
 - [x] Absolute 定位（已在 layout 引擎实现）
+- [x] Relative 定位（流内偏移，不影响兄弟布局）
 - [ ] Fixed 定位
 - [ ] overflow: scroll/auto
 
 ### 组件 P0（输入 + 反馈 + 数据展示）
 
-- [ ] TextArea 多行文本框
-- [ ] Checkbox / Radio / Switch
-- [ ] Select 选择器
-- [ ] Form / FormItem 表单
-- [ ] Image 图片
-- [ ] Tag 标签
-- [ ] Tabs 选项卡
-- [ ] Dialog 对话框
-- [ ] Message 全局提示
+- [x] TextArea 多行文本框（多行编辑、选择、剪贴板、上下键导航）
+- [x] Checkbox / Radio / Switch（勾选、单选组互斥、开关切换）
+- [x] Select 选择器（下拉面板、选项高亮、禁用项）
+- [x] Form / FormItem 表单（标签+控件布局、必填标记、错误提示）
+- [x] Image 图片（纹理显示、Fit 模式、着色）
+- [x] Tag 标签（5 种预设类型 + 自定义颜色）
+- [x] Tabs 选项卡（多 Tab 切换、活跃指示器、hover 反馈）
+- [x] Dialog 对话框（模态遮罩、居中面板、标题 + 关闭按钮）
+- [x] Message 全局提示（4 种类型：info/success/warning/error）
 - [ ] MessageBox 消息弹出框
-- [ ] Progress 进度条
-- [ ] Loading 加载
-- [ ] Empty 空状态
+- [x] Progress 进度条（百分比 + 3 种状态颜色）
+- [x] Loading 加载（三点指示器 + 提示文本）
+- [x] Empty 空状态（图标占位 + 描述文字）
 
 ### API
 

@@ -134,6 +134,12 @@ func (a *textDrawerAdapter) MeasureText(text string, fontSize float32) float32 {
 // mouseDownTarget tracks which element received MouseDown for click synthesis.
 var mouseDownTarget core.ElementID
 
+// contentWidget is the scrollable content area (set by buildUI).
+var contentWidget *widget.Content
+
+// rootWidget is the root layout widget (set in run()).
+var rootWidget widget.Widget
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -209,6 +215,7 @@ func run() error {
 
 	// -- Build UI --
 	root := buildUI(tree, cfg)
+	rootWidget = root
 
 	// Attach root widget to tree root
 	tree.AppendChild(tree.Root(), root.ElementID())
@@ -226,15 +233,15 @@ func run() error {
 		}
 
 		// Check resize
-		w, h := win.FramebufferSize()
-		if w != lastW || h != lastH {
-			backend.Resize(w, h)
-			lastW, lastH = w, h
-			// Update root layout to fill window
+		fw, fh := win.FramebufferSize()
+		if fw != lastW || fh != lastH {
+			backend.Resize(fw, fh)
+			lastW, lastH = fw, fh
+			lw, lh := win.Size()
 			tree.SetLayout(tree.Root(), core.LayoutResult{
-				Bounds: uimath.NewRect(0, 0, float32(w), float32(h)),
+				Bounds: uimath.NewRect(0, 0, float32(lw), float32(lh)),
 			})
-			computeLayout(tree, root, float32(w), float32(h))
+			computeLayout(tree, root, float32(lw), float32(lh))
 		}
 
 		// Render
@@ -284,6 +291,7 @@ func buildUI(tree *core.Tree, cfg *widget.Config) widget.Widget {
 
 	// -- Body: Aside + Content --
 	body := widget.NewDiv(tree, cfg)
+	body.SetBgColor(uimath.ColorWhite) // covers the gray root bg to avoid SDF anti-alias seams
 	bodyStyle := body.Style()
 	bodyStyle.FlexGrow = 1
 	bodyStyle.FlexDirection = 1 // Row
@@ -291,7 +299,8 @@ func buildUI(tree *core.Tree, cfg *widget.Config) widget.Widget {
 
 	// Aside
 	aside := widget.NewAside(tree, cfg)
-	aside.SetBgColor(uimath.ColorWhite)
+	aside.SetBgColor(uimath.ColorHex("#f7f8fa"))
+	aside.SetBorderRight(1, uimath.ColorHex("#e8e8e8"))
 	aside.SetWidth(220)
 
 	menuItems := []string{"仪表盘", "组件库", "系统设置", "关于我们"}
@@ -305,6 +314,7 @@ func buildUI(tree *core.Tree, cfg *widget.Config) widget.Widget {
 	// Content
 	content := widget.NewContent(tree, cfg)
 	content.SetBgColor(uimath.ColorHex("#ffffff"))
+	contentWidget = content
 
 	// Section: Title
 	sectionTitle := widget.NewText(tree, "基础组件展示", cfg)
@@ -387,6 +397,158 @@ func buildUI(tree *core.Tree, cfg *widget.Config) widget.Widget {
 	widget.NewTooltip(tree, "这是一个工具提示！", tooltipBtn.ElementID(), cfg)
 	content.AppendChild(tooltipBtn)
 
+	// Section: Checkbox & Switch
+	checkLabel := widget.NewText(tree, "复选框 & 开关：", cfg)
+	content.AppendChild(checkLabel)
+
+	checkRow := widget.NewSpace(tree, cfg)
+	checkRow.SetGap(16)
+
+	cb1 := widget.NewCheckbox(tree, "选项A", cfg)
+	cb1.SetChecked(true)
+	cb1.OnChange(func(v bool) { fmt.Printf("[复选] A = %v\n", v) })
+	checkRow.AppendChild(cb1)
+
+	cb2 := widget.NewCheckbox(tree, "选项B", cfg)
+	checkRow.AppendChild(cb2)
+
+	cbDisabled := widget.NewCheckbox(tree, "禁用", cfg)
+	cbDisabled.SetDisabled(true)
+	checkRow.AppendChild(cbDisabled)
+
+	sw1 := widget.NewSwitch(tree, cfg)
+	sw1.SetChecked(true)
+	sw1.OnChange(func(v bool) { fmt.Printf("[开关] = %v\n", v) })
+	checkRow.AppendChild(sw1)
+
+	sw2 := widget.NewSwitch(tree, cfg)
+	sw2.SetDisabled(true)
+	checkRow.AppendChild(sw2)
+
+	content.AppendChild(checkRow)
+
+	// Section: Radio
+	radioLabel := widget.NewText(tree, "单选按钮：", cfg)
+	content.AppendChild(radioLabel)
+
+	radioRow := widget.NewSpace(tree, cfg)
+	radioRow.SetGap(16)
+
+	rg := widget.NewRadioGroup()
+	r1 := widget.NewRadio(tree, "苹果", cfg)
+	r1.SetChecked(true)
+	rg.Add(r1)
+	radioRow.AppendChild(r1)
+
+	r2 := widget.NewRadio(tree, "香蕉", cfg)
+	rg.Add(r2)
+	radioRow.AppendChild(r2)
+
+	r3 := widget.NewRadio(tree, "橙子", cfg)
+	rg.Add(r3)
+	radioRow.AppendChild(r3)
+
+	content.AppendChild(radioRow)
+
+	// Section: Tags
+	tagLabel := widget.NewText(tree, "标签：", cfg)
+	content.AppendChild(tagLabel)
+
+	tagRow := widget.NewSpace(tree, cfg)
+	tagRow.SetGap(8)
+
+	tag1 := widget.NewTag(tree, "默认", cfg)
+	tagRow.AppendChild(tag1)
+
+	tag2 := widget.NewTag(tree, "成功", cfg)
+	tag2.SetTagType(widget.TagSuccess)
+	tagRow.AppendChild(tag2)
+
+	tag3 := widget.NewTag(tree, "警告", cfg)
+	tag3.SetTagType(widget.TagWarning)
+	tagRow.AppendChild(tag3)
+
+	tag4 := widget.NewTag(tree, "错误", cfg)
+	tag4.SetTagType(widget.TagError)
+	tagRow.AppendChild(tag4)
+
+	tag5 := widget.NewTag(tree, "处理中", cfg)
+	tag5.SetTagType(widget.TagProcessing)
+	tagRow.AppendChild(tag5)
+
+	content.AppendChild(tagRow)
+
+	// Section: Progress
+	progressLabel := widget.NewText(tree, "进度条：", cfg)
+	content.AppendChild(progressLabel)
+
+	prog := widget.NewProgress(tree, cfg)
+	prog.SetPercent(65)
+	content.AppendChild(prog)
+
+	// Section: TextArea
+	taLabel := widget.NewText(tree, "多行输入框：", cfg)
+	content.AppendChild(taLabel)
+
+	ta := widget.NewTextArea(tree, cfg)
+	ta.SetPlaceholder("请输入多行文本...")
+	ta.SetRows(3)
+	ta.OnChange(func(v string) { fmt.Printf("[多行] len=%d\n", len(v)) })
+	content.AppendChild(ta)
+
+	// Section: Select
+	selLabel := widget.NewText(tree, "下拉选择：", cfg)
+	content.AppendChild(selLabel)
+
+	sel := widget.NewSelect(tree, []widget.SelectOption{
+		{Label: "北京", Value: "beijing"},
+		{Label: "上海", Value: "shanghai"},
+		{Label: "广州", Value: "guangzhou"},
+		{Label: "深圳（禁用）", Value: "shenzhen", Disabled: true},
+	}, cfg)
+	sel.SetValue("beijing")
+	sel.OnChange(func(v string) { fmt.Printf("[选择] = %s\n", v) })
+	content.AppendChild(sel)
+
+	// Section: Message
+	msgLabel := widget.NewText(tree, "消息通知：", cfg)
+	content.AppendChild(msgLabel)
+
+	msgRow := widget.NewSpace(tree, cfg)
+	msgRow.SetGap(12)
+
+	msgInfo := widget.NewMessage(tree, "普通消息", cfg)
+	msgRow.AppendChild(msgInfo)
+
+	msgSuccess := widget.NewMessage(tree, "操作成功", cfg)
+	msgSuccess.SetMsgType(widget.MessageSuccess)
+	msgRow.AppendChild(msgSuccess)
+
+	msgWarn := widget.NewMessage(tree, "请注意", cfg)
+	msgWarn.SetMsgType(widget.MessageWarning)
+	msgRow.AppendChild(msgWarn)
+
+	msgErr := widget.NewMessage(tree, "出错了", cfg)
+	msgErr.SetMsgType(widget.MessageError)
+	msgRow.AppendChild(msgErr)
+
+	content.AppendChild(msgRow)
+
+	// Section: Empty state
+	emptyLabel := widget.NewText(tree, "空状态：", cfg)
+	content.AppendChild(emptyLabel)
+
+	empty := widget.NewEmpty(tree, cfg)
+	content.AppendChild(empty)
+
+	// Section: Loading
+	loadLabel := widget.NewText(tree, "加载中：", cfg)
+	content.AppendChild(loadLabel)
+
+	loading := widget.NewLoading(tree, cfg)
+	loading.SetTip("正在加载...")
+	content.AppendChild(loading)
+
 	body.AppendChild(content)
 	root.AppendChild(body)
 
@@ -461,12 +623,34 @@ func computeLayout(tree *core.Tree, root widget.Widget, w, h float32) {
 func layoutContentArea(tree *core.Tree, content widget.Widget, x, y, w, h float32) {
 	padding := float32(24)
 	cx := x + padding
-	cy := y + padding
 	cw := w - padding*2
-	rowH := float32(40)
-	gap := float32(16)
+	gap := float32(12)
+
+	// First pass: calculate total content height
+	totalH := padding
+	for _, child := range content.Children() {
+		rowH := contentRowHeight(child)
+		totalH += rowH + gap
+	}
+	totalH += padding // bottom padding
+
+	// Set content height on the Content widget for scrollbar
+	if c, ok := content.(*widget.Content); ok {
+		c.SetContentHeight(totalH)
+		c.ScrollBy(0) // re-clamp after layout change
+	}
+
+	// Get scroll offset
+	scrollY := float32(0)
+	if c, ok := content.(*widget.Content); ok {
+		scrollY = c.ScrollY()
+	}
+
+	cy := y + padding - scrollY
 
 	for _, child := range content.Children() {
+		rowH := contentRowHeight(child)
+
 		tree.SetLayout(child.ElementID(), core.LayoutResult{
 			Bounds: uimath.NewRect(cx, cy, cw, rowH),
 		})
@@ -479,6 +663,19 @@ func layoutContentArea(tree *core.Tree, content widget.Widget, x, y, w, h float3
 
 		cy += rowH + gap
 	}
+}
+
+func contentRowHeight(child widget.Widget) float32 {
+	if _, ok := child.(*widget.TextArea); ok {
+		return 80
+	}
+	if _, ok := child.(*widget.Empty); ok {
+		return 80
+	}
+	if _, ok := child.(*widget.Progress); ok {
+		return 12
+	}
+	return 36
 }
 
 func layoutChildrenVertical(tree *core.Tree, parent widget.Widget, x, y, w, h, gap float32) {
@@ -532,7 +729,41 @@ func handleEvent(tree *core.Tree, dispatcher *core.Dispatcher, evt *event.Event,
 		// Handled in main loop
 	case event.WindowClose:
 		win.SetShouldClose(true)
+	case event.MouseWheel:
+		// Route scroll events to content area
+		if contentWidget != nil && rootWidget != nil {
+			contentWidget.HandleWheel(evt.WheelDY)
+			// Re-layout after scroll (use logical size)
+			lw, lh := win.Size()
+			computeLayout(tree, rootWidget, float32(lw), float32(lh))
+		}
 	case event.MouseMove, event.MouseDown, event.MouseUp, event.MouseClick:
+		// Handle scrollbar drag
+		if contentWidget != nil {
+			if contentWidget.IsScrollBarDragging() {
+				if evt.Type == event.MouseMove {
+					contentWidget.HandleScrollBarMove(evt.GlobalY)
+					lw, lh := win.Size()
+					computeLayout(tree, rootWidget, float32(lw), float32(lh))
+					return
+				}
+				if evt.Type == event.MouseUp {
+					contentWidget.HandleScrollBarUp()
+					return
+				}
+			}
+			// Check if clicking on scrollbar thumb
+			if evt.Type == event.MouseDown && contentWidget.HandleScrollBarDown(evt.GlobalY) {
+				// Check X is in scrollbar region
+				bounds := contentWidget.Bounds()
+				scrollBarX := bounds.X + bounds.Width - 10
+				if evt.GlobalX >= scrollBarX {
+					return
+				}
+				contentWidget.HandleScrollBarUp() // not in scrollbar X range
+			}
+		}
+
 		target := tree.HitTest(evt.GlobalX, evt.GlobalY)
 
 		// During a drag (mouseDownTarget active), also send MouseMove/MouseUp
@@ -579,3 +810,4 @@ func handleEvent(tree *core.Tree, dispatcher *core.Dispatcher, evt *event.Event,
 		})
 	}
 }
+

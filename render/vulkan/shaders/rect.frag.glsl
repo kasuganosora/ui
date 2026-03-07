@@ -31,18 +31,19 @@ void main() {
 
     float dist = roundedRectSDF(p, halfSize, fragRadii);
 
-    // Anti-aliased edge (1 pixel smoothstep)
+    // Anti-aliased edge: the AA band extends OUTSIDE the shape boundary only.
+    // At dist=0 (the geometric edge), fillAlpha = 1.0 (fully opaque).
+    // This prevents seams between adjacent rects that share a boundary.
     float aa = fwidth(dist);
-    float fillAlpha = 1.0 - smoothstep(-aa, aa, dist);
+    float fillAlpha = 1.0 - smoothstep(0.0, aa, dist);
 
     if (fragBorderWidth > 0.0) {
         // Border: the region between dist and dist+borderWidth
         float innerDist = dist + fragBorderWidth;
-        float borderAlpha = 1.0 - smoothstep(-aa, aa, innerDist);
 
         // Inside the border ring: use border color
         // Inside the fill area (past border): use fill color
-        float fillMask = 1.0 - smoothstep(-aa, aa, innerDist);
+        float fillMask = 1.0 - smoothstep(0.0, aa, innerDist);
         vec4 color = mix(fragBorderColor, fragColor, fillMask);
         outColor = vec4(color.rgb, color.a * fillAlpha);
     } else {

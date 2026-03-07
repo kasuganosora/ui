@@ -39,13 +39,18 @@ func (b *Backend) renderAllCommands(cmd CommandBuffer, commands []render.Command
 }
 
 // applyScissor sets the scissor rectangle from a ClipCmd.
-// Clip bounds are in logical pixels; convert to physical for the GPU.
+// Clip bounds are in logical pixels; convert to viewport (physical) pixels
+// using the same coordinate mapping as the vertex pipeline (NDC → viewport).
 func (b *Backend) applyScissor(cmd CommandBuffer, clip *render.ClipCmd) {
-	s := b.dpiScale
-	x := int32(clip.Bounds.X * s)
-	y := int32(clip.Bounds.Y * s)
-	w := uint32(clip.Bounds.Width * s)
-	h := uint32(clip.Bounds.Height * s)
+	logW := float32(b.width) / b.dpiScale
+	logH := float32(b.height) / b.dpiScale
+	vpW := float32(b.swapchain.extent.Width)
+	vpH := float32(b.swapchain.extent.Height)
+
+	x := int32(clip.Bounds.X / logW * vpW)
+	y := int32(clip.Bounds.Y / logH * vpH)
+	w := uint32(clip.Bounds.Width / logW * vpW)
+	h := uint32(clip.Bounds.Height / logH * vpH)
 
 	// Clamp to framebuffer bounds
 	if x < 0 {
