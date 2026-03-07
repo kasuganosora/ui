@@ -44,6 +44,11 @@ type Window struct {
 	// IME position (client area coords, stored for use during WM_IME_STARTCOMPOSITION)
 	imeX, imeY int32
 	imeLineH   int32 // line height for candidate window exclusion rect
+
+	// Resize callback — called from WndProc on WM_SIZE during the modal
+	// resize loop so the app can re-layout and render while the user drags.
+	inSizeMove     bool
+	onResizeFunc   func()
 }
 
 // newWindow creates a new Win32 window. Called by Platform.CreateWindow.
@@ -246,6 +251,19 @@ func (w *Window) NativeHandle() uintptr {
 
 func (w *Window) DPIScale() float32 {
 	return w.dpiScale
+}
+
+// OnResize sets a callback that fires on every WM_SIZE during modal resize
+// (user dragging the window border). This allows the app to re-layout and
+// render frames while the Win32 modal resize loop blocks the main loop.
+func (w *Window) OnResize(fn func()) {
+	w.onResizeFunc = fn
+}
+
+// InSizeMove returns true while the user is dragging the window border
+// (between WM_ENTERSIZEMOVE and WM_EXITSIZEMOVE).
+func (w *Window) InSizeMove() bool {
+	return w.inSizeMove
 }
 
 func (w *Window) SetVisible(visible bool) {

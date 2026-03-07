@@ -141,19 +141,27 @@ func TestChoosePresentModeVsync(t *testing.T) {
 	}
 }
 
-func TestChoosePresentModeNoVsyncPrefersMailbox(t *testing.T) {
+func TestChoosePresentModeNoVsyncPrefersImmediate(t *testing.T) {
 	modes := []PresentModeKHR{PresentModeImmediateKHR, PresentModeMailboxKHR, PresentModeFifoKHR}
 	chosen := ChoosePresentMode(modes, false)
+	if chosen != PresentModeImmediateKHR {
+		t.Errorf("no-vsync should prefer immediate, got %v", chosen)
+	}
+}
+
+func TestChoosePresentModeNoVsyncFallbackMailbox(t *testing.T) {
+	modes := []PresentModeKHR{PresentModeMailboxKHR, PresentModeFifoKHR}
+	chosen := ChoosePresentMode(modes, false)
 	if chosen != PresentModeMailboxKHR {
-		t.Errorf("no-vsync should prefer mailbox, got %v", chosen)
+		t.Errorf("no immediate should fallback to mailbox, got %v", chosen)
 	}
 }
 
 func TestChoosePresentModeNoVsyncFallbackFIFO(t *testing.T) {
-	modes := []PresentModeKHR{PresentModeImmediateKHR, PresentModeFifoKHR}
+	modes := []PresentModeKHR{PresentModeFifoKHR}
 	chosen := ChoosePresentMode(modes, false)
 	if chosen != PresentModeFifoKHR {
-		t.Errorf("no mailbox available should fallback to FIFO, got %v", chosen)
+		t.Errorf("no immediate/mailbox should fallback to FIFO, got %v", chosen)
 	}
 }
 

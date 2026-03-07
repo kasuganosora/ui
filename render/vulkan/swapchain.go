@@ -268,9 +268,20 @@ func ChooseSurfaceFormat(formats []SurfaceFormatKHR) SurfaceFormatKHR {
 }
 
 // ChoosePresentMode picks the best present mode.
+// When vsync is off, prefer IMMEDIATE > MAILBOX > FIFO.
+// IMMEDIATE avoids the compositor holding swapchain images during/after
+// Win32 modal resize, which causes AcquireNextImageKHR to block for seconds
+// on some drivers (e.g. AMD on Windows).
 func ChoosePresentMode(modes []PresentModeKHR, vsync bool) PresentModeKHR {
 	if vsync {
 		return PresentModeFifoKHR
+	}
+	// Prefer IMMEDIATE — images are returned immediately after scanout,
+	// avoiding compositor-induced AcquireNextImageKHR stalls.
+	for _, m := range modes {
+		if m == PresentModeImmediateKHR {
+			return m
+		}
 	}
 	for _, m := range modes {
 		if m == PresentModeMailboxKHR {

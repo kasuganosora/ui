@@ -26,6 +26,14 @@ func wndProc(hwnd, msg, wParam, lParam uintptr) uintptr {
 		})
 		return 0
 
+	case WM_ENTERSIZEMOVE:
+		w.inSizeMove = true
+		return 0
+
+	case WM_EXITSIZEMOVE:
+		w.inSizeMove = false
+		return 0
+
 	case WM_SIZE:
 		w.updateClientSize()
 		w.p.pushEvent(event.Event{
@@ -34,6 +42,12 @@ func wndProc(hwnd, msg, wParam, lParam uintptr) uintptr {
 			WindowWidth:  w.width,
 			WindowHeight: w.height,
 		})
+		// During the modal resize loop (user dragging border), the main
+		// loop is blocked by DefWindowProc. Fire the resize callback so
+		// the app can render intermediate frames.
+		if w.inSizeMove && w.onResizeFunc != nil {
+			w.onResizeFunc()
+		}
 		return 0
 
 	case WM_MOVE:

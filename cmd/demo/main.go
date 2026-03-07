@@ -225,14 +225,14 @@ func run() error {
 	frameCount := 0
 	fpsStart := time.Now()
 
-	for !win.ShouldClose() {
-		// Poll events
-		events := plat.PollEvents()
-		for i := range events {
-			handleEvent(tree, dispatcher, &events[i], win)
-		}
+	// w32 is the Win32-specific window handle (nil on other platforms).
+	var w32 *win32.Window
+	if ww, ok := win.(*win32.Window); ok {
+		w32 = ww
+	}
 
-		// Check resize
+	// renderFrame performs one complete layout-check + render cycle.
+	renderFrame := func() {
 		fw, fh := win.FramebufferSize()
 		if fw != lastW || fh != lastH {
 			backend.Resize(fw, fh)
@@ -244,16 +244,39 @@ func run() error {
 			computeLayout(tree, root, float32(lw), float32(lh))
 		}
 
-		// Render
+		// During the Win32 modal resize loop (user dragging border),
+		// AcquireNextImageKHR blocks for seconds because the compositor
+		// holds all swapchain images. Skip rendering and let the DWM
+		// stretch the last frame; we render properly when drag ends.
+		if w32 != nil && w32.InSizeMove() {
+			return
+		}
+
 		backend.BeginFrame()
+
 		textRenderer.BeginFrame()
 		buf.Reset()
-
 		root.Draw(buf)
-
 		textRenderer.Upload()
+
 		backend.Submit(buf)
 		backend.EndFrame()
+	}
+
+	// Register resize callback so layout updates during modal resize.
+	if w32 != nil {
+		w32.OnResize(renderFrame)
+	}
+
+	for !win.ShouldClose() {
+		// Poll events
+		events := plat.PollEvents()
+		for i := range events {
+			handleEvent(tree, dispatcher, &events[i], win)
+		}
+
+		// Render
+		renderFrame()
 
 		// FPS counter (console)
 		frameCount++

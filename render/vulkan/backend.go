@@ -63,6 +63,7 @@ type Backend struct {
 	width, height    int
 	dpiScale         float32 // DPI scale factor (1.0 = 96 DPI); coordinates are logical pixels
 	vsync            bool
+	resizePending    bool   // Set by Resize; cleared after swapchain recreation in Submit
 	lastImageIndex   uint32 // Last rendered swapchain image (for ReadPixels)
 	lastFrameValid   bool   // Whether lastImageIndex is valid
 	deviceLost       bool   // Set when VK_ERROR_DEVICE_LOST is detected; rendering becomes no-op
@@ -522,8 +523,8 @@ func (b *Backend) BeginFrame() {
 	// fails (e.g. ErrorOutOfDateKHR after window show/resize), the fence
 	// remains signaled and the next BeginFrame won't hang.
 	fence := b.inFlightFences[b.currentFrame]
-	// Use a 5-second timeout so we can detect hangs instead of blocking forever.
-	const fenceTimeout = 5_000_000_000 // 5 seconds in nanoseconds
+	// 100ms timeout — keeps resize responsive; if we timeout, recover gracefully.
+	const fenceTimeout = 100_000_000 // 100ms in nanoseconds
 	r, _, _ := syscallN(b.loader.vkWaitForFences,
 		uintptr(b.device), 1, uintptr(unsafe.Pointer(&fence)), 1, uintptr(fenceTimeout),
 	)
@@ -532,7 +533,7 @@ func (b *Backend) BeginFrame() {
 		b.deviceLost = true
 		return
 	} else if Result(r) == Timeout {
-		// Fence was not signaled within 5s — likely a lost submit. Recover.
+		// Fence was not signaled within timeout — likely a lost submit. Recover.
 		fmt.Printf("[vk] ERROR: WaitForFences TIMEOUT on slot %d — recovering\n", b.currentFrame)
 		b.loader.DeviceWaitIdle(b.device)
 		// Recreate the fence in signaled state so we can proceed.
@@ -573,13 +574,22 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 		return
 	}
 
-	// Acquire next image
+	// Recreate swapchain if a resize was requested.
+	if b.resizePending {
+		b.recreateSwapchain()
+		b.resizePending = false
+	}
+
+	// Acquire next image.
 	imageIndex, result := b.loader.AcquireNextImageKHR(
 		b.device, b.swapchain.handle, MaxTimeout,
 		b.imageAvailableSems[b.currentFrame], 0,
 	)
 	if result == ErrorOutOfDateKHR {
-		b.recreateSwapchain()
+		b.resizePending = true
+		return
+	}
+	if result == NotReady || result == Timeout {
 		return
 	}
 
@@ -746,17 +756,25 @@ func (b *Backend) submitCommandBuffer(cmd CommandBuffer, imageIndex uint32) {
 		uintptr(b.presentQueue), uintptr(unsafe.Pointer(&pi)),
 	)
 	if Result(r) == ErrorOutOfDateKHR || Result(r) == SuboptimalKHR {
-		b.recreateSwapchain()
+		b.resizePending = true
 	}
 }
 
 func (b *Backend) submitEmpty() {
+	if b.resizePending {
+		b.recreateSwapchain()
+		b.resizePending = false
+	}
+
 	imageIndex, result := b.loader.AcquireNextImageKHR(
 		b.device, b.swapchain.handle, MaxTimeout,
 		b.imageAvailableSems[b.currentFrame], 0,
 	)
 	if result == ErrorOutOfDateKHR {
-		b.recreateSwapchain()
+		b.resizePending = true
+		return
+	}
+	if result == NotReady || result == Timeout {
 		return
 	}
 
@@ -786,35 +804,45 @@ func (b *Backend) submitEmpty() {
 }
 
 // Resize implements render.Backend.
+// This is lazy — it only records the new size and sets a flag.
+// The actual swapchain recreation happens in Submit when AcquireNextImageKHR
+// returns ErrorOutOfDateKHR, or at the start of Submit if the flag is set.
+// This avoids expensive DeviceWaitIdle + swapchain recreation on every WM_SIZE
+// during rapid window resizing.
 func (b *Backend) Resize(width, height int) {
 	if width <= 0 || height <= 0 {
 		return
 	}
 	b.width = width
 	b.height = height
-	b.recreateSwapchain()
+	b.resizePending = true
 }
 
 func (b *Backend) recreateSwapchain() {
 	b.loader.DeviceWaitIdle(b.device)
 
-	oldSwapchain := b.swapchain
-	b.createSwapchain()
-	b.loader.CreateFramebuffers(b.device, b.renderPass, b.swapchain)
-
-	if oldSwapchain != nil {
-		// Clean up old framebuffers and views (handle was already reused via oldSwapchain)
-		for _, fb := range oldSwapchain.framebuffers {
+	// Fully destroy old swapchain resources BEFORE creating a new one.
+	// Passing oldSwapchain to vkCreateSwapchainKHR lets the driver reuse
+	// internal state, but on AMD Windows this causes vkAcquireNextImageKHR
+	// to block for seconds after resize (images stuck in presentation engine).
+	// Destroying first forces a clean break.
+	if b.swapchain != nil {
+		for _, fb := range b.swapchain.framebuffers {
 			if fb != 0 {
 				syscallN(b.loader.vkDestroyFramebuffer, uintptr(b.device), uintptr(fb), 0)
 			}
 		}
-		for _, view := range oldSwapchain.imageViews {
+		for _, view := range b.swapchain.imageViews {
 			if view != 0 {
 				syscallN(b.loader.vkDestroyImageView, uintptr(b.device), uintptr(view), 0)
 			}
 		}
+		syscallN(b.loader.vkDestroySwapchainKHR, uintptr(b.device), uintptr(b.swapchain.handle), 0)
+		b.swapchain = nil
 	}
+
+	b.createSwapchain()
+	b.loader.CreateFramebuffers(b.device, b.renderPass, b.swapchain)
 }
 
 // CreateTexture implements render.Backend.
