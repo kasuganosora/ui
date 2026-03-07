@@ -360,15 +360,19 @@ func layoutChildrenHorizontal(tree *core.Tree, parent widget.Widget, x, y, w, h,
 		tree.SetLayout(child.ElementID(), core.LayoutResult{
 			Bounds: uimath.NewRect(cx, y, itemW, h),
 		})
-		// Recursively layout children
-		if gc := child.Children(); len(gc) > 0 {
-			for _, g := range gc {
-				tree.SetLayout(g.ElementID(), core.LayoutResult{
-					Bounds: uimath.NewRect(cx+4, y+4, itemW-8, h-8),
-				})
-			}
-		}
+		// Recursively fill children with inset bounds
+		layoutDescendantsFill(tree, child, cx+4, y+4, itemW-8, h-8)
 		cx += itemW + gap
+	}
+}
+
+// layoutDescendantsFill recursively assigns inset bounds to all descendants.
+func layoutDescendantsFill(tree *core.Tree, parent widget.Widget, x, y, w, h float32) {
+	for _, child := range parent.Children() {
+		tree.SetLayout(child.ElementID(), core.LayoutResult{
+			Bounds: uimath.NewRect(x, y, w, h),
+		})
+		layoutDescendantsFill(tree, child, x+2, y+2, w-4, h-4)
 	}
 }
 
