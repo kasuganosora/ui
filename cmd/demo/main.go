@@ -123,6 +123,14 @@ func (a *textDrawerAdapter) LineHeight(fontSize float32) float32 {
 	return m.Ascent + m.Descent
 }
 
+func (a *textDrawerAdapter) MeasureText(text string, fontSize float32) float32 {
+	m := a.renderer.Measure(text, font.ShapeOptions{
+		FontID:   a.fontID,
+		FontSize: fontSize,
+	})
+	return m.Width
+}
+
 // mouseDownTarget tracks which element received MouseDown for click synthesis.
 var mouseDownTarget core.ElementID
 
@@ -177,10 +185,13 @@ func run() error {
 	if fontID == font.InvalidFontID {
 		fontID, _ = mgr.Register("Default", font.WeightRegular, font.StyleNormal, nil)
 	}
+	dpi := backend.DPIScale()
+	fontEngine.SetDPIScale(dpi)
 	glyphAtlas := atlas.New(atlas.Options{Width: 1024, Height: 1024, Backend: backend})
 	textRenderer := textrender.New(textrender.Options{
 		Manager:   mgr,
 		Atlas:     glyphAtlas,
+		DPIScale:  dpi,
 		KeepAlive: plat.ProcessMessages,
 	})
 
@@ -191,6 +202,8 @@ func run() error {
 	dispatcher := core.NewDispatcher(tree)
 	cfg := widget.DefaultConfig()
 	cfg.TextRenderer = &textDrawerAdapter{renderer: textRenderer, fontID: fontID, engine: fontEngine}
+	cfg.Window = win
+	cfg.Platform = plat
 	buf := render.NewCommandBuffer()
 	_ = dispatcher // used for event routing below
 
@@ -521,6 +534,15 @@ func handleEvent(tree *core.Tree, dispatcher *core.Dispatcher, evt *event.Event,
 		win.SetShouldClose(true)
 	case event.MouseMove, event.MouseDown, event.MouseUp, event.MouseClick:
 		target := tree.HitTest(evt.GlobalX, evt.GlobalY)
+
+		// During a drag (mouseDownTarget active), also send MouseMove/MouseUp
+		// to the element that received MouseDown, for drag-selection support.
+		if mouseDownTarget != core.InvalidElementID && target != mouseDownTarget {
+			if evt.Type == event.MouseMove || evt.Type == event.MouseUp {
+				dispatcher.Dispatch(mouseDownTarget, evt)
+			}
+		}
+
 		if target != core.InvalidElementID {
 			// Update hover state
 			if evt.Type == event.MouseMove {
@@ -541,7 +563,12 @@ func handleEvent(tree *core.Tree, dispatcher *core.Dispatcher, evt *event.Event,
 				mouseDownTarget = core.InvalidElementID
 			}
 		}
-	case event.KeyDown, event.KeyUp, event.KeyPress:
+
+		if evt.Type == event.MouseUp {
+			mouseDownTarget = core.InvalidElementID
+		}
+	case event.KeyDown, event.KeyUp, event.KeyPress,
+		event.IMECompositionStart, event.IMECompositionUpdate, event.IMECompositionEnd:
 		// Send to focused element
 		tree.Walk(tree.Root(), func(id core.ElementID, _ int) bool {
 			if e := tree.Get(id); e != nil && e.IsFocused() {

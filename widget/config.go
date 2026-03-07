@@ -2,6 +2,7 @@ package widget
 
 import (
 	uimath "github.com/kasuganosora/ui/math"
+	"github.com/kasuganosora/ui/platform"
 	"github.com/kasuganosora/ui/render"
 )
 
@@ -12,6 +13,8 @@ type TextDrawer interface {
 	// LineHeight returns the font line height (ascent + descent) for the given size.
 	// Used by widgets for accurate vertical centering.
 	LineHeight(fontSize float32) float32
+	// MeasureText returns the width of the given text at the specified font size.
+	MeasureText(text string, fontSize float32) float32
 }
 
 // Config holds global UI configuration and theme colors.
@@ -37,6 +40,12 @@ type Config struct {
 
 	// Text renderer (optional — falls back to placeholder rects if nil)
 	TextRenderer TextDrawer
+
+	// Window reference for IME positioning and context menus (optional)
+	Window platform.Window
+
+	// Platform reference for clipboard operations (optional)
+	Platform platform.Platform
 
 	// Spacing
 	SpaceXS float32

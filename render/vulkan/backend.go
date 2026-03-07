@@ -625,7 +625,7 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 	commands := buf.Commands()
 	sorted := make([]render.Command, len(commands))
 	copy(sorted, commands)
-	sort.Slice(sorted, func(i, j int) bool {
+	sort.SliceStable(sorted, func(i, j int) bool {
 		return sorted[i].ZOrder < sorted[j].ZOrder
 	})
 

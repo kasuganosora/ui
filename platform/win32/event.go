@@ -226,6 +226,9 @@ func wndProc(hwnd, msg, wParam, lParam uintptr) uintptr {
 	// ---- IME events ----
 
 	case WM_IME_STARTCOMPOSITION:
+		// Set IME position before DefWindowProc so the candidate window
+		// appears at the cursor location, not at the default position.
+		w.applyIMEPosition()
 		w.p.pushEvent(event.Event{
 			Type:      event.IMECompositionStart,
 			Timestamp: queryTimeMicroseconds(),

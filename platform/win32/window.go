@@ -5,8 +5,8 @@ package win32
 import (
 	"unsafe"
 
-	"github.com/kasuganosora/ui/platform"
 	uimath "github.com/kasuganosora/ui/math"
+	"github.com/kasuganosora/ui/platform"
 )
 
 // Window implements platform.Window using Win32 HWND.
@@ -40,6 +40,10 @@ type Window struct {
 	// Cursor
 	currentCursor uintptr
 	cursorInClient bool
+
+	// IME position (client area coords, stored for use during WM_IME_STARTCOMPOSITION)
+	imeX, imeY int32
+	imeLineH   int32 // line height for candidate window exclusion rect
 }
 
 // newWindow creates a new Win32 window. Called by Platform.CreateWindow.
@@ -310,25 +314,86 @@ func (w *Window) SetCursor(cursor platform.CursorShape) {
 	procSetCursor.Call(h)
 }
 
-func (w *Window) SetIMEPosition(pos uimath.Vec2) {
+func (w *Window) SetIMEPosition(caretRect uimath.Rect) {
+	// Store position for use during WM_IME_STARTCOMPOSITION
+	w.imeX = int32(caretRect.X)
+	w.imeY = int32(caretRect.Y)
+	w.imeLineH = int32(caretRect.Height)
+	if w.imeLineH < 1 {
+		w.imeLineH = 20
+	}
+	w.applyIMEPosition()
+}
+
+// applyIMEPosition sets the IME composition and candidate window positions.
+func (w *Window) applyIMEPosition() {
 	himc, _, _ := procImmGetContext.Call(w.hwnd)
 	if himc == 0 {
 		return
 	}
 	defer procImmReleaseContext.Call(w.hwnd, himc)
 
+	pt := POINT{X: w.imeX, Y: w.imeY}
+
+	// Position the inline composition string at the cursor
 	cf := COMPOSITIONFORM{
 		DwStyle:      2, // CFS_POINT
-		PtCurrentPos: POINT{X: int32(pos.X), Y: int32(pos.Y)},
+		PtCurrentPos: pt,
 	}
 	procImmSetCompositionWindow.Call(himc, uintptr(unsafe.Pointer(&cf)))
 
-	cand := CANDIDATEFORM{
-		DwIndex:      0,
-		DwStyle:      0x0040, // CFS_CANDIDATEPOS
-		PtCurrentPos: POINT{X: int32(pos.X), Y: int32(pos.Y)},
+	// Use CFS_EXCLUDE to tell the IME to place the candidate window
+	// avoiding the text line rectangle. This works with modern IMEs
+	// (Microsoft Pinyin, etc.) that ignore CFS_CANDIDATEPOS.
+	for i := uint32(0); i < 4; i++ {
+		cand := CANDIDATEFORM{
+			DwIndex:      i,
+			DwStyle:      0x0080, // CFS_EXCLUDE
+			PtCurrentPos: pt,
+			RcArea: RECT{
+				Left:   w.imeX,
+				Top:    w.imeY,
+				Right:  w.imeX + 1,
+				Bottom: w.imeY + w.imeLineH,
+			},
+		}
+		procImmSetCandidateWindow.Call(himc, uintptr(unsafe.Pointer(&cand)))
 	}
-	procImmSetCandidateWindow.Call(himc, uintptr(unsafe.Pointer(&cand)))
+}
+
+func (w *Window) ClientToScreen(x, y int) (int, int) {
+	pt := POINT{X: int32(x), Y: int32(y)}
+	procClientToScreen.Call(w.hwnd, uintptr(unsafe.Pointer(&pt)))
+	return int(pt.X), int(pt.Y)
+}
+
+func (w *Window) ShowContextMenu(clientX, clientY int, items []platform.ContextMenuItem) int {
+	hMenu, _, _ := procCreatePopupMenu.Call()
+	if hMenu == 0 {
+		return -1
+	}
+	defer procDestroyMenu.Call(hMenu)
+
+	for i, item := range items {
+		flags := uintptr(MF_STRING)
+		if !item.Enabled {
+			flags |= MF_GRAYED
+		}
+		procAppendMenuW.Call(hMenu, flags, uintptr(i+1),
+			uintptr(unsafe.Pointer(utf16PtrFromString(item.Label))))
+	}
+
+	// Convert to screen coordinates
+	sx, sy := w.ClientToScreen(clientX, clientY)
+
+	ret, _, _ := procTrackPopupMenu.Call(hMenu,
+		TPM_RETURNCMD|TPM_RIGHTBUTTON,
+		uintptr(sx), uintptr(sy),
+		0, w.hwnd, 0)
+	if ret == 0 {
+		return -1
+	}
+	return int(ret) - 1
 }
 
 func (w *Window) Destroy() {

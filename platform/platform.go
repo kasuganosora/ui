@@ -91,8 +91,18 @@ type Window interface {
 	// SetCursor sets the cursor shape.
 	SetCursor(cursor CursorShape)
 
-	// SetIMEPosition sets the IME candidate window position.
-	SetIMEPosition(pos uimath.Vec2)
+	// SetIMEPosition sets the IME composition and candidate window position.
+	// The rect specifies the cursor location: X,Y is the top-left of the text line,
+	// Width is 0 (or caret width), Height is the line height.
+	SetIMEPosition(caretRect uimath.Rect)
+
+	// ShowContextMenu displays a native context menu at the given client-area
+	// coordinates. Returns the 0-based index of the selected item, or -1 if
+	// the menu was cancelled/dismissed.
+	ShowContextMenu(clientX, clientY int, items []ContextMenuItem) int
+
+	// ClientToScreen converts client-area coordinates to screen coordinates.
+	ClientToScreen(x, y int) (screenX, screenY int)
 
 	// Destroy destroys the window.
 	Destroy()
@@ -125,6 +135,12 @@ func DefaultWindowOptions() WindowOptions {
 		Decorated: true,
 		VSync:     true,
 	}
+}
+
+// ContextMenuItem describes a single context menu item.
+type ContextMenuItem struct {
+	Label   string
+	Enabled bool
 }
 
 // CursorShape identifies a standard cursor appearance.

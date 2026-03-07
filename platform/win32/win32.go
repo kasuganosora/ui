@@ -68,6 +68,10 @@ var (
 	procKillTimer            = user32.NewProc("KillTimer")
 	procPostMessageW                  = user32.NewProc("PostMessageW")
 	procDisableProcessWindowsGhosting = user32.NewProc("DisableProcessWindowsGhosting")
+	procCreatePopupMenu               = user32.NewProc("CreatePopupMenu")
+	procDestroyMenu                   = user32.NewProc("DestroyMenu")
+	procAppendMenuW                   = user32.NewProc("AppendMenuW")
+	procTrackPopupMenu                = user32.NewProc("TrackPopupMenu")
 )
 
 // kernel32 functions
@@ -311,6 +315,15 @@ const (
 	GWLP_USERDATA = -21
 	GWLP_STYLE    = -16
 	GWLP_EXSTYLE  = -20
+)
+
+// Menu flags
+const (
+	MF_STRING  = 0x00000000
+	MF_GRAYED  = 0x00000001
+
+	TPM_RETURNCMD   = 0x0100
+	TPM_RIGHTBUTTON = 0x0002
 )
 
 // Class styles

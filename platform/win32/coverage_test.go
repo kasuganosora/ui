@@ -231,7 +231,7 @@ func TestWindowSetIMEPosition(t *testing.T) {
 	defer w.Destroy()
 
 	// Should not panic even without active IME context
-	w.SetIMEPosition(uimath.NewVec2(50, 100))
+	w.SetIMEPosition(uimath.NewRect(50, 100, 1, 20))
 }
 
 func TestWindowGetStyleExStyle(t *testing.T) {
@@ -582,6 +582,28 @@ func TestWndProcSizeAndMoveMessages(t *testing.T) {
 	}
 	if !hasResize {
 		t.Error("expected WindowResize event")
+	}
+}
+
+func TestWindowClientToScreen(t *testing.T) {
+	p, w := newTestWindow(t)
+	defer p.Terminate()
+	defer w.Destroy()
+
+	sx, sy := w.ClientToScreen(0, 0)
+	_ = sx
+	_ = sy // Just ensure no panic
+}
+
+func TestWindowShowContextMenu(t *testing.T) {
+	p, w := newTestWindow(t)
+	defer p.Terminate()
+	defer w.Destroy()
+
+	// Can't test interactive menu, but ensure no panic with empty items
+	result := w.ShowContextMenu(0, 0, nil)
+	if result != -1 {
+		t.Errorf("expected -1 for empty menu, got %d", result)
 	}
 }
 
