@@ -4,6 +4,7 @@ package win32
 
 import (
 	"fmt"
+	"runtime"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -30,10 +31,16 @@ func New() *Platform {
 }
 
 // Init implements platform.Platform.
+// Must be called from the main goroutine. Locks the goroutine to the OS thread
+// because Win32 requires the message loop to run on the window-creating thread.
 func (p *Platform) Init() error {
 	if p.inited {
 		return nil
 	}
+
+	// Win32 message loop must run on the thread that created the window.
+	// Go's scheduler can move goroutines between threads, so we lock this one.
+	runtime.LockOSThread()
 
 	// Get module handle
 	h, _, _ := procGetModuleHandleW.Call(0)
@@ -175,6 +182,7 @@ func (p *Platform) Terminate() {
 	}
 	p.windows = nil
 	p.inited = false
+	runtime.UnlockOSThread()
 }
 
 // windowFromHWND finds the Window for a given HWND via GWLP_USERDATA.

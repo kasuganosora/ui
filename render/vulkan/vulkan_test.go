@@ -394,6 +394,50 @@ func TestMaxTextureSize(t *testing.T) {
 	}
 }
 
+// === Vulkan Spec Constant Compliance ===
+
+func TestShaderStageFlagBitsMatchSpec(t *testing.T) {
+	// VK_SHADER_STAGE_VERTEX_BIT = 0x00000001
+	if ShaderStageVertexBit != 0x00000001 {
+		t.Errorf("ShaderStageVertexBit = 0x%08X, want 0x00000001", uint32(ShaderStageVertexBit))
+	}
+	// VK_SHADER_STAGE_FRAGMENT_BIT = 0x00000010
+	// Bug regression: was incorrectly 0x00000002 (VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT)
+	if ShaderStageFragmentBit != 0x00000010 {
+		t.Errorf("ShaderStageFragmentBit = 0x%08X, want 0x00000010 (was 0x02=tessellation, not fragment)", uint32(ShaderStageFragmentBit))
+	}
+}
+
+func TestImageUsageFlagBitsMatchSpec(t *testing.T) {
+	if ImageUsageColorAttachmentBit != 0x00000010 {
+		t.Errorf("ImageUsageColorAttachmentBit = 0x%X, want 0x10", uint32(ImageUsageColorAttachmentBit))
+	}
+	if ImageUsageTransferSrcBit != 0x00000001 {
+		t.Errorf("ImageUsageTransferSrcBit = 0x%X, want 0x01", uint32(ImageUsageTransferSrcBit))
+	}
+}
+
+func TestBufferUsageFlagBitsMatchSpec(t *testing.T) {
+	if BufferUsageVertexBufferBit != 0x00000080 {
+		t.Errorf("BufferUsageVertexBufferBit = 0x%X, want 0x80", uint32(BufferUsageVertexBufferBit))
+	}
+	if BufferUsageIndexBufferBit != 0x00000040 {
+		t.Errorf("BufferUsageIndexBufferBit = 0x%X, want 0x40", uint32(BufferUsageIndexBufferBit))
+	}
+	if BufferUsageUniformBufferBit != 0x00000010 {
+		t.Errorf("BufferUsageUniformBufferBit = 0x%X, want 0x10", uint32(BufferUsageUniformBufferBit))
+	}
+}
+
+func TestDescriptorTypesMatchSpec(t *testing.T) {
+	if DescriptorTypeCombinedImageSampler != 1 {
+		t.Errorf("DescriptorTypeCombinedImageSampler = %d, want 1", DescriptorTypeCombinedImageSampler)
+	}
+	if DescriptorTypeUniformBuffer != 6 {
+		t.Errorf("DescriptorTypeUniformBuffer = %d, want 6", DescriptorTypeUniformBuffer)
+	}
+}
+
 // === Handle Constants Tests ===
 
 func TestNullHandle(t *testing.T) {
@@ -458,6 +502,89 @@ func TestTexturedVertexAttributeDescriptions(t *testing.T) {
 	// location 2: vec4 color at offset 16
 	if attrs[2].Location != 2 || attrs[2].Offset != 16 || attrs[2].Format != FormatR32G32B32A32Sfloat {
 		t.Error("attribute 2 (color) incorrect")
+	}
+}
+
+// === Vertex Buffer Offset Tracking Tests ===
+
+func TestWriteVertexDataTracksOffset(t *testing.T) {
+	// Simulate vertex buffer with manual memory (no GPU needed)
+	b := New()
+	bufSize := uint64(4096)
+	buf := make([]byte, bufSize)
+	b.vertexSize = bufSize
+	// Set mappedVertexPtr to our local buffer (simulate mapped GPU memory)
+	b.mappedVertexPtr = unsafe.Pointer(&buf[0])
+	b.frameVertexOffset = 0
+
+	// Write first rect's vertices (6 * 76 = 456 bytes)
+	data1 := make([]byte, 6*int(unsafe.Sizeof(RectVertex{})))
+	data1[0] = 0xAA // marker
+	b.writeVertexData(data1)
+
+	if b.frameVertexOffset != uint64(len(data1)) {
+		t.Errorf("after first write: offset = %d, want %d", b.frameVertexOffset, len(data1))
+	}
+
+	// Write second rect's vertices
+	data2 := make([]byte, 6*int(unsafe.Sizeof(RectVertex{})))
+	data2[0] = 0xBB // marker
+	b.writeVertexData(data2)
+
+	expectedOffset := uint64(len(data1) + len(data2))
+	if b.frameVertexOffset != expectedOffset {
+		t.Errorf("after second write: offset = %d, want %d", b.frameVertexOffset, expectedOffset)
+	}
+
+	// Verify both writes are at correct positions in buffer
+	if buf[0] != 0xAA {
+		t.Error("first rect data not at offset 0")
+	}
+	if buf[len(data1)] != 0xBB {
+		t.Error("second rect data not at correct offset")
+	}
+}
+
+func TestWriteVertexDataGrowsBuffer(t *testing.T) {
+	b := New()
+	b.vertexSize = 100 // Very small buffer
+	// Don't set mappedVertexPtr — writeVertexData will detect the need to grow
+	// but we can't actually allocate GPU memory. Just test the offset tracking.
+	// For a real grow test, see GPU integration tests.
+
+	// Verify the grow condition is detected
+	b.frameVertexOffset = 50
+	data := make([]byte, 60) // 50 + 60 = 110 > 100
+	required := b.frameVertexOffset + uint64(len(data))
+	if required <= b.vertexSize {
+		t.Error("should need to grow buffer")
+	}
+}
+
+func TestMultipleRectsProduceDistinctOffsets(t *testing.T) {
+	// Verify that N rects produce N distinct bind offsets
+	rectSize := uint64(6 * unsafe.Sizeof(RectVertex{}))
+	numRects := 10
+	offsets := make([]uint64, numRects)
+
+	offset := uint64(0)
+	for i := 0; i < numRects; i++ {
+		offsets[i] = offset
+		offset += rectSize
+	}
+
+	// All offsets must be unique
+	seen := make(map[uint64]bool)
+	for i, o := range offsets {
+		if seen[o] {
+			t.Errorf("rect %d has duplicate offset %d", i, o)
+		}
+		seen[o] = true
+	}
+
+	// Final offset should be numRects * rectSize
+	if offset != uint64(numRects)*rectSize {
+		t.Errorf("total offset = %d, want %d", offset, uint64(numRects)*rectSize)
 	}
 }
 

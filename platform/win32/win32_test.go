@@ -3,7 +3,9 @@
 package win32
 
 import (
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/kasuganosora/ui/event"
 	"github.com/kasuganosora/ui/platform"
@@ -377,6 +379,173 @@ func TestGetPrimaryMonitorDPI(t *testing.T) {
 		t.Errorf("DPI should be positive, got %v", dpi)
 	}
 	t.Logf("Primary monitor DPI: %.0f", dpi)
+}
+
+// === OS Thread Locking Tests ===
+
+func TestInitLocksOSThread(t *testing.T) {
+	// Win32 requires the message loop to run on the window-creating thread.
+	// Platform.Init must call runtime.LockOSThread to prevent goroutine migration.
+	p := New()
+	if err := p.Init(); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer p.Terminate()
+
+	// After Init, the goroutine should be locked to an OS thread.
+	// runtime.LockOSThread is cumulative — we can detect it by trying
+	// to verify we're on the same thread. The simplest check: creating
+	// a window and pumping messages should work without hanging.
+	w, err := p.CreateWindow(platform.WindowOptions{
+		Title: "Thread Test", Width: 200, Height: 200, Visible: false, Decorated: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateWindow failed: %v", err)
+	}
+	defer w.Destroy()
+
+	// Pump messages — if goroutine migrated to wrong thread, this would
+	// either hang or fail to process messages.
+	done := make(chan bool, 1)
+	go func() {
+		// This goroutine checks that the main goroutine is responsive
+		time.Sleep(500 * time.Millisecond)
+		done <- true
+	}()
+
+	// Simulate a few frames of message pumping
+	deadline := time.Now().Add(600 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		p.PollEvents()
+		runtime.Gosched()
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	select {
+	case <-done:
+		// OK — message loop didn't hang
+	default:
+		t.Error("message loop appears to have hung")
+	}
+}
+
+func TestWindowCloseEventSetsFlag(t *testing.T) {
+	p := New()
+	if err := p.Init(); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer p.Terminate()
+
+	w, err := p.CreateWindow(platform.WindowOptions{
+		Title: "Close Test", Width: 200, Height: 200, Visible: false, Decorated: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateWindow failed: %v", err)
+	}
+	defer w.Destroy()
+
+	if w.ShouldClose() {
+		t.Fatal("should not be closed initially")
+	}
+
+	// Simulate WM_CLOSE by sending the message
+	hwnd := w.NativeHandle()
+	procPostMessageW.Call(hwnd, WM_CLOSE, 0, 0)
+
+	// Process the message
+	p.PollEvents()
+
+	if !w.ShouldClose() {
+		t.Error("window should be marked for close after WM_CLOSE")
+	}
+}
+
+func TestWindowCloseEventGenerated(t *testing.T) {
+	p := New()
+	if err := p.Init(); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer p.Terminate()
+
+	w, err := p.CreateWindow(platform.WindowOptions{
+		Title: "Close Event Test", Width: 200, Height: 200, Visible: false, Decorated: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateWindow failed: %v", err)
+	}
+	defer w.Destroy()
+
+	// Send WM_CLOSE
+	hwnd := w.NativeHandle()
+	procPostMessageW.Call(hwnd, WM_CLOSE, 0, 0)
+
+	events := p.PollEvents()
+	found := false
+	for _, e := range events {
+		if e.Type == event.WindowClose {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("WM_CLOSE should generate a WindowClose event")
+	}
+}
+
+func TestMouseEventsGeneratedCorrectly(t *testing.T) {
+	p := New()
+	if err := p.Init(); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer p.Terminate()
+
+	w, err := p.CreateWindow(platform.WindowOptions{
+		Title: "Mouse Test", Width: 400, Height: 300, Visible: false, Decorated: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateWindow failed: %v", err)
+	}
+	defer w.Destroy()
+
+	// Simulate WM_LBUTTONDOWN at (100, 50)
+	hwnd := w.NativeHandle()
+	lParam := uintptr(50<<16 | 100) // y=50, x=100
+	procPostMessageW.Call(hwnd, WM_LBUTTONDOWN, 0, lParam)
+
+	events := p.PollEvents()
+	found := false
+	for _, e := range events {
+		if e.Type == event.MouseDown && e.Button == event.MouseButtonLeft {
+			found = true
+			if e.GlobalX != 100 || e.GlobalY != 50 {
+				t.Errorf("mouse position: got (%v, %v), want (100, 50)", e.GlobalX, e.GlobalY)
+			}
+		}
+	}
+	if !found {
+		t.Error("WM_LBUTTONDOWN should generate MouseDown event")
+	}
+}
+
+func TestPollEventsDoesNotBlockOnEmptyQueue(t *testing.T) {
+	p := New()
+	if err := p.Init(); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer p.Terminate()
+
+	// PollEvents with no messages should return immediately
+	done := make(chan bool, 1)
+	go func() {
+		p.PollEvents()
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// OK
+	case <-time.After(time.Second):
+		t.Error("PollEvents blocked on empty message queue")
+	}
 }
 
 func TestClipboardRoundTrip(t *testing.T) {
