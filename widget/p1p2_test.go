@@ -3,6 +3,7 @@ package widget
 import (
 	"testing"
 
+	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 )
 
@@ -802,4 +803,174 @@ func TestGuideWidget(t *testing.T) {
 	if g.IsVisible() {
 		t.Error("should be hidden after finish")
 	}
+}
+
+// --- Rich Text ---
+
+func TestRichText(t *testing.T) {
+	tree := newTestTree()
+	cfg := p1p2TestCfg()
+	rt := NewRichText(tree, cfg)
+	rt.AddText("Hello ")
+	rt.AddStyledText("World", uimath.ColorRed, 20, true)
+	rt.AddBreak()
+	rt.AddImage(0, 16, 16)
+	rt.AddText(" after image")
+	if len(rt.Spans()) != 5 {
+		t.Errorf("expected 5 spans, got %d", len(rt.Spans()))
+	}
+	rt.ClearSpans()
+	if len(rt.Spans()) != 0 {
+		t.Error("expected 0 spans after clear")
+	}
+	rt.SetSpans([]RichSpan{
+		{Type: RichSpanText, Text: "test"},
+	})
+	if len(rt.Spans()) != 1 {
+		t.Error("expected 1 span after SetSpans")
+	}
+	p1p2TestDraw(t, rt)
+}
+
+// --- Dock Layout ---
+
+func TestDockLayout(t *testing.T) {
+	tree := newTestTree()
+	cfg := p1p2TestCfg()
+	dl := NewDockLayout(tree, cfg)
+
+	dl.AddPanel(&DockPanel{ID: "explorer", Title: "Explorer", Position: DockLeft})
+	dl.AddPanel(&DockPanel{ID: "output", Title: "Output", Position: DockBottom})
+	dl.AddPanel(&DockPanel{ID: "editor", Title: "Editor", Position: DockCenter})
+	dl.AddPanel(&DockPanel{ID: "props", Title: "Properties", Position: DockRight})
+
+	if len(dl.Panels()) != 4 {
+		t.Errorf("expected 4 panels, got %d", len(dl.Panels()))
+	}
+
+	p := dl.FindPanel("explorer")
+	if p == nil || p.Title != "Explorer" {
+		t.Error("expected to find explorer panel")
+	}
+
+	// Undock
+	dl.UndockPanel("props")
+	p = dl.FindPanel("props")
+	if p.Position != DockFloat {
+		t.Error("expected float position after undock")
+	}
+
+	// Dock
+	dl.DockPanel("props", DockRight)
+	if p.Position != DockRight {
+		t.Error("expected right position after dock")
+	}
+
+	// Remove
+	dl.RemovePanel("output")
+	if len(dl.Panels()) != 3 {
+		t.Errorf("expected 3 panels after remove")
+	}
+
+	// Center tabs
+	if dl.ActiveTab() != 0 {
+		t.Error("expected active tab 0")
+	}
+	dl.SetActiveTab(0)
+
+	p1p2TestDraw(t, dl)
+}
+
+// --- Gamepad Navigator ---
+
+type mockNavigable struct {
+	Base
+	focusable bool
+}
+
+func (m *mockNavigable) NavFocusable() bool { return m.focusable }
+func (m *mockNavigable) Draw(buf *render.CommandBuffer) {}
+
+func TestGamepadNavigator(t *testing.T) {
+	tree := newTestTree()
+	cfg := p1p2TestCfg()
+	gn := NewGamepadNavigator(tree, cfg)
+
+	w1 := &mockNavigable{Base: NewBase(tree, "custom", cfg), focusable: true}
+	w2 := &mockNavigable{Base: NewBase(tree, "custom", cfg), focusable: true}
+	w3 := &mockNavigable{Base: NewBase(tree, "custom", cfg), focusable: false}
+
+	gn.AddWidget(w1)
+	gn.AddWidget(w2)
+	gn.AddWidget(w3)
+
+	if len(gn.Widgets()) != 3 {
+		t.Errorf("expected 3 widgets, got %d", len(gn.Widgets()))
+	}
+	if gn.FocusIndex() != 0 {
+		t.Errorf("expected initial focus 0, got %d", gn.FocusIndex())
+	}
+
+	// Navigate down: should skip w3 (not focusable) and go to w2
+	gn.Navigate(NavDown)
+	if gn.FocusIndex() != 1 {
+		t.Errorf("expected focus 1 after nav down, got %d", gn.FocusIndex())
+	}
+
+	// Navigate down again: wraps to w1 (skips w3)
+	gn.Navigate(NavDown)
+	if gn.FocusIndex() != 0 {
+		t.Errorf("expected focus 0 after wrap, got %d", gn.FocusIndex())
+	}
+
+	// Navigate up: should go to w2
+	gn.Navigate(NavUp)
+	if gn.FocusIndex() != 1 {
+		t.Errorf("expected focus 1 after nav up, got %d", gn.FocusIndex())
+	}
+
+	// Activate callback
+	activated := false
+	gn.OnActivate(func(w Navigable) { activated = true })
+	gn.Activate()
+	if !activated {
+		t.Error("expected activate callback")
+	}
+
+	// Cancel callback
+	cancelled := false
+	gn.OnCancel(func() { cancelled = true })
+	gn.Cancel()
+	if !cancelled {
+		t.Error("expected cancel callback")
+	}
+
+	// Set focus
+	gn.SetFocus(0)
+	if gn.FocusIndex() != 0 {
+		t.Error("expected focus 0 after SetFocus")
+	}
+
+	// Remove widget
+	gn.RemoveWidget(w3)
+	if len(gn.Widgets()) != 2 {
+		t.Error("expected 2 widgets after remove")
+	}
+
+	// Tick
+	gn.Tick(0.1)
+
+	// Disable
+	gn.SetEnabled(false)
+	if gn.IsEnabled() {
+		t.Error("expected disabled")
+	}
+
+	gn.SetEnabled(true)
+	gn.ClearWidgets()
+	if len(gn.Widgets()) != 0 {
+		t.Error("expected 0 widgets after clear")
+	}
+
+	p1p2TestDraw(t, gn)
 }
