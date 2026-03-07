@@ -1,24 +1,26 @@
 # 开发路线图
 
-## 阶段 0: 基础设施（第 1-2 周）
+## 阶段 0: 基础设施（第 1-2 周） ✅
 
 - [x] 项目结构搭建、CI/CD
 - [x] 基础数学库（Vec2, Rect, Color, Mat3, Edges, Corners）
 - [x] 平台层接口定义（platform.Platform, platform.Window）
 - [x] 渲染后端接口定义（render.Backend, render.CommandBuffer）
 - [x] 事件系统基础类型（event.Event, event.Type, event.Key, event.MouseButton）
+- [x] 单元测试覆盖率 90%+（math 99.4%, event 100%, render 100%）
 
 ## 阶段 1: 最小可用（第 3-8 周）
 
-### 平台层 - Windows
+### 平台层 - Windows ✅
 
 - [x] Win32 窗口创建/管理（零 CGO，syscall.NewLazyDLL）
 - [x] 键盘/鼠标输入采集（WndProc 全消息翻译）
 - [x] DPI 感知（Per-Monitor DPI Aware）
 - [x] 基础剪贴板（文本，Unicode + CJK + Emoji）
 - [x] IME 支持（IMM32 组合文本、候选窗口定位）
+- [x] 单元测试覆盖率 90.7%
 
-### 渲染 - Vulkan
+### 渲染 - Vulkan ✅
 
 - [x] Vulkan 动态加载（vulkan-1.dll, vkGetInstanceProcAddr 链）
 - [x] Vulkan 初始化（实例、设备、交换链）
@@ -29,6 +31,9 @@
 - [x] 纹理系统（CreateTexture/UpdateTexture GPU 资源、staging buffer、布局转换）
 - [x] 描述符集基础设施（布局、池、分配、combined image sampler）
 - [x] 裁剪（Scissor）— CmdClip 支持
+
+### 字体系统 ✅
+
 - [x] FreeType 动态链接引擎（零 CGO，syscall 加载 freetype.dll）
 - [x] 字形光栅化（FreeType SDF / Bitmap）
 - [x] 字形纹理图集（shelf bin-packing、LRU 淘汰、脏区域上传）
@@ -39,8 +44,9 @@
 - [x] 中文分词引擎（结巴算法，DAG + DP，纯 Go 零依赖）
 - [x] 分词感知换行与截断（词边界断行、字/词级截断 + 省略号）
 - [x] TextRenderer 集成层（shaper → atlas → render 命令桥接）
+- [x] 单元测试覆盖率 90%+（font 95.1%, atlas 96.5%, segment 98.3%, textrender 91.2%, freetype 92.2%）
 
-### 核心
+### 核心 ✅
 
 - [x] 元素树（创建、挂载、卸载、递归销毁）
 - [x] 事件分发（冒泡/捕获）— W3C 三阶段模型（capture → target → bubble）
@@ -48,7 +54,7 @@
 - [x] 脏标记与增量更新（DirtyLayout / DirtyPaint / DirtyStyle）
 - [x] 命中测试（HitTest 深度优先）
 
-### 布局
+### 布局 ✅
 
 - [x] CSS 属性类型（Display, Position, Flex*, Align*, Justify*, Value/Unit）
 - [x] Flexbox 布局算法（grow/shrink、wrap、6 种 justify、5 种 align、gap）
@@ -57,6 +63,7 @@
 - [x] 百分比和 auto 尺寸
 - [x] 绝对定位（left/top/right/bottom 推断宽高）
 - [x] min/max 约束
+- [x] 单元测试覆盖率 94.5%
 
 ### 组件 P0（基础 + 布局 + 核心输入）
 
