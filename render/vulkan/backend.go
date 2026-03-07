@@ -52,9 +52,11 @@ type Backend struct {
 	texDescPool      DescriptorPool
 
 	// Dynamic vertex buffer for per-frame data
-	vertexBuffers []Buffer
-	vertexMemory  []DeviceMemory
-	vertexSize    uint64
+	vertexBuffers      []Buffer
+	vertexMemory       []DeviceMemory
+	vertexSize         uint64
+	frameVertexOffset  uint64         // Current write offset in vertex buffer for this frame
+	mappedVertexPtr    unsafe.Pointer // Mapped pointer for current frame's vertex buffer
 
 	// State
 	width, height    int
@@ -554,6 +556,10 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 	syscallN(b.loader.vkCmdSetViewport, uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&viewport)))
 	syscallN(b.loader.vkCmdSetScissor, uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&scissor)))
 
+	// Reset per-frame vertex offset and map vertex buffer for the frame
+	b.frameVertexOffset = 0
+	b.mapVertexBuffer()
+
 	// Process commands - sort by z-order
 	commands := buf.Commands()
 	sorted := make([]render.Command, len(commands))
@@ -564,6 +570,9 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 
 	// Render commands in z-order, handling clips inline
 	b.renderAllCommands(cmd, sorted)
+
+	// Unmap vertex buffer
+	b.unmapVertexBuffer()
 
 	// End render pass and command buffer
 	syscallN(b.loader.vkCmdEndRenderPass, uintptr(cmd))

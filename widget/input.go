@@ -195,11 +195,17 @@ func (inp *Input) Draw(buf *render.CommandBuffer) {
 
 	if displayText != "" {
 		padLeft := cfg.SpaceSM
-		buf.DrawText(render.TextCmd{
-			X:        bounds.X + padLeft,
-			Y:        bounds.Y + bounds.Height/2,
-			Color:    textColor,
-			FontSize: cfg.FontSize,
+		textW := float32(len(displayText)) * cfg.FontSize * 0.55
+		textH := cfg.FontSize * 1.2
+		maxW := bounds.Width - padLeft*2
+		if textW > maxW {
+			textW = maxW
+		}
+		ty := bounds.Y + (bounds.Height-textH)/2
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(bounds.X+padLeft, ty, textW, textH),
+			FillColor: textColor,
+			Corners:   uimath.CornersAll(2),
 		}, 1, 1)
 	}
 }

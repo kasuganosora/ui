@@ -59,10 +59,19 @@ func (t *Text) Draw(buf *render.CommandBuffer) {
 	if bounds.IsEmpty() || t.text == "" {
 		return
 	}
-	buf.DrawText(render.TextCmd{
-		X:        bounds.X,
-		Y:        bounds.Y,
-		Color:    t.color,
-		FontSize: t.fontSize,
+	// Render text as colored rectangle placeholder until font system is integrated.
+	// Estimate width from character count and font size.
+	textW := float32(len(t.text)) * t.fontSize * 0.55
+	if textW > bounds.Width {
+		textW = bounds.Width
+	}
+	textH := t.fontSize * 1.2
+	if textH > bounds.Height {
+		textH = bounds.Height
+	}
+	buf.DrawRect(render.RectCmd{
+		Bounds:    uimath.NewRect(bounds.X, bounds.Y+(bounds.Height-textH)/2, textW, textH),
+		FillColor: t.color,
+		Corners:   uimath.CornersAll(2),
 	}, 0, 1)
 }

@@ -65,17 +65,9 @@ func (b *Backend) drawTexturedVertices(cmd CommandBuffer, pipeline Pipeline, pip
 	}
 
 	vertexData := unsafe.Slice((*byte)(unsafe.Pointer(&vertices[0])), len(vertices)*int(unsafe.Sizeof(TexturedVertex{})))
-	dataSize := uint64(len(vertexData))
 
-	b.ensureVertexBufferSize(dataSize)
-
-	var mapped unsafe.Pointer
-	syscallN(b.loader.vkMapMemory,
-		uintptr(b.device), uintptr(b.vertexMemory[b.currentFrame]),
-		0, uintptr(dataSize), 0, uintptr(unsafe.Pointer(&mapped)),
-	)
-	copy(unsafe.Slice((*byte)(mapped), dataSize), vertexData)
-	syscallN(b.loader.vkUnmapMemory, uintptr(b.device), uintptr(b.vertexMemory[b.currentFrame]))
+	bindOffset := b.frameVertexOffset
+	b.writeVertexData(vertexData)
 
 	syscallN(b.loader.vkCmdBindPipeline,
 		uintptr(cmd), uintptr(PipelineBindPointGraphics), uintptr(pipeline),
@@ -87,10 +79,9 @@ func (b *Backend) drawTexturedVertices(cmd CommandBuffer, pipeline Pipeline, pip
 		0, 0,
 	)
 
-	offset := uint64(0)
 	vb := b.vertexBuffers[b.currentFrame]
 	syscallN(b.loader.vkCmdBindVertexBuffers,
-		uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&vb)), uintptr(unsafe.Pointer(&offset)),
+		uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&vb)), uintptr(unsafe.Pointer(&bindOffset)),
 	)
 
 	syscallN(b.loader.vkCmdDraw,

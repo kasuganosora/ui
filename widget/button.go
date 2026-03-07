@@ -159,13 +159,19 @@ func (b *Button) Draw(buf *render.CommandBuffer) {
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 0, 1)
 
-	// Label text
+	// Label text (placeholder rect until font system is integrated)
 	if b.label != "" {
-		buf.DrawText(render.TextCmd{
-			X:        bounds.X + bounds.Width/2,
-			Y:        bounds.Y + bounds.Height/2,
-			Color:    b.textColor(),
-			FontSize: cfg.FontSize,
+		textW := float32(len(b.label)) * cfg.FontSize * 0.55
+		textH := cfg.FontSize * 1.2
+		if textW > bounds.Width-8 {
+			textW = bounds.Width - 8
+		}
+		tx := bounds.X + (bounds.Width-textW)/2
+		ty := bounds.Y + (bounds.Height-textH)/2
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(tx, ty, textW, textH),
+			FillColor: b.textColor(),
+			Corners:   uimath.CornersAll(2),
 		}, 1, 1)
 	}
 

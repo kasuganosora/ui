@@ -123,24 +123,16 @@ func (b *Backend) renderSingleRect(cmd CommandBuffer, c render.Command) {
 	vertexData := unsafe.Slice((*byte)(unsafe.Pointer(&vertices[0])), len(vertices)*int(unsafe.Sizeof(RectVertex{})))
 	dataSize := uint64(len(vertexData))
 
-	b.ensureVertexBufferSize(dataSize)
-
-	var mapped unsafe.Pointer
-	syscallN(b.loader.vkMapMemory,
-		uintptr(b.device), uintptr(b.vertexMemory[b.currentFrame]),
-		0, uintptr(dataSize), 0, uintptr(unsafe.Pointer(&mapped)),
-	)
-	copy(unsafe.Slice((*byte)(mapped), dataSize), vertexData)
-	syscallN(b.loader.vkUnmapMemory, uintptr(b.device), uintptr(b.vertexMemory[b.currentFrame]))
+	b.writeVertexData(vertexData)
 
 	syscallN(b.loader.vkCmdBindPipeline,
 		uintptr(cmd), uintptr(PipelineBindPointGraphics), uintptr(b.rectPipeline),
 	)
 
-	offset := uint64(0)
+	bindOffset := b.frameVertexOffset - dataSize
 	vb := b.vertexBuffers[b.currentFrame]
 	syscallN(b.loader.vkCmdBindVertexBuffers,
-		uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&vb)), uintptr(unsafe.Pointer(&offset)),
+		uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&vb)), uintptr(unsafe.Pointer(&bindOffset)),
 	)
 	syscallN(b.loader.vkCmdDraw, uintptr(cmd), 6, 1, 0, 0)
 }
@@ -173,15 +165,39 @@ func (b *Backend) renderSingleImage(cmd CommandBuffer, c render.Command) {
 	b.drawTexturedVertices(cmd, b.texturedPipeline, b.texturedPipelineLayout, entry.descriptorSet, vertices)
 }
 
-// ensureVertexBufferSize grows the per-frame vertex buffer if needed.
-func (b *Backend) ensureVertexBufferSize(required uint64) {
-	if required <= b.vertexSize {
-		return
-	}
-	b.destroyBuffer(b.vertexBuffers[b.currentFrame], b.vertexMemory[b.currentFrame])
-	b.vertexSize = required * 2
-	b.vertexBuffers[b.currentFrame], b.vertexMemory[b.currentFrame], _ = b.createBuffer(
-		b.vertexSize, BufferUsageVertexBufferBit,
-		MemoryPropertyHostVisibleBit|MemoryPropertyHostCoherentBit,
+// mapVertexBuffer maps the current frame's vertex buffer for the entire frame.
+func (b *Backend) mapVertexBuffer() {
+	syscallN(b.loader.vkMapMemory,
+		uintptr(b.device), uintptr(b.vertexMemory[b.currentFrame]),
+		0, uintptr(b.vertexSize), 0, uintptr(unsafe.Pointer(&b.mappedVertexPtr)),
 	)
+}
+
+// unmapVertexBuffer unmaps the current frame's vertex buffer.
+func (b *Backend) unmapVertexBuffer() {
+	if b.mappedVertexPtr != nil {
+		syscallN(b.loader.vkUnmapMemory, uintptr(b.device), uintptr(b.vertexMemory[b.currentFrame]))
+		b.mappedVertexPtr = nil
+	}
+}
+
+// writeVertexData copies data into the mapped vertex buffer at the current offset and advances.
+func (b *Backend) writeVertexData(data []byte) {
+	dataSize := uint64(len(data))
+	required := b.frameVertexOffset + dataSize
+	if required > b.vertexSize {
+		// Need to grow: unmap, resize, remap
+		b.unmapVertexBuffer()
+		b.destroyBuffer(b.vertexBuffers[b.currentFrame], b.vertexMemory[b.currentFrame])
+		b.vertexSize = required * 2
+		b.vertexBuffers[b.currentFrame], b.vertexMemory[b.currentFrame], _ = b.createBuffer(
+			b.vertexSize, BufferUsageVertexBufferBit,
+			MemoryPropertyHostVisibleBit|MemoryPropertyHostCoherentBit,
+		)
+		b.mapVertexBuffer()
+	}
+
+	dst := unsafe.Add(b.mappedVertexPtr, int(b.frameVertexOffset))
+	copy(unsafe.Slice((*byte)(dst), dataSize), data)
+	b.frameVertexOffset += dataSize
 }

@@ -85,13 +85,19 @@ func (t *Tooltip) Draw(buf *render.CommandBuffer) {
 		Corners:   uimath.CornersAll(t.config.BorderRadius),
 	}, 20, 1) // Highest z-order
 
-	// White text
+	// White text placeholder
 	if t.text != "" {
-		buf.DrawText(render.TextCmd{
-			X:        bounds.X + t.config.SpaceSM,
-			Y:        bounds.Y + bounds.Height/2,
-			Color:    uimath.ColorWhite,
-			FontSize: t.config.FontSizeSm,
+		textW := float32(len(t.text)) * t.config.FontSizeSm * 0.55
+		textH := t.config.FontSizeSm * 1.2
+		maxW := bounds.Width - t.config.SpaceSM*2
+		if textW > maxW {
+			textW = maxW
+		}
+		ty := bounds.Y + (bounds.Height-textH)/2
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(bounds.X+t.config.SpaceSM, ty, textW, textH),
+			FillColor: uimath.ColorWhite,
+			Corners:   uimath.CornersAll(2),
 		}, 21, 1)
 	}
 }
