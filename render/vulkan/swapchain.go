@@ -82,7 +82,7 @@ func (l *Loader) CreateSwapchain(
 		ImageColorSpace:  format.ColorSpace,
 		ImageExtent:      extent,
 		ImageArrayLayers: 1,
-		ImageUsage:       ImageUsageColorAttachmentBit,
+		ImageUsage:       ImageUsageColorAttachmentBit | ImageUsageTransferSrcBit,
 		PreTransform:     caps.CurrentTransform,
 		CompositeAlpha:   CompositeAlphaOpaqueBitKHR,
 		PresentMode:      presentMode,

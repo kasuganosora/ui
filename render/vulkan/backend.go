@@ -2,6 +2,8 @@ package vulkan
 
 import (
 	"fmt"
+	"image"
+	"image/color"
 	"sort"
 	"unsafe"
 
@@ -57,8 +59,10 @@ type Backend struct {
 	vertexSize    uint64
 
 	// State
-	width, height int
-	vsync         bool
+	width, height    int
+	vsync            bool
+	lastImageIndex   uint32 // Last rendered swapchain image (for ReadPixels)
+	lastFrameValid   bool   // Whether lastImageIndex is valid
 
 	// Texture management
 	nextTextureID render.TextureHandle
@@ -559,6 +563,8 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 
 	// Submit
 	b.submitCommandBuffer(cmd, imageIndex)
+	b.lastImageIndex = imageIndex
+	b.lastFrameValid = true
 
 	b.currentFrame = (b.currentFrame + 1) % maxFramesInFlight
 }
@@ -676,6 +682,8 @@ func (b *Backend) submitEmpty() {
 	syscallN(b.loader.vkEndCommandBuffer, uintptr(cmd))
 
 	b.submitCommandBuffer(cmd, imageIndex)
+	b.lastImageIndex = imageIndex
+	b.lastFrameValid = true
 	b.currentFrame = (b.currentFrame + 1) % maxFramesInFlight
 }
 
@@ -808,6 +816,106 @@ func (b *Backend) DestroyTexture(handle render.TextureHandle) {
 // MaxTextureSize implements render.Backend.
 func (b *Backend) MaxTextureSize() int {
 	return 4096 // Conservative default
+}
+
+// ReadPixels implements render.Backend.
+// Reads back the last rendered swapchain image as an RGBA image.
+func (b *Backend) ReadPixels() (*image.RGBA, error) {
+	if !b.lastFrameValid || b.swapchain == nil {
+		return nil, fmt.Errorf("vulkan: no frame has been rendered yet")
+	}
+
+	// Wait for GPU to finish all work
+	b.loader.DeviceWaitIdle(b.device)
+
+	w := int(b.swapchain.extent.Width)
+	h := int(b.swapchain.extent.Height)
+	if w == 0 || h == 0 {
+		return nil, fmt.Errorf("vulkan: swapchain extent is zero")
+	}
+
+	// 4 bytes per pixel (BGRA or RGBA)
+	dataSize := uint64(w * h * 4)
+
+	// Create host-visible staging buffer for readback
+	stagingBuf, stagingMem, err := b.createBuffer(
+		dataSize,
+		BufferUsageTransferDstBit,
+		MemoryPropertyHostVisibleBit|MemoryPropertyHostCoherentBit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("vulkan: readback staging buffer: %w", err)
+	}
+	defer b.destroyBuffer(stagingBuf, stagingMem)
+
+	srcImage := b.swapchain.images[b.lastImageIndex]
+
+	cmd, err := b.beginOneTimeCommands()
+	if err != nil {
+		return nil, err
+	}
+
+	// Transition swapchain image: PresentSrc → TransferSrc
+	b.transitionImageLayout(cmd, srcImage,
+		ImageLayoutPresentSrcKHR, ImageLayoutTransferSrcOptimal,
+		PipelineStageColorAttachmentOutputBit, PipelineStageTransferBit,
+		0, AccessTransferReadBit,
+	)
+
+	// Copy image to buffer
+	region := bufferImageCopy{
+		ImageSubresource: imageSubresourceLayers{
+			AspectMask: ImageAspectColorBit,
+			LayerCount: 1,
+		},
+		ImageExtent: Extent3D{
+			Width:  uint32(w),
+			Height: uint32(h),
+			Depth:  1,
+		},
+	}
+	syscallN(b.loader.vkCmdCopyImageToBuffer,
+		uintptr(cmd), uintptr(srcImage),
+		uintptr(ImageLayoutTransferSrcOptimal),
+		uintptr(stagingBuf),
+		1, uintptr(unsafe.Pointer(&region)),
+	)
+
+	// Transition back: TransferSrc → PresentSrc
+	b.transitionImageLayout(cmd, srcImage,
+		ImageLayoutTransferSrcOptimal, ImageLayoutPresentSrcKHR,
+		PipelineStageTransferBit, PipelineStageColorAttachmentOutputBit,
+		AccessTransferReadBit, 0,
+	)
+
+	b.endOneTimeCommands(cmd)
+
+	// Map staging buffer and read data
+	var mapped unsafe.Pointer
+	syscallN(b.loader.vkMapMemory,
+		uintptr(b.device), uintptr(stagingMem), 0, uintptr(dataSize), 0,
+		uintptr(unsafe.Pointer(&mapped)),
+	)
+	raw := make([]byte, dataSize)
+	copy(raw, unsafe.Slice((*byte)(mapped), dataSize))
+	syscallN(b.loader.vkUnmapMemory, uintptr(b.device), uintptr(stagingMem))
+
+	// Convert to image.RGBA (swapchain is typically BGRA, need to swap R and B)
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	isBGRA := b.swapchain.format == FormatB8G8R8A8Srgb || b.swapchain.format == FormatB8G8R8A8Unorm
+
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			offset := (y*w + x) * 4
+			r, g, bl, a := raw[offset], raw[offset+1], raw[offset+2], raw[offset+3]
+			if isBGRA {
+				r, bl = bl, r // swap B and R
+			}
+			img.SetRGBA(x, y, color.RGBA{R: r, G: g, B: bl, A: a})
+		}
+	}
+
+	return img, nil
 }
 
 // Destroy implements render.Backend.

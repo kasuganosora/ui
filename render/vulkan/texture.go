@@ -232,6 +232,7 @@ const (
 
 // Access flags for transfer operations.
 const (
+	AccessTransferReadBit   AccessFlags = 0x00000800
 	AccessTransferWriteBit  AccessFlags = 0x00002000
 	AccessShaderReadBit     AccessFlags = 0x00000020
 )

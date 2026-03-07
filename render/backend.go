@@ -1,6 +1,8 @@
 package render
 
 import (
+	"image"
+
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/platform"
 )
@@ -35,6 +37,11 @@ type Backend interface {
 
 	// MaxTextureSize returns the maximum supported texture dimension.
 	MaxTextureSize() int
+
+	// ReadPixels reads the current framebuffer contents as an RGBA image.
+	// Must be called after Submit and before the next BeginFrame.
+	// Returns nil if readback is not supported by the backend.
+	ReadPixels() (*image.RGBA, error)
 
 	// Destroy releases all GPU resources.
 	Destroy()

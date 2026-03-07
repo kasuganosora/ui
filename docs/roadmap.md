@@ -32,6 +32,20 @@
 - [x] 描述符集基础设施（布局、池、分配、combined image sampler）
 - [x] 裁剪（Scissor）— CmdClip 支持
 
+### 截图与验收测试基础设施 ✅
+
+- [x] Backend.ReadPixels() 接口 — 从 GPU 帧缓冲区读回 RGBA 像素
+- [x] Vulkan ReadPixels 实现（swapchain image → staging buffer → host 内存映射, BGRA→RGBA 转换）
+- [x] render/capture 包 — 截图/视觉回归测试工具集
+  - [x] Screenshot(backend) — 截取当前帧
+  - [x] SavePNG / LoadPNG — PNG 文件读写
+  - [x] Compare(a, b, threshold) — 像素级图像比对（均值误差/最大误差/差异像素数/差异图）
+  - [x] MatchesGolden(img, goldenPath, threshold) — 黄金图对比（首次运行自动 bootstrap）
+  - [x] PSNR(a, b) — 峰值信噪比计算
+  - [x] MustMatchGolden(t, backend, golden, threshold) — 测试断言（失败时自动保存 actual + diff 图）
+  - [x] UpdateGolden(backend, path) — 更新黄金图
+  - [x] AssertImageEqual(t, expected, actual, threshold) — 图像等值断言
+
 ### 字体系统 ✅
 
 - [x] FreeType 动态链接引擎（零 CGO，syscall 加载 freetype.dll）

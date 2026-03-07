@@ -77,6 +77,7 @@ type Loader struct {
 	vkCmdPushConstants          uintptr
 	vkCmdPipelineBarrier        uintptr
 	vkCmdCopyBufferToImage      uintptr
+	vkCmdCopyImageToBuffer      uintptr
 	vkCreateFence               uintptr
 	vkDestroyFence              uintptr
 	vkWaitForFences             uintptr
@@ -196,6 +197,7 @@ func (l *Loader) LoadDeviceFunctions(instance Instance) {
 	l.vkCmdPushConstants = l.getInstanceProcAddr(inst, "vkCmdPushConstants")
 	l.vkCmdPipelineBarrier = l.getInstanceProcAddr(inst, "vkCmdPipelineBarrier")
 	l.vkCmdCopyBufferToImage = l.getInstanceProcAddr(inst, "vkCmdCopyBufferToImage")
+	l.vkCmdCopyImageToBuffer = l.getInstanceProcAddr(inst, "vkCmdCopyImageToBuffer")
 	l.vkCreateFence = l.getInstanceProcAddr(inst, "vkCreateFence")
 	l.vkDestroyFence = l.getInstanceProcAddr(inst, "vkDestroyFence")
 	l.vkWaitForFences = l.getInstanceProcAddr(inst, "vkWaitForFences")
