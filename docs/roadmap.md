@@ -9,7 +9,7 @@
 - [x] 事件系统基础类型（event.Event, event.Type, event.Key, event.MouseButton）
 - [x] 单元测试覆盖率 90%+（math 99.4%, event 100%, render 100%）
 
-## 阶段 1: 最小可用（第 3-8 周）
+## 阶段 1: 最小可用（第 3-8 周） ✅
 
 ### 平台层 - Windows ✅
 
@@ -79,21 +79,32 @@
 - [x] min/max 约束
 - [x] 单元测试覆盖率 94.5%
 
-### 组件 P0（基础 + 布局 + 核心输入）
+### 组件 P0（基础 + 布局 + 核心输入） ✅
 
-- [ ] Text 文本
-- [ ] Button 按钮
-- [ ] Icon 图标
-- [ ] Input 输入框
-- [ ] Div / ScrollView 容器
-- [ ] Grid 栅格（Row + Col）
-- [ ] Layout 布局（Header/Content/Footer/Aside）
-- [ ] Space 间距
-- [ ] Popup 基础弹出层
-- [ ] Tooltip 文字提示
-- [ ] ConfigProvider 全局配置
+- [x] Text 文本
+- [x] Button 按钮（Primary/Secondary/Text/Link 四种变体，hover/press/disabled 状态）
+- [x] Icon 图标（纹理 + 着色）
+- [x] Input 输入框（键盘输入、光标移动、删除、placeholder、焦点、禁用）
+- [x] Div / ScrollView 容器（背景、边框、圆角、裁剪滚动）
+- [x] Grid 栅格（Row + Col，24 列系统，gutter/offset）
+- [x] Layout 布局（Header/Content/Footer/Aside）
+- [x] Space 间距（水平/垂直、可配置 gap）
+- [x] Popup 基础弹出层（8 种 placement，锚点定位）
+- [x] Tooltip 文字提示（hover 自动显示/隐藏）
+- [x] ConfigProvider 全局配置（主题色、字体、间距、圆角）
+- [x] Widget 基础架构（Widget 接口、Base 组合、生命周期、事件绑定）
+- [x] 单元测试覆盖率 98.5%
 
-### 里程碑: 能在 Windows 上用 Vulkan 渲染一个包含文本、按钮、输入框的简单界面
+### 验收演示程序 ✅
+
+- [x] cmd/demo — Windows + Vulkan 完整渲染演示
+  - 经典后台布局（Header + Aside + Content + Footer）
+  - 按钮组（5 种变体）、输入框组（含 placeholder/disabled）
+  - 24 列栅格、Tooltip、主题配色
+  - 事件路由（鼠标命中测试 + 焦点管理 + 键盘分发）
+  - 无 GPU 纯逻辑测试（40 个 widget，40 条渲染命令）
+
+### 里程碑: 能在 Windows 上用 Vulkan 渲染一个包含文本、按钮、输入框的简单界面 ✅
 
 ## 阶段 2: 核心完善（第 9-16 周）
 
