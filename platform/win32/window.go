@@ -24,6 +24,7 @@ type Window struct {
 	decorated       bool
 	resizable       bool
 	visible         bool
+	deferredVisible bool // true if ShowWindow is deferred until first PollEvents
 	shouldClose     bool
 	mouseTracked    bool // for WM_MOUSELEAVE tracking
 
@@ -118,7 +119,11 @@ func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 	w.currentCursor, _, _ = procLoadCursorW.Call(0, uintptr(IDC_ARROW))
 
 	if opts.Visible {
-		w.SetVisible(true)
+		// Defer the actual ShowWindow call until the first PollEvents.
+		// This keeps the window hidden during heavy initialization
+		// (Vulkan, font loading, atlas) so Windows doesn't mark it
+		// as "Not Responding" before the app enters its main loop.
+		w.deferredVisible = true
 	}
 
 	if opts.Fullscreen {
@@ -247,6 +252,13 @@ func (w *Window) SetVisible(visible bool) {
 		procUpdateWindow.Call(w.hwnd)
 	} else {
 		procShowWindow.Call(w.hwnd, SW_HIDE)
+	}
+}
+
+func (w *Window) ShowDeferred() {
+	if w.deferredVisible {
+		w.deferredVisible = false
+		w.SetVisible(true)
 	}
 }
 

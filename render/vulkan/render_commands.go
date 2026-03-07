@@ -39,12 +39,13 @@ func (b *Backend) renderAllCommands(cmd CommandBuffer, commands []render.Command
 }
 
 // applyScissor sets the scissor rectangle from a ClipCmd.
+// Clip bounds are in logical pixels; convert to physical for the GPU.
 func (b *Backend) applyScissor(cmd CommandBuffer, clip *render.ClipCmd) {
-	// Convert from float screen coords to integer scissor rect
-	x := int32(clip.Bounds.X)
-	y := int32(clip.Bounds.Y)
-	w := uint32(clip.Bounds.Width)
-	h := uint32(clip.Bounds.Height)
+	s := b.dpiScale
+	x := int32(clip.Bounds.X * s)
+	y := int32(clip.Bounds.Y * s)
+	w := uint32(clip.Bounds.Width * s)
+	h := uint32(clip.Bounds.Height * s)
 
 	// Clamp to framebuffer bounds
 	if x < 0 {
@@ -74,28 +75,33 @@ func (b *Backend) renderSingleRect(cmd CommandBuffer, c render.Command) {
 	rect := c.Rect
 	opacity := c.Opacity
 
+	// All coordinates are logical; convert to NDC via logical dimensions
 	x := rect.Bounds.X
 	y := rect.Bounds.Y
 	w := rect.Bounds.Width
 	h := rect.Bounds.Height
+	logW := float32(b.width) / b.dpiScale
+	logH := float32(b.height) / b.dpiScale
 
-	ndcX := (x / float32(b.width)) * 2 - 1
-	ndcY := (y / float32(b.height)) * 2 - 1
-	ndcW := (w / float32(b.width)) * 2
-	ndcH := (h / float32(b.height)) * 2
+	ndcX := (x / logW) * 2 - 1
+	ndcY := (y / logH) * 2 - 1
+	ndcW := (w / logW) * 2
+	ndcH := (h / logH) * 2
 
 	r := rect.FillColor.R
 	g := rect.FillColor.G
 	bl := rect.FillColor.B
 	a := rect.FillColor.A * opacity
 
+	// SDF fields must be in physical pixels for correct rendering
+	s := b.dpiScale
 	rv := RectVertex{
-		RectW: w, RectH: h,
-		RadiusTL:    rect.Corners.TopLeft,
-		RadiusTR:    rect.Corners.TopRight,
-		RadiusBR:    rect.Corners.BottomRight,
-		RadiusBL:    rect.Corners.BottomLeft,
-		BorderWidth: rect.BorderWidth,
+		RectW: w * s, RectH: h * s,
+		RadiusTL:    rect.Corners.TopLeft * s,
+		RadiusTR:    rect.Corners.TopRight * s,
+		RadiusBR:    rect.Corners.BottomRight * s,
+		RadiusBL:    rect.Corners.BottomLeft * s,
+		BorderWidth: rect.BorderWidth * s,
 		BorderR:     rect.BorderColor.R,
 		BorderG:     rect.BorderColor.G,
 		BorderB:     rect.BorderColor.B,
@@ -169,7 +175,7 @@ func (b *Backend) renderSingleImage(cmd CommandBuffer, c render.Command) {
 func (b *Backend) mapVertexBuffer() {
 	syscallN(b.loader.vkMapMemory,
 		uintptr(b.device), uintptr(b.vertexMemory[b.currentFrame]),
-		0, uintptr(b.vertexSize), 0, uintptr(unsafe.Pointer(&b.mappedVertexPtr)),
+		0, uintptr(b.vertexSizes[b.currentFrame]), 0, uintptr(unsafe.Pointer(&b.mappedVertexPtr)),
 	)
 }
 
@@ -185,16 +191,35 @@ func (b *Backend) unmapVertexBuffer() {
 func (b *Backend) writeVertexData(data []byte) {
 	dataSize := uint64(len(data))
 	required := b.frameVertexOffset + dataSize
-	if required > b.vertexSize {
-		// Need to grow: unmap, resize, remap
+	if required > b.vertexSizes[b.currentFrame] {
+		// Need to grow: save old data, create larger buffer, copy old data over.
+		// Defer destruction of old buffer until frame end (recorded commands still reference it).
+		oldSize := b.frameVertexOffset
+		var oldData []byte
+		if oldSize > 0 {
+			oldData = make([]byte, oldSize)
+			copy(oldData, unsafe.Slice((*byte)(b.mappedVertexPtr), oldSize))
+		}
+
 		b.unmapVertexBuffer()
-		b.destroyBuffer(b.vertexBuffers[b.currentFrame], b.vertexMemory[b.currentFrame])
-		b.vertexSize = required * 2
+
+		// Keep old buffer alive — recorded commands reference it
+		f := b.currentFrame
+		b.staleVertexBuffers[f] = append(b.staleVertexBuffers[f], b.vertexBuffers[f])
+		b.staleVertexMemory[f] = append(b.staleVertexMemory[f], b.vertexMemory[f])
+
+		newSize := required * 2
+		b.vertexSizes[b.currentFrame] = newSize
 		b.vertexBuffers[b.currentFrame], b.vertexMemory[b.currentFrame], _ = b.createBuffer(
-			b.vertexSize, BufferUsageVertexBufferBit,
+			newSize, BufferUsageVertexBufferBit,
 			MemoryPropertyHostVisibleBit|MemoryPropertyHostCoherentBit,
 		)
 		b.mapVertexBuffer()
+
+		// Restore old data so previously written vertices are in the new buffer
+		if len(oldData) > 0 {
+			copy(unsafe.Slice((*byte)(b.mappedVertexPtr), oldSize), oldData)
+		}
 	}
 
 	dst := unsafe.Add(b.mappedVertexPtr, int(b.frameVertexOffset))

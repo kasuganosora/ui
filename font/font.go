@@ -128,6 +128,12 @@ type Engine interface {
 	// HasGlyph returns true if the font contains a glyph for the given rune.
 	HasGlyph(id ID, r rune) bool
 
+	// SetDPIScale sets the display DPI scale factor (1.0 = 96 DPI).
+	// Font sizes passed to other methods are treated as points and
+	// converted to pixels using: pixels = points * dpiScale * 96/72.
+	// Default is 1.0 (standard 96 DPI).
+	SetDPIScale(scale float32)
+
 	// Destroy releases all resources.
 	Destroy()
 }

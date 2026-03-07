@@ -1,6 +1,18 @@
 package widget
 
-import uimath "github.com/kasuganosora/ui/math"
+import (
+	uimath "github.com/kasuganosora/ui/math"
+	"github.com/kasuganosora/ui/render"
+)
+
+// TextDrawer renders text into a command buffer.
+// When set on Config, widgets use real text rendering instead of placeholder rects.
+type TextDrawer interface {
+	DrawText(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32)
+	// LineHeight returns the font line height (ascent + descent) for the given size.
+	// Used by widgets for accurate vertical centering.
+	LineHeight(fontSize float32) float32
+}
 
 // Config holds global UI configuration and theme colors.
 // Acts as a ConfigProvider — pass it when creating widgets.
@@ -22,6 +34,9 @@ type Config struct {
 	FontSizeSm   float32
 	FontSizeLg   float32
 	LineHeight   float32
+
+	// Text renderer (optional — falls back to placeholder rects if nil)
+	TextRenderer TextDrawer
 
 	// Spacing
 	SpaceXS float32

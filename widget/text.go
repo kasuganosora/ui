@@ -59,8 +59,17 @@ func (t *Text) Draw(buf *render.CommandBuffer) {
 	if bounds.IsEmpty() || t.text == "" {
 		return
 	}
-	// Render text as colored rectangle placeholder until font system is integrated.
-	// Estimate width from character count and font size.
+
+	// Use real text rendering if available
+	if t.config.TextRenderer != nil {
+		tx := bounds.X
+		lh := t.config.TextRenderer.LineHeight(t.fontSize)
+		ty := bounds.Y + (bounds.Height-lh)/2
+		t.config.TextRenderer.DrawText(buf, t.text, tx, ty, t.fontSize, bounds.Width, t.color, 1)
+		return
+	}
+
+	// Fallback: colored rectangle placeholder
 	textW := float32(len(t.text)) * t.fontSize * 0.55
 	if textW > bounds.Width {
 		textW = bounds.Width

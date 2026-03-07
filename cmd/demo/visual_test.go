@@ -11,6 +11,10 @@ import (
 	"time"
 
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/font"
+	"github.com/kasuganosora/ui/font/atlas"
+	"github.com/kasuganosora/ui/font/freetype"
+	"github.com/kasuganosora/ui/font/textrender"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/platform"
 	"github.com/kasuganosora/ui/platform/win32"
@@ -22,14 +26,15 @@ import (
 
 // testEnv holds a full platform+renderer test environment.
 type testEnv struct {
-	plat    *win32.Platform
-	win     platform.Window
-	backend *vulkan.Backend
-	tree    *core.Tree
-	cfg     *widget.Config
-	buf     *render.CommandBuffer
-	width   int // logical window width
-	height  int // logical window height
+	plat         *win32.Platform
+	win          platform.Window
+	backend      *vulkan.Backend
+	tree         *core.Tree
+	cfg          *widget.Config
+	buf          *render.CommandBuffer
+	textRenderer *textrender.Renderer
+	width        int // logical window width
+	height       int // logical window height
 }
 
 func newTestEnv(t *testing.T, width, height int) *testEnv {
@@ -64,19 +69,39 @@ func newTestEnv(t *testing.T, width, height int) *testEnv {
 	// the logical size on DPI-scaled systems (the surface caps report logical px).
 	backend.Resize(width, height)
 
+	// Font system: try FreeType, fall back to mock engine
+	var fontEngine font.Engine
+	if ftEngine, err := freetype.New(); err == nil {
+		fontEngine = ftEngine
+	} else {
+		fontEngine = newMockEngine()
+	}
+	fontMgr := font.NewManager(fontEngine)
+	fontID, _ := fontMgr.RegisterFile("Default", font.WeightRegular, font.StyleNormal, `C:\Windows\Fonts\msyh.ttc`)
+	if fontID == font.InvalidFontID {
+		fontID, _ = fontMgr.Register("Default", font.WeightRegular, font.StyleNormal, nil)
+	}
+	glyphAtlas := atlas.New(atlas.Options{Width: 1024, Height: 1024, Backend: backend})
+	tr := textrender.New(textrender.Options{Manager: fontMgr, Atlas: glyphAtlas})
+
+	cfg := widget.DefaultConfig()
+	cfg.TextRenderer = &textDrawerAdapter{renderer: tr, fontID: fontID, engine: fontEngine}
+
 	return &testEnv{
-		plat:    plat,
-		win:     win,
-		backend: backend,
-		tree:    core.NewTree(),
-		cfg:     widget.DefaultConfig(),
-		buf:     render.NewCommandBuffer(),
-		width:   width,
-		height:  height,
+		plat:         plat,
+		win:          win,
+		backend:      backend,
+		tree:         core.NewTree(),
+		cfg:          cfg,
+		buf:          render.NewCommandBuffer(),
+		textRenderer: tr,
+		width:        width,
+		height:       height,
 	}
 }
 
 func (e *testEnv) close() {
+	e.textRenderer.Destroy()
 	e.backend.Destroy()
 	e.win.Destroy()
 	e.plat.Terminate()
@@ -93,8 +118,10 @@ func (e *testEnv) renderFrames(root widget.Widget, n int) {
 		computeLayout(e.tree, root, w, h)
 
 		e.backend.BeginFrame()
+		e.textRenderer.BeginFrame()
 		e.buf.Reset()
 		root.Draw(e.buf)
+		e.textRenderer.Upload()
 		e.backend.Submit(e.buf)
 		e.backend.EndFrame()
 	}
@@ -349,8 +376,9 @@ func TestVisualButtonRendering(t *testing.T) {
 			return true
 		}
 		// Check that the button region has more than 1 color (background + text placeholder)
-		rx, ry := int(b.X), int(b.Y)
-		rw, rh := int(b.Width), int(b.Height)
+		dpi := env.backend.DPIScale()
+		rx, ry := int(b.X*dpi), int(b.Y*dpi)
+		rw, rh := int(b.Width*dpi), int(b.Height*dpi)
 		if rx >= img.Bounds().Dx() || ry >= img.Bounds().Dy() {
 			return true
 		}
@@ -435,7 +463,7 @@ func TestVisualMessageLoop(t *testing.T) {
 
 	root := widget.NewLayout(tree, cfg)
 	root.SetBgColor(uimath.ColorHex("#001529"))
-	txt := widget.NewText(tree, "Message Loop Test", cfg)
+	txt := widget.NewText(tree, "消息循环测试", cfg)
 	txt.SetColor(uimath.ColorWhite)
 	root.AppendChild(txt)
 	tree.AppendChild(tree.Root(), root.ElementID())
@@ -578,6 +606,9 @@ func TestVisualFrameConsistency(t *testing.T) {
 	root := buildUI(env.tree, env.cfg)
 	env.tree.AppendChild(env.tree.Root(), root.ElementID())
 
+	// Warm-up frame to create atlas texture and stabilize rendering
+	env.renderFrames(root, 1)
+
 	// Render 2 frames and compare
 	env.renderFrames(root, 1)
 	img1, err := capture.Screenshot(env.backend)
@@ -603,5 +634,119 @@ func TestVisualFrameConsistency(t *testing.T) {
 	if result.DiffPixels > 0 {
 		pct := float64(result.DiffPixels) / float64(result.TotalPixels) * 100
 		t.Errorf("consecutive frames differ: %d pixels (%.2f%%)", result.DiffPixels, pct)
+	}
+}
+
+// TestVisualFontSpecimen renders a Windows-style font viewer to inspect rendering quality.
+func TestVisualFontSpecimen(t *testing.T) {
+	env := newTestEnv(t, 1200, 900)
+	defer env.close()
+
+	adapter := env.cfg.TextRenderer.(*textDrawerAdapter)
+	fontID := adapter.fontID
+
+	// Specimen sizes (matching Windows font viewer)
+	sampleText := "Innovation in China 中国智造，慧及全球 0123456789"
+	sizes := []float32{12, 18, 24, 36, 48, 60, 72}
+
+	// Render 2 frames
+	for frame := 0; frame < 2; frame++ {
+		env.plat.PollEvents()
+		env.backend.BeginFrame()
+		env.textRenderer.BeginFrame()
+		env.buf.Reset()
+
+		// White background
+		env.buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(0, 0, 1200, 900),
+			FillColor: uimath.ColorWhite,
+		}, 0, 1)
+
+		curY := float32(12)
+		black := uimath.ColorHex("#000000")
+		gray := uimath.ColorHex("#999999")
+		leftX := float32(20)
+
+		// Header section (font info)
+		headerTexts := []string{
+			"字体名称: 微软雅黑",
+			"版本: Version 6.31",
+			"OpenType Layout, TrueType Outlines",
+		}
+		for _, ht := range headerTexts {
+			env.textRenderer.DrawText(env.buf, ht, textrender.DrawOptions{
+				ShapeOpts: font.ShapeOptions{FontID: fontID, FontSize: 14},
+				OriginX:   leftX,
+				OriginY:   curY,
+				Color:     black,
+				Opacity:   1,
+			})
+			m := adapter.engine.FontMetrics(fontID, 14)
+			curY += m.Ascent + m.Descent + 2
+		}
+		curY += 4
+
+		// Character samples
+		charTexts := []string{
+			"abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+			`1234567890.:;' " (!?) +-*/=`,
+		}
+		for _, ct := range charTexts {
+			env.textRenderer.DrawText(env.buf, ct, textrender.DrawOptions{
+				ShapeOpts: font.ShapeOptions{FontID: fontID, FontSize: 16},
+				OriginX:   leftX,
+				OriginY:   curY,
+				Color:     black,
+				Opacity:   1,
+			})
+			m := adapter.engine.FontMetrics(fontID, 16)
+			curY += m.Ascent + m.Descent + 4
+		}
+		curY += 6
+
+		// Separator line
+		env.buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(leftX, curY, 1160, 1),
+			FillColor: uimath.ColorHex("#CCCCCC"),
+		}, 0, 1)
+		curY += 8
+
+		// Specimen text at increasing sizes
+		for _, sz := range sizes {
+			// Size label on the left
+			label := fmt.Sprintf("%.0f", sz)
+			env.textRenderer.DrawText(env.buf, label, textrender.DrawOptions{
+				ShapeOpts: font.ShapeOptions{FontID: fontID, FontSize: 11},
+				OriginX:   leftX,
+				OriginY:   curY,
+				Color:     gray,
+				Opacity:   1,
+			})
+
+			// Sample text
+			env.textRenderer.DrawText(env.buf, sampleText, textrender.DrawOptions{
+				ShapeOpts: font.ShapeOptions{FontID: fontID, FontSize: sz},
+				OriginX:   leftX + 30,
+				OriginY:   curY,
+				Color:     black,
+				Opacity:   1,
+			})
+
+			m := adapter.engine.FontMetrics(fontID, sz)
+			curY += m.Ascent + m.Descent + 6
+		}
+
+		env.textRenderer.Upload()
+		env.backend.Submit(env.buf)
+		env.backend.EndFrame()
+	}
+
+	_, img := env.screenshot(t, "font_specimen")
+	verifyNotUniform(t, img, "font_specimen")
+
+	nc := countDistinctColors(img, 40, 0, 1100, img.Bounds().Dy())
+	t.Logf("font specimen: %d distinct colors", nc)
+	if nc < 50 {
+		t.Errorf("expected rich text rendering (>50 colors), got %d — FreeType may not be loaded", nc)
 	}
 }

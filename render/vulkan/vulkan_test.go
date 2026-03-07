@@ -170,9 +170,7 @@ func TestNewBackend(t *testing.T) {
 	if b.textures == nil {
 		t.Error("textures map should be initialized")
 	}
-	if b.vertexSize != 64*1024 {
-		t.Errorf("expected 64KB vertex buffer, got %d", b.vertexSize)
-	}
+	// vertexSizes is initialized in Init, not New
 }
 
 // === Vertex Layout Tests ===
@@ -512,7 +510,7 @@ func TestWriteVertexDataTracksOffset(t *testing.T) {
 	b := New()
 	bufSize := uint64(4096)
 	buf := make([]byte, bufSize)
-	b.vertexSize = bufSize
+	b.vertexSizes = []uint64{bufSize}
 	// Set mappedVertexPtr to our local buffer (simulate mapped GPU memory)
 	b.mappedVertexPtr = unsafe.Pointer(&buf[0])
 	b.frameVertexOffset = 0
@@ -547,7 +545,7 @@ func TestWriteVertexDataTracksOffset(t *testing.T) {
 
 func TestWriteVertexDataGrowsBuffer(t *testing.T) {
 	b := New()
-	b.vertexSize = 100 // Very small buffer
+	b.vertexSizes = []uint64{100} // Very small buffer
 	// Don't set mappedVertexPtr — writeVertexData will detect the need to grow
 	// but we can't actually allocate GPU memory. Just test the offset tracking.
 	// For a real grow test, see GPU integration tests.
@@ -556,7 +554,7 @@ func TestWriteVertexDataGrowsBuffer(t *testing.T) {
 	b.frameVertexOffset = 50
 	data := make([]byte, 60) // 50 + 60 = 110 > 100
 	required := b.frameVertexOffset + uint64(len(data))
-	if required <= b.vertexSize {
+	if required <= b.vertexSizes[0] {
 		t.Error("should need to grow buffer")
 	}
 }

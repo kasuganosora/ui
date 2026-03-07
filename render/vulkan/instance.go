@@ -139,6 +139,34 @@ func (l *Loader) GetPhysicalDeviceQueueFamilyProperties(device PhysicalDevice) [
 	return props[:count]
 }
 
+// GetPhysicalDeviceNameAndDriver returns the device name and driver version for logging.
+func (l *Loader) GetPhysicalDeviceNameAndDriver(device PhysicalDevice) (name string, apiVer, driverVer uint32) {
+	// VkPhysicalDeviceProperties is ~824 bytes. We only need the first fields:
+	//   uint32 apiVersion       (offset 0)
+	//   uint32 driverVersion    (offset 4)
+	//   uint32 vendorID         (offset 8)
+	//   uint32 deviceID         (offset 12)
+	//   uint32 deviceType       (offset 16)
+	//   char   deviceName[256]  (offset 20)
+	var buf [1024]byte
+	syscallN(l.vkGetPhysicalDeviceProperties,
+		uintptr(device),
+		uintptr(unsafe.Pointer(&buf[0])),
+	)
+	apiVer = *(*uint32)(unsafe.Pointer(&buf[0]))
+	driverVer = *(*uint32)(unsafe.Pointer(&buf[4]))
+	// deviceName is a null-terminated C string at offset 20
+	nameBytes := buf[20:276]
+	for i, b := range nameBytes {
+		if b == 0 {
+			name = string(nameBytes[:i])
+			return
+		}
+	}
+	name = string(nameBytes)
+	return
+}
+
 // GetPhysicalDeviceMemoryProperties returns memory properties.
 func (l *Loader) GetPhysicalDeviceMemoryProperties(device PhysicalDevice) PhysicalDeviceMemoryProperties {
 	var props PhysicalDeviceMemoryProperties

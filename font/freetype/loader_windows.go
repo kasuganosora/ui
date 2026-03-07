@@ -5,6 +5,7 @@ package freetype
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"syscall"
 )
 
@@ -34,10 +35,49 @@ var dllNames = []string{
 	"libfreetype.dll",
 }
 
+// extraSearchPaths returns additional DLL candidate paths.
+func extraSearchPaths() []string {
+	var paths []string
+
+	// Next to the executable
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		paths = append(paths,
+			filepath.Join(dir, "libfreetype.dll"),
+			filepath.Join(dir, "freetype.dll"),
+		)
+	}
+
+	// Relative to working directory (common in development)
+	if wd, err := os.Getwd(); err == nil {
+		paths = append(paths,
+			filepath.Join(wd, "font", "freetype", "libfreetype.dll"),
+			filepath.Join(wd, "libfreetype.dll"),
+		)
+		// Walk up to find the module root (go.mod) for tests running in subdirs
+		dir := wd
+		for i := 0; i < 5; i++ {
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+			candidate := filepath.Join(dir, "font", "freetype", "libfreetype.dll")
+			if _, err := os.Stat(candidate); err == nil {
+				paths = append(paths, candidate)
+				break
+			}
+		}
+	}
+
+	return paths
+}
+
 func newLoader() (*loader, error) {
 	var dll *syscall.LazyDLL
 	var loadErr error
 
+	// Try standard DLL names (system PATH search)
 	for _, name := range dllNames {
 		d := syscall.NewLazyDLL(name)
 		if err := d.Load(); err == nil {
@@ -47,6 +87,23 @@ func newLoader() (*loader, error) {
 			loadErr = err
 		}
 	}
+
+	// Try paths relative to executable
+	if dll == nil {
+		for _, absPath := range extraSearchPaths() {
+			if _, err := os.Stat(absPath); err != nil {
+				continue
+			}
+			d := syscall.NewLazyDLL(absPath)
+			if err := d.Load(); err == nil {
+				dll = d
+				break
+			} else {
+				loadErr = err
+			}
+		}
+	}
+
 	if dll == nil {
 		return nil, fmt.Errorf("cannot load FreeType library: %w", loadErr)
 	}

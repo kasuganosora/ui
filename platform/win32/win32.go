@@ -66,7 +66,8 @@ var (
 	procSetProcessDPIAware   = user32.NewProc("SetProcessDPIAware")
 	procSetTimer             = user32.NewProc("SetTimer")
 	procKillTimer            = user32.NewProc("KillTimer")
-	procPostMessageW         = user32.NewProc("PostMessageW")
+	procPostMessageW                  = user32.NewProc("PostMessageW")
+	procDisableProcessWindowsGhosting = user32.NewProc("DisableProcessWindowsGhosting")
 )
 
 // kernel32 functions

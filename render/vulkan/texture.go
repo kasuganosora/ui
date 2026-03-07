@@ -187,10 +187,19 @@ func (b *Backend) createTextureImageView(image Image, vkFormat Format) (ImageVie
 
 // createTextureSampler creates a VkSampler with linear filtering and clamp-to-edge.
 func (b *Backend) createTextureSampler() (Sampler, error) {
+	return b.createTextureSamplerWithFilter(render.TextureFilterLinear)
+}
+
+// createTextureSamplerWithFilter creates a VkSampler with the specified filtering.
+func (b *Backend) createTextureSamplerWithFilter(filter render.TextureFilter) (Sampler, error) {
+	vkFilter := FilterLinear
+	if filter == render.TextureFilterNearest {
+		vkFilter = FilterNearest
+	}
 	ci := samplerCreateInfo{
 		SType:        StructureTypeSamplerCreateInfo,
-		MagFilter:    FilterLinear,
-		MinFilter:    FilterLinear,
+		MagFilter:    vkFilter,
+		MinFilter:    vkFilter,
 		MipmapMode:   SamplerMipmapModeLinear,
 		AddressModeU: SamplerAddressModeClampToEdge,
 		AddressModeV: SamplerAddressModeClampToEdge,
@@ -324,10 +333,16 @@ func (b *Backend) endOneTimeCommands(cmd CommandBuffer) {
 		PCommandBuffers:    &cmd,
 	}
 
-	syscallN(b.loader.vkQueueSubmit,
+	r, _, _ := syscallN(b.loader.vkQueueSubmit,
 		uintptr(b.graphicsQueue), 1, uintptr(unsafe.Pointer(&si)), 0,
 	)
-	syscallN(b.loader.vkQueueWaitIdle, uintptr(b.graphicsQueue))
+	if Result(r) != Success {
+		fmt.Printf("[vk] endOneTimeCommands: vkQueueSubmit failed: %v\n", Result(r))
+	}
+	r2, _, _ := syscallN(b.loader.vkQueueWaitIdle, uintptr(b.graphicsQueue))
+	if Result(r2) != Success {
+		fmt.Printf("[vk] endOneTimeCommands: vkQueueWaitIdle failed: %v\n", Result(r2))
+	}
 
 	syscallN(b.loader.vkFreeCommandBuffers,
 		uintptr(b.device), uintptr(b.commandPool), 1, uintptr(unsafe.Pointer(&cmd)),

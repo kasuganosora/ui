@@ -4,6 +4,8 @@
 package textrender
 
 import (
+	"math"
+
 	"github.com/kasuganosora/ui/font"
 	"github.com/kasuganosora/ui/font/atlas"
 	uimath "github.com/kasuganosora/ui/math"
@@ -12,10 +14,12 @@ import (
 
 // Renderer bridges font shaping/rasterization with the render command buffer.
 type Renderer struct {
-	engine Engine
-	shaper font.Shaper
-	atlas  *atlas.Atlas
-	sdf    bool
+	engine    Engine
+	shaper    font.Shaper
+	atlas     *atlas.Atlas
+	sdf       bool
+	dpiScale  float32 // DPI scale for converting atlas bitmap (physical) to logical pixels
+	keepAlive func() // Called during heavy rasterization to keep the window responsive
 }
 
 // Engine is the subset of font.Engine needed by the renderer.
@@ -26,18 +30,26 @@ type Engine interface {
 
 // Options configures a Renderer.
 type Options struct {
-	Manager font.Manager
-	Atlas   *atlas.Atlas
-	SDF     bool
+	Manager   font.Manager
+	Atlas     *atlas.Atlas
+	SDF       bool
+	DPIScale  float32 // DPI scale factor (1.0 = 96 DPI). Defaults to 1.0 if zero.
+	KeepAlive func() // Optional: called during glyph rasterization to pump the OS message queue
 }
 
 // New creates a new text renderer.
 func New(opts Options) *Renderer {
+	dpi := opts.DPIScale
+	if dpi <= 0 {
+		dpi = 1.0
+	}
 	return &Renderer{
-		engine: opts.Manager.Engine(),
-		shaper: font.NewShaper(opts.Manager),
-		atlas:  opts.Atlas,
-		sdf:    opts.SDF,
+		engine:    opts.Manager.Engine(),
+		shaper:    font.NewShaper(opts.Manager),
+		atlas:     opts.Atlas,
+		sdf:       opts.SDF,
+		dpiScale:  dpi,
+		keepAlive: opts.KeepAlive,
 	}
 }
 
@@ -72,11 +84,16 @@ func (r *Renderer) drawRun(buf *render.CommandBuffer, run font.GlyphRun, opts Dr
 		}
 
 		gm := entry.Metrics
+		// Snap glyph positions to pixel grid for crisp rendering.
+		// All values are in logical pixels (metrics already divided by dpiScale).
+		gx := float32(math.Floor(float64(opts.OriginX + pg.X + gm.BearingX)))
+		gy := float32(math.Floor(float64(opts.OriginY + pg.Y - gm.BearingY)))
+		// Atlas bitmap is in physical pixels; convert to logical.
 		instances = append(instances, render.GlyphInstance{
-			X:      opts.OriginX + pg.X + gm.BearingX,
-			Y:      opts.OriginY + pg.Y - gm.BearingY,
-			Width:  float32(entry.Region.Width),
-			Height: float32(entry.Region.Height),
+			X:      gx,
+			Y:      gy,
+			Width:  float32(entry.Region.Width) / r.dpiScale,
+			Height: float32(entry.Region.Height) / r.dpiScale,
 			U0:     entry.U0,
 			V0:     entry.V0,
 			U1:     entry.U1,
@@ -112,7 +129,14 @@ func (r *Renderer) ensureGlyph(fontID font.ID, glyphID font.GlyphID, size float3
 	}
 
 	metrics := r.engine.GlyphMetrics(fontID, glyphID, size)
-	return r.atlas.Insert(key, bitmap, metrics)
+	entry := r.atlas.Insert(key, bitmap, metrics)
+
+	// Pump OS messages after rasterization to prevent "Not Responding"
+	if r.keepAlive != nil {
+		r.keepAlive()
+	}
+
+	return entry
 }
 
 // Upload uploads dirty atlas regions to the GPU.

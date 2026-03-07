@@ -103,4 +103,5 @@ func (e *mockEngine) HasGlyph(id ID, r rune) bool {
 	return ok
 }
 
+func (e *mockEngine) SetDPIScale(float32) {}
 func (e *mockEngine) Destroy() {}

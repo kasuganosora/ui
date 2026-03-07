@@ -18,6 +18,12 @@ type Platform interface {
 	// PollEvents polls and returns pending OS events.
 	PollEvents() []event.Event
 
+	// ProcessMessages pumps the OS message queue to keep the window responsive.
+	// Unlike PollEvents, it does not collect or return events.
+	// Call this during long-running operations (e.g., font rasterization) to
+	// prevent the OS from marking the window as "Not Responding".
+	ProcessMessages()
+
 	// Clipboard operations
 	GetClipboardText() string
 	SetClipboardText(text string)
@@ -70,6 +76,11 @@ type Window interface {
 
 	// SetVisible shows or hides the window.
 	SetVisible(visible bool)
+
+	// ShowDeferred shows the window if its visibility was deferred at creation.
+	// Called by the rendering backend after the first frame is presented, so
+	// the window appears with content instead of blank. No-op if not deferred.
+	ShowDeferred()
 
 	// SetMinSize sets the minimum window size.
 	SetMinSize(width, height int)

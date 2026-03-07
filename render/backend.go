@@ -38,6 +38,10 @@ type Backend interface {
 	// MaxTextureSize returns the maximum supported texture dimension.
 	MaxTextureSize() int
 
+	// DPIScale returns the display DPI scale factor (1.0 = 96 DPI).
+	// All coordinates passed to the backend are in logical pixels.
+	DPIScale() float32
+
 	// ReadPixels reads the current framebuffer contents as an RGBA image.
 	// Must be called after Submit and before the next BeginFrame.
 	// Returns nil if readback is not supported by the backend.
@@ -52,12 +56,21 @@ type TextureHandle uint64
 
 const InvalidTexture TextureHandle = 0
 
+// TextureFilter specifies texture sampling filter.
+type TextureFilter uint8
+
+const (
+	TextureFilterLinear  TextureFilter = iota // Bilinear (smooth images)
+	TextureFilterNearest                      // Nearest-neighbor (crisp text/pixel art)
+)
+
 // TextureDesc describes a texture to create.
 type TextureDesc struct {
 	Width  int
 	Height int
 	Format TextureFormat
-	Data   []byte // Initial data (optional, can be nil)
+	Filter TextureFilter // Default: TextureFilterLinear
+	Data   []byte        // Initial data (optional, can be nil)
 }
 
 // TextureFormat specifies the pixel format of a texture.

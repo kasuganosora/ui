@@ -11,6 +11,10 @@ import (
 
 	"github.com/kasuganosora/ui/core"
 	"github.com/kasuganosora/ui/event"
+	"github.com/kasuganosora/ui/font"
+	"github.com/kasuganosora/ui/font/atlas"
+	"github.com/kasuganosora/ui/font/freetype"
+	"github.com/kasuganosora/ui/font/textrender"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/platform"
 	"github.com/kasuganosora/ui/platform/win32"
@@ -18,6 +22,109 @@ import (
 	"github.com/kasuganosora/ui/render/vulkan"
 	"github.com/kasuganosora/ui/widget"
 )
+
+// mockEngine implements font.Engine with monospace glyphs (no CGO needed).
+type mockEngine struct {
+	glyphs map[rune]font.GlyphID
+	nextG  font.GlyphID
+}
+
+func newMockEngine() *mockEngine {
+	e := &mockEngine{glyphs: make(map[rune]font.GlyphID), nextG: 1}
+	// ASCII
+	for r := rune(32); r < 127; r++ {
+		e.glyphs[r] = e.nextG
+		e.nextG++
+	}
+	// CJK Unified Ideographs (common range)
+	for r := rune(0x4E00); r <= rune(0x9FFF); r++ {
+		e.glyphs[r] = e.nextG
+		e.nextG++
+	}
+	// CJK punctuation
+	for r := rune(0x3000); r <= rune(0x303F); r++ {
+		e.glyphs[r] = e.nextG
+		e.nextG++
+	}
+	// Fullwidth forms
+	for r := rune(0xFF00); r <= rune(0xFFEF); r++ {
+		e.glyphs[r] = e.nextG
+		e.nextG++
+	}
+	// Ellipsis
+	e.glyphs['…'] = e.nextG
+	e.nextG++
+	return e
+}
+
+func (e *mockEngine) LoadFont([]byte) (font.ID, error)        { return 1, nil }
+func (e *mockEngine) LoadFontFile(string) (font.ID, error)     { return 1, nil }
+func (e *mockEngine) UnloadFont(font.ID)                       {}
+func (e *mockEngine) SetDPIScale(float32)                       {}
+func (e *mockEngine) Destroy()                                 {}
+func (e *mockEngine) Kerning(font.ID, font.GlyphID, font.GlyphID, float32) float32 { return 0 }
+
+func (e *mockEngine) FontMetrics(_ font.ID, size float32) font.Metrics {
+	return font.Metrics{Ascent: size * 0.8, Descent: size * 0.2, LineHeight: size * 1.2, UnitsPerEm: 1000}
+}
+
+func (e *mockEngine) GlyphIndex(_ font.ID, r rune) font.GlyphID { return e.glyphs[r] }
+
+func (e *mockEngine) GlyphMetrics(_ font.ID, _ font.GlyphID, size float32) font.GlyphMetrics {
+	adv := size * 0.6
+	return font.GlyphMetrics{Width: adv, Height: size, BearingX: 0, BearingY: size * 0.8, Advance: adv}
+}
+
+func (e *mockEngine) RasterizeGlyph(_ font.ID, _ font.GlyphID, size float32, sdf bool) (font.GlyphBitmap, error) {
+	w, h := int(size*0.6), int(size)
+	if w < 1 {
+		w = 1
+	}
+	if h < 1 {
+		h = 1
+	}
+	data := make([]byte, w*h)
+	for i := range data {
+		data[i] = 255 // solid white glyph
+	}
+	return font.GlyphBitmap{Width: w, Height: h, Data: data, SDF: sdf}, nil
+}
+
+func (e *mockEngine) HasGlyph(_ font.ID, r rune) bool {
+	_, ok := e.glyphs[r]
+	return ok
+}
+
+// textDrawerAdapter wraps textrender.Renderer to implement widget.TextDrawer.
+type textDrawerAdapter struct {
+	renderer *textrender.Renderer
+	fontID   font.ID
+	engine   font.Engine
+}
+
+func (a *textDrawerAdapter) DrawText(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32) {
+	a.renderer.DrawText(buf, text, textrender.DrawOptions{
+		ShapeOpts: font.ShapeOptions{
+			FontID:   a.fontID,
+			FontSize: fontSize,
+			MaxWidth: maxWidth,
+			Truncate: font.TruncateChar,
+			MaxLines: 1,
+		},
+		OriginX: x,
+		OriginY: y,
+		Color:   color,
+		Opacity: opacity,
+	})
+}
+
+func (a *textDrawerAdapter) LineHeight(fontSize float32) float32 {
+	m := a.engine.FontMetrics(a.fontID, fontSize)
+	return m.Ascent + m.Descent
+}
+
+// mouseDownTarget tracks which element received MouseDown for click synthesis.
+var mouseDownTarget core.ElementID
 
 func main() {
 	if err := run(); err != nil {
@@ -54,10 +161,36 @@ func run() error {
 	}
 	defer backend.Destroy()
 
+	// --- Font System ---
+	var fontEngine font.Engine
+	var fontID font.ID
+
+	if ftEngine, err := freetype.New(); err == nil {
+		fontEngine = ftEngine
+		fmt.Println("[font] FreeType engine loaded")
+	} else {
+		fontEngine = newMockEngine()
+		fmt.Printf("[font] FreeType not available (%v), using mock engine\n", err)
+	}
+	mgr := font.NewManager(fontEngine)
+	fontID, _ = mgr.RegisterFile("Default", font.WeightRegular, font.StyleNormal, `C:\Windows\Fonts\msyh.ttc`)
+	if fontID == font.InvalidFontID {
+		fontID, _ = mgr.Register("Default", font.WeightRegular, font.StyleNormal, nil)
+	}
+	glyphAtlas := atlas.New(atlas.Options{Width: 1024, Height: 1024, Backend: backend})
+	textRenderer := textrender.New(textrender.Options{
+		Manager:   mgr,
+		Atlas:     glyphAtlas,
+		KeepAlive: plat.ProcessMessages,
+	})
+
+	defer textRenderer.Destroy()
+
 	// --- Widget Tree ---
 	tree := core.NewTree()
 	dispatcher := core.NewDispatcher(tree)
 	cfg := widget.DefaultConfig()
+	cfg.TextRenderer = &textDrawerAdapter{renderer: textRenderer, fontID: fontID, engine: fontEngine}
 	buf := render.NewCommandBuffer()
 	_ = dispatcher // used for event routing below
 
@@ -93,10 +226,12 @@ func run() error {
 
 		// Render
 		backend.BeginFrame()
+		textRenderer.BeginFrame()
 		buf.Reset()
 
 		root.Draw(buf)
 
+		textRenderer.Upload()
 		backend.Submit(buf)
 		backend.EndFrame()
 
@@ -127,7 +262,7 @@ func buildUI(tree *core.Tree, cfg *widget.Config) widget.Widget {
 	header.SetBgColor(uimath.ColorHex("#001529"))
 	header.SetHeight(56)
 
-	title := widget.NewText(tree, "GoUI Demo", cfg)
+	title := widget.NewText(tree, "组件演示平台", cfg)
 	title.SetColor(uimath.ColorWhite)
 	title.SetFontSize(20)
 	header.AppendChild(title)
@@ -146,7 +281,7 @@ func buildUI(tree *core.Tree, cfg *widget.Config) widget.Widget {
 	aside.SetBgColor(uimath.ColorWhite)
 	aside.SetWidth(220)
 
-	menuItems := []string{"Dashboard", "Components", "Settings", "About"}
+	menuItems := []string{"仪表盘", "组件库", "系统设置", "关于我们"}
 	for _, label := range menuItems {
 		item := widget.NewButton(tree, label, cfg)
 		item.SetVariant(widget.ButtonText)
@@ -159,7 +294,7 @@ func buildUI(tree *core.Tree, cfg *widget.Config) widget.Widget {
 	content.SetBgColor(uimath.ColorHex("#ffffff"))
 
 	// Section: Title
-	sectionTitle := widget.NewText(tree, "P0 Widget Showcase", cfg)
+	sectionTitle := widget.NewText(tree, "基础组件展示", cfg)
 	sectionTitle.SetFontSize(24)
 	sectionTitle.SetColor(uimath.ColorHex("#1a1a1a"))
 	content.AppendChild(sectionTitle)
@@ -168,63 +303,64 @@ func buildUI(tree *core.Tree, cfg *widget.Config) widget.Widget {
 	btnRow := widget.NewSpace(tree, cfg)
 	btnRow.SetGap(12)
 
-	primaryBtn := widget.NewButton(tree, "Primary", cfg)
-	primaryBtn.OnClick(func() { fmt.Println("[click] Primary button") })
+	primaryBtn := widget.NewButton(tree, "主要按钮", cfg)
+	primaryBtn.OnClick(func() { fmt.Println("[点击] 主要按钮") })
 	btnRow.AppendChild(primaryBtn)
 
-	secondaryBtn := widget.NewButton(tree, "Secondary", cfg)
+	secondaryBtn := widget.NewButton(tree, "次要按钮", cfg)
 	secondaryBtn.SetVariant(widget.ButtonSecondary)
-	secondaryBtn.OnClick(func() { fmt.Println("[click] Secondary button") })
+	secondaryBtn.OnClick(func() { fmt.Println("[点击] 次要按钮") })
 	btnRow.AppendChild(secondaryBtn)
 
-	textBtn := widget.NewButton(tree, "Text Button", cfg)
+	textBtn := widget.NewButton(tree, "文字按钮", cfg)
 	textBtn.SetVariant(widget.ButtonText)
-	textBtn.OnClick(func() { fmt.Println("[click] Text button") })
+	textBtn.OnClick(func() { fmt.Println("[点击] 文字按钮") })
 	btnRow.AppendChild(textBtn)
 
-	linkBtn := widget.NewButton(tree, "Link", cfg)
+	linkBtn := widget.NewButton(tree, "链接按钮", cfg)
 	linkBtn.SetVariant(widget.ButtonLink)
-	linkBtn.OnClick(func() { fmt.Println("[click] Link button") })
+	linkBtn.OnClick(func() { fmt.Println("[点击] 链接按钮") })
 	btnRow.AppendChild(linkBtn)
 
-	disabledBtn := widget.NewButton(tree, "Disabled", cfg)
+	disabledBtn := widget.NewButton(tree, "禁用按钮", cfg)
 	disabledBtn.SetDisabled(true)
 	btnRow.AppendChild(disabledBtn)
 
 	content.AppendChild(btnRow)
 
 	// Section: Input
-	inputLabel := widget.NewText(tree, "Input:", cfg)
+	inputLabel := widget.NewText(tree, "输入框：", cfg)
 	content.AppendChild(inputLabel)
 
 	nameInput := widget.NewInput(tree, cfg)
-	nameInput.SetPlaceholder("Enter your name...")
-	nameInput.OnChange(func(v string) { fmt.Printf("[input] name = %q\n", v) })
+	nameInput.SetPlaceholder("请输入您的姓名...")
+	nameInput.OnChange(func(v string) { fmt.Printf("[输入] 姓名 = %q\n", v) })
 	content.AppendChild(nameInput)
 
 	emailInput := widget.NewInput(tree, cfg)
-	emailInput.SetPlaceholder("Enter your email...")
+	emailInput.SetPlaceholder("请输入电子邮箱...")
 	content.AppendChild(emailInput)
 
 	disabledInput := widget.NewInput(tree, cfg)
-	disabledInput.SetValue("Disabled input")
+	disabledInput.SetValue("已禁用的输入框")
 	disabledInput.SetDisabled(true)
 	content.AppendChild(disabledInput)
 
 	// Section: Grid
-	gridLabel := widget.NewText(tree, "Grid (24-column):", cfg)
+	gridLabel := widget.NewText(tree, "栅格布局（二十四列）：", cfg)
 	content.AppendChild(gridLabel)
 
 	row := widget.NewRow(tree, cfg)
 	row.SetGutter(16)
 	colors := []string{"#e6f7ff", "#bae7ff", "#91d5ff", "#69c0ff"}
 	spans := []int{6, 6, 6, 6}
+	colNames := []string{"第一列", "第二列", "第三列", "第四列"}
 	for i, s := range spans {
 		col := widget.NewCol(tree, s, cfg)
 		colContent := widget.NewDiv(tree, cfg)
 		colContent.SetBgColor(uimath.ColorHex(colors[i]))
 		colContent.SetBorderRadius(4)
-		colTxt := widget.NewText(tree, fmt.Sprintf("Col-%d", s), cfg)
+		colTxt := widget.NewText(tree, colNames[i], cfg)
 		colTxt.SetColor(uimath.ColorHex("#0050b3"))
 		colContent.AppendChild(colTxt)
 		col.AppendChild(colContent)
@@ -233,9 +369,9 @@ func buildUI(tree *core.Tree, cfg *widget.Config) widget.Widget {
 	content.AppendChild(row)
 
 	// Section: Tooltip demo
-	tooltipBtn := widget.NewButton(tree, "Hover me for tooltip", cfg)
+	tooltipBtn := widget.NewButton(tree, "悬停查看提示信息", cfg)
 	tooltipBtn.SetVariant(widget.ButtonSecondary)
-	widget.NewTooltip(tree, "This is a tooltip!", tooltipBtn.ElementID(), cfg)
+	widget.NewTooltip(tree, "这是一个工具提示！", tooltipBtn.ElementID(), cfg)
 	content.AppendChild(tooltipBtn)
 
 	body.AppendChild(content)
@@ -244,7 +380,7 @@ func buildUI(tree *core.Tree, cfg *widget.Config) widget.Widget {
 	// -- Footer --
 	footer := widget.NewFooter(tree, cfg)
 	footer.SetBgColor(uimath.ColorHex("#001529"))
-	footerText := widget.NewText(tree, "GoUI v0.1 — Zero-CGO Cross-Platform UI Library", cfg)
+	footerText := widget.NewText(tree, "GoUI v0.1 — 零CGO跨平台界面库", cfg)
 	footerText.SetColor(uimath.ColorHex("#ffffff80"))
 	footerText.SetFontSize(12)
 	footer.AppendChild(footerText)
@@ -314,7 +450,7 @@ func layoutContentArea(tree *core.Tree, content widget.Widget, x, y, w, h float3
 	cx := x + padding
 	cy := y + padding
 	cw := w - padding*2
-	rowH := float32(36)
+	rowH := float32(40)
 	gap := float32(16)
 
 	for _, child := range content.Children() {
@@ -394,6 +530,16 @@ func handleEvent(tree *core.Tree, dispatcher *core.Dispatcher, evt *event.Event,
 				})
 			}
 			dispatcher.Dispatch(target, evt)
+
+			// Synthesize MouseClick from MouseDown+MouseUp on same element
+			if evt.Type == event.MouseDown {
+				mouseDownTarget = target
+			} else if evt.Type == event.MouseUp && target == mouseDownTarget {
+				clickEvt := *evt
+				clickEvt.Type = event.MouseClick
+				dispatcher.Dispatch(target, &clickEvt)
+				mouseDownTarget = core.InvalidElementID
+			}
 		}
 	case event.KeyDown, event.KeyUp, event.KeyPress:
 		// Send to focused element

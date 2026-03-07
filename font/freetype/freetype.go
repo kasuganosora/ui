@@ -15,11 +15,13 @@ import (
 
 // FreeType constants
 const (
-	ftLoadDefault  = 0
-	ftLoadRender   = 4
-	ftLoadNoBitmap = 8
+	ftLoadDefault       = 0
+	ftLoadRender        = 4
+	ftLoadNoBitmap      = 8
+	ftLoadForceAutohint = 0x20
 
 	ftRenderModeNormal = 0
+	ftRenderModeLight  = 1
 	ftRenderModeSDF    = 6
 
 	ftKerningDefault = 0
@@ -34,8 +36,10 @@ type Engine struct {
 	lib ftLibrary
 	ldr *loader
 
-	faces  map[font.ID]*faceEntry
-	nextID font.ID
+	faces          map[font.ID]*faceEntry
+	nextID         font.ID
+	pixelsPerPoint float32 // converts point sizes to pixels; default 96/72
+	dpiScale       float32 // DPI scale factor for converting metrics to logical units
 }
 
 type faceEntry struct {
@@ -59,10 +63,12 @@ func New() (*Engine, error) {
 	}
 
 	return &Engine{
-		lib:    lib,
-		ldr:    ldr,
-		faces:  make(map[font.ID]*faceEntry),
-		nextID: 1,
+		lib:            lib,
+		ldr:            ldr,
+		faces:          make(map[font.ID]*faceEntry),
+		nextID:         1,
+		pixelsPerPoint: 96.0 / 72.0,
+		dpiScale:       1.0,
 	}, nil
 }
 
@@ -134,10 +140,12 @@ func (e *Engine) FontMetrics(id font.ID, size float32) font.Metrics {
 	height := fix26_6ToFloat(readI32(sizePtr, offSizeMetricsHeight))
 	unitsPerEM := float32(readU16(uintptr(entry.face), offFaceUnitsPerEM))
 
+	// FreeType returns physical pixels; convert to logical by dividing by dpiScale
+	s := e.dpiScale
 	return font.Metrics{
-		Ascent:     ascender,
-		Descent:    -descender, // FreeType descender is negative
-		LineHeight: height,
+		Ascent:     ascender / s,
+		Descent:    -descender / s, // FreeType descender is negative
+		LineHeight: height / s,
 		UnitsPerEm: unitsPerEM,
 	}
 }
@@ -184,12 +192,13 @@ func (e *Engine) GlyphMetrics(id font.ID, glyph font.GlyphID, size float32) font
 		return font.GlyphMetrics{}
 	}
 
+	s := e.dpiScale
 	return font.GlyphMetrics{
-		Width:    fix26_6ToFloat(readI32(slot, offSlotMetricsWidth)),
-		Height:   fix26_6ToFloat(readI32(slot, offSlotMetricsHeight)),
-		BearingX: fix26_6ToFloat(readI32(slot, offSlotMetricsHoriBearingX)),
-		BearingY: fix26_6ToFloat(readI32(slot, offSlotMetricsHoriBearingY)),
-		Advance:  fix26_6ToFloat(readI32(slot, offSlotMetricsHoriAdvance)),
+		Width:    fix26_6ToFloat(readI32(slot, offSlotMetricsWidth)) / s,
+		Height:   fix26_6ToFloat(readI32(slot, offSlotMetricsHeight)) / s,
+		BearingX: fix26_6ToFloat(readI32(slot, offSlotMetricsHoriBearingX)) / s,
+		BearingY: fix26_6ToFloat(readI32(slot, offSlotMetricsHoriBearingY)) / s,
+		Advance:  fix26_6ToFloat(readI32(slot, offSlotMetricsHoriAdvance)) / s,
 	}
 }
 
@@ -204,7 +213,7 @@ func (e *Engine) RasterizeGlyph(id font.ID, glyph font.GlyphID, size float32, sd
 
 	e.setPixelSize(entry.face, size)
 
-	loadFlags := uintptr(ftLoadDefault | ftLoadNoBitmap)
+	loadFlags := uintptr(ftLoadDefault)
 	ret := ftCall(e.ldr.ftLoadGlyph,
 		uintptr(entry.face),
 		uintptr(glyph),
@@ -283,7 +292,7 @@ func (e *Engine) Kerning(id font.ID, left, right font.GlyphID, size float32) flo
 	if ret != 0 {
 		return 0
 	}
-	return fix26_6ToFloat(delta[0])
+	return fix26_6ToFloat(delta[0]) / e.dpiScale
 }
 
 func (e *Engine) HasGlyph(id font.ID, r rune) bool {
@@ -310,11 +319,25 @@ func (e *Engine) Destroy() {
 	}
 }
 
-func (e *Engine) setPixelSize(face ftFace, size float32) {
+func (e *Engine) SetDPIScale(scale float32) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if scale <= 0 {
+		scale = 1.0
+	}
+	e.dpiScale = scale
+	e.pixelsPerPoint = scale * 96.0 / 72.0
+}
+
+func (e *Engine) setPixelSize(face ftFace, sizePoints float32) {
+	pixels := uint32(sizePoints*e.pixelsPerPoint + 0.5)
+	if pixels < 1 {
+		pixels = 1
+	}
 	ftCall(e.ldr.ftSetPixelSizes,
 		uintptr(face),
 		0,
-		uintptr(uint32(size)),
+		uintptr(pixels),
 	)
 }
 

@@ -49,6 +49,13 @@ func (p *Platform) Init() error {
 	}
 	p.hinstance = h
 
+	// Disable the "ghost window" overlay that Windows shows when it thinks the
+	// app is not responding. Graphical applications (games, renderers, UI toolkits)
+	// often do heavy initialization on the main thread before the first frame.
+	// Without this, Windows replaces our window with a static bitmap and adds
+	// "(未响应)" to the title bar after ~5 seconds without message processing.
+	procDisableProcessWindowsGhosting.Call()
+
 	// Enable DPI awareness (best-effort)
 	if procSetProcessDpiAwareness.Find() == nil {
 		procSetProcessDpiAwareness.Call(2) // PROCESS_PER_MONITOR_DPI_AWARE
@@ -120,6 +127,13 @@ func (p *Platform) PollEvents() []event.Event {
 		procDispatchMessageW.Call(uintptr(unsafe.Pointer(&msg)))
 	}
 
+	// Show windows that were deferred during creation.
+	// This runs after all initialization is done, right when the main loop
+	// starts, so the window doesn't appear "Not Responding" during startup.
+	for _, w := range p.windows {
+		w.ShowDeferred()
+	}
+
 	// Drain collected events
 	p.mu.Lock()
 	events := p.events
@@ -127,6 +141,30 @@ func (p *Platform) PollEvents() []event.Event {
 	p.mu.Unlock()
 
 	return events
+}
+
+// ProcessMessages pumps the Win32 message queue to keep the window responsive.
+// Does not collect events — just dispatches them so wndProc can handle WM_CLOSE, WM_PAINT, etc.
+func (p *Platform) ProcessMessages() {
+	var msg MSG
+	for {
+		ret, _, _ := procPeekMessageW.Call(
+			uintptr(unsafe.Pointer(&msg)),
+			0, 0, 0,
+			PM_REMOVE,
+		)
+		if ret == 0 {
+			break
+		}
+		if msg.Message == WM_QUIT {
+			for _, w := range p.windows {
+				w.shouldClose = true
+			}
+			break
+		}
+		procTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
+		procDispatchMessageW.Call(uintptr(unsafe.Pointer(&msg)))
+	}
 }
 
 // pushEvent adds an event to the queue (called from WndProc).

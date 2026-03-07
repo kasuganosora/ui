@@ -195,17 +195,25 @@ func (inp *Input) Draw(buf *render.CommandBuffer) {
 
 	if displayText != "" {
 		padLeft := cfg.SpaceSM
-		textW := float32(len(displayText)) * cfg.FontSize * 0.55
-		textH := cfg.FontSize * 1.2
-		maxW := bounds.Width - padLeft*2
-		if textW > maxW {
-			textW = maxW
+		if cfg.TextRenderer != nil {
+			tx := bounds.X + padLeft
+			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
+			ty := bounds.Y + (bounds.Height-lh)/2
+			maxW := bounds.Width - padLeft*2
+			cfg.TextRenderer.DrawText(buf, displayText, tx, ty, cfg.FontSize, maxW, textColor, 1)
+		} else {
+			textW := float32(len(displayText)) * cfg.FontSize * 0.55
+			textH := cfg.FontSize * 1.2
+			maxW := bounds.Width - padLeft*2
+			if textW > maxW {
+				textW = maxW
+			}
+			ty := bounds.Y + (bounds.Height-textH)/2
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(bounds.X+padLeft, ty, textW, textH),
+				FillColor: textColor,
+				Corners:   uimath.CornersAll(2),
+			}, 1, 1)
 		}
-		ty := bounds.Y + (bounds.Height-textH)/2
-		buf.DrawRect(render.RectCmd{
-			Bounds:    uimath.NewRect(bounds.X+padLeft, ty, textW, textH),
-			FillColor: textColor,
-			Corners:   uimath.CornersAll(2),
-		}, 1, 1)
 	}
 }

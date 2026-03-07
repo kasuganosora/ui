@@ -27,6 +27,7 @@ func (m *mockBackend) CreateTexture(render.TextureDesc) (render.TextureHandle, e
 func (m *mockBackend) UpdateTexture(render.TextureHandle, uimath.Rect, []byte) error  { return nil }
 func (m *mockBackend) DestroyTexture(render.TextureHandle)                            {}
 func (m *mockBackend) MaxTextureSize() int                                            { return 4096 }
+func (m *mockBackend) DPIScale() float32                                              { return 1.0 }
 func (m *mockBackend) Destroy()                                                       {}
 func (m *mockBackend) ReadPixels() (*image.RGBA, error)                               { return m.img, nil }
 

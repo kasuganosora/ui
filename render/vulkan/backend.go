@@ -54,15 +54,19 @@ type Backend struct {
 	// Dynamic vertex buffer for per-frame data
 	vertexBuffers      []Buffer
 	vertexMemory       []DeviceMemory
-	vertexSize         uint64
+	vertexSizes        []uint64       // Per-frame-slot: allocated buffer size
 	frameVertexOffset  uint64         // Current write offset in vertex buffer for this frame
 	mappedVertexPtr    unsafe.Pointer // Mapped pointer for current frame's vertex buffer
+	staleVertexBuffers [][]Buffer       // Per-frame-slot: old vertex buffers pending destruction
+	staleVertexMemory  [][]DeviceMemory // Per-frame-slot: corresponding memory
 
 	// State
 	width, height    int
+	dpiScale         float32 // DPI scale factor (1.0 = 96 DPI); coordinates are logical pixels
 	vsync            bool
 	lastImageIndex   uint32 // Last rendered swapchain image (for ReadPixels)
 	lastFrameValid   bool   // Whether lastImageIndex is valid
+	deviceLost       bool   // Set when VK_ERROR_DEVICE_LOST is detected; rendering becomes no-op
 
 	// Texture management
 	nextTextureID render.TextureHandle
@@ -85,7 +89,6 @@ func New() *Backend {
 	return &Backend{
 		nextTextureID: 1,
 		textures:      make(map[render.TextureHandle]*textureEntry),
-		vertexSize:    64 * 1024, // 64KB initial vertex buffer
 	}
 }
 
@@ -122,6 +125,14 @@ func (b *Backend) Init(window platform.Window) error {
 
 	b.memProps = b.loader.GetPhysicalDeviceMemoryProperties(b.physicalDevice)
 
+	// Log GPU info for diagnostics
+	gpuName, apiVer, driverVer := b.loader.GetPhysicalDeviceNameAndDriver(b.physicalDevice)
+	fmt.Printf("[vk] GPU: %s (API %d.%d.%d, driver %d.%d.%d)\n",
+		gpuName,
+		apiVer>>22, (apiVer>>12)&0x3FF, apiVer&0xFFF,
+		driverVer>>22, (driverVer>>12)&0x3FF, driverVer&0xFFF,
+	)
+
 	// Create logical device
 	b.device, err = b.loader.CreateDevice(b.physicalDevice, b.queueIndices)
 	if err != nil {
@@ -135,10 +146,14 @@ func (b *Backend) Init(window platform.Window) error {
 	b.graphicsQueue = b.loader.GetDeviceQueue(b.device, uint32(b.queueIndices.Graphics), 0)
 	b.presentQueue = b.loader.GetDeviceQueue(b.device, uint32(b.queueIndices.Present), 0)
 
-	// Get window size
+	// Get window size and DPI
 	w, h := window.FramebufferSize()
 	b.width = w
 	b.height = h
+	b.dpiScale = window.DPIScale()
+	if b.dpiScale <= 0 {
+		b.dpiScale = 1.0
+	}
 
 	// Create swapchain
 	err = b.createSwapchain()
@@ -196,9 +211,12 @@ func (b *Backend) Init(window platform.Window) error {
 	vbCount := int(b.swapchain.imageCount)
 	b.vertexBuffers = make([]Buffer, vbCount)
 	b.vertexMemory = make([]DeviceMemory, vbCount)
+	b.vertexSizes = make([]uint64, vbCount)
+	const initialVertexSize uint64 = 64 * 1024 // 64KB
 	for i := 0; i < vbCount; i++ {
+		b.vertexSizes[i] = initialVertexSize
 		b.vertexBuffers[i], b.vertexMemory[i], err = b.createBuffer(
-			b.vertexSize,
+			initialVertexSize,
 			BufferUsageVertexBufferBit,
 			MemoryPropertyHostVisibleBit|MemoryPropertyHostCoherentBit,
 		)
@@ -444,6 +462,8 @@ func (b *Backend) createSyncObjects() error {
 	b.imageAvailableSems = make([]Semaphore, n)
 	b.renderFinishedSems = make([]Semaphore, n)
 	b.inFlightFences = make([]Fence, n)
+	b.staleVertexBuffers = make([][]Buffer, n)
+	b.staleVertexMemory = make([][]DeviceMemory, n)
 
 	semInfo := semaphoreCreateInfo{SType: StructureTypeSemaphoreCreateInfo}
 	fenceInfo := fenceCreateInfo{
@@ -477,6 +497,10 @@ func (b *Backend) createSyncObjects() error {
 	return nil
 }
 
+// DPIScale returns the DPI scale factor. Apps use logical coordinates;
+// the backend converts to physical pixels for the GPU.
+func (b *Backend) DPIScale() float32 { return b.dpiScale }
+
 // RectVertex for rect rendering — 19 float32 fields, 76 bytes.
 type RectVertex struct {
 	PosX, PosY                             float32 // NDC position
@@ -490,14 +514,49 @@ type RectVertex struct {
 
 // BeginFrame implements render.Backend.
 func (b *Backend) BeginFrame() {
-	// Wait for this frame's fence
+	if b.deviceLost {
+		return
+	}
+	// Wait for this frame's fence to ensure the GPU finished the previous
+	// use of this frame slot. The fence is NOT reset here — it's reset in
+	// Submit right before vkQueueSubmit, so that if AcquireNextImageKHR
+	// fails (e.g. ErrorOutOfDateKHR after window show/resize), the fence
+	// remains signaled and the next BeginFrame won't hang.
 	fence := b.inFlightFences[b.currentFrame]
-	syscallN(b.loader.vkWaitForFences,
-		uintptr(b.device), 1, uintptr(unsafe.Pointer(&fence)), 1, uintptr(MaxTimeout),
+	// Use a 5-second timeout so we can detect hangs instead of blocking forever.
+	const fenceTimeout = 5_000_000_000 // 5 seconds in nanoseconds
+	r, _, _ := syscallN(b.loader.vkWaitForFences,
+		uintptr(b.device), 1, uintptr(unsafe.Pointer(&fence)), 1, uintptr(fenceTimeout),
 	)
-	syscallN(b.loader.vkResetFences,
-		uintptr(b.device), 1, uintptr(unsafe.Pointer(&fence)),
-	)
+	if Result(r) == ErrorDeviceLost {
+		fmt.Printf("[vk] FATAL: VK_ERROR_DEVICE_LOST at WaitForFences (slot %d) — GPU crashed, rendering disabled\n", b.currentFrame)
+		b.deviceLost = true
+		return
+	} else if Result(r) == Timeout {
+		// Fence was not signaled within 5s — likely a lost submit. Recover.
+		fmt.Printf("[vk] ERROR: WaitForFences TIMEOUT on slot %d — recovering\n", b.currentFrame)
+		b.loader.DeviceWaitIdle(b.device)
+		// Recreate the fence in signaled state so we can proceed.
+		syscallN(b.loader.vkDestroyFence, uintptr(b.device), uintptr(fence), 0)
+		fi := fenceCreateInfo{
+			SType: StructureTypeFenceCreateInfo,
+			Flags: FenceCreateSignaledBit,
+		}
+		syscallN(b.loader.vkCreateFence,
+			uintptr(b.device), uintptr(unsafe.Pointer(&fi)), 0,
+			uintptr(unsafe.Pointer(&b.inFlightFences[b.currentFrame])),
+		)
+	} else if Result(r) != Success {
+		fmt.Printf("[vk] WaitForFences error: %v\n", Result(r))
+	}
+
+	// Destroy stale vertex buffers from the previous use of this frame slot.
+	// The fence guarantees the GPU has finished with them.
+	for i, buf := range b.staleVertexBuffers[b.currentFrame] {
+		b.destroyBuffer(buf, b.staleVertexMemory[b.currentFrame][i])
+	}
+	b.staleVertexBuffers[b.currentFrame] = b.staleVertexBuffers[b.currentFrame][:0]
+	b.staleVertexMemory[b.currentFrame] = b.staleVertexMemory[b.currentFrame][:0]
 }
 
 // EndFrame implements render.Backend.
@@ -507,8 +566,10 @@ func (b *Backend) EndFrame() {
 
 // Submit implements render.Backend.
 func (b *Backend) Submit(buf *render.CommandBuffer) {
+	if b.deviceLost {
+		return
+	}
 	if buf == nil || buf.Len() == 0 {
-		// Still need to acquire and present for the frame to progress
 		b.submitEmpty()
 		return
 	}
@@ -586,7 +647,6 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 	b.currentFrame = (b.currentFrame + 1) % len(b.inFlightFences)
 }
 
-
 // commandBufferBeginInfo
 type commandBufferBeginInfo struct {
 	SType            StructureType
@@ -648,9 +708,36 @@ func (b *Backend) submitCommandBuffer(cmd CommandBuffer, imageIndex uint32) {
 	}
 
 	fence := b.inFlightFences[b.currentFrame]
-	syscallN(b.loader.vkQueueSubmit,
+	// Reset the fence right before submit so it will be signaled when the GPU finishes.
+	// This is done here (not in BeginFrame) so that if AcquireNextImageKHR fails,
+	// the fence remains signaled and the next BeginFrame won't deadlock.
+	syscallN(b.loader.vkResetFences,
+		uintptr(b.device), 1, uintptr(unsafe.Pointer(&fence)),
+	)
+	r, _, _ := syscallN(b.loader.vkQueueSubmit,
 		uintptr(b.graphicsQueue), 1, uintptr(unsafe.Pointer(&si)), uintptr(fence),
 	)
+	if Result(r) != Success {
+		if Result(r) == ErrorDeviceLost {
+			fmt.Printf("[vk] FATAL: VK_ERROR_DEVICE_LOST at vkQueueSubmit (slot %d) — GPU crashed, rendering disabled\n", b.currentFrame)
+			b.deviceLost = true
+			return
+		}
+		// Submit failed — the fence was reset but will never be signaled.
+		// Recreate the fence in signaled state to prevent deadlock.
+		fmt.Printf("[vk] ERROR: vkQueueSubmit failed: %v, recovering fence\n", Result(r))
+		b.loader.DeviceWaitIdle(b.device)
+		syscallN(b.loader.vkDestroyFence, uintptr(b.device), uintptr(fence), 0)
+		fi := fenceCreateInfo{
+			SType: StructureTypeFenceCreateInfo,
+			Flags: FenceCreateSignaledBit,
+		}
+		syscallN(b.loader.vkCreateFence,
+			uintptr(b.device), uintptr(unsafe.Pointer(&fi)), 0,
+			uintptr(unsafe.Pointer(&b.inFlightFences[b.currentFrame])),
+		)
+		return
+	}
 
 	// Present
 	swapchain := b.swapchain.handle
@@ -662,7 +749,7 @@ func (b *Backend) submitCommandBuffer(cmd CommandBuffer, imageIndex uint32) {
 		PSwapchains:        &swapchain,
 		PImageIndices:      &imageIndex,
 	}
-	r, _, _ := syscallN(b.loader.vkQueuePresentKHR,
+	r, _, _ = syscallN(b.loader.vkQueuePresentKHR,
 		uintptr(b.presentQueue), uintptr(unsafe.Pointer(&pi)),
 	)
 	if Result(r) == ErrorOutOfDateKHR || Result(r) == SuboptimalKHR {
@@ -701,11 +788,15 @@ func (b *Backend) submitEmpty() {
 	b.submitCommandBuffer(cmd, imageIndex)
 	b.lastImageIndex = imageIndex
 	b.lastFrameValid = true
+
 	b.currentFrame = (b.currentFrame + 1) % len(b.inFlightFences)
 }
 
 // Resize implements render.Backend.
 func (b *Backend) Resize(width, height int) {
+	if width <= 0 || height <= 0 {
+		return
+	}
 	b.width = width
 	b.height = height
 	b.recreateSwapchain()
@@ -749,7 +840,7 @@ func (b *Backend) CreateTexture(desc render.TextureDesc) (render.TextureHandle, 
 		return render.InvalidTexture, err
 	}
 
-	sampler, err := b.createTextureSampler()
+	sampler, err := b.createTextureSamplerWithFilter(desc.Filter)
 	if err != nil {
 		syscallN(b.loader.vkDestroyImageView, uintptr(b.device), uintptr(view), 0)
 		syscallN(b.loader.vkFreeMemory, uintptr(b.device), uintptr(memory), 0)
@@ -947,9 +1038,14 @@ func (b *Backend) Destroy() {
 		b.DestroyTexture(id)
 	}
 
-	// Destroy vertex buffers
+	// Destroy vertex buffers (including stale ones from resizes)
 	for i := range b.vertexBuffers {
 		b.destroyBuffer(b.vertexBuffers[i], b.vertexMemory[i])
+	}
+	for f := range b.staleVertexBuffers {
+		for i, buf := range b.staleVertexBuffers[f] {
+			b.destroyBuffer(buf, b.staleVertexMemory[f][i])
+		}
 	}
 
 	// Destroy descriptor infrastructure

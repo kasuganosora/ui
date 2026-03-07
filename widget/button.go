@@ -159,20 +159,28 @@ func (b *Button) Draw(buf *render.CommandBuffer) {
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 0, 1)
 
-	// Label text (placeholder rect until font system is integrated)
+	// Label text
 	if b.label != "" {
-		textW := float32(len(b.label)) * cfg.FontSize * 0.55
-		textH := cfg.FontSize * 1.2
-		if textW > bounds.Width-8 {
-			textW = bounds.Width - 8
+		if cfg.TextRenderer != nil {
+			tx := bounds.X + cfg.SpaceSM
+			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
+			ty := bounds.Y + (bounds.Height-lh)/2
+			maxW := bounds.Width - cfg.SpaceSM*2
+			cfg.TextRenderer.DrawText(buf, b.label, tx, ty, cfg.FontSize, maxW, b.textColor(), 1)
+		} else {
+			textW := float32(len(b.label)) * cfg.FontSize * 0.55
+			textH := cfg.FontSize * 1.2
+			if textW > bounds.Width-8 {
+				textW = bounds.Width - 8
+			}
+			tx := bounds.X + (bounds.Width-textW)/2
+			ty := bounds.Y + (bounds.Height-textH)/2
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(tx, ty, textW, textH),
+				FillColor: b.textColor(),
+				Corners:   uimath.CornersAll(2),
+			}, 1, 1)
 		}
-		tx := bounds.X + (bounds.Width-textW)/2
-		ty := bounds.Y + (bounds.Height-textH)/2
-		buf.DrawRect(render.RectCmd{
-			Bounds:    uimath.NewRect(tx, ty, textW, textH),
-			FillColor: b.textColor(),
-			Corners:   uimath.CornersAll(2),
-		}, 1, 1)
 	}
 
 	b.DrawChildren(buf)
