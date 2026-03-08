@@ -12,10 +12,10 @@ import (
 type ButtonVariant uint8
 
 const (
-	ButtonBase    ButtonVariant = iota // TDesign: base (filled)
-	ButtonOutline                      // TDesign: outline (line border)
-	ButtonDashed                       // TDesign: dashed border
-	ButtonText                         // TDesign: text only
+	ButtonBase    ButtonVariant = iota // base (filled)
+	ButtonOutline                      // outline (line border)
+	ButtonDashed                       // dashed border
+	ButtonText                         // text only
 
 	// Aliases for backward compatibility
 	ButtonPrimary   = ButtonBase
@@ -23,7 +23,7 @@ const (
 	ButtonLink      = ButtonText
 )
 
-// ButtonTheme controls the button color theme (TDesign).
+// ButtonTheme controls the button color theme.
 type ButtonTheme uint8
 
 const (
@@ -34,7 +34,7 @@ const (
 	ThemeSuccess
 )
 
-// ButtonShape controls the button shape (TDesign).
+// ButtonShape controls the button shape.
 type ButtonShape uint8
 
 const (
@@ -184,7 +184,7 @@ func (b *Button) themeBaseColor() uimath.Color {
 func (b *Button) bgColor() uimath.Color {
 	cfg := b.config
 	if b.disabled {
-		return uimath.ColorHex("#eeeeee") // TDesign gray-2
+		return uimath.ColorHex("#eeeeee") // gray-2
 	}
 	elem := b.Element()
 	hovered := elem != nil && elem.IsHovered()
@@ -231,7 +231,7 @@ func (b *Button) bgColor() uimath.Color {
 	// Outline / Dashed / Text variants (all themes) + Default theme Base variant
 	switch b.variant {
 	case ButtonBase:
-		// ThemeDefault + Base = TDesign default button (white bg, gray border)
+		// ThemeDefault + Base = default button (white bg, gray border)
 		if b.pressed {
 			return uimath.ColorHex("#e8e8e8")
 		}
@@ -271,7 +271,7 @@ func (b *Button) bgColor() uimath.Color {
 func (b *Button) textColor() uimath.Color {
 	cfg := b.config
 	if b.disabled {
-		return uimath.RGBA(0, 0, 0, 0.26) // TDesign text-disabled
+		return uimath.RGBA(0, 0, 0, 0.26) // text-disabled
 	}
 	elem := b.Element()
 	hovered := elem != nil && elem.IsHovered()
@@ -386,7 +386,7 @@ func (b *Button) Draw(buf *render.CommandBuffer) {
 		// ThemeDefault
 		switch b.variant {
 		case ButtonBase:
-			// Default button: gray border (TDesign default button has border)
+			// Default button: gray border
 			if b.pressed {
 				borderClr = cfg.ActiveColor
 			} else if hovered {
@@ -421,13 +421,24 @@ func (b *Button) Draw(buf *render.CommandBuffer) {
 		borderRadius = bounds.Height / 2
 	}
 
-	buf.DrawRect(render.RectCmd{
-		Bounds:      bounds,
-		FillColor:   bg,
-		BorderColor: borderClr,
-		BorderWidth: borderW,
-		Corners:     uimath.CornersAll(borderRadius),
-	}, 0, 1)
+	if b.variant == ButtonDashed && borderW > 0 && borderClr.A > 0 {
+		// Background without border
+		buf.DrawRect(render.RectCmd{
+			Bounds:    bounds,
+			FillColor: bg,
+			Corners:   uimath.CornersAll(borderRadius),
+		}, 0, 1)
+		// Dashed border segments
+		drawDashedBorder(buf, bounds, borderClr, borderW, borderRadius, 6, 4)
+	} else {
+		buf.DrawRect(render.RectCmd{
+			Bounds:      bounds,
+			FillColor:   bg,
+			BorderColor: borderClr,
+			BorderWidth: borderW,
+			Corners:     uimath.CornersAll(borderRadius),
+		}, 0, 1)
+	}
 
 	// Label text (show "..." when loading)
 	displayLabel := b.content
@@ -436,8 +447,9 @@ func (b *Button) Draw(buf *render.CommandBuffer) {
 	}
 	if displayLabel != "" {
 		if cfg.TextRenderer != nil {
-			tx := bounds.X + cfg.SpaceSM
+			tw := cfg.TextRenderer.MeasureText(displayLabel, fontSize)
 			lh := cfg.TextRenderer.LineHeight(fontSize)
+			tx := bounds.X + (bounds.Width-tw)/2
 			ty := bounds.Y + (bounds.Height-lh)/2
 			maxW := bounds.Width - cfg.SpaceSM*2
 			cfg.TextRenderer.DrawText(buf, displayLabel, tx, ty, fontSize, maxW, b.textColor(), 1)
@@ -458,4 +470,109 @@ func (b *Button) Draw(buf *render.CommandBuffer) {
 	}
 
 	b.DrawChildren(buf)
+}
+
+// drawDashedBorder draws a dashed border around a rectangle using small rect segments.
+// dashLen and gapLen control the dash pattern in pixels.
+func drawDashedBorder(buf *render.CommandBuffer, bounds uimath.Rect, color uimath.Color, borderW, radius, dashLen, gapLen float32) {
+	x, y, w, h := bounds.X, bounds.Y, bounds.Width, bounds.Height
+	step := dashLen + gapLen
+
+	// Top edge (left to right, inset by radius)
+	for dx := radius; dx < w-radius; dx += step {
+		dw := dashLen
+		if dx+dw > w-radius {
+			dw = w - radius - dx
+		}
+		if dw > 0 {
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(x+dx, y, dw, borderW),
+				FillColor: color,
+			}, 1, 1)
+		}
+	}
+
+	// Bottom edge
+	for dx := radius; dx < w-radius; dx += step {
+		dw := dashLen
+		if dx+dw > w-radius {
+			dw = w - radius - dx
+		}
+		if dw > 0 {
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(x+dx, y+h-borderW, dw, borderW),
+				FillColor: color,
+			}, 1, 1)
+		}
+	}
+
+	// Left edge (top to bottom, inset by radius)
+	for dy := radius; dy < h-radius; dy += step {
+		dh := dashLen
+		if dy+dh > h-radius {
+			dh = h - radius - dy
+		}
+		if dh > 0 {
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(x, y+dy, borderW, dh),
+				FillColor: color,
+			}, 1, 1)
+		}
+	}
+
+	// Right edge
+	for dy := radius; dy < h-radius; dy += step {
+		dh := dashLen
+		if dy+dh > h-radius {
+			dh = h - radius - dy
+		}
+		if dh > 0 {
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(x+w-borderW, y+dy, borderW, dh),
+				FillColor: color,
+			}, 1, 1)
+		}
+	}
+
+	// Corners: draw small arc-approximation dashes at each corner
+	// For small radii (typical button 3-6px), a single dash at each corner looks fine
+	if radius > 0 {
+		r := radius
+		// Top-left corner
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(x, y+r*0.3, borderW, r*0.5),
+			FillColor: color,
+		}, 1, 1)
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(x+r*0.3, y, r*0.5, borderW),
+			FillColor: color,
+		}, 1, 1)
+		// Top-right corner
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(x+w-borderW, y+r*0.3, borderW, r*0.5),
+			FillColor: color,
+		}, 1, 1)
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(x+w-r*0.8, y, r*0.5, borderW),
+			FillColor: color,
+		}, 1, 1)
+		// Bottom-left corner
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(x, y+h-r*0.8, borderW, r*0.5),
+			FillColor: color,
+		}, 1, 1)
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(x+r*0.3, y+h-borderW, r*0.5, borderW),
+			FillColor: color,
+		}, 1, 1)
+		// Bottom-right corner
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(x+w-borderW, y+h-r*0.8, borderW, r*0.5),
+			FillColor: color,
+		}, 1, 1)
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(x+w-r*0.8, y+h-borderW, r*0.5, borderW),
+			FillColor: color,
+		}, 1, 1)
+	}
 }
