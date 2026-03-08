@@ -25,6 +25,7 @@ type TextArea struct {
 
 	dragging     bool
 	dragSelected bool
+	blinkReset   int64 // UnixMilli timestamp of last edit (forces cursor visible)
 
 	status            Status
 	maxLength         int // 0 = unlimited
@@ -80,6 +81,7 @@ func NewTextArea(tree *core.Tree, cfg *Config) *TextArea {
 			ta.cursorPos = pos
 			ta.selAnchor = -1
 		}
+		ta.resetBlink()
 		ta.updateIMEPosition()
 	})
 
@@ -232,6 +234,8 @@ func NewTextArea(tree *core.Tree, cfg *Config) *TextArea {
 			ta.cursorPos = ta.lineEnd(ta.cursorPos)
 			ta.updateIMEPosition()
 		}
+
+		ta.resetBlink()
 
 		// Fire onKeydown callback
 		if ta.onKeydown != nil {
@@ -389,10 +393,15 @@ func (ta *TextArea) deleteSelection() {
 	ta.value = string(runes)
 	ta.cursorPos = lo
 	ta.selAnchor = -1
+	ta.resetBlink()
 	ta.tree.SetProperty(ta.id, "text", ta.value)
 	if ta.onChange != nil {
 		ta.onChange(ta.value)
 	}
+}
+
+func (ta *TextArea) resetBlink() {
+	ta.blinkReset = time.Now().UnixMilli()
 }
 
 func (ta *TextArea) insertChar(ch rune) {
@@ -414,6 +423,7 @@ func (ta *TextArea) insertChar(ch rune) {
 	ta.value = string(runes)
 	ta.cursorPos = pos + 1
 	ta.selAnchor = -1
+	ta.resetBlink()
 	ta.tree.SetProperty(ta.id, "text", ta.value)
 	if ta.onChange != nil {
 		ta.onChange(ta.value)
@@ -432,6 +442,7 @@ func (ta *TextArea) deleteBack() {
 	runes = append(runes[:pos-1], runes[pos:]...)
 	ta.value = string(runes)
 	ta.cursorPos = pos - 1
+	ta.resetBlink()
 	ta.tree.SetProperty(ta.id, "text", ta.value)
 	if ta.onChange != nil {
 		ta.onChange(ta.value)
@@ -446,6 +457,7 @@ func (ta *TextArea) deleteForward() {
 	}
 	runes = append(runes[:pos], runes[pos+1:]...)
 	ta.value = string(runes)
+	ta.resetBlink()
 	ta.tree.SetProperty(ta.id, "text", ta.value)
 	if ta.onChange != nil {
 		ta.onChange(ta.value)
@@ -498,6 +510,7 @@ func (ta *TextArea) paste() {
 	ta.value = string(runes)
 	ta.cursorPos = pos + len(inserted)
 	ta.selAnchor = -1
+	ta.resetBlink()
 	ta.tree.SetProperty(ta.id, "text", ta.value)
 	if ta.onChange != nil {
 		ta.onChange(ta.value)
@@ -855,10 +868,13 @@ func (ta *TextArea) Draw(buf *render.CommandBuffer) {
 		}
 	}
 
-	// Cursor
+	// Cursor (visible for 500ms after any edit, then blinks)
 	if focused && !ta.disabled {
+		// Request continuous redraws for cursor blink animation
+		ta.tree.MarkDirty(ta.id)
 		ms := time.Now().UnixMilli()
-		if (ms/500)%2 == 0 {
+		sinceReset := ms - ta.blinkReset
+		if sinceReset < 500 || (ms/500)%2 == 0 {
 			vlines := ta.visualLines(contentW)
 			vLine, vCol := ta.runeOffsetToVisualLineCol(ta.cursorPos, contentW)
 			cx := float32(0)

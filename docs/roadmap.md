@@ -143,12 +143,14 @@
 - [ ] background 完整支持（图片/渐变/多背景叠加、cover/contain、repeat）
 - [ ] 透明度体系（opacity 离屏合成 vs rgba 独立 alpha，与 Chrome 行为对齐）
 - [ ] 盒模型完善（box-sizing、margin collapse、border-style/单边、box-shadow、简写解析，对齐 Chrome）
-- [ ] 事件绑定（`doc.On(selector, event, handler)`，事件委托，`data-on-*` 属性）
+- [x] 事件绑定（`doc.OnClick/OnChange/OnToggle`，Go 侧回调绑定）
+- [ ] 事件委托与声明式绑定（`doc.On(selector, event, handler)`、`data-on-*` 属性）
 - [ ] 数据绑定与模板（`{{}}` 插值、`data-if`、`data-for`、`data-model` 双向绑定）
-- [ ] 查询与动态操作（`Query/QueryAll`、DOM 增删、类名/样式操作）
-- [ ] Document 生命周期（LoadDocument、热重载、Dispose）
-- [ ] CSS 变量主题系统（`:root` 变量、`var(--name)`、`app.SetTheme()` 换主题 = 换 CSS）
-- [ ] 零样板 App 入口（`ui.NewApp` + `app.LoadFile` + `app.Run`）
+- [x] 查询与动态操作（`QueryByID/QueryByClass/QueryByTag`、`AppendChild/RemoveChild`、`SetStyle`）
+- [ ] Document 生命周期（热重载、Dispose）
+- [x] CSS 变量系统（`:root` 变量解析、`var(--name, fallback)` 解析替换）
+- [ ] CSS 变量主题切换（`app.SetTheme()` 换主题 = 换 CSS 变量集）
+- [x] 零样板 App 入口（`ui.NewApp` + `app.LoadHTML` + `app.Run`）
 
 ### 布局
 

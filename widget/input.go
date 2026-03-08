@@ -23,6 +23,7 @@ type Input struct {
 
 	dragging     bool // mouse drag selection in progress
 	dragSelected bool // true if the last drag produced a selection
+	blinkReset   int64 // UnixMilli timestamp of last edit (forces cursor visible)
 
 	size            Size
 	status          Status
@@ -122,6 +123,7 @@ func NewInput(tree *core.Tree, cfg *Config) *Input {
 			inp.cursorPos = pos
 			inp.selAnchor = -1
 		}
+		inp.resetBlink()
 		inp.updateIMEPosition()
 	})
 
@@ -274,6 +276,8 @@ func NewInput(tree *core.Tree, cfg *Config) *Input {
 			inp.cursorPos = inp.runeLen()
 			inp.updateIMEPosition()
 		}
+
+		inp.resetBlink()
 
 		// Fire onKeydown callback
 		if inp.onKeydown != nil {
@@ -429,6 +433,7 @@ func (inp *Input) deleteSelection() {
 	inp.value = string(runes)
 	inp.cursorPos = lo
 	inp.selAnchor = -1
+	inp.resetBlink()
 	inp.tree.SetProperty(inp.id, "text", inp.value)
 	if inp.onChange != nil {
 		inp.onChange(inp.value)
@@ -490,6 +495,7 @@ func (inp *Input) paste() {
 	inp.value = string(runes)
 	inp.cursorPos = pos + len(filtered)
 	inp.selAnchor = -1
+	inp.resetBlink()
 	inp.tree.SetProperty(inp.id, "text", inp.value)
 	if inp.onChange != nil {
 		inp.onChange(inp.value)
@@ -532,6 +538,10 @@ func (inp *Input) showContextMenu(clientX, clientY int) {
 
 // --- Text editing ---
 
+func (inp *Input) resetBlink() {
+	inp.blinkReset = time.Now().UnixMilli()
+}
+
 func (inp *Input) insertChar(ch rune) {
 	if inp.readonly {
 		return
@@ -551,6 +561,7 @@ func (inp *Input) insertChar(ch rune) {
 	inp.value = string(runes)
 	inp.cursorPos = pos + 1
 	inp.selAnchor = -1
+	inp.resetBlink()
 	inp.tree.SetProperty(inp.id, "text", inp.value)
 	if inp.onChange != nil {
 		inp.onChange(inp.value)
@@ -569,6 +580,7 @@ func (inp *Input) deleteBack() {
 	runes = append(runes[:pos-1], runes[pos:]...)
 	inp.value = string(runes)
 	inp.cursorPos = pos - 1
+	inp.resetBlink()
 	inp.tree.SetProperty(inp.id, "text", inp.value)
 	if inp.onChange != nil {
 		inp.onChange(inp.value)
@@ -586,6 +598,7 @@ func (inp *Input) deleteForward() {
 	}
 	runes = append(runes[:pos], runes[pos+1:]...)
 	inp.value = string(runes)
+	inp.resetBlink()
 	inp.tree.SetProperty(inp.id, "text", inp.value)
 	if inp.onChange != nil {
 		inp.onChange(inp.value)
@@ -831,10 +844,13 @@ func (inp *Input) Draw(buf *render.CommandBuffer) {
 		}
 	}
 
-	// Blinking cursor when focused
+	// Blinking cursor when focused (visible for 500ms after any edit, then blinks)
 	if focused && !inp.disabled && !inp.readonly {
+		// Request continuous redraws for cursor blink animation
+		inp.tree.MarkDirty(inp.id)
 		ms := time.Now().UnixMilli()
-		if (ms/500)%2 == 0 {
+		sinceReset := ms - inp.blinkReset
+		if sinceReset < 500 || (ms/500)%2 == 0 {
 			cx := bounds.X + padLeft + inp.cursorX()
 			var lh float32
 			if cfg.TextRenderer != nil {
