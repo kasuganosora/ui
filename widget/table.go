@@ -2,26 +2,82 @@ package widget
 
 import (
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 )
 
-// TableColumn defines a column in the table.
+// TableColumnAlign represents column alignment (TDesign: align).
+type TableColumnAlign int
+
+const (
+	TableAlignLeft   TableColumnAlign = iota // default
+	TableAlignCenter
+	TableAlignRight
+)
+
+// TableColumnFixed represents column fixed position (TDesign: fixed).
+type TableColumnFixed int
+
+const (
+	TableFixedNone  TableColumnFixed = iota
+	TableFixedLeft
+	TableFixedRight
+)
+
+// TableColumn defines a column in the table (TDesign: BaseTableCol).
 type TableColumn struct {
-	Title string
-	Width float32 // 0 = auto (equal share)
-	Align uint8   // 0=left, 1=center, 2=right
+	ColKey   string           // column key for data mapping (TDesign: colKey)
+	Title    string           // column header text (TDesign: title)
+	Width    float32          // column width, 0 = auto (TDesign: width)
+	Align    TableColumnAlign // horizontal alignment (TDesign: align)
+	Fixed    TableColumnFixed // fixed column position (TDesign: fixed)
+	Ellipsis bool             // text overflow ellipsis (TDesign: ellipsis)
+	Sorter   bool             // whether column is sortable (TDesign: sorter)
 }
 
-// Table is a data table with column headers and rows.
+// RowEventContext provides context for row events.
+type RowEventContext struct {
+	RowIndex int
+}
+
+// CellEventContext provides context for cell events.
+type CellEventContext struct {
+	RowIndex int
+	ColIndex int
+}
+
+// Table is a data table with column headers and rows (TDesign: TdBaseTableProps).
 type Table struct {
 	Base
-	columns   []TableColumn
-	rows      [][]string
-	rowHeight float32
-	headerH   float32
-	striped   bool
-	bordered  bool
+	columns    []TableColumn
+	rows       [][]string
+	rowHeight  float32
+	headerH    float32
+	stripe     bool   // striped rows (TDesign: stripe)
+	bordered   bool   // show borders (TDesign: bordered)
+	hover      bool   // show hover state (TDesign: hover)
+	size       Size   // table size (TDesign: size)
+	rowKey     string // field name for unique row id (TDesign: rowKey)
+	hoveredRow int    // -1 = none
+
+	onRowClick  func(ctx RowEventContext)  // TDesign: onRowClick
+	onCellClick func(ctx CellEventContext) // TDesign: onCellClick
+	onPageChange func(pageInfo PageInfo)   // TDesign: onPageChange
+	onSortChange func(sort SortInfo)       // TDesign: onSortChange
+}
+
+// SortInfo describes a column sort state.
+type SortInfo struct {
+	SortBy string // column key
+	Descending bool
+}
+
+// PageInfo describes pagination state for table events.
+type PageInfo struct {
+	Current  int
+	Previous int
+	PageSize int
 }
 
 func NewTable(tree *core.Tree, columns []TableColumn, cfg *Config) *Table {
@@ -30,22 +86,61 @@ func NewTable(tree *core.Tree, columns []TableColumn, cfg *Config) *Table {
 	}
 	cols := make([]TableColumn, len(columns))
 	copy(cols, columns)
-	return &Table{
-		Base:      NewBase(tree, core.TypeCustom, cfg),
-		columns:   cols,
-		rowHeight: 40,
-		headerH:   44,
-		striped:   true,
-		bordered:  true,
+	t := &Table{
+		Base:       NewBase(tree, core.TypeDiv, cfg),
+		columns:    cols,
+		rowHeight:  48,
+		headerH:    48,
+		stripe:     true,
+		bordered:   true,
+		hover:      true,
+		size:       SizeMedium,
+		rowKey:     "id",
+		hoveredRow: -1,
 	}
+
+	tree.AddHandler(t.id, event.MouseMove, func(e *event.Event) {
+		t.updateHover(e.GlobalY)
+	})
+	tree.AddHandler(t.id, event.MouseLeave, func(e *event.Event) {
+		if t.hoveredRow != -1 {
+			t.hoveredRow = -1
+			t.tree.MarkDirty(t.id)
+		}
+	})
+	tree.AddHandler(t.id, event.MouseClick, func(e *event.Event) {
+		t.handleClick(e.GlobalX, e.GlobalY)
+	})
+
+	return t
 }
 
 func (t *Table) Columns() []TableColumn { return t.columns }
 func (t *Table) Rows() [][]string       { return t.rows }
 func (t *Table) RowCount() int          { return len(t.rows) }
-func (t *Table) SetStriped(s bool)      { t.striped = s }
+func (t *Table) SetStripe(s bool)       { t.stripe = s }
 func (t *Table) SetBordered(b bool)     { t.bordered = b }
+func (t *Table) SetHover(h bool)        { t.hover = h }
 func (t *Table) SetRowHeight(h float32) { t.rowHeight = h }
+func (t *Table) SetSize(s Size)         { t.size = s }
+func (t *Table) SetRowKey(k string)     { t.rowKey = k }
+func (t *Table) RowKey() string         { return t.rowKey }
+
+// OnRowClick sets the callback for row click events (TDesign: onRowClick).
+func (t *Table) OnRowClick(fn func(ctx RowEventContext)) { t.onRowClick = fn }
+
+// OnCellClick sets the callback for cell click events (TDesign: onCellClick).
+func (t *Table) OnCellClick(fn func(ctx CellEventContext)) { t.onCellClick = fn }
+
+// OnPageChange sets the callback for page change events (TDesign: onPageChange).
+func (t *Table) OnPageChange(fn func(pageInfo PageInfo)) { t.onPageChange = fn }
+
+// OnSortChange sets the callback for sort change events (TDesign: onSortChange).
+func (t *Table) OnSortChange(fn func(sort SortInfo)) { t.onSortChange = fn }
+
+func (t *Table) TotalHeight() float32 {
+	return t.headerH + float32(len(t.rows))*t.rowHeight
+}
 
 func (t *Table) SetRows(rows [][]string) {
 	t.rows = make([][]string, len(rows))
@@ -65,106 +160,204 @@ func (t *Table) ClearRows() {
 	t.rows = t.rows[:0]
 }
 
-func (t *Table) Draw(buf *render.CommandBuffer) {
+func (t *Table) handleClick(gx, gy float32) {
 	bounds := t.Bounds()
-	if bounds.IsEmpty() {
+	ry := gy - bounds.Y - t.headerH
+	if ry < 0 {
 		return
 	}
-	cfg := t.config
-	numCols := len(t.columns)
-	if numCols == 0 {
+	rowIdx := int(ry / t.rowHeight)
+	if rowIdx < 0 || rowIdx >= len(t.rows) {
 		return
 	}
+	if t.onRowClick != nil {
+		t.onRowClick(RowEventContext{RowIndex: rowIdx})
+	}
+	if t.onCellClick != nil {
+		// Determine column
+		colWidths := t.colWidths()
+		rx := gx - bounds.X
+		cx := float32(0)
+		for ci, cw := range colWidths {
+			if rx >= cx && rx < cx+cw {
+				t.onCellClick(CellEventContext{RowIndex: rowIdx, ColIndex: ci})
+				break
+			}
+			cx += cw
+		}
+	}
+}
 
-	// Calculate column widths
-	colWidths := make([]float32, numCols)
+func (t *Table) updateHover(globalY float32) {
+	if !t.hover {
+		return
+	}
+	bounds := t.Bounds()
+	ry := globalY - bounds.Y - t.headerH
+	newHovered := -1
+	if ry >= 0 {
+		idx := int(ry / t.rowHeight)
+		if idx >= 0 && idx < len(t.rows) {
+			newHovered = idx
+		}
+	}
+	if newHovered != t.hoveredRow {
+		t.hoveredRow = newHovered
+		t.tree.MarkDirty(t.id)
+	}
+}
+
+func (t *Table) colWidths() []float32 {
+	numCols := len(t.columns)
+	widths := make([]float32, numCols)
+	bounds := t.Bounds()
 	totalFixed := float32(0)
 	autoCount := 0
 	for i, col := range t.columns {
 		if col.Width > 0 {
-			colWidths[i] = col.Width
+			widths[i] = col.Width
 			totalFixed += col.Width
 		} else {
 			autoCount++
 		}
 	}
-	autoW := float32(0)
 	if autoCount > 0 {
-		autoW = (bounds.Width - totalFixed) / float32(autoCount)
-	}
-	for i, col := range t.columns {
-		if col.Width <= 0 {
-			colWidths[i] = autoW
+		autoW := (bounds.Width - totalFixed) / float32(autoCount)
+		if autoW < 40 {
+			autoW = 40
+		}
+		for i, col := range t.columns {
+			if col.Width <= 0 {
+				widths[i] = autoW
+			}
 		}
 	}
+	return widths
+}
 
-	// Header background
+func (t *Table) Draw(buf *render.CommandBuffer) {
+	bounds := t.Bounds()
+	if bounds.IsEmpty() || len(t.columns) == 0 {
+		return
+	}
+	cfg := t.config
+	colWidths := t.colWidths()
+	totalH := t.TotalHeight()
+	if totalH > bounds.Height {
+		totalH = bounds.Height
+	}
+
+	// Outer border
+	if t.bordered {
+		buf.DrawRect(render.RectCmd{
+			Bounds:      uimath.NewRect(bounds.X, bounds.Y, bounds.Width, totalH),
+			BorderColor: cfg.BorderColor,
+			BorderWidth: 1,
+			Corners:     uimath.CornersAll(cfg.BorderRadius),
+		}, 0, 1)
+	}
+
+	// --- Header ---
+	headerBg := uimath.ColorHex("#f3f3f3")
 	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(bounds.X, bounds.Y, bounds.Width, t.headerH),
-		FillColor: uimath.RGBA(0, 0, 0, 0.02),
+		FillColor: headerBg,
+		Corners:   uimath.CornersAll(cfg.BorderRadius),
 	}, 1, 1)
+	// Flatten bottom corners of header (overlap with square rect)
+	if t.headerH < totalH {
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(bounds.X, bounds.Y+t.headerH-cfg.BorderRadius, bounds.Width, cfg.BorderRadius),
+			FillColor: headerBg,
+		}, 1, 1)
+	}
 
 	// Header text
+	headerTextColor := uimath.ColorHex("#909399")
 	cx := bounds.X
 	for i, col := range t.columns {
 		if cfg.TextRenderer != nil {
-			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-			cfg.TextRenderer.DrawText(buf, col.Title, cx+cfg.SpaceSM, bounds.Y+(t.headerH-lh)/2, cfg.FontSize, colWidths[i]-cfg.SpaceSM*2, cfg.TextColor, 1)
+			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
+			tw := cfg.TextRenderer.MeasureText(col.Title, cfg.FontSizeSm)
+			tx := cx + cfg.SpaceMD
+			if col.Align == TableAlignCenter {
+				tx = cx + (colWidths[i]-tw)/2
+			} else if col.Align == TableAlignRight {
+				tx = cx + colWidths[i] - tw - cfg.SpaceMD
+			}
+			cfg.TextRenderer.DrawText(buf, col.Title, tx, bounds.Y+(t.headerH-lh)/2, cfg.FontSizeSm, colWidths[i]-cfg.SpaceMD*2, headerTextColor, 1)
+		}
+
+		// Vertical column divider in header (bordered mode)
+		if t.bordered && i < len(t.columns)-1 {
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(cx+colWidths[i]-0.5, bounds.Y+8, 1, t.headerH-16),
+				FillColor: uimath.ColorHex("#e7e7e7"),
+			}, 2, 1)
 		}
 		cx += colWidths[i]
 	}
 
-	// Header divider
+	// Header bottom border
 	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(bounds.X, bounds.Y+t.headerH-1, bounds.Width, 1),
 		FillColor: cfg.BorderColor,
-	}, 1, 1)
+	}, 2, 1)
 
-	// Rows
+	// --- Data Rows ---
 	for ri, row := range t.rows {
 		ry := bounds.Y + t.headerH + float32(ri)*t.rowHeight
 		if ry+t.rowHeight > bounds.Y+bounds.Height {
 			break
 		}
 
-		// Striped background
-		if t.striped && ri%2 == 1 {
+		// Hover background
+		if t.hover && ri == t.hoveredRow {
 			buf.DrawRect(render.RectCmd{
-				Bounds:    uimath.NewRect(bounds.X, ry, bounds.Width, t.rowHeight),
-				FillColor: uimath.RGBA(0, 0, 0, 0.015),
+				Bounds:    uimath.NewRect(bounds.X+1, ry, bounds.Width-2, t.rowHeight),
+				FillColor: uimath.ColorHex("#f3f3f3"),
+			}, 1, 1)
+		} else if t.stripe && ri%2 == 1 {
+			// Striped background
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(bounds.X+1, ry, bounds.Width-2, t.rowHeight),
+				FillColor: uimath.ColorHex("#fafafa"),
 			}, 1, 1)
 		}
 
-		// Row divider
+		// Row bottom divider
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(bounds.X, ry+t.rowHeight-1, bounds.Width, 1),
-			FillColor: uimath.RGBA(0, 0, 0, 0.04),
-		}, 1, 1)
+			FillColor: uimath.ColorHex("#ebedf0"),
+		}, 2, 1)
 
 		// Cell text
 		cx = bounds.X
 		for ci, cell := range row {
-			if ci >= numCols {
+			if ci >= len(t.columns) {
 				break
 			}
+			col := t.columns[ci]
 			if cfg.TextRenderer != nil {
 				lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-				cfg.TextRenderer.DrawText(buf, cell, cx+cfg.SpaceSM, ry+(t.rowHeight-lh)/2, cfg.FontSize, colWidths[ci]-cfg.SpaceSM*2, cfg.TextColor, 1)
+				tw := cfg.TextRenderer.MeasureText(cell, cfg.FontSize)
+				tx := cx + cfg.SpaceMD
+				if col.Align == TableAlignCenter {
+					tx = cx + (colWidths[ci]-tw)/2
+				} else if col.Align == TableAlignRight {
+					tx = cx + colWidths[ci] - tw - cfg.SpaceMD
+				}
+				cfg.TextRenderer.DrawText(buf, cell, tx, ry+(t.rowHeight-lh)/2, cfg.FontSize, colWidths[ci]-cfg.SpaceMD*2, cfg.TextColor, 1)
+			}
+
+			// Vertical column divider (bordered mode)
+			if t.bordered && ci < len(t.columns)-1 {
+				buf.DrawRect(render.RectCmd{
+					Bounds:    uimath.NewRect(cx+colWidths[ci]-0.5, ry, 1, t.rowHeight),
+					FillColor: uimath.ColorHex("#ebedf0"),
+				}, 2, 1)
 			}
 			cx += colWidths[ci]
 		}
-	}
-
-	// Outer border
-	if t.bordered {
-		totalH := t.headerH + float32(len(t.rows))*t.rowHeight
-		if totalH > bounds.Height {
-			totalH = bounds.Height
-		}
-		buf.DrawRect(render.RectCmd{
-			Bounds:      uimath.NewRect(bounds.X, bounds.Y, bounds.Width, totalH),
-			BorderColor: cfg.BorderColor,
-			BorderWidth: 1,
-		}, 1, 1)
 	}
 }

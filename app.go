@@ -8,6 +8,7 @@ import (
 
 	"github.com/kasuganosora/ui/core"
 	"github.com/kasuganosora/ui/event"
+	"github.com/kasuganosora/ui/layout"
 	"github.com/kasuganosora/ui/font"
 	"github.com/kasuganosora/ui/font/atlas"
 	"github.com/kasuganosora/ui/font/freetype"
@@ -60,9 +61,14 @@ type App struct {
 	mouseDownTarget core.ElementID
 	lastHoverTarget core.ElementID
 	lastCursor      platform.CursorShape
+	lastMouseX      float32
+	lastMouseY      float32
 
 	// Scrollable content (auto-detected from <main> tag)
 	content *widget.Content
+
+	// Scrollable sidebar div (auto-detected)
+	sidebarDiv *widget.Div
 }
 
 // NewApp creates and initializes a new App.
@@ -179,6 +185,17 @@ func (a *App) LoadHTML(html string) *Document {
 		}
 	}
 
+	// Auto-detect sidebar div (first div child of aside)
+	if asides := a.doc.QueryByTag("aside"); len(asides) > 0 {
+		for _, child := range asides[0].Children() {
+			if d, ok := child.(*widget.Div); ok {
+				a.sidebarDiv = d
+				d.SetScrollable(true) // enable clipping + scroll
+				break
+			}
+		}
+	}
+
 	return a.doc
 }
 
@@ -207,19 +224,21 @@ func (a *App) Run() error {
 		if fw != lastW || fh != lastH {
 			a.backend.Resize(fw, fh)
 			lastW, lastH = fw, fh
-			lw, lh := a.win.Size()
-			a.tree.SetLayout(a.tree.Root(), core.LayoutResult{
-				Bounds: uimath.NewRect(0, 0, float32(lw), float32(lh)),
-			})
-			if a.opts.OnLayout != nil {
-				a.opts.OnLayout(a.tree, a.root, float32(lw), float32(lh))
-			} else {
-				AutoLayout(a.tree, a.root, float32(lw), float32(lh))
-			}
 		}
 
 		if w32 != nil && w32.InSizeMove() {
 			return
+		}
+
+		// Always re-run layout (handles Display toggling, scroll changes, etc.)
+		lw, lh := a.win.Size()
+		a.tree.SetLayout(a.tree.Root(), core.LayoutResult{
+			Bounds: uimath.NewRect(0, 0, float32(lw), float32(lh)),
+		})
+		if a.opts.OnLayout != nil {
+			a.opts.OnLayout(a.tree, a.root, float32(lw), float32(lh))
+		} else {
+			AutoLayout(a.tree, a.root, float32(lw), float32(lh))
 		}
 
 		a.backend.BeginFrame()
@@ -252,8 +271,9 @@ func (a *App) Run() error {
 
 		if needsRedraw {
 			renderFrame()
+			// If Draw() marked anything dirty (e.g. animations), schedule next frame
+			needsRedraw = a.tree.NeedsRender()
 			a.tree.ClearAllDirty()
-			needsRedraw = false
 		}
 
 		frameCount++
@@ -294,14 +314,21 @@ func (a *App) handleEvent(evt *event.Event) {
 	case event.WindowClose:
 		a.win.SetShouldClose(true)
 	case event.MouseWheel:
-		if a.content != nil && a.root != nil {
-			a.content.HandleWheel(evt.WheelDY)
-			lw, lh := a.win.Size()
-			if a.opts.OnLayout != nil {
-				a.opts.OnLayout(a.tree, a.root, float32(lw), float32(lh))
-			} else {
-				AutoLayout(a.tree, a.root, float32(lw), float32(lh))
+		// WM_MOUSEWHEEL doesn't include cursor position — use last known
+		mx, my := a.lastMouseX, a.lastMouseY
+		handled := false
+		// Check if mouse is over sidebar
+		if a.sidebarDiv != nil {
+			sb := a.sidebarDiv.Bounds()
+			if mx >= sb.X && mx < sb.X+sb.Width &&
+				my >= sb.Y && my < sb.Y+sb.Height {
+				a.sidebarDiv.ScrollTo(0, a.sidebarDiv.ScrollY()-evt.WheelDY*30)
+				handled = true
 			}
+		}
+		// Otherwise scroll content
+		if !handled && a.content != nil {
+			a.content.HandleWheel(evt.WheelDY)
 		}
 	case event.MouseMove, event.MouseDown, event.MouseUp, event.MouseClick:
 		a.handleMouse(evt)
@@ -318,6 +345,10 @@ func (a *App) handleEvent(evt *event.Event) {
 }
 
 func (a *App) handleMouse(evt *event.Event) {
+	// Track mouse position for wheel events
+	a.lastMouseX = evt.GlobalX
+	a.lastMouseY = evt.GlobalY
+
 	// Scrollbar drag
 	if a.content != nil {
 		if a.content.IsScrollBarDragging() {
@@ -432,7 +463,7 @@ func (a *App) handleMouse(evt *event.Event) {
 }
 
 // AutoLayout performs a basic layout for HTML-based UIs.
-// Handles the common Layout > Header + Body(Aside + Content) + Footer pattern.
+// Detects common patterns: Header at top, Footer at bottom, Aside+Content body.
 func AutoLayout(tree *core.Tree, root widget.Widget, w, h float32) {
 	tree.SetLayout(root.ElementID(), core.LayoutResult{
 		Bounds: uimath.NewRect(0, 0, w, h),
@@ -443,77 +474,186 @@ func AutoLayout(tree *core.Tree, root widget.Widget, w, h float32) {
 		return
 	}
 
-	// Detect Layout pattern: Header + Body + Footer
-	if len(children) >= 3 {
-		if isType[*widget.Header](children[0]) && isType[*widget.Footer](children[len(children)-1]) {
-			layoutHBF(tree, children, w, h)
-			return
-		}
+	y := float32(0)
+
+	// Detect header
+	headerIdx := -1
+	headerH := float32(48)
+	if isType[*widget.Header](children[0]) {
+		headerIdx = 0
+		tree.SetLayout(children[0].ElementID(), core.LayoutResult{
+			Bounds: uimath.NewRect(0, 0, w, headerH),
+		})
+		layoutHorizontalCenter(tree, children[0], 0, 0, w, headerH, 24)
+		y = headerH
 	}
 
-	// Fallback: vertical stack
-	layoutVerticalStack(tree, root, 0, 0, w, h, 8)
-}
-
-func layoutHBF(tree *core.Tree, children []widget.Widget, w, h float32) {
-	headerH := float32(56)
+	// Detect footer
+	footerIdx := -1
 	footerH := float32(48)
-	bodyH := h - headerH - footerH
+	if isType[*widget.Footer](children[len(children)-1]) {
+		footerIdx = len(children) - 1
+		footerH = 48
+	}
 
-	// Header
-	tree.SetLayout(children[0].ElementID(), core.LayoutResult{
-		Bounds: uimath.NewRect(0, 0, w, headerH),
-	})
-	layoutHorizontalCenter(tree, children[0], 0, 0, w, headerH, 24)
+	bodyH := h - y
+	if footerIdx >= 0 {
+		bodyH -= footerH
+	}
 
-	// Body (middle children)
-	body := children[1]
-	tree.SetLayout(body.ElementID(), core.LayoutResult{
-		Bounds: uimath.NewRect(0, headerH, w, bodyH),
-	})
-
-	bodyChildren := body.Children()
-	if len(bodyChildren) >= 2 {
-		// Aside + Content
-		if isType[*widget.Aside](bodyChildren[0]) {
-			asideW := float32(220)
-			contentW := w - asideW
-
-			tree.SetLayout(bodyChildren[0].ElementID(), core.LayoutResult{
-				Bounds: uimath.NewRect(0, headerH, asideW, bodyH),
-			})
-			layoutVerticalStack(tree, bodyChildren[0], 0, headerH, asideW, bodyH, 8)
-
-			tree.SetLayout(bodyChildren[1].ElementID(), core.LayoutResult{
-				Bounds: uimath.NewRect(asideW, headerH, contentW, bodyH),
-			})
-			layoutContentArea(tree, bodyChildren[1], asideW, headerH, contentW, bodyH)
+	// Process body children (everything between header and footer)
+	for i, child := range children {
+		if i == headerIdx || i == footerIdx {
+			continue
 		}
-	} else if len(bodyChildren) == 1 {
-		// Just content
-		tree.SetLayout(bodyChildren[0].ElementID(), core.LayoutResult{
-			Bounds: uimath.NewRect(0, headerH, w, bodyH),
+		tree.SetLayout(child.ElementID(), core.LayoutResult{
+			Bounds: uimath.NewRect(0, y, w, bodyH),
 		})
-		layoutContentArea(tree, bodyChildren[0], 0, headerH, w, bodyH)
+		layoutBody(tree, child, 0, y, w, bodyH)
 	}
 
 	// Footer
-	footer := children[len(children)-1]
-	tree.SetLayout(footer.ElementID(), core.LayoutResult{
-		Bounds: uimath.NewRect(0, headerH+bodyH, w, footerH),
-	})
-	layoutHorizontalCenter(tree, footer, 0, headerH+bodyH, w, footerH, 0)
+	if footerIdx >= 0 {
+		footer := children[footerIdx]
+		fy := y + bodyH
+		tree.SetLayout(footer.ElementID(), core.LayoutResult{
+			Bounds: uimath.NewRect(0, fy, w, footerH),
+		})
+		layoutHorizontalCenter(tree, footer, 0, fy, w, footerH, 0)
+	}
+}
+
+// layoutBody lays out a body element, detecting Aside+Content patterns.
+func layoutBody(tree *core.Tree, body widget.Widget, x, y, w, h float32) {
+	bodyChildren := body.Children()
+	if len(bodyChildren) == 0 {
+		return
+	}
+
+	// Find aside and content among children
+	asideIdx := -1
+	contentIdx := -1
+	for i, c := range bodyChildren {
+		if isType[*widget.Aside](c) {
+			asideIdx = i
+		} else if isType[*widget.Content](c) {
+			contentIdx = i
+		}
+	}
+
+	if asideIdx >= 0 && contentIdx >= 0 {
+		asideW := float32(180)
+		contentX := x + asideW
+		contentW := w - asideW
+
+		// Aside
+		tree.SetLayout(bodyChildren[asideIdx].ElementID(), core.LayoutResult{
+			Bounds: uimath.NewRect(x, y, asideW, h),
+		})
+		layoutSidebar(tree, bodyChildren[asideIdx], x, y, asideW, h)
+
+		// Content
+		tree.SetLayout(bodyChildren[contentIdx].ElementID(), core.LayoutResult{
+			Bounds: uimath.NewRect(contentX, y, contentW, h),
+		})
+		layoutContentArea(tree, bodyChildren[contentIdx], contentX, y, contentW, h)
+		return
+	}
+
+	// Single content child
+	if len(bodyChildren) == 1 {
+		tree.SetLayout(bodyChildren[0].ElementID(), core.LayoutResult{
+			Bounds: uimath.NewRect(x, y, w, h),
+		})
+		if isType[*widget.Content](bodyChildren[0]) {
+			layoutContentArea(tree, bodyChildren[0], x, y, w, h)
+		} else {
+			layoutBody(tree, bodyChildren[0], x, y, w, h)
+		}
+		return
+	}
+
+	// Fallback: vertical stack
+	layoutVerticalStack(tree, body, x, y, w, h, 8)
+}
+
+// layoutSidebar lays out sidebar children vertically, supporting scrollable wrapper divs.
+func layoutSidebar(tree *core.Tree, aside widget.Widget, x, y, w, h float32) {
+	children := aside.Children()
+	if len(children) == 0 {
+		return
+	}
+
+	// If there's a single wrapper div (e.g. sidebar-scroll), use it as scroll container
+	var scrollDiv *widget.Div
+	if len(children) == 1 {
+		tree.SetLayout(children[0].ElementID(), core.LayoutResult{
+			Bounds: uimath.NewRect(x, y, w, h),
+		})
+		if d, ok := children[0].(*widget.Div); ok {
+			scrollDiv = d
+		}
+		children = children[0].Children()
+	}
+
+	// Calculate total content height
+	itemH := float32(32)
+	gap := float32(2)
+	totalH := float32(8) // top padding
+	for range children {
+		totalH += itemH + gap
+	}
+	totalH += 8 // bottom padding
+
+	// Apply and clamp scroll offset
+	scrollY := float32(0)
+	if scrollDiv != nil {
+		scrollDiv.SetContentHeight(totalH)
+		maxScroll := totalH - h
+		if maxScroll < 0 {
+			maxScroll = 0
+		}
+		sy := scrollDiv.ScrollY()
+		if sy < 0 {
+			sy = 0
+		}
+		if sy > maxScroll {
+			sy = maxScroll
+		}
+		scrollDiv.ScrollTo(0, sy)
+		scrollY = sy
+	}
+
+	cy := y + 8 - scrollY
+	for _, child := range children {
+		tree.SetLayout(child.ElementID(), core.LayoutResult{
+			Bounds: uimath.NewRect(x+8, cy, w-16, itemH),
+		})
+		cy += itemH + gap
+	}
 }
 
 func layoutContentArea(tree *core.Tree, content widget.Widget, x, y, w, h float32) {
 	pad := float32(24)
 	cx := x + pad
 	cw := w - pad*2
-	gap := float32(12)
+	gap := float32(16)
 
-	totalH := pad
+	// Collect visible children, zero-out hidden ones
+	var visible []widget.Widget
 	for _, child := range content.Children() {
-		totalH += rowHeight(child) + gap
+		if child.Style().Display == layout.DisplayNone {
+			// Clear bounds so hidden sections don't render
+			tree.SetLayout(child.ElementID(), core.LayoutResult{})
+			continue
+		}
+		visible = append(visible, child)
+	}
+
+	// Calculate total content height
+	totalH := pad
+	for _, child := range visible {
+		totalH += sectionHeight(child) + gap
 	}
 	totalH += pad
 
@@ -528,28 +668,167 @@ func layoutContentArea(tree *core.Tree, content widget.Widget, x, y, w, h float3
 	}
 
 	cy := y + pad - scrollY
-	for _, child := range content.Children() {
-		rh := rowHeight(child)
+	for _, child := range visible {
+		sh := sectionHeight(child)
 		tree.SetLayout(child.ElementID(), core.LayoutResult{
-			Bounds: uimath.NewRect(cx, cy, cw, rh),
+			Bounds: uimath.NewRect(cx, cy, cw, sh),
 		})
-		if len(child.Children()) > 0 {
-			layoutHorizontalCenter(tree, child, cx, cy, cw, rh, 12)
-		}
-		cy += rh + gap
+		layoutSection(tree, child, cx, cy, cw, sh)
+		cy += sh + gap
 	}
 }
 
-func rowHeight(child widget.Widget) float32 {
-	switch child.(type) {
+// sectionHeight estimates the height of a section div (h2 + desc + demo-card with children).
+func sectionHeight(section widget.Widget) float32 {
+	children := section.Children()
+	if len(children) == 0 {
+		return 36
+	}
+	h := float32(0)
+	for _, child := range children {
+		h += itemHeight(child) + 8
+	}
+	return h
+}
+
+// itemHeight estimates height for individual items within a section.
+func itemHeight(child widget.Widget) float32 {
+	switch v := child.(type) {
 	case *widget.TextArea:
-		return 80
+		return 100
 	case *widget.Empty:
 		return 80
 	case *widget.Progress:
 		return 12
+	case *widget.Row:
+		return 44 // grid row is a single horizontal line
+	case *widget.Space:
+		return 36 // space is a single horizontal line
+	case *widget.Panel:
+		// Panel has a 40px title header + content below
+		h := float32(40 + 12) // header + padding
+		for _, c := range v.Children() {
+			h += itemHeight(c) + 8
+		}
+		return h
+	case *widget.Menu:
+		return v.TotalHeight()
+	case *widget.Timeline:
+		return v.TotalHeight()
+	case *widget.Steps:
+		return 80 // dot + title + description
+	case *widget.Table:
+		return v.TotalHeight()
+	}
+	// Check if this is a container (demo-card) with children
+	children := child.Children()
+	if len(children) > 0 {
+		h := float32(16) // padding
+		for _, c := range children {
+			h += itemHeight(c) + 8
+		}
+		return h + 16
 	}
 	return 36
+}
+
+// layoutSection lays out children of a section (h2, span, demo-card, etc.) vertically.
+func layoutSection(tree *core.Tree, section widget.Widget, x, y, w, h float32) {
+	children := section.Children()
+	if len(children) == 0 {
+		return
+	}
+	cy := y
+	for _, child := range children {
+		ih := itemHeight(child)
+		tree.SetLayout(child.ElementID(), core.LayoutResult{
+			Bounds: uimath.NewRect(x, cy, w, ih),
+		})
+		// Recursively lay out children of containers (demo-card divs)
+		if len(child.Children()) > 0 {
+			layoutSectionContent(tree, child, x+12, cy+8, w-24, ih-16)
+		}
+		cy += ih + 8
+	}
+}
+
+// layoutSectionContent lays out items within a demo card.
+func layoutSectionContent(tree *core.Tree, parent widget.Widget, x, y, w, h float32) {
+	children := parent.Children()
+	if len(children) == 0 {
+		return
+	}
+	cy := y
+	for _, child := range children {
+		ih := itemHeight(child)
+		tree.SetLayout(child.ElementID(), core.LayoutResult{
+			Bounds: uimath.NewRect(x, cy, w, ih),
+		})
+		// Handle horizontal layout widgets
+		if _, ok := child.(*widget.Space); ok {
+			layoutSpaceHorizontal(tree, child, x, cy, w, ih)
+		} else if _, ok := child.(*widget.Row); ok {
+			layoutRowCols(tree, child, x, cy, w, ih)
+		} else if _, ok := child.(*widget.Panel); ok {
+			// Panel has 40px title header; lay out children below it
+			layoutSectionContent(tree, child, x+12, cy+40+4, w-24, ih-40-8)
+		} else if len(child.Children()) > 0 {
+			layoutSectionContent(tree, child, x+4, cy+4, w-8, ih-8)
+		}
+		cy += ih + 8
+	}
+}
+
+// layoutSpaceHorizontal lays out Space children horizontally.
+func layoutSpaceHorizontal(tree *core.Tree, space widget.Widget, x, y, w, h float32) {
+	children := space.Children()
+	if len(children) == 0 {
+		return
+	}
+	gap := float32(12)
+	n := float32(len(children))
+	totalGap := gap * (n - 1)
+	itemW := (w - totalGap) / n
+	if itemW > 120 {
+		itemW = 120
+	}
+	cx := x
+	for _, child := range children {
+		tree.SetLayout(child.ElementID(), core.LayoutResult{
+			Bounds: uimath.NewRect(cx, y, itemW, h),
+		})
+		fillDescendants(tree, child, cx+2, y+2, itemW-4, h-4)
+		cx += itemW + gap
+	}
+}
+
+// layoutRowCols lays out Row children (Cols) horizontally by span/24 ratio.
+func layoutRowCols(tree *core.Tree, row widget.Widget, x, y, w, h float32) {
+	children := row.Children()
+	if len(children) == 0 {
+		return
+	}
+	r, _ := row.(*widget.Row)
+	gutter := float32(0)
+	if r != nil {
+		gutter = r.Gutter()
+	}
+	totalGutter := gutter * float32(len(children)-1)
+	availW := w - totalGutter
+
+	cx := x
+	for _, child := range children {
+		span := 24 // default full width
+		if col, ok := child.(*widget.Col); ok {
+			span = col.Span()
+		}
+		colW := availW * float32(span) / 24.0
+		tree.SetLayout(child.ElementID(), core.LayoutResult{
+			Bounds: uimath.NewRect(cx, y, colW, h),
+		})
+		fillDescendants(tree, child, cx+2, y+2, colW-4, h-4)
+		cx += colW + gutter
+	}
 }
 
 func layoutVerticalStack(tree *core.Tree, parent widget.Widget, x, y, w, h, gap float32) {

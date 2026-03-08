@@ -81,8 +81,8 @@ func TestAlertWidgetFull(t *testing.T) {
 	tree := newTestTree()
 	cfg := p1p2TestCfg()
 	a := NewAlert(tree, "Warning message", cfg)
-	a.SetAlertType(AlertWarning)
-	a.SetClosable(true)
+	a.SetTheme(AlertThemeWarning)
+	a.SetCloseBtn(true)
 	a.SetMessage("New message")
 	if !a.IsVisible() {
 		t.Error("alert should be visible")
@@ -90,9 +90,9 @@ func TestAlertWidgetFull(t *testing.T) {
 	drawAndVerify(t, tree, a, false)
 
 	// Test all alert types
-	for _, at := range []AlertType{AlertSuccess, AlertInfo, AlertWarning, AlertError} {
+	for _, at := range []AlertTheme{AlertThemeSuccess, AlertThemeInfo, AlertThemeWarning, AlertThemeError} {
 		a2 := NewAlert(tree, "test", cfg)
-		a2.SetAlertType(at)
+		a2.SetTheme(at)
 		setBounds(tree, a2, 0, 0, 300, 50)
 		buf := render.NewCommandBuffer()
 		a2.Draw(buf)
@@ -295,10 +295,10 @@ func TestBreadcrumbWidgetFull(t *testing.T) {
 	tree := newTestTree()
 	cfg := p1p2TestCfg()
 	b := NewBreadcrumb(tree, cfg)
-	b.SetItems([]BreadcrumbItem{
-		{Label: "Home"},
-		{Label: "Products"},
-		{Label: "Detail"},
+	b.SetOptions([]BreadcrumbItem{
+		{Content: "Home"},
+		{Content: "Products"},
+		{Content: "Detail"},
 	})
 	b.SetSeparator(">")
 	clicked := false
@@ -423,9 +423,9 @@ func TestCollapseWidgetFull(t *testing.T) {
 	cfg := p1p2TestCfg()
 	c := NewCollapse(tree, cfg)
 	c.SetPanels([]CollapsePanel{
-		{Key: "a", Title: "Panel A"},
-		{Key: "b", Title: "Panel B"},
-		{Key: "c", Title: "Panel C"},
+		{Value: "a", Header: "Panel A"},
+		{Value: "b", Header: "Panel B"},
+		{Value: "c", Header: "Panel C"},
 	})
 	c.SetBordered(true)
 	c.Toggle("a")
@@ -444,7 +444,7 @@ func TestCollapseAccordionMode(t *testing.T) {
 	tree := newTestTree()
 	cfg := p1p2TestCfg()
 	c := NewCollapse(tree, cfg)
-	c.SetPanels([]CollapsePanel{{Key: "a", Title: "A"}, {Key: "b", Title: "B"}})
+	c.SetPanels([]CollapsePanel{{Value: "a", Header: "A"}, {Value: "b", Header: "B"}})
 	c.SetAccordion(true)
 	c.Toggle("a")
 	c.Toggle("b")
@@ -643,10 +643,10 @@ func TestDividerWidgetFull(t *testing.T) {
 	tree := newTestTree()
 	cfg := p1p2TestCfg()
 	d := NewDivider(tree, cfg)
-	d.SetDirection(DividerVertical)
+	d.SetLayout(DividerVertical)
 	d.SetColor(uimath.ColorRed)
 	d.SetThickness(2)
-	d.SetText("OR")
+	d.SetContent("OR")
 	drawAndVerify(t, tree, d, false)
 }
 
@@ -654,7 +654,7 @@ func TestDividerHorizontal(t *testing.T) {
 	tree := newTestTree()
 	cfg := p1p2TestCfg()
 	d := NewDivider(tree, cfg)
-	d.SetText("---")
+	d.SetContent("---")
 	drawAndVerify(t, tree, d, false)
 }
 
@@ -881,10 +881,10 @@ func TestDrawerWidgetFull(t *testing.T) {
 	tree := newTestTree()
 	cfg := p1p2TestCfg()
 	d := NewDrawer(tree, "Test Drawer", cfg)
-	d.SetTitle("New Title")
-	d.SetWidth(400)
-	d.SetHeight(300)
-	d.SetClosable(false)
+	d.SetHeader("New Title")
+	d.SetSize("400")
+	d.SetSize("300")
+	d.SetCloseBtn(false)
 	closeCalled := false
 	d.OnClose(func() { closeCalled = true })
 
@@ -1258,22 +1258,22 @@ func TestMenuWidgetFull(t *testing.T) {
 	cfg := p1p2TestCfg()
 	m := NewMenu(tree, cfg)
 	m.SetItems([]MenuItem{
-		{Key: "a", Label: "Item A", Children: []MenuItem{{Key: "a1", Label: "Sub A"}}},
-		{Key: "b", Label: "Item B"},
-		{Key: "c", Label: "Item C", Disabled: true},
+		{Value: "a", Content: "Item A", Children: []MenuItem{{Value: "a1", Content: "Sub A"}}},
+		{Value: "b", Content: "Item B"},
+		{Value: "c", Content: "Item C", Disabled: true},
 	})
-	m.SetSelectedKey("a")
-	if m.SelectedKey() != "a" {
+	m.SetValue("a")
+	if m.Value() != "a" {
 		t.Error("expected selected 'a'")
 	}
 	selected := ""
-	m.OnSelect(func(key string) { selected = key })
+	m.OnChange(func(key string) { selected = key })
 	m.SelectItem("b")
 	if selected != "b" {
 		t.Errorf("expected 'b', got %q", selected)
 	}
-	m.ToggleOpen("a")
-	m.ToggleOpen("a") // toggle back
+	m.ToggleExpanded("a")
+	m.ToggleExpanded("a") // toggle back
 	m.SelectItem("c") // disabled
 	drawAndVerify(t, tree, m, false)
 }
@@ -1356,11 +1356,11 @@ func TestNotificationWidgetFull(t *testing.T) {
 	cfg := p1p2TestCfg()
 	n := NewNotification(tree, "Title", "Message", cfg)
 	n.SetTitle("New Title")
-	n.SetMessage("New Message")
-	if n.Title() != "New Title" || n.Message() != "New Message" {
+	n.SetContent("New Message")
+	if n.Title() != "New Title" || n.Content() != "New Message" {
 		t.Error("expected new title/message")
 	}
-	n.SetType(NotificationSuccess)
+	n.SetTheme(NotificationThemeSuccess)
 	n.SetPosition(10, 10)
 	closeCalled := false
 	n.OnClose(func() { closeCalled = true })
@@ -1402,7 +1402,7 @@ func TestPaginationWidgetFull(t *testing.T) {
 		t.Errorf("expected current 5")
 	}
 	changed := false
-	p.OnChange(func(page int) { changed = true })
+	p.OnChange(func(pageInfo PaginationPageInfo) { changed = true })
 	p.GoTo(3)
 	if !changed {
 		t.Error("expected change callback")
@@ -1572,10 +1572,10 @@ func TestRateWidgetFull(t *testing.T) {
 		t.Errorf("expected value 3")
 	}
 	r.SetCount(10)
-	r.SetStarSize(24)
+	r.SetSize(24)
 	r.SetDisabled(true)
 	changed := false
-	r.OnChange(func(v int) { changed = true })
+	r.OnChange(func(v float32) { changed = true })
 	_ = changed
 	drawAndVerify(t, tree, r, false)
 }
@@ -1616,7 +1616,7 @@ func TestSkeletonWidgetFull(t *testing.T) {
 	s := NewSkeleton(tree, cfg)
 	s.SetRows(5)
 	s.SetAvatar(true)
-	s.SetActive(true)
+	s.SetLoading(true)
 	if s.Rows() != 5 {
 		t.Errorf("expected 5 rows")
 	}
@@ -1711,10 +1711,10 @@ func TestStepsWidgetFull(t *testing.T) {
 	tree := newTestTree()
 	cfg := p1p2TestCfg()
 	s := NewSteps(tree, cfg)
-	s.AddStep(StepItem{Title: "Step 1", Description: "First"})
-	s.AddStep(StepItem{Title: "Step 2", Description: "Second"})
-	s.AddStep(StepItem{Title: "Step 3", Description: "Third"})
-	if len(s.Items()) != 3 {
+	s.AddStep(StepItem{Title: "Step 1", Content: "First"})
+	s.AddStep(StepItem{Title: "Step 2", Content: "Second"})
+	s.AddStep(StepItem{Title: "Step 3", Content: "Third"})
+	if len(s.Options()) != 3 {
 		t.Error("expected 3 items")
 	}
 	s.SetCurrent(1)
@@ -1724,7 +1724,7 @@ func TestStepsWidgetFull(t *testing.T) {
 	drawAndVerify(t, tree, s, false)
 
 	s.ClearSteps()
-	if len(s.Items()) != 0 {
+	if len(s.Options()) != 0 {
 		t.Error("expected 0 items after clear")
 	}
 }
@@ -1838,7 +1838,7 @@ func TestTableWidgetFull(t *testing.T) {
 	if len(tbl.Rows()) != 2 {
 		t.Error("expected rows")
 	}
-	tbl.SetStriped(true)
+	tbl.SetStripe(true)
 	tbl.SetBordered(true)
 	tbl.SetRowHeight(40)
 	tbl.SetRows([][]string{{"C", "1"}, {"D", "2"}})
@@ -1905,9 +1905,9 @@ func TestTimelineWidgetFull(t *testing.T) {
 	cfg := p1p2TestCfg()
 	tl := NewTimeline(tree, cfg)
 	tl.SetItemHeight(60)
-	tl.AddItem(TimelineItem{Label: "Created", Status: TimelineSuccess})
-	tl.AddItem(TimelineItem{Label: "Processing", Status: TimelineDefault})
-	tl.AddItem(TimelineItem{Label: "Error", Status: TimelineError})
+	tl.AddItem(TimelineItem{Label: "Created", DotColor: "primary"})
+	tl.AddItem(TimelineItem{Label: "Processing", DotColor: "default"})
+	tl.AddItem(TimelineItem{Label: "Error", DotColor: "error"})
 	if len(tl.Items()) != 3 {
 		t.Errorf("expected 3 items")
 	}
@@ -2112,8 +2112,9 @@ func TestWatermarkWidgetFull(t *testing.T) {
 	w := NewWatermark(tree, "DRAFT", cfg)
 	w.SetText("CONFIDENTIAL")
 	w.SetColor(uimath.ColorRed)
-	w.SetOpacity(0.5)
-	w.SetGap(100, 80)
+	w.SetAlpha(0.5)
+	w.SetX(100)
+	w.SetY(80)
 	// Draw requires TextRenderer; just verify no panic
 	setBounds(tree, w, 0, 0, 400, 300)
 	buf := render.NewCommandBuffer()
@@ -2510,7 +2511,7 @@ func TestRateClickHandler(t *testing.T) {
 	setBounds(tree, r, 0, 0, 200, 30)
 
 	changed := false
-	r.OnChange(func(v int) { changed = true })
+	r.OnChange(func(v float32) { changed = true })
 
 	clickH := tree.Handlers(r.ElementID(), event.MouseClick)
 	if len(clickH) == 0 {
@@ -2580,7 +2581,7 @@ func TestCollapseToggleOnChange(t *testing.T) {
 	tree := newTestTree()
 	cfg := p1p2TestCfg()
 	c := NewCollapse(tree, cfg)
-	c.SetPanels([]CollapsePanel{{Key: "a", Title: "A"}, {Key: "b", Title: "B"}})
+	c.SetPanels([]CollapsePanel{{Value: "a", Header: "A"}, {Value: "b", Header: "B"}})
 	var changedKeys []string
 	c.OnChange(func(keys []string) { changedKeys = keys })
 	c.Toggle("a")

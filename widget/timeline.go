@@ -6,29 +6,62 @@ import (
 	"github.com/kasuganosora/ui/render"
 )
 
-// TimelineItemStatus determines the dot color.
-type TimelineItemStatus uint8
+// TimelineLabelAlign controls label position relative to the axis.
+type TimelineLabelAlign uint8
 
 const (
-	TimelineDefault TimelineItemStatus = iota
-	TimelineSuccess
-	TimelineWarning
-	TimelineError
+	TimelineLabelLeft TimelineLabelAlign = iota
+	TimelineLabelRight
+	TimelineLabelAlternate
+	TimelineLabelTop
+	TimelineLabelBottom
+)
+
+// TimelineLayout controls timeline orientation.
+type TimelineLayout uint8
+
+const (
+	TimelineVertical TimelineLayout = iota
+	TimelineHorizontal
+)
+
+// TimelineMode controls label and content placement.
+type TimelineMode uint8
+
+const (
+	TimelineModeAlternate TimelineMode = iota
+	TimelineModeSame
+)
+
+// TimelineTheme controls dot styling.
+type TimelineTheme uint8
+
+const (
+	TimelineThemeDefault TimelineTheme = iota
+	TimelineThemeDot
 )
 
 // TimelineItem represents a single event in the timeline.
 type TimelineItem struct {
-	Label  string
-	Detail string
-	Status TimelineItemStatus
+	Content    string
+	Label      string
+	DotColor   string // hex color or "primary"/"warning"/"error"/"default"
+	LabelAlign TimelineLabelAlign
+	Loading    bool
+	OnClick    func()
 }
 
 // Timeline displays a vertical list of events.
 type Timeline struct {
 	Base
-	items    []TimelineItem
-	itemH    float32
-	dotSize  float32
+	items      []TimelineItem
+	itemH      float32
+	dotSize    float32
+	labelAlign TimelineLabelAlign
+	layout     TimelineLayout
+	mode       TimelineMode
+	reverse    bool
+	theme      TimelineTheme
 }
 
 func NewTimeline(tree *core.Tree, cfg *Config) *Timeline {
@@ -42,8 +75,13 @@ func NewTimeline(tree *core.Tree, cfg *Config) *Timeline {
 	}
 }
 
-func (t *Timeline) Items() []TimelineItem  { return t.items }
-func (t *Timeline) SetItemHeight(h float32) { t.itemH = h }
+func (t *Timeline) Items() []TimelineItem             { return t.items }
+func (t *Timeline) SetItemHeight(h float32)            { t.itemH = h }
+func (t *Timeline) SetLabelAlign(a TimelineLabelAlign) { t.labelAlign = a }
+func (t *Timeline) SetLayout(l TimelineLayout)         { t.layout = l }
+func (t *Timeline) SetMode(m TimelineMode)             { t.mode = m }
+func (t *Timeline) SetReverse(v bool)                  { t.reverse = v }
+func (t *Timeline) SetTheme(th TimelineTheme)          { t.theme = th }
 
 func (t *Timeline) AddItem(item TimelineItem) {
 	t.items = append(t.items, item)
@@ -53,16 +91,23 @@ func (t *Timeline) ClearItems() {
 	t.items = t.items[:0]
 }
 
-func timelineStatusColor(s TimelineItemStatus) uimath.Color {
-	switch s {
-	case TimelineSuccess:
-		return uimath.ColorHex("#52c41a")
-	case TimelineWarning:
+func (t *Timeline) TotalHeight() float32 {
+	return float32(len(t.items)) * t.itemH
+}
+
+func timelineDotColor(dotColor string) uimath.Color {
+	switch dotColor {
+	case "warning":
 		return uimath.ColorHex("#faad14")
-	case TimelineError:
+	case "error":
 		return uimath.ColorHex("#ff4d4f")
-	default:
+	case "default":
+		return uimath.ColorHex("#c0c4cc")
+	case "primary", "":
 		return uimath.ColorHex("#1890ff")
+	default:
+		// Treat as hex color string
+		return uimath.ColorHex(dotColor)
 	}
 }
 
@@ -80,7 +125,7 @@ func (t *Timeline) Draw(buf *render.CommandBuffer) {
 		if y+t.itemH > bounds.Y+bounds.Height {
 			break
 		}
-		dotColor := timelineStatusColor(item.Status)
+		dotColor := timelineDotColor(item.DotColor)
 
 		// Connecting line (not for last item)
 		if i < len(t.items)-1 {
@@ -90,11 +135,13 @@ func (t *Timeline) Draw(buf *render.CommandBuffer) {
 			}, 1, 1)
 		}
 
-		// Dot
+		// Dot (outlined ring like TDesign)
 		buf.DrawRect(render.RectCmd{
-			Bounds:    uimath.NewRect(bounds.X, y, t.dotSize, t.dotSize),
-			FillColor: dotColor,
-			Corners:   uimath.CornersAll(dotR),
+			Bounds:      uimath.NewRect(bounds.X, y, t.dotSize, t.dotSize),
+			FillColor:   uimath.ColorWhite,
+			BorderColor: dotColor,
+			BorderWidth: 2,
+			Corners:     uimath.CornersAll(dotR),
 		}, 2, 1)
 
 		// Label
@@ -102,8 +149,8 @@ func (t *Timeline) Draw(buf *render.CommandBuffer) {
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 			cfg.TextRenderer.DrawText(buf, item.Label, textX, y, cfg.FontSize, bounds.Width-textX+bounds.X, cfg.TextColor, 1)
-			if item.Detail != "" {
-				cfg.TextRenderer.DrawText(buf, item.Detail, textX, y+lh+2, cfg.FontSizeSm, bounds.Width-textX+bounds.X, cfg.DisabledColor, 1)
+			if item.Content != "" {
+				cfg.TextRenderer.DrawText(buf, item.Content, textX, y+lh+2, cfg.FontSizeSm, bounds.Width-textX+bounds.X, cfg.DisabledColor, 1)
 			}
 		}
 	}

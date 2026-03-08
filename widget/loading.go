@@ -18,8 +18,14 @@ const (
 // Loading displays a loading indicator (three dots with animation).
 type Loading struct {
 	Base
-	tip   string
-	start time.Time
+	text         string
+	start        time.Time
+	delay        int    // milliseconds before showing
+	fullscreen   bool
+	indicator    bool
+	inheritColor bool
+	loading      bool
+	size         string // "small", "medium", "large", or CSS value
 }
 
 // NewLoading creates a loading indicator.
@@ -28,8 +34,11 @@ func NewLoading(tree *core.Tree, cfg *Config) *Loading {
 		cfg = DefaultConfig()
 	}
 	l := &Loading{
-		Base:  NewBase(tree, core.TypeCustom, cfg),
-		start: time.Now(),
+		Base:      NewBase(tree, core.TypeCustom, cfg),
+		start:     time.Now(),
+		indicator: true,
+		loading:   true,
+		size:      "medium",
 	}
 	l.style.Display = layout.DisplayFlex
 	l.style.AlignItems = layout.AlignCenter
@@ -39,8 +48,14 @@ func NewLoading(tree *core.Tree, cfg *Config) *Loading {
 	return l
 }
 
-func (l *Loading) Tip() string     { return l.tip }
-func (l *Loading) SetTip(tip string) { l.tip = tip }
+func (l *Loading) Text() string              { return l.text }
+func (l *Loading) SetText(t string)          { l.text = t }
+func (l *Loading) SetDelay(ms int)           { l.delay = ms }
+func (l *Loading) SetFullscreen(v bool)      { l.fullscreen = v }
+func (l *Loading) SetIndicator(v bool)       { l.indicator = v }
+func (l *Loading) SetInheritColor(v bool)    { l.inheritColor = v }
+func (l *Loading) SetLoading(v bool)         { l.loading = v }
+func (l *Loading) SetSize(s string)          { l.size = s }
 
 func (l *Loading) Draw(buf *render.CommandBuffer) {
 	bounds := l.Bounds()
@@ -59,7 +74,7 @@ func (l *Loading) Draw(buf *render.CommandBuffer) {
 	const period = float32(1.2) // full cycle duration in seconds
 
 	dotY := bounds.Y + (bounds.Height-loadingDotSize)/2
-	if l.tip != "" {
+	if l.text != "" {
 		dotY -= cfg.FontSize
 	}
 	totalDotsW := loadingDotSize*3 + cfg.SpaceSM*2
@@ -90,12 +105,12 @@ func (l *Loading) Draw(buf *render.CommandBuffer) {
 	}
 
 	// Tip text
-	if l.tip != "" && cfg.TextRenderer != nil {
+	if l.text != "" && cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 		tipY := dotY + loadingDotSize + cfg.SpaceSM
-		tipW := cfg.TextRenderer.MeasureText(l.tip, cfg.FontSize)
+		tipW := cfg.TextRenderer.MeasureText(l.text, cfg.FontSize)
 		tipX := bounds.X + (bounds.Width-tipW)/2
-		cfg.TextRenderer.DrawText(buf, l.tip, tipX, tipY, cfg.FontSize, bounds.Width, cfg.TextColor, 1)
+		cfg.TextRenderer.DrawText(buf, l.text, tipX, tipY, cfg.FontSize, bounds.Width, cfg.TextColor, 1)
 		_ = lh
 	}
 

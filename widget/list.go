@@ -2,6 +2,7 @@ package widget
 
 import (
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/event"
 	"github.com/kasuganosora/ui/layout"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
@@ -14,14 +15,33 @@ type ListItem struct {
 	Extra       string
 }
 
+// ListLayout controls whether items are arranged horizontally or vertically.
+type ListLayout uint8
+
+const (
+	ListHorizontal ListLayout = iota
+	ListVertical
+)
+
 // List displays a scrollable list of items.
 type List struct {
 	Base
-	items      []ListItem
-	itemHeight float32
-	scrollY    float32
-	bordered   bool
-	onSelect   func(index int)
+	items        []ListItem
+	itemHeight   float32
+	scrollY      float32
+	bordered     bool
+	split        bool
+	stripe       bool
+	size         Size
+	hoverable    bool
+	hoveredIndex int
+	layout       ListLayout
+	asyncLoading string
+	header       string
+	footer       string
+	onSelect     func(index int)
+	onLoadMore   func()
+	onScroll     func(scrollTop, scrollBottom float32)
 }
 
 func NewList(tree *core.Tree, cfg *Config) *List {
@@ -29,12 +49,35 @@ func NewList(tree *core.Tree, cfg *Config) *List {
 		cfg = DefaultConfig()
 	}
 	l := &List{
-		Base:       NewBase(tree, core.TypeDiv, cfg),
-		itemHeight: 48,
-		bordered:   true,
+		Base:         NewBase(tree, core.TypeDiv, cfg),
+		itemHeight:   48,
+		bordered:     true,
+		split:        true,
+		hoverable:    true,
+		hoveredIndex: -1,
+		size:         SizeMedium,
 	}
 	l.style.Display = layout.DisplayFlex
 	l.style.FlexDirection = layout.FlexDirectionColumn
+
+	// Track hover
+	tree.AddHandler(l.id, event.MouseMove, func(e *event.Event) {
+		if !l.hoverable {
+			return
+		}
+		bounds := l.Bounds()
+		relY := e.Y - bounds.Y + l.scrollY
+		idx := int(relY / l.itemHeight)
+		if idx >= 0 && idx < len(l.items) {
+			l.hoveredIndex = idx
+		} else {
+			l.hoveredIndex = -1
+		}
+	})
+	tree.AddHandler(l.id, event.MouseLeave, func(e *event.Event) {
+		l.hoveredIndex = -1
+	})
+
 	return l
 }
 
@@ -45,6 +88,31 @@ func (l *List) SetBordered(b bool)        { l.bordered = b }
 func (l *List) OnSelect(fn func(int))     { l.onSelect = fn }
 func (l *List) ScrollY() float32          { return l.scrollY }
 func (l *List) SetScrollY(y float32)      { l.scrollY = y }
+func (l *List) SetSplit(v bool)                                    { l.split = v }
+func (l *List) SetStripe(v bool)                                   { l.stripe = v }
+func (l *List) SetHoverable(v bool)                                { l.hoverable = v }
+func (l *List) SetLayout(v ListLayout)                             { l.layout = v }
+func (l *List) SetAsyncLoading(v string)                           { l.asyncLoading = v }
+func (l *List) SetHeader(v string)                                 { l.header = v }
+func (l *List) SetFooter(v string)                                 { l.footer = v }
+func (l *List) OnLoadMore(fn func())                               { l.onLoadMore = fn }
+func (l *List) OnScroll(fn func(scrollTop, scrollBottom float32))  { l.onScroll = fn }
+
+func (l *List) SetSize(s Size) {
+	l.size = s
+	switch s {
+	case SizeSmall:
+		l.itemHeight = 36
+	case SizeLarge:
+		l.itemHeight = 64
+	default:
+		l.itemHeight = 48
+	}
+}
+
+func (l *List) sizeItemHeight() float32 {
+	return l.itemHeight
+}
 
 func (l *List) Draw(buf *render.CommandBuffer) {
 	bounds := l.Bounds()
@@ -64,33 +132,129 @@ func (l *List) Draw(buf *render.CommandBuffer) {
 
 	buf.PushClip(bounds)
 	y := bounds.Y - l.scrollY
-	for _, item := range l.items {
-		if y+l.itemHeight < bounds.Y {
-			y += l.itemHeight
+	ih := l.sizeItemHeight()
+	for i, item := range l.items {
+		if y+ih < bounds.Y {
+			y += ih
 			continue
 		}
 		if y > bounds.Y+bounds.Height {
 			break
 		}
-		// Divider
-		buf.DrawRect(render.RectCmd{
-			Bounds:    uimath.NewRect(bounds.X, y+l.itemHeight-1, bounds.Width, 1),
-			FillColor: uimath.RGBA(0, 0, 0, 0.06),
-		}, 1, 1)
+
+		// Stripe background
+		if l.stripe && i%2 == 1 {
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(bounds.X, y, bounds.Width, ih),
+				FillColor: uimath.RGBA(0, 0, 0, 0.02),
+			}, 1, 1)
+		}
+
+		// Hover highlight
+		if l.hoverable && i == l.hoveredIndex {
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(bounds.X, y, bounds.Width, ih),
+				FillColor: uimath.RGBA(0, 0, 0, 0.04),
+			}, 1, 1)
+		}
+
+		// Divider between items
+		if l.split && i < len(l.items)-1 {
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(bounds.X, y+ih-1, bounds.Width, 1),
+				FillColor: uimath.RGBA(0, 0, 0, 0.06),
+			}, 2, 1)
+		}
+
+		// Calculate text areas
+		leftPad := bounds.X + cfg.SpaceMD
+		rightPad := cfg.SpaceMD
+		extraW := float32(0)
+
+		// Measure extra text width
+		if item.Extra != "" {
+			if cfg.TextRenderer != nil {
+				extraW = cfg.TextRenderer.MeasureText(item.Extra, cfg.FontSizeSm) + cfg.SpaceMD
+			} else {
+				extraW = float32(len(item.Extra))*cfg.FontSizeSm*0.55 + cfg.SpaceMD
+			}
+		}
+
+		titleMaxW := bounds.Width - cfg.SpaceMD*2 - extraW
+
+		hasDesc := item.Description != ""
+
 		// Title
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-			cfg.TextRenderer.DrawText(buf, item.Title, bounds.X+cfg.SpaceMD, y+(l.itemHeight-lh)/2, cfg.FontSize, bounds.Width-cfg.SpaceMD*2, cfg.TextColor, 1)
+			var titleY float32
+			if hasDesc {
+				// Title in upper portion
+				titleY = y + cfg.SpaceXS
+			} else {
+				titleY = y + (ih-lh)/2
+			}
+			cfg.TextRenderer.DrawText(buf, item.Title, leftPad, titleY, cfg.FontSize, titleMaxW, cfg.TextColor, 1)
 		} else {
 			tw := float32(len(item.Title)) * cfg.FontSize * 0.55
+			if tw > titleMaxW {
+				tw = titleMaxW
+			}
 			th := cfg.FontSize * 1.2
+			var titleY float32
+			if hasDesc {
+				titleY = y + cfg.SpaceXS
+			} else {
+				titleY = y + (ih-th)/2
+			}
 			buf.DrawRect(render.RectCmd{
-				Bounds:    uimath.NewRect(bounds.X+cfg.SpaceMD, y+(l.itemHeight-th)/2, tw, th),
+				Bounds:    uimath.NewRect(leftPad, titleY, tw, th),
 				FillColor: cfg.TextColor,
 				Corners:   uimath.CornersAll(2),
-			}, 1, 1)
+			}, 3, 1)
 		}
-		y += l.itemHeight
+
+		// Description below title
+		if hasDesc {
+			descY := y + ih/2
+			descMaxW := titleMaxW
+			if cfg.TextRenderer != nil {
+				descColor := uimath.RGBA(0, 0, 0, 0.45)
+				cfg.TextRenderer.DrawText(buf, item.Description, leftPad, descY, cfg.FontSizeSm, descMaxW, descColor, 1)
+			} else {
+				dw := float32(len(item.Description)) * cfg.FontSizeSm * 0.55
+				if dw > descMaxW {
+					dw = descMaxW
+				}
+				dh := cfg.FontSizeSm * 1.2
+				buf.DrawRect(render.RectCmd{
+					Bounds:    uimath.NewRect(leftPad, descY, dw, dh),
+					FillColor: uimath.RGBA(0, 0, 0, 0.25),
+					Corners:   uimath.CornersAll(2),
+				}, 3, 1)
+			}
+		}
+
+		// Extra text on the right
+		if item.Extra != "" {
+			extraX := bounds.X + bounds.Width - rightPad
+			if cfg.TextRenderer != nil {
+				ew := cfg.TextRenderer.MeasureText(item.Extra, cfg.FontSizeSm)
+				lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
+				extraColor := uimath.RGBA(0, 0, 0, 0.45)
+				cfg.TextRenderer.DrawText(buf, item.Extra, extraX-ew, y+(ih-lh)/2, cfg.FontSizeSm, ew, extraColor, 1)
+			} else {
+				ew := float32(len(item.Extra)) * cfg.FontSizeSm * 0.55
+				eh := cfg.FontSizeSm * 1.2
+				buf.DrawRect(render.RectCmd{
+					Bounds:    uimath.NewRect(extraX-ew, y+(ih-eh)/2, ew, eh),
+					FillColor: uimath.RGBA(0, 0, 0, 0.25),
+					Corners:   uimath.CornersAll(2),
+				}, 3, 1)
+			}
+		}
+
+		y += ih
 	}
 	buf.PopClip()
 }

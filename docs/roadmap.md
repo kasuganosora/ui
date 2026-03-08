@@ -290,6 +290,7 @@
 - [x] 富文本（混合字体/颜色/图片）— RichText widget，Span 模型，内联样式混排
 - [x] 子窗口停靠系统（Docking）— DockManager，四向停靠区，拖拽分割
 - [x] 手柄导航 — Gamepad 输入映射，方向导航，焦点遍历
+- [x] Canvas 画布 — W3C Canvas 2D Context API 风格，软件光栅化 → GPU 纹理上传，平台无关
 
 ### P2 通用组件 ✅
 
@@ -328,7 +329,7 @@
 ### 质量保障 ✅
 
 - [x] 全模块代码审查（SVG 平滑曲线反射修复、响应式状态观察者 ID 化、JSON 结构标签修复、滑块拖拽 activeID、HUD 锚定定位）
-- [x] 单元测试覆盖率 90%+（render 92.4%, anim 96.8%, widget 94.1%, widget/game 99.5%, im 91.0%, root 98.5%, theme 100%, core 89.4%）
+- [x] 单元测试覆盖率 90%+（render 92.4%, anim 96.8%, widget 94.1%, widget/game 99.5%, im 91.0%, root 98.5%, theme 100%, core 89.4%, canvas 99.5%）
 - [x] 全部 22 个包测试通过
 
 ### 里程碑: 动画、SVG 路径、富文本、停靠系统、手柄导航全部完成，P2 组件齐备 ✅

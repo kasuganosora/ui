@@ -23,7 +23,7 @@ func TestBuildUI(t *testing.T) {
 	}
 
 	// Run layout so widgets have bounds, then draw
-	ui.AutoLayout(tree, root, 1280, 720)
+	ui.AutoLayout(tree, root, 1280, 800)
 	buf := render.NewCommandBuffer()
 	root.Draw(buf)
 

@@ -18,15 +18,42 @@ type SelectOption struct {
 // Select is a dropdown selector widget.
 type Select struct {
 	Base
-	options     []SelectOption
-	value       string // currently selected value
-	placeholder string
-	disabled    bool
-	open        bool
+	options         []SelectOption
+	value           string   // currently selected value
+	selectedValues  []string // for multiple mode
+	placeholder     string
+	disabled        bool
+	open            bool
+	size            Size
+	status          Status
+	clearable       bool
+	filterable      bool
+	multiple        bool
+	borderless      bool
+	loading         bool
+	readonly        bool
+	creatable       bool
+	max             int // max selectable in multiple mode, 0 = unlimited
+	minCollapsedNum int
+	showArrow       bool
+	empty           string // empty state text
+	inputValue      string // search input value
+	popupVisible    bool
+	label           string
 
 	optionIDs  []core.ElementID
 	backdropID core.ElementID
-	onChange   func(value string)
+
+	onChange             func(value string)
+	onBlur               func(value string)
+	onFocus              func(value string)
+	onClear              func()
+	onEnter              func(inputValue string)
+	onInputChange        func(inputValue string)
+	onPopupVisibleChange func(visible bool)
+	onRemove             func(value string)
+	onSearch             func(filterWords string)
+	onCreate             func(value string)
 }
 
 // NewSelect creates a select dropdown.
@@ -38,10 +65,11 @@ func NewSelect(tree *core.Tree, options []SelectOption, cfg *Config) *Select {
 		Base:        NewBase(tree, core.TypeCustom, cfg),
 		options:     options,
 		placeholder: "请选择",
+		showArrow:   true,
 	}
 	s.style.Display = layout.DisplayFlex
 	s.style.AlignItems = layout.AlignCenter
-	s.style.Height = layout.Px(cfg.InputHeight)
+	s.style.Height = layout.Px(cfg.SizeHeight(s.size))
 	s.style.Padding = layout.EdgeValues{
 		Left:  layout.Px(cfg.SpaceSM),
 		Right: layout.Px(cfg.SpaceSM),
@@ -49,7 +77,7 @@ func NewSelect(tree *core.Tree, options []SelectOption, cfg *Config) *Select {
 
 	// Toggle dropdown on click
 	s.tree.AddHandler(s.id, event.MouseClick, func(e *event.Event) {
-		if s.disabled {
+		if s.disabled || s.readonly {
 			return
 		}
 		s.open = !s.open
@@ -57,6 +85,9 @@ func NewSelect(tree *core.Tree, options []SelectOption, cfg *Config) *Select {
 			s.createOptionElements()
 		} else {
 			s.destroyOptionElements()
+		}
+		if s.onPopupVisibleChange != nil {
+			s.onPopupVisibleChange(s.open)
 		}
 	})
 
@@ -88,6 +119,62 @@ func (s *Select) SetOptions(opts []SelectOption) {
 }
 
 func (s *Select) OnChange(fn func(string)) { s.onChange = fn }
+
+// SetSize sets the component size, affecting height.
+func (s *Select) SetSize(sz Size) {
+	s.size = sz
+	s.style.Height = layout.Px(s.config.SizeHeight(sz))
+}
+
+// SetStatus sets the validation status, affecting border color.
+func (s *Select) SetStatus(st Status) { s.status = st }
+
+// SetClearable enables/disables the clear button.
+func (s *Select) SetClearable(c bool) { s.clearable = c }
+
+// SetFilterable enables/disables search input in the dropdown.
+func (s *Select) SetFilterable(f bool) { s.filterable = f }
+
+// SetMultiple enables/disables multiple selection mode.
+func (s *Select) SetMultiple(m bool) { s.multiple = m }
+
+// SelectedValues returns the selected values in multiple mode.
+func (s *Select) SelectedValues() []string { return s.selectedValues }
+
+// TDesign additional prop getters/setters
+func (s *Select) Borderless() bool              { return s.borderless }
+func (s *Select) SetBorderless(v bool)          { s.borderless = v }
+func (s *Select) Loading() bool                 { return s.loading }
+func (s *Select) SetLoading(v bool)             { s.loading = v }
+func (s *Select) Readonly() bool                { return s.readonly }
+func (s *Select) SetReadonly(v bool)             { s.readonly = v }
+func (s *Select) Creatable() bool               { return s.creatable }
+func (s *Select) SetCreatable(v bool)           { s.creatable = v }
+func (s *Select) Max() int                      { return s.max }
+func (s *Select) SetMax(n int)                  { s.max = n }
+func (s *Select) MinCollapsedNum() int          { return s.minCollapsedNum }
+func (s *Select) SetMinCollapsedNum(n int)      { s.minCollapsedNum = n }
+func (s *Select) ShowArrow() bool               { return s.showArrow }
+func (s *Select) SetShowArrow(v bool)           { s.showArrow = v }
+func (s *Select) Empty() string                 { return s.empty }
+func (s *Select) SetEmpty(e string)             { s.empty = e }
+func (s *Select) InputValue() string            { return s.inputValue }
+func (s *Select) SetInputValue(v string)        { s.inputValue = v }
+func (s *Select) PopupVisible() bool            { return s.popupVisible }
+func (s *Select) SetPopupVisible(v bool)        { s.popupVisible = v }
+func (s *Select) SelectLabel() string           { return s.label }
+func (s *Select) SetLabel(l string)             { s.label = l }
+
+// TDesign event setters
+func (s *Select) OnBlur(fn func(string))             { s.onBlur = fn }
+func (s *Select) OnFocus(fn func(string))            { s.onFocus = fn }
+func (s *Select) OnClear(fn func())                  { s.onClear = fn }
+func (s *Select) OnEnter(fn func(string))            { s.onEnter = fn }
+func (s *Select) OnInputChange(fn func(string))      { s.onInputChange = fn }
+func (s *Select) OnPopupVisibleChange(fn func(bool)) { s.onPopupVisibleChange = fn }
+func (s *Select) OnRemove(fn func(string))           { s.onRemove = fn }
+func (s *Select) OnSearch(fn func(string))           { s.onSearch = fn }
+func (s *Select) OnCreate(fn func(string))           { s.onCreate = fn }
 
 func (s *Select) selectedLabel() string {
 	for _, opt := range s.options {
@@ -156,12 +243,14 @@ func (s *Select) Draw(buf *render.CommandBuffer) {
 	elem := s.Element()
 	hovered := elem != nil && elem.IsHovered()
 
-	// Border
-	borderClr := cfg.BorderColor
-	if s.open {
-		borderClr = cfg.FocusBorderColor
-	} else if hovered {
-		borderClr = cfg.HoverColor
+	// Border — use StatusBorderColor if status is set
+	borderClr := cfg.StatusBorderColor(s.status)
+	if s.status == StatusDefault {
+		if s.open {
+			borderClr = cfg.FocusBorderColor
+		} else if hovered {
+			borderClr = cfg.HoverColor
+		}
 	}
 	if s.disabled {
 		borderClr = cfg.DisabledColor
@@ -180,8 +269,25 @@ func (s *Select) Draw(buf *render.CommandBuffer) {
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 0, 1)
 
+	fontSize := cfg.SizeFontSize(s.size)
+
 	// Display text
 	label := s.selectedLabel()
+	if s.multiple && len(s.selectedValues) > 0 {
+		// In multiple mode, show count of selected values
+		label = ""
+		for i, sv := range s.selectedValues {
+			for _, opt := range s.options {
+				if opt.Value == sv {
+					if i > 0 {
+						label += ", "
+					}
+					label += opt.Label
+					break
+				}
+			}
+		}
+	}
 	textColor := cfg.TextColor
 	if label == "" {
 		label = s.placeholder
@@ -193,20 +299,26 @@ func (s *Select) Draw(buf *render.CommandBuffer) {
 
 	padLeft := cfg.SpaceSM
 	arrowArea := selectArrowSize + cfg.SpaceSM
-	textMaxW := bounds.Width - padLeft - arrowArea
+	clearArea := float32(0)
+	// Clear button area when clearable, has value, and hovered
+	showClear := s.clearable && !s.disabled && s.value != "" && hovered
+	if showClear {
+		clearArea = selectArrowSize + cfg.SpaceXS
+	}
+	textMaxW := bounds.Width - padLeft - arrowArea - clearArea
 
 	if label != "" && textMaxW > 0 {
 		if cfg.TextRenderer != nil {
-			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
+			lh := cfg.TextRenderer.LineHeight(fontSize)
 			tx := bounds.X + padLeft
 			ty := bounds.Y + (bounds.Height-lh)/2
-			cfg.TextRenderer.DrawText(buf, label, tx, ty, cfg.FontSize, textMaxW, textColor, 1)
+			cfg.TextRenderer.DrawText(buf, label, tx, ty, fontSize, textMaxW, textColor, 1)
 		} else {
-			textW := float32(len(label)) * cfg.FontSize * 0.55
+			textW := float32(len(label)) * fontSize * 0.55
 			if textW > textMaxW {
 				textW = textMaxW
 			}
-			textH := cfg.FontSize * 1.2
+			textH := fontSize * 1.2
 			ty := bounds.Y + (bounds.Height-textH)/2
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(bounds.X+padLeft, ty, textW, textH),
@@ -216,14 +328,37 @@ func (s *Select) Draw(buf *render.CommandBuffer) {
 		}
 	}
 
-	// Arrow indicator: down-pointing chevron (∨)
+	// Clear button (X) — shown when clearable, has value, and hovered
+	if showClear {
+		xSize := float32(8)
+		xThick := float32(1.5)
+		clearCX := bounds.X + bounds.Width - cfg.SpaceSM - selectArrowSize - cfg.SpaceXS - xSize/2
+		clearCY := bounds.Y + bounds.Height/2
+		// Draw X as two crossed lines using small rects
+		for i := 0; i < 5; i++ {
+			t := float32(i) / 4.0
+			px := clearCX - xSize/2 + xSize*t
+			py1 := clearCY - xSize/2 + xSize*t
+			py2 := clearCY + xSize/2 - xSize*t
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(px-xThick/2, py1-xThick/2, xThick, xThick),
+				FillColor: cfg.TextColor,
+			}, 1, 1)
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(px-xThick/2, py2-xThick/2, xThick, xThick),
+				FillColor: cfg.TextColor,
+			}, 1, 1)
+		}
+	}
+
+	// Arrow indicator: down-pointing chevron (V shape with small rects)
 	arrowColor := cfg.TextColor
 	if s.disabled {
 		arrowColor = cfg.DisabledColor
 	}
 	chevW := float32(8)  // total width of chevron
 	chevH := float32(4)  // total height of chevron
-	dot := float32(1.5)  // size of each dot
+	lineW := float32(1.5) // line thickness
 	cx := bounds.X + bounds.Width - cfg.SpaceSM - chevW/2 // center X
 	cy := bounds.Y + (bounds.Height-chevH)/2              // top Y
 	steps := 5
@@ -233,14 +368,14 @@ func (s *Select) Draw(buf *render.CommandBuffer) {
 		lx := cx - chevW/2*(1-t)
 		ly := cy + chevH*t
 		buf.DrawRect(render.RectCmd{
-			Bounds:    uimath.NewRect(lx-dot/2, ly-dot/2, dot, dot),
+			Bounds:    uimath.NewRect(lx-lineW/2, ly-lineW/2, lineW, lineW),
 			FillColor: arrowColor,
 		}, 1, 1)
 		// Right leg: top-right to bottom-center
 		rx := cx + chevW/2*(1-t)
 		ry := cy + chevH*t
 		buf.DrawRect(render.RectCmd{
-			Bounds:    uimath.NewRect(rx-dot/2, ry-dot/2, dot, dot),
+			Bounds:    uimath.NewRect(rx-lineW/2, ry-lineW/2, lineW, lineW),
 			FillColor: arrowColor,
 		}, 1, 1)
 	}

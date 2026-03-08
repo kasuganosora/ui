@@ -464,7 +464,7 @@ func (p *htmlParser) parseElement(parent containerWidget, ancestors []css.Elemen
 		p.readTextContent(tag) // consume
 		sw := widget.NewSwitch(p.tree, p.cfg)
 		if _, ok := attrs["checked"]; ok {
-			sw.SetChecked(true)
+			sw.SetValue(true)
 		}
 		if _, ok := attrs["disabled"]; ok {
 			sw.SetDisabled(true)
@@ -501,13 +501,13 @@ func (p *htmlParser) parseElement(parent containerWidget, ancestors []css.Elemen
 		if v, ok := attrs["type"]; ok {
 			switch v {
 			case "success":
-				tg.SetTagType(widget.TagSuccess)
+				tg.SetTheme(widget.TagThemeSuccess)
 			case "warning":
-				tg.SetTagType(widget.TagWarning)
+				tg.SetTheme(widget.TagThemeWarning)
 			case "error":
-				tg.SetTagType(widget.TagError)
+				tg.SetTheme(widget.TagThemeDanger)
 			case "processing":
-				tg.SetTagType(widget.TagProcessing)
+				tg.SetTheme(widget.TagThemePrimary)
 			}
 		}
 		p.registerWidget(tg, tag, id, classes, inlineStyle, ancestors)
@@ -530,11 +530,11 @@ func (p *htmlParser) parseElement(parent containerWidget, ancestors []css.Elemen
 		if v, ok := attrs["type"]; ok {
 			switch v {
 			case "success":
-				msg.SetMsgType(widget.MessageSuccess)
+				msg.SetTheme(widget.MessageThemeSuccess)
 			case "warning":
-				msg.SetMsgType(widget.MessageWarning)
+				msg.SetTheme(widget.MessageThemeWarning)
 			case "error":
-				msg.SetMsgType(widget.MessageError)
+				msg.SetTheme(widget.MessageThemeError)
 			}
 		}
 		p.registerWidget(msg, tag, id, classes, inlineStyle, ancestors)
@@ -550,7 +550,7 @@ func (p *htmlParser) parseElement(parent containerWidget, ancestors []css.Elemen
 		p.readTextContent(tag) // consume
 		l := widget.NewLoading(p.tree, p.cfg)
 		if v, ok := attrs["tip"]; ok {
-			l.SetTip(v)
+			l.SetText(v)
 		}
 		p.registerWidget(l, tag, id, classes, inlineStyle, ancestors)
 		parent.AppendChild(l)

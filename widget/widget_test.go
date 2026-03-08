@@ -1576,9 +1576,9 @@ func TestTooltipDraw(t *testing.T) {
 
 	buf := render.NewCommandBuffer()
 	tt.Draw(buf)
-	// rect + text
-	if buf.Len() != 2 {
-		t.Errorf("expected 2 commands, got %d", buf.Len())
+	// rect + text + arrow rects
+	if buf.Len() < 2 {
+		t.Errorf("expected at least 2 commands, got %d", buf.Len())
 	}
 }
 
@@ -1618,9 +1618,9 @@ func TestTooltipDrawEmptyText(t *testing.T) {
 	})
 	buf := render.NewCommandBuffer()
 	tt.Draw(buf)
-	// Just rect, no text
-	if buf.Len() != 1 {
-		t.Errorf("expected 1 rect for empty tooltip text, got %d", buf.Len())
+	// rect + possible arrow rects, no text
+	if buf.Len() < 1 {
+		t.Errorf("expected at least 1 rect for empty tooltip text, got %d", buf.Len())
 	}
 }
 
@@ -1839,22 +1839,22 @@ func TestSwitch(t *testing.T) {
 	cfg := DefaultConfig()
 	sw := NewSwitch(tree, cfg)
 
-	if sw.IsChecked() {t.Error("should not be checked")}
+	if sw.Value() {t.Error("should not be checked")}
 	if sw.IsDisabled() {t.Error("should not be disabled")}
-	sw.SetChecked(true)
-	if !sw.IsChecked() {t.Error("should be checked")}
+	sw.SetValue(true)
+	if !sw.Value() {t.Error("should be checked")}
 
 	var toggled bool
 	sw.OnChange(func(checked bool) { toggled = checked })
-	sw.SetChecked(false)
+	sw.SetValue(false)
 
 	dispatcher := core.NewDispatcher(tree)
 	dispatcher.Dispatch(sw.ElementID(), &event.Event{Type: event.MouseClick})
-	if !sw.IsChecked() || !toggled {t.Error("click should toggle")}
+	if !sw.Value() || !toggled {t.Error("click should toggle")}
 
 	sw.SetDisabled(true)
 	dispatcher.Dispatch(sw.ElementID(), &event.Event{Type: event.MouseClick})
-	if !sw.IsChecked() {t.Error("should stay checked when disabled")}
+	if !sw.Value() {t.Error("should stay checked when disabled")}
 }
 
 func TestSwitchDraw(t *testing.T) {
@@ -1868,13 +1868,13 @@ func TestSwitchDraw(t *testing.T) {
 	// Unchecked
 	sw.Draw(buf)
 	// Checked
-	sw.SetChecked(true)
+	sw.SetValue(true)
 	sw.Draw(buf)
 	// Disabled + checked
 	sw.SetDisabled(true)
 	sw.Draw(buf)
 	// Disabled + unchecked
-	sw.SetChecked(false)
+	sw.SetValue(false)
 	sw.Draw(buf)
 	// No bounds
 	sw2 := NewSwitch(tree, cfg)
@@ -1931,10 +1931,10 @@ func TestTag(t *testing.T) {
 	cfg := DefaultConfig()
 	tag := NewTag(tree, "New", cfg)
 
-	if tag.Label() != "New" {t.Errorf("got '%s'", tag.Label())}
-	tag.SetTagType(TagSuccess)
-	if tag.TagType() != TagSuccess {t.Error("expected TagSuccess")}
-	tag.SetLabel("Updated")
+	if tag.Content() != "New" {t.Errorf("got '%s'", tag.Content())}
+	tag.SetTheme(TagThemeSuccess)
+	if tag.Theme() != TagThemeSuccess {t.Error("expected TagThemeSuccess")}
+	tag.SetContent("Updated")
 	tag.SetColor(uimath.ColorHex("#ff0000"))
 }
 
@@ -1944,10 +1944,10 @@ func TestTagDraw(t *testing.T) {
 	buf := render.NewCommandBuffer()
 
 	// All tag types
-	types := []TagType{TagDefault, TagSuccess, TagWarning, TagError, TagProcessing}
+	types := []TagTheme{TagThemeDefault, TagThemeSuccess, TagThemeWarning, TagThemeDanger, TagThemePrimary}
 	for _, tt := range types {
 		tag := NewTag(tree, "Tag", cfg)
-		tag.SetTagType(tt)
+		tag.SetTheme(tt)
 		setBounds(tree, tag, 10, 10, 80, 22)
 		tag.Draw(buf)
 	}
@@ -2021,8 +2021,8 @@ func TestProgressDraw(t *testing.T) {
 func TestLoading(t *testing.T) {
 	tree := newTestTree()
 	l := NewLoading(tree, nil)
-	l.SetTip("Loading...")
-	if l.Tip() != "Loading..." {t.Errorf("got '%s'", l.Tip())}
+	l.SetText("Loading...")
+	if l.Text() != "Loading..." {t.Errorf("got '%s'", l.Text())}
 }
 
 func TestLoadingDraw(t *testing.T) {
@@ -2035,7 +2035,7 @@ func TestLoadingDraw(t *testing.T) {
 	l.Draw(buf)
 
 	// With tip
-	l.SetTip("Please wait...")
+	l.SetText("Please wait...")
 	l.Draw(buf)
 
 	// No bounds
@@ -2080,15 +2080,15 @@ func TestEmptyDraw(t *testing.T) {
 func TestTabs(t *testing.T) {
 	tree := newTestTree()
 	cfg := DefaultConfig()
-	items := []TabItem{
-		{Key: "tab1", Label: "Tab 1"},
-		{Key: "tab2", Label: "Tab 2"},
+	items := []TabPanel{
+		{Value: "tab1", Label: "Tab 1"},
+		{Value: "tab2", Label: "Tab 2"},
 	}
 	tabs := NewTabs(tree, items, cfg)
 
-	if tabs.ActiveKey() != "tab1" {t.Errorf("got '%s'", tabs.ActiveKey())}
-	tabs.SetActiveKey("tab2")
-	if tabs.ActiveKey() != "tab2" {t.Errorf("got '%s'", tabs.ActiveKey())}
+	if tabs.Value() != "tab1" {t.Errorf("got '%s'", tabs.Value())}
+	tabs.SetValue("tab2")
+	if tabs.Value() != "tab2" {t.Errorf("got '%s'", tabs.Value())}
 
 	var changed string
 	tabs.OnChange(func(key string) { changed = key })
@@ -2102,17 +2102,17 @@ func TestTabsDraw(t *testing.T) {
 	cfg := DefaultConfig()
 	buf := render.NewCommandBuffer()
 
-	items := []TabItem{
-		{Key: "t1", Label: "First"},
-		{Key: "t2", Label: "Second"},
-		{Key: "t3", Label: "Third"},
+	items := []TabPanel{
+		{Value: "t1", Label: "First"},
+		{Value: "t2", Label: "Second"},
+		{Value: "t3", Label: "Third"},
 	}
 	tabs := NewTabs(tree, items, cfg)
 	setBounds(tree, tabs, 10, 10, 400, 300)
 	tabs.Draw(buf)
 
 	// Switch tab
-	tabs.SetActiveKey("t2")
+	tabs.SetValue("t2")
 	tabs.Draw(buf)
 
 	// No bounds
@@ -2136,7 +2136,7 @@ func TestDialog(t *testing.T) {
 	cfg := DefaultConfig()
 	d := NewDialog(tree, "Confirm", cfg)
 
-	if d.Title() != "Confirm" {t.Errorf("got '%s'", d.Title())}
+	if d.Header() != "Confirm" {t.Errorf("got '%s'", d.Header())}
 	if d.IsVisible() {t.Error("should not be visible")}
 
 	d.Open()
@@ -2144,10 +2144,10 @@ func TestDialog(t *testing.T) {
 	d.Close()
 	if d.IsVisible() {t.Error("should not be visible")}
 
-	d.SetTitle("Delete?")
+	d.SetHeader("Delete?")
 	d.SetWidth(600)
 	content := NewText(tree, "Are you sure?", cfg)
-	d.SetContent(content)
+	d.SetBody(content)
 
 	var closed bool
 	d.OnClose(func() { closed = true })
@@ -2171,7 +2171,7 @@ func TestDialogDraw(t *testing.T) {
 
 	// With content
 	content := NewText(tree, "Content", cfg)
-	d.SetContent(content)
+	d.SetBody(content)
 	d.Draw(buf)
 
 	// No bounds
@@ -2188,10 +2188,10 @@ func TestMessage(t *testing.T) {
 	m := NewMessage(tree, "OK", cfg)
 
 	if m.Content() != "OK" {t.Errorf("got '%s'", m.Content())}
-	if m.MsgType() != MessageInfo {t.Error("expected MessageInfo")}
+	if m.Theme() != MessageThemeInfo {t.Error("expected MessageThemeInfo")}
 	if !m.IsVisible() {t.Error("should be visible")}
 
-	m.SetMsgType(MessageSuccess)
+	m.SetTheme(MessageThemeSuccess)
 	m.SetContent("Done!")
 	m.SetVisible(false)
 	if m.IsVisible() {t.Error("should not be visible")}
@@ -2203,10 +2203,10 @@ func TestMessageDraw(t *testing.T) {
 	buf := render.NewCommandBuffer()
 
 	// All types
-	types := []MessageType{MessageInfo, MessageSuccess, MessageWarning, MessageError}
+	types := []MessageTheme{MessageThemeInfo, MessageThemeSuccess, MessageThemeWarning, MessageThemeError}
 	for _, mt := range types {
 		m := NewMessage(tree, "Test message", cfg)
-		m.SetMsgType(mt)
+		m.SetTheme(mt)
 		setBounds(tree, m, 100, 10, 300, 36)
 		m.Draw(buf)
 	}
@@ -2618,7 +2618,7 @@ func TestLoadingDrawWithTextRenderer(t *testing.T) {
 	cfg := cfgWithTextRenderer()
 	buf := render.NewCommandBuffer()
 	l := NewLoading(tree, cfg)
-	l.SetTip("Loading...")
+	l.SetText("Loading...")
 	setBounds(tree, l, 10, 10, 200, 100)
 	l.Draw(buf)
 }
@@ -2636,14 +2636,14 @@ func TestTabsDrawWithTextRenderer(t *testing.T) {
 	tree := newTestTree()
 	cfg := cfgWithTextRenderer()
 	buf := render.NewCommandBuffer()
-	items := []TabItem{
-		{Key: "t1", Label: "First"},
-		{Key: "t2", Label: "Second"},
+	items := []TabPanel{
+		{Value: "t1", Label: "First"},
+		{Value: "t2", Label: "Second"},
 	}
 	tabs := NewTabs(tree, items, cfg)
 	setBounds(tree, tabs, 10, 10, 400, 300)
 	tabs.Draw(buf)
-	tabs.SetActiveKey("t2")
+	tabs.SetValue("t2")
 	tabs.Draw(buf)
 	tabs.Destroy()
 }
@@ -2662,10 +2662,10 @@ func TestMessageDrawWithTextRenderer(t *testing.T) {
 	tree := newTestTree()
 	cfg := cfgWithTextRenderer()
 	buf := render.NewCommandBuffer()
-	types := []MessageType{MessageInfo, MessageSuccess, MessageWarning, MessageError}
+	types := []MessageTheme{MessageThemeInfo, MessageThemeSuccess, MessageThemeWarning, MessageThemeError}
 	for _, mt := range types {
 		m := NewMessage(tree, "Msg", cfg)
-		m.SetMsgType(mt)
+		m.SetTheme(mt)
 		setBounds(tree, m, 100, 10, 300, 36)
 		m.Draw(buf)
 	}
@@ -4089,9 +4089,9 @@ func TestTooltipDrawWithTextRenderer(t *testing.T) {
 
 	buf := render.NewCommandBuffer()
 	tt.Draw(buf)
-	// rect + text via TextRenderer
-	if buf.Len() != 2 {
-		t.Errorf("expected 2 commands, got %d", buf.Len())
+	// rect + text via TextRenderer + arrow rects
+	if buf.Len() < 2 {
+		t.Errorf("expected at least 2 commands, got %d", buf.Len())
 	}
 }
 
@@ -4104,8 +4104,8 @@ func TestTooltipDrawLongText(t *testing.T) {
 
 	buf := render.NewCommandBuffer()
 	tt.Draw(buf)
-	if buf.Len() != 2 {
-		t.Errorf("expected 2, got %d", buf.Len())
+	if buf.Len() < 2 {
+		t.Errorf("expected at least 2 rects, got %d", buf.Len())
 	}
 }
 
@@ -4145,7 +4145,7 @@ func TestDialogDrawWithContent(t *testing.T) {
 	tree := newTestTree()
 	d := NewDialog(tree, "Title", nil)
 	content := &drawCounter{}
-	d.SetContent(content)
+	d.SetBody(content)
 	d.Open()
 	setBounds(tree, d, 0, 0, 800, 600)
 
@@ -4160,7 +4160,7 @@ func TestDialogDrawWithContent(t *testing.T) {
 
 func TestTabsClickHandler(t *testing.T) {
 	tree := newTestTree()
-	items := []TabItem{{Key: "a", Label: "A"}, {Key: "b", Label: "B"}}
+	items := []TabPanel{{Value: "a", Label: "A"}, {Value: "b", Label: "B"}}
 	tabs := NewTabs(tree, items, nil)
 
 	handlers := tree.Handlers(tabs.ElementID(), event.MouseClick)

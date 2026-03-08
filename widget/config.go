@@ -17,26 +17,47 @@ type TextDrawer interface {
 	MeasureText(text string, fontSize float32) float32
 }
 
+// Size represents component size variants (matching TDesign).
+type Size uint8
+
+const (
+	SizeMedium Size = iota // default
+	SizeSmall
+	SizeLarge
+)
+
+// Status represents input validation state (matching TDesign).
+type Status uint8
+
+const (
+	StatusDefault Status = iota
+	StatusSuccess
+	StatusWarning
+	StatusError
+)
+
 // Config holds global UI configuration and theme colors.
 // Acts as a ConfigProvider — pass it when creating widgets.
 type Config struct {
 	// Theme colors
-	PrimaryColor   uimath.Color
-	TextColor      uimath.Color
-	BgColor        uimath.Color
-	BorderColor    uimath.Color
-	DisabledColor  uimath.Color
-	HoverColor     uimath.Color
-	ActiveColor    uimath.Color
+	PrimaryColor     uimath.Color
+	TextColor        uimath.Color
+	BgColor          uimath.Color
+	BorderColor      uimath.Color
+	DisabledColor    uimath.Color
+	HoverColor       uimath.Color
+	ActiveColor      uimath.Color
 	FocusBorderColor uimath.Color
-	ErrorColor     uimath.Color
+	ErrorColor       uimath.Color
+	WarningColor     uimath.Color
+	SuccessColor     uimath.Color
 
 	// Typography
-	FontID       uint32
-	FontSize     float32
-	FontSizeSm   float32
-	FontSizeLg   float32
-	LineHeight   float32
+	FontID     uint32
+	FontSize   float32
+	FontSizeSm float32
+	FontSizeLg float32
+	LineHeight float32
 
 	// Text renderer (optional — falls back to placeholder rects if nil)
 	TextRenderer TextDrawer
@@ -59,16 +80,16 @@ type Config struct {
 	BorderWidth  float32
 
 	// Component defaults
-	ButtonHeight    float32
-	InputHeight     float32
-	IconSize        float32
+	ButtonHeight float32
+	InputHeight  float32
+	IconSize     float32
 }
 
 // DefaultConfig returns a default configuration with sensible defaults.
 func DefaultConfig() *Config {
 	return &Config{
 		PrimaryColor:     uimath.ColorHex("#1677ff"),
-		TextColor:        uimath.ColorHex("#333333"),
+		TextColor:        uimath.ColorHex("#4d6274"),
 		BgColor:          uimath.ColorWhite,
 		BorderColor:      uimath.ColorHex("#d9d9d9"),
 		DisabledColor:    uimath.ColorHex("#bfbfbf"),
@@ -76,6 +97,8 @@ func DefaultConfig() *Config {
 		ActiveColor:      uimath.ColorHex("#0958d9"),
 		FocusBorderColor: uimath.ColorHex("#4096ff"),
 		ErrorColor:       uimath.ColorHex("#ff4d4f"),
+		WarningColor:     uimath.ColorHex("#ed7b2f"),
+		SuccessColor:     uimath.ColorHex("#2ba471"),
 
 		FontID:     0,
 		FontSize:   14,
@@ -95,5 +118,43 @@ func DefaultConfig() *Config {
 		ButtonHeight: 32,
 		InputHeight:  32,
 		IconSize:     16,
+	}
+}
+
+// SizeHeight returns the component height for a given size.
+func (c *Config) SizeHeight(s Size) float32 {
+	switch s {
+	case SizeSmall:
+		return 24
+	case SizeLarge:
+		return 40
+	default:
+		return 32
+	}
+}
+
+// SizeFontSize returns the font size for a given component size.
+func (c *Config) SizeFontSize(s Size) float32 {
+	switch s {
+	case SizeSmall:
+		return c.FontSizeSm
+	case SizeLarge:
+		return c.FontSizeLg
+	default:
+		return c.FontSize
+	}
+}
+
+// StatusBorderColor returns the border color for a validation status.
+func (c *Config) StatusBorderColor(s Status) uimath.Color {
+	switch s {
+	case StatusSuccess:
+		return c.SuccessColor
+	case StatusWarning:
+		return c.WarningColor
+	case StatusError:
+		return c.ErrorColor
+	default:
+		return c.BorderColor
 	}
 }

@@ -1,57 +1,91 @@
 package widget
 
 import (
+	"time"
+
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 )
 
-// NotificationType determines the visual style.
-type NotificationType uint8
+// NotificationTheme determines the visual style (maps to TDesign theme).
+type NotificationTheme uint8
 
 const (
-	NotificationInfo NotificationType = iota
-	NotificationSuccess
-	NotificationWarning
-	NotificationError
+	NotificationThemeInfo NotificationTheme = iota
+	NotificationThemeSuccess
+	NotificationThemeWarning
+	NotificationThemeError
 )
 
 // Notification is a stacking toast notification.
 type Notification struct {
 	Base
-	title    string
-	message  string
-	ntype    NotificationType
-	visible  bool
-	x, y     float32
-	width    float32
-	onClose  func()
+	title           string
+	content         string
+	theme           NotificationTheme
+	visible         bool
+	x, y            float32
+	width           float32
+	onClose         func()
+	onCloseBtnClick func()
+	onDurationEnd   func()
+	duration        int // milliseconds, default 3000; 0 = no auto-dismiss
+	closeBtn        bool
+	footer          string
+	startTime       time.Time
+	closeID         core.ElementID
 }
 
-func NewNotification(tree *core.Tree, title, message string, cfg *Config) *Notification {
+func NewNotification(tree *core.Tree, title, content string, cfg *Config) *Notification {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	return &Notification{
-		Base:    NewBase(tree, core.TypeCustom, cfg),
-		title:   title,
-		message: message,
-		ntype:   NotificationInfo,
-		visible: true,
-		width:   320,
+	n := &Notification{
+		Base:     NewBase(tree, core.TypeCustom, cfg),
+		title:    title,
+		content:  content,
+		theme:    NotificationThemeInfo,
+		visible:  true,
+		width:    320,
+		duration: 3000,
+		closeBtn: true,
 	}
+	n.startTime = time.Now()
+
+	// Close button element
+	n.closeID = tree.CreateElement(core.TypeCustom)
+	tree.AppendChild(n.id, n.closeID)
+	tree.AddHandler(n.closeID, event.MouseClick, func(e *event.Event) {
+		if n.onCloseBtnClick != nil {
+			n.onCloseBtnClick()
+		}
+		n.Close()
+	})
+
+	return n
 }
 
-func (n *Notification) Title() string              { return n.title }
-func (n *Notification) Message() string            { return n.message }
-func (n *Notification) IsVisible() bool            { return n.visible }
-func (n *Notification) SetTitle(t string)          { n.title = t }
-func (n *Notification) SetMessage(m string)        { n.message = m }
-func (n *Notification) SetType(t NotificationType) { n.ntype = t }
-func (n *Notification) SetPosition(x, y float32)   { n.x = x; n.y = y }
-func (n *Notification) OnClose(fn func())          { n.onClose = fn }
+func (n *Notification) Title() string                { return n.title }
+func (n *Notification) Content() string              { return n.content }
+func (n *Notification) IsVisible() bool              { return n.visible }
+func (n *Notification) SetTitle(t string)            { n.title = t }
+func (n *Notification) SetContent(c string)          { n.content = c }
+func (n *Notification) SetTheme(t NotificationTheme) { n.theme = t }
+func (n *Notification) SetPosition(x, y float32)     { n.x = x; n.y = y }
+func (n *Notification) OnClose(fn func())            { n.onClose = fn }
+func (n *Notification) OnCloseBtnClick(fn func())    { n.onCloseBtnClick = fn }
+func (n *Notification) OnDurationEnd(fn func())      { n.onDurationEnd = fn }
+func (n *Notification) SetDuration(ms int)           { n.duration = ms }
+func (n *Notification) SetCloseBtn(c bool)           { n.closeBtn = c }
+func (n *Notification) SetFooter(f string)           { n.footer = f }
 
-func (n *Notification) Show() { n.visible = true }
+func (n *Notification) Show() {
+	n.visible = true
+	n.startTime = time.Now()
+}
+
 func (n *Notification) Close() {
 	n.visible = false
 	if n.onClose != nil {
@@ -59,16 +93,29 @@ func (n *Notification) Close() {
 	}
 }
 
-func notificationColor(t NotificationType) uimath.Color {
+func notificationColor(t NotificationTheme) uimath.Color {
 	switch t {
-	case NotificationSuccess:
-		return uimath.ColorHex("#52c41a")
-	case NotificationWarning:
-		return uimath.ColorHex("#faad14")
-	case NotificationError:
+	case NotificationThemeSuccess:
+		return uimath.ColorHex("#2ba471")
+	case NotificationThemeWarning:
+		return uimath.ColorHex("#ed7b2f")
+	case NotificationThemeError:
 		return uimath.ColorHex("#ff4d4f")
 	default:
-		return uimath.ColorHex("#1890ff")
+		return uimath.ColorHex("#1677ff")
+	}
+}
+
+func notificationIcon(t NotificationTheme) string {
+	switch t {
+	case NotificationThemeSuccess:
+		return "\u2713" // check
+	case NotificationThemeWarning:
+		return "!"
+	case NotificationThemeError:
+		return "\u00d7" // x
+	default:
+		return "i"
 	}
 }
 
@@ -76,6 +123,20 @@ func (n *Notification) Draw(buf *render.CommandBuffer) {
 	if !n.visible {
 		return
 	}
+
+	// Auto-dismiss after duration
+	if n.duration > 0 && time.Since(n.startTime) > time.Duration(n.duration)*time.Millisecond {
+		if n.onDurationEnd != nil {
+			n.onDurationEnd()
+		}
+		n.Close()
+		return
+	}
+	// Keep redrawing for timer
+	if n.duration > 0 {
+		n.tree.MarkDirty(n.id)
+	}
+
 	cfg := n.config
 	h := float32(80)
 
@@ -96,7 +157,7 @@ func (n *Notification) Draw(buf *render.CommandBuffer) {
 	}, 51, 1)
 
 	// Color accent bar
-	accentColor := notificationColor(n.ntype)
+	accentColor := notificationColor(n.theme)
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:    uimath.NewRect(n.x, n.y, 4, h),
 		FillColor: accentColor,
@@ -106,13 +167,57 @@ func (n *Notification) Draw(buf *render.CommandBuffer) {
 		},
 	}, 52, 1)
 
-	// Title
+	// Status icon in accent bar area
+	if cfg.TextRenderer != nil {
+		iconStr := notificationIcon(n.theme)
+		iconSize := float32(16)
+		iconX := n.x + 12
+		iconY := n.y + (h-iconSize)/2
+		// Icon circle background
+		buf.DrawOverlay(render.RectCmd{
+			Bounds:    uimath.NewRect(iconX, iconY, iconSize, iconSize),
+			FillColor: accentColor,
+			Corners:   uimath.CornersAll(iconSize / 2),
+		}, 53, 1)
+		iconFontSize := float32(10)
+		tw := cfg.TextRenderer.MeasureText(iconStr, iconFontSize)
+		lh := cfg.TextRenderer.LineHeight(iconFontSize)
+		cfg.TextRenderer.DrawText(buf, iconStr,
+			iconX+(iconSize-tw)/2, iconY+(iconSize-lh)/2,
+			iconFontSize, iconSize, uimath.ColorWhite, 1)
+	}
+
+	// Title and content text
+	textLeftOffset := float32(36) // after icon area
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, n.title, n.x+cfg.SpaceMD, n.y+cfg.SpaceSM, cfg.FontSize, n.width-cfg.SpaceMD*2, cfg.TextColor, 1)
-		// Message
-		if n.message != "" {
-			cfg.TextRenderer.DrawText(buf, n.message, n.x+cfg.SpaceMD, n.y+cfg.SpaceSM+lh+4, cfg.FontSizeSm, n.width-cfg.SpaceMD*2, cfg.DisabledColor, 1)
+		cfg.TextRenderer.DrawText(buf, n.title, n.x+textLeftOffset, n.y+cfg.SpaceSM, cfg.FontSize, n.width-textLeftOffset-cfg.SpaceMD, cfg.TextColor, 1)
+		// Content
+		if n.content != "" {
+			cfg.TextRenderer.DrawText(buf, n.content, n.x+textLeftOffset, n.y+cfg.SpaceSM+lh+4, cfg.FontSizeSm, n.width-textLeftOffset-cfg.SpaceMD, cfg.DisabledColor, 1)
 		}
+	}
+
+	// Close button (X) in top-right
+	if n.closeBtn {
+		closeSize := float32(12)
+		closeX := n.x + n.width - cfg.SpaceMD - closeSize
+		closeY := n.y + cfg.SpaceSM
+
+		// Draw X as two crossing lines
+		buf.DrawOverlay(render.RectCmd{
+			Bounds:    uimath.NewRect(closeX+closeSize/2-1, closeY, 2, closeSize),
+			FillColor: cfg.DisabledColor,
+		}, 54, 1)
+		buf.DrawOverlay(render.RectCmd{
+			Bounds:    uimath.NewRect(closeX, closeY+closeSize/2-1, closeSize, 2),
+			FillColor: cfg.DisabledColor,
+		}, 54, 1)
+
+		// Set layout on close element for hit testing
+		closeHit := closeSize + 8
+		n.tree.SetLayout(n.closeID, core.LayoutResult{
+			Bounds: uimath.NewRect(closeX-4, closeY-4, closeHit, closeHit),
+		})
 	}
 }

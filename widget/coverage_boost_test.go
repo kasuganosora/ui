@@ -264,9 +264,10 @@ func TestWatermarkDrawWithTextRenderer(t *testing.T) {
 	tree := boostTree()
 	cfg := boostCfgText()
 	w := NewWatermark(tree, "DRAFT", cfg)
-	w.SetGap(50, 40)
+	w.SetX(50)
+	w.SetY(40)
 	w.SetColor(uimath.RGBA(0, 0, 0, 0.1))
-	w.SetOpacity(0.5)
+	w.SetAlpha(0.5)
 	boostLayout(tree, w, 0, 0, 300, 200)
 	buf := render.NewCommandBuffer()
 	w.Draw(buf)
@@ -399,9 +400,9 @@ func TestCalendarDaysInMonth(t *testing.T) {
 func TestNotificationDrawWithTextRenderer(t *testing.T) {
 	tree := boostTree()
 	cfg := boostCfgText()
-	for _, nt := range []NotificationType{NotificationInfo, NotificationSuccess, NotificationWarning, NotificationError} {
+	for _, nt := range []NotificationTheme{NotificationThemeInfo, NotificationThemeSuccess, NotificationThemeWarning, NotificationThemeError} {
 		n := NewNotification(tree, "Title", "Message", cfg)
-		n.SetType(nt)
+		n.SetTheme(nt)
 		n.SetPosition(10, 10)
 		buf := render.NewCommandBuffer()
 		n.Draw(buf)
@@ -475,10 +476,10 @@ func TestBreadcrumbDrawWithTextRenderer(t *testing.T) {
 	tree := boostTree()
 	cfg := boostCfgText()
 	bc := NewBreadcrumb(tree, cfg)
-	bc.SetItems([]BreadcrumbItem{
-		{Label: "Home", Href: "/"},
-		{Label: "Products", Href: "/products"},
-		{Label: "Detail"},
+	bc.SetOptions([]BreadcrumbItem{
+		{Content: "Home", Href: "/"},
+		{Content: "Products", Href: "/products"},
+		{Content: "Detail"},
 	})
 	boostLayout(tree, bc, 0, 0, 400, 30)
 	buf := render.NewCommandBuffer()
@@ -588,9 +589,9 @@ func TestStepsDrawWithTextRenderer(t *testing.T) {
 	tree := boostTree()
 	cfg := boostCfgText()
 	s := NewSteps(tree, cfg)
-	s.AddStep(StepItem{Title: "Start", Description: "Begin"})
-	s.AddStep(StepItem{Title: "Middle", Description: "Processing"})
-	s.AddStep(StepItem{Title: "End", Description: "Done"})
+	s.AddStep(StepItem{Title: "Start", Content: "Begin"})
+	s.AddStep(StepItem{Title: "Middle", Content: "Processing"})
+	s.AddStep(StepItem{Title: "End", Content: "Done"})
 	s.SetCurrent(1)
 	boostLayout(tree, s, 0, 0, 600, 80)
 	s.Draw(render.NewCommandBuffer())
@@ -602,8 +603,8 @@ func TestTimelineDrawWithTextRenderer(t *testing.T) {
 	tree := boostTree()
 	cfg := boostCfgText()
 	tl := NewTimeline(tree, cfg)
-	tl.AddItem(TimelineItem{Label: "Created", Detail: "Item created"})
-	tl.AddItem(TimelineItem{Label: "Updated", Detail: "Item updated", Status: TimelineSuccess})
+	tl.AddItem(TimelineItem{Label: "Created", Content: "Item created"})
+	tl.AddItem(TimelineItem{Label: "Updated", Content: "Item updated", DotColor: "primary"})
 	boostLayout(tree, tl, 0, 0, 400, 200)
 	tl.Draw(render.NewCommandBuffer())
 }
@@ -709,13 +710,13 @@ func TestMenuToggleAndSelect(t *testing.T) {
 	tree := boostTree()
 	m := NewMenu(tree, boostCfg())
 	m.SetItems([]MenuItem{
-		{Key: "a", Label: "A", Children: []MenuItem{{Key: "a1", Label: "A1"}}},
-		{Key: "b", Label: "B"},
+		{Value: "a", Content: "A", Children: []MenuItem{{Value: "a1", Content: "A1"}}},
+		{Value: "b", Content: "B"},
 	})
-	m.ToggleOpen("a")
-	m.ToggleOpen("a")
+	m.ToggleExpanded("a")
+	m.ToggleExpanded("a")
 	m.SelectItem("b")
-	if m.SelectedKey() != "b" {
+	if m.Value() != "b" {
 		t.Error("expected b selected")
 	}
 }
@@ -902,7 +903,7 @@ func TestBackTopDrawWithTextRenderer(t *testing.T) {
 func TestSkeletonDrawActive(t *testing.T) {
 	tree := boostTree()
 	sk := NewSkeleton(tree, boostCfg())
-	sk.SetActive(true)
+	sk.SetLoading(true)
 	sk.SetRows(3)
 	boostLayout(tree, sk, 0, 0, 300, 200)
 	sk.Draw(render.NewCommandBuffer())
@@ -999,9 +1000,9 @@ func TestRateDrawWithValue(t *testing.T) {
 	r := NewRate(tree, boostCfg())
 	r.SetValue(3)
 	r.SetCount(5)
-	r.SetStarSize(24)
+	r.SetSize(24)
 	r.SetDisabled(false)
-	r.OnChange(func(v int) {})
+	r.OnChange(func(v float32) {})
 	boostLayout(tree, r, 0, 0, 200, 30)
 	buf := render.NewCommandBuffer()
 	r.Draw(buf)
@@ -1046,7 +1047,7 @@ func TestSliderUpdateFromMouse(t *testing.T) {
 func TestCollapseToggle(t *testing.T) {
 	tree := boostTree()
 	c := NewCollapse(tree, boostCfg())
-	c.SetPanels([]CollapsePanel{{Key: "a", Title: "A"}, {Key: "b", Title: "B"}})
+	c.SetPanels([]CollapsePanel{{Value: "a", Header: "A"}, {Value: "b", Header: "B"}})
 	var changedKeys []string
 	c.OnChange(func(keys []string) { changedKeys = keys })
 	c.Toggle("a")
@@ -1063,8 +1064,8 @@ func TestCollapseToggle(t *testing.T) {
 func TestCollapseToggleAccordion(t *testing.T) {
 	tree := boostTree()
 	c := NewCollapse(tree, boostCfg())
-	c.SetAccordion(true)
-	c.SetPanels([]CollapsePanel{{Key: "a", Title: "A"}, {Key: "b", Title: "B"}})
+	c.SetExpandMutex(true)
+	c.SetPanels([]CollapsePanel{{Value: "a", Header: "A"}, {Value: "b", Header: "B"}})
 	c.Toggle("a")
 	c.Toggle("b") // accordion: only b
 	if c.IsActive("a") {
@@ -1083,11 +1084,11 @@ func TestCollapseDrawWithContent(t *testing.T) {
 	boostLayout(tree, inner, 0, 0, 300, 50)
 	c := NewCollapse(tree, cfg)
 	c.SetPanels([]CollapsePanel{
-		{Key: "a", Title: "Panel A", Content: inner},
-		{Key: "b", Title: "Panel B"},
+		{Value: "a", Header: "Panel A", Content: inner},
+		{Value: "b", Header: "Panel B"},
 	})
 	c.Toggle("a")
-	c.SetBordered(true)
+	c.SetBorderless(false)
 	boostLayout(tree, c, 0, 0, 300, 400)
 	c.Draw(render.NewCommandBuffer())
 }

@@ -11,9 +11,13 @@ import (
 // Checkbox is a toggle control with a checked/unchecked state.
 type Checkbox struct {
 	Base
-	label    string
-	checked  bool
-	disabled bool
+	label         string
+	value         string
+	checked       bool
+	indeterminate bool
+	disabled      bool
+	readonly      bool
+	checkAll      bool
 
 	onChange func(checked bool)
 }
@@ -34,7 +38,7 @@ func NewCheckbox(tree *core.Tree, label string, cfg *Config) *Checkbox {
 	tree.SetProperty(c.id, "text", label)
 
 	c.tree.AddHandler(c.id, event.MouseClick, func(e *event.Event) {
-		if !c.disabled {
+		if !c.disabled && !c.readonly {
 			c.checked = !c.checked
 			if c.onChange != nil {
 				c.onChange(c.checked)
@@ -45,9 +49,18 @@ func NewCheckbox(tree *core.Tree, label string, cfg *Config) *Checkbox {
 	return c
 }
 
-func (c *Checkbox) Label() string     { return c.label }
-func (c *Checkbox) IsChecked() bool   { return c.checked }
-func (c *Checkbox) IsDisabled() bool  { return c.disabled }
+func (c *Checkbox) Label() string          { return c.label }
+func (c *Checkbox) Value() string          { return c.value }
+func (c *Checkbox) IsChecked() bool        { return c.checked }
+func (c *Checkbox) IsIndeterminate() bool  { return c.indeterminate }
+func (c *Checkbox) IsDisabled() bool       { return c.disabled }
+func (c *Checkbox) IsReadonly() bool       { return c.readonly }
+func (c *Checkbox) IsCheckAll() bool       { return c.checkAll }
+
+func (c *Checkbox) SetValue(v string)          { c.value = v }
+func (c *Checkbox) SetIndeterminate(ind bool)  { c.indeterminate = ind }
+func (c *Checkbox) SetReadonly(r bool)         { c.readonly = r }
+func (c *Checkbox) SetCheckAll(v bool)         { c.checkAll = v }
 
 func (c *Checkbox) SetLabel(label string) {
 	c.label = label
@@ -85,7 +98,7 @@ func (c *Checkbox) Draw(buf *render.CommandBuffer) {
 	if c.disabled {
 		fillColor = uimath.ColorHex("#f5f5f5")
 		borderColor = cfg.DisabledColor
-	} else if c.checked {
+	} else if c.checked || c.indeterminate {
 		fillColor = cfg.PrimaryColor
 		if hovered {
 			fillColor = cfg.HoverColor
@@ -108,7 +121,7 @@ func (c *Checkbox) Draw(buf *render.CommandBuffer) {
 		Corners:     uimath.CornersAll(cfg.BorderRadius / 2),
 	}, 0, 1)
 
-	// Draw checkmark when checked
+	// Draw checkmark when checked, or dash when indeterminate
 	if c.checked {
 		checkColor := uimath.ColorWhite
 		if c.disabled {
@@ -138,6 +151,20 @@ func (c *Checkbox) Draw(buf *render.CommandBuffer) {
 				FillColor: checkColor,
 			}, 1, 1)
 		}
+	} else if c.indeterminate {
+		dashColor := uimath.ColorWhite
+		if c.disabled {
+			dashColor = cfg.DisabledColor
+		}
+		// Draw a horizontal dash in the center of the box
+		dashW := checkboxBoxSize * 0.5
+		dashH := float32(2)
+		dashX := boxRect.X + (checkboxBoxSize-dashW)/2
+		dashY := boxRect.Y + (checkboxBoxSize-dashH)/2
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(dashX, dashY, dashW, dashH),
+			FillColor: dashColor,
+		}, 1, 1)
 	}
 
 	// Draw label

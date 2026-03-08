@@ -1,6 +1,7 @@
 package widget
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -25,7 +26,22 @@ type TextArea struct {
 	dragging     bool
 	dragSelected bool
 
-	onChange func(value string)
+	status            Status
+	maxLength         int // 0 = unlimited
+	tips              string
+	showLimitNumber   bool
+	readonly          bool
+	allowInputOverMax bool
+	autosize          bool
+	autosizeMinRows   int
+	autosizeMaxRows   int
+
+	onChange  func(value string)
+	onBlur   func(value string)
+	onFocus  func(value string)
+	onKeydown func(value string, key event.Key)
+	onKeyup   func(value string, key event.Key)
+	onValidate func(error string)
 }
 
 // NewTextArea creates a multi-line text area.
@@ -103,7 +119,7 @@ func NewTextArea(tree *core.Tree, cfg *Config) *TextArea {
 	})
 
 	ta.tree.AddHandler(ta.id, event.KeyPress, func(e *event.Event) {
-		if ta.disabled {
+		if ta.disabled || ta.readonly {
 			return
 		}
 		if e.Char != 0 {
@@ -216,11 +232,37 @@ func NewTextArea(tree *core.Tree, cfg *Config) *TextArea {
 			ta.cursorPos = ta.lineEnd(ta.cursorPos)
 			ta.updateIMEPosition()
 		}
+
+		// Fire onKeydown callback
+		if ta.onKeydown != nil {
+			ta.onKeydown(ta.value, e.Key)
+		}
+	})
+
+	ta.tree.AddHandler(ta.id, event.KeyUp, func(e *event.Event) {
+		if ta.disabled {
+			return
+		}
+		if ta.onKeyup != nil {
+			ta.onKeyup(ta.value, e.Key)
+		}
+	})
+
+	ta.tree.AddHandler(ta.id, event.Focus, func(e *event.Event) {
+		if ta.onFocus != nil {
+			ta.onFocus(ta.value)
+		}
+	})
+
+	ta.tree.AddHandler(ta.id, event.Blur, func(e *event.Event) {
+		if ta.onBlur != nil {
+			ta.onBlur(ta.value)
+		}
 	})
 
 	// IME support
 	ta.tree.AddHandler(ta.id, event.IMECompositionEnd, func(e *event.Event) {
-		if ta.disabled || e.Text == "" {
+		if ta.disabled || ta.readonly || e.Text == "" {
 			return
 		}
 		ta.deleteSelection()
@@ -263,6 +305,31 @@ func (ta *TextArea) SetRows(rows int) {
 }
 
 func (ta *TextArea) OnChange(fn func(string)) { ta.onChange = fn }
+
+func (ta *TextArea) SetStatus(s Status)       { ta.status = s }
+func (ta *TextArea) SetMaxLength(n int)        { ta.maxLength = n }
+func (ta *TextArea) SetTips(t string)          { ta.tips = t }
+func (ta *TextArea) SetShowLimitNumber(s bool) { ta.showLimitNumber = s }
+func (ta *TextArea) Readonly() bool            { return ta.readonly }
+func (ta *TextArea) SetReadonly(r bool)        { ta.readonly = r }
+func (ta *TextArea) AllowInputOverMax() bool   { return ta.allowInputOverMax }
+func (ta *TextArea) SetAllowInputOverMax(v bool) { ta.allowInputOverMax = v }
+func (ta *TextArea) Autosize() bool            { return ta.autosize }
+func (ta *TextArea) SetAutosize(v bool)        { ta.autosize = v }
+func (ta *TextArea) AutosizeMinRows() int      { return ta.autosizeMinRows }
+func (ta *TextArea) AutosizeMaxRows() int      { return ta.autosizeMaxRows }
+func (ta *TextArea) SetAutosizeRows(minRows, maxRows int) {
+	ta.autosizeMinRows = minRows
+	ta.autosizeMaxRows = maxRows
+	ta.autosize = true
+}
+
+// TDesign event setters
+func (ta *TextArea) OnBlur(fn func(string))                { ta.onBlur = fn }
+func (ta *TextArea) OnFocus(fn func(string))               { ta.onFocus = fn }
+func (ta *TextArea) OnKeydown(fn func(string, event.Key))  { ta.onKeydown = fn }
+func (ta *TextArea) OnKeyup(fn func(string, event.Key))    { ta.onKeyup = fn }
+func (ta *TextArea) OnValidate(fn func(string))            { ta.onValidate = fn }
 
 // --- Internal helpers ---
 
@@ -329,7 +396,16 @@ func (ta *TextArea) deleteSelection() {
 }
 
 func (ta *TextArea) insertChar(ch rune) {
+	if ta.readonly {
+		return
+	}
 	runes := []rune(ta.value)
+	if ta.maxLength > 0 && len(runes) >= ta.maxLength && !ta.allowInputOverMax {
+		if ta.onValidate != nil {
+			ta.onValidate("exceed-maximum")
+		}
+		return
+	}
 	pos := ta.cursorPos
 	if pos > len(runes) {
 		pos = len(runes)
@@ -408,6 +484,16 @@ func (ta *TextArea) paste() {
 		pos = len(runes)
 	}
 	inserted := []rune(text)
+	// Enforce maxLength
+	if ta.maxLength > 0 {
+		remaining := ta.maxLength - len(runes)
+		if remaining <= 0 {
+			return
+		}
+		if len(inserted) > remaining {
+			inserted = inserted[:remaining]
+		}
+	}
 	runes = append(runes[:pos], append(inserted, runes[pos:]...)...)
 	ta.value = string(runes)
 	ta.cursorPos = pos + len(inserted)
@@ -691,9 +777,9 @@ func (ta *TextArea) Draw(buf *render.CommandBuffer) {
 	elem := ta.Element()
 	focused := elem != nil && elem.IsFocused()
 
-	// Border
-	borderClr := cfg.BorderColor
-	if focused {
+	// Border: status overrides default, then focus, then disabled
+	borderClr := cfg.StatusBorderColor(ta.status)
+	if ta.status == StatusDefault && focused {
 		borderClr = cfg.FocusBorderColor
 	}
 	if ta.disabled {
@@ -797,6 +883,52 @@ func (ta *TextArea) Draw(buf *render.CommandBuffer) {
 				Bounds:    uimath.NewRect(cursorX, cursorY, 1, cursorH),
 				FillColor: cfg.TextColor,
 			}, 2, 1)
+		}
+	}
+
+	// Draw character counter at bottom-right
+	if ta.showLimitNumber && ta.maxLength > 0 {
+		counterText := fmt.Sprintf("%d/%d", len([]rune(ta.value)), ta.maxLength)
+		counterColor := cfg.DisabledColor
+		if len([]rune(ta.value)) > ta.maxLength {
+			counterColor = cfg.ErrorColor
+		}
+		counterFontSize := cfg.FontSizeSm
+		counterW := float32(len(counterText)) * counterFontSize * 0.55
+		counterX := bounds.X + bounds.Width - cfg.SpaceSM - counterW
+		counterY := bounds.Y + bounds.Height - cfg.SpaceSM - counterFontSize*1.2
+		if cfg.TextRenderer != nil {
+			cfg.TextRenderer.DrawText(buf, counterText, counterX, counterY, counterFontSize, counterW, counterColor, 1)
+		} else {
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(counterX, counterY, counterW, counterFontSize*1.2),
+				FillColor: counterColor,
+				Corners:   uimath.CornersAll(2),
+			}, 3, 1)
+		}
+	}
+
+	// Draw tips text below the textarea
+	if ta.tips != "" {
+		tipsColor := cfg.StatusBorderColor(ta.status)
+		if ta.status == StatusDefault {
+			tipsColor = cfg.DisabledColor
+		}
+		tipsFontSize := cfg.FontSizeSm
+		tipsY := bounds.Y + bounds.Height + 4
+		if cfg.TextRenderer != nil {
+			cfg.TextRenderer.DrawText(buf, ta.tips, bounds.X, tipsY, tipsFontSize, bounds.Width, tipsColor, 1)
+		} else {
+			tipsW := float32(len([]rune(ta.tips))) * tipsFontSize * 0.55
+			tipsH := tipsFontSize * 1.2
+			if tipsW > bounds.Width {
+				tipsW = bounds.Width
+			}
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(bounds.X, tipsY, tipsW, tipsH),
+				FillColor: tipsColor,
+				Corners:   uimath.CornersAll(2),
+			}, 3, 1)
 		}
 	}
 }
