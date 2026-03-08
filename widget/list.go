@@ -11,6 +11,8 @@ import (
 // ListItem represents a single list entry.
 // Supports text-only, multi-line (title+description), avatar, and actions.
 type ListItem struct {
+	Value       string   // unique identifier (used with selectable mode)
+	Group       string   // group header text (items with same Group are grouped together)
 	Title       string
 	Description string
 	Extra       string   // single extra text on the right (deprecated, use Actions)
@@ -29,7 +31,8 @@ const (
 )
 
 // List displays a scrollable list of items.
-// Matches TDesign List: text-only, multi-line, avatar+text, actions.
+// Supports text-only, multi-line, avatar+text, and action items.
+// When selectable is true, items can be clicked to select, with active highlight.
 type List struct {
 	Base
 	items        []ListItem
@@ -45,7 +48,11 @@ type List struct {
 	asyncLoading string
 	header       string
 	footer       string
+	selectable    bool   // enable selection mode (nav list)
+	selectedValue string // active item value (selectable mode)
+	groupHeight   float32 // height of group header rows
 	onSelect     func(index int)
+	onChange     func(value string) // called when selected value changes (selectable mode)
 	onAction     func(itemIndex, actionIndex int)
 	onLoadMore   func()
 	onScroll     func(scrollTop, scrollBottom float32)
@@ -66,6 +73,7 @@ func NewList(tree *core.Tree, cfg *Config) *List {
 	}
 	l.style.Display = layout.DisplayFlex
 	l.style.FlexDirection = layout.FlexDirectionColumn
+	l.groupHeight = 28
 
 	// Track hover
 	tree.AddHandler(l.id, event.MouseMove, func(e *event.Event) {
@@ -73,26 +81,31 @@ func NewList(tree *core.Tree, cfg *Config) *List {
 			return
 		}
 		bounds := l.Bounds()
-		relY := e.Y - bounds.Y + l.scrollY
-		ih := l.effectiveItemHeight()
-		idx := int(relY / ih)
-		if idx >= 0 && idx < len(l.items) {
+		idx := l.hitTestItem(e.Y - bounds.Y + l.scrollY)
+		if idx != l.hoveredIndex {
 			l.hoveredIndex = idx
-		} else {
-			l.hoveredIndex = -1
+			l.tree.MarkDirty(l.id)
 		}
 	})
 	tree.AddHandler(l.id, event.MouseLeave, func(e *event.Event) {
-		l.hoveredIndex = -1
+		if l.hoveredIndex != -1 {
+			l.hoveredIndex = -1
+			l.tree.MarkDirty(l.id)
+		}
 	})
 
 	// Click handler for item selection
 	tree.AddHandler(l.id, event.MouseClick, func(e *event.Event) {
 		bounds := l.Bounds()
-		relY := e.Y - bounds.Y + l.scrollY
-		ih := l.effectiveItemHeight()
-		idx := int(relY / ih)
+		idx := l.hitTestItem(e.Y - bounds.Y + l.scrollY)
 		if idx >= 0 && idx < len(l.items) {
+			if l.selectable && l.items[idx].Value != "" {
+				l.selectedValue = l.items[idx].Value
+				if l.onChange != nil {
+					l.onChange(l.selectedValue)
+				}
+				l.tree.MarkDirty(l.id)
+			}
 			if l.onSelect != nil {
 				l.onSelect(idx)
 			}
@@ -122,6 +135,11 @@ func (l *List) SetFooter(v string)        { l.footer = v }
 func (l *List) OnLoadMore(fn func())      { l.onLoadMore = fn }
 func (l *List) OnAction(fn func(itemIndex, actionIndex int)) { l.onAction = fn }
 func (l *List) OnScroll(fn func(scrollTop, scrollBottom float32)) { l.onScroll = fn }
+func (l *List) SetSelectable(v bool)       { l.selectable = v }
+func (l *List) IsSelectable() bool         { return l.selectable }
+func (l *List) SetSelectedValue(v string)  { l.selectedValue = v }
+func (l *List) SelectedValue() string      { return l.selectedValue }
+func (l *List) OnChange(fn func(string))   { l.onChange = fn }
 
 func (l *List) SetSize(s Size) {
 	l.size = s
@@ -158,14 +176,47 @@ func (l *List) effectiveItemHeight() float32 {
 	return l.itemHeight
 }
 
+// groupCount returns the number of distinct group headers.
+func (l *List) groupCount() int {
+	seen := map[string]bool{}
+	count := 0
+	for _, item := range l.items {
+		if item.Group != "" && !seen[item.Group] {
+			seen[item.Group] = true
+			count++
+		}
+	}
+	return count
+}
+
 // TotalHeight returns the total height needed to render all items.
 func (l *List) TotalHeight() float32 {
-	return l.effectiveItemHeight() * float32(len(l.items))
+	ih := l.effectiveItemHeight()
+	return ih*float32(len(l.items)) + l.groupHeight*float32(l.groupCount())
 }
 
 // updatePreferredHeight sets the widget's preferred height based on item count.
 func (l *List) updatePreferredHeight() {
 	l.style.Height = layout.Px(l.TotalHeight())
+}
+
+// hitTestItem returns the item index at the given relative Y position,
+// accounting for group headers. Returns -1 if no item hit.
+func (l *List) hitTestItem(relY float32) int {
+	ih := l.effectiveItemHeight()
+	y := float32(0)
+	lastGroup := ""
+	for i, item := range l.items {
+		if item.Group != "" && item.Group != lastGroup {
+			y += l.groupHeight
+			lastGroup = item.Group
+		}
+		if relY >= y && relY < y+ih {
+			return i
+		}
+		y += ih
+	}
+	return -1
 }
 
 func (l *List) Draw(buf *render.CommandBuffer) {
@@ -194,13 +245,36 @@ func (l *List) Draw(buf *render.CommandBuffer) {
 	buf.PushClip(bounds)
 	y := bounds.Y - l.scrollY
 	ih := l.effectiveItemHeight()
+	lastGroup := ""
 	for i, item := range l.items {
+		// Group header
+		if item.Group != "" && item.Group != lastGroup {
+			lastGroup = item.Group
+			if y+l.groupHeight >= bounds.Y && y <= bounds.Y+bounds.Height {
+				l.drawGroupHeader(buf, item.Group, bounds.X, y, bounds.Width, cfg)
+			}
+			y += l.groupHeight
+		}
+
 		if y+ih < bounds.Y {
 			y += ih
 			continue
 		}
 		if y > bounds.Y+bounds.Height {
 			break
+		}
+
+		// Selected highlight (selectable mode)
+		if l.selectable && item.Value != "" && item.Value == l.selectedValue {
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(bounds.X, y, bounds.Width, ih),
+				FillColor: uimath.RGBA(0, 0, 0, 0.06),
+			}, 1, 1)
+			// Left accent bar
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(bounds.X, y, 3, ih),
+				FillColor: cfg.PrimaryColor,
+			}, 2, 1)
 		}
 
 		// Stripe background
@@ -227,10 +301,30 @@ func (l *List) Draw(buf *render.CommandBuffer) {
 			}, 2, 1)
 		}
 
+		// Text color override for selected item
 		l.drawItem(buf, item, bounds, y, ih, cfg)
 		y += ih
 	}
 	buf.PopClip()
+}
+
+// drawGroupHeader renders a group title row.
+func (l *List) drawGroupHeader(buf *render.CommandBuffer, title string, x, y, w float32, cfg *Config) {
+	gh := l.groupHeight
+	textClr := uimath.RGBA(0, 0, 0, 0.4)
+	fs := cfg.FontSizeSm
+	if cfg.TextRenderer != nil {
+		lh := cfg.TextRenderer.LineHeight(fs)
+		cfg.TextRenderer.DrawText(buf, title, x+cfg.SpaceMD, y+(gh-lh)/2, fs, w-cfg.SpaceMD*2, textClr, 1)
+	} else {
+		tw := float32(len(title)) * fs * 0.55
+		th := fs * 1.2
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(x+cfg.SpaceMD, y+(gh-th)/2, tw, th),
+			FillColor: textClr,
+			Corners:   uimath.CornersAll(2),
+		}, 1, 1)
+	}
 }
 
 // drawItem renders a single list item.
@@ -298,6 +392,11 @@ func (l *List) drawItem(buf *render.CommandBuffer, item ListItem, bounds uimath.
 		titleFs = cfg.FontSize // bold in real rendering, same size for now
 	}
 
+	titleColor := cfg.TextColor
+	if l.selectable && item.Value != "" && item.Value == l.selectedValue {
+		titleColor = cfg.PrimaryColor
+	}
+
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(titleFs)
 		var titleY float32
@@ -306,7 +405,7 @@ func (l *List) drawItem(buf *render.CommandBuffer, item ListItem, bounds uimath.
 		} else {
 			titleY = y + (ih-lh)/2
 		}
-		cfg.TextRenderer.DrawText(buf, item.Title, textX, titleY, titleFs, textMaxW, cfg.TextColor, 1)
+		cfg.TextRenderer.DrawText(buf, item.Title, textX, titleY, titleFs, textMaxW, titleColor, 1)
 	} else {
 		tw := float32(len(item.Title)) * titleFs * 0.55
 		if tw > textMaxW {
@@ -321,7 +420,7 @@ func (l *List) drawItem(buf *render.CommandBuffer, item ListItem, bounds uimath.
 		}
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(textX, titleY, tw, th),
-			FillColor: cfg.TextColor,
+			FillColor: titleColor,
 			Corners:   uimath.CornersAll(2),
 		}, 3, 1)
 	}

@@ -1,11 +1,12 @@
 //go:build windows
 
-// Demo showcases the GoUI widget library in a TDesign-style component documentation layout.
+// Demo showcases the GoUI widget library in a component documentation layout.
 // Click a sidebar item to view that component's demo.
 // Run: go run ./cmd/demo
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -16,50 +17,65 @@ import (
 	"github.com/kasuganosora/ui/widget"
 )
 
-// nav maps sidebar button IDs to their content section IDs.
-var nav = []struct{ btn, section string }{
-	{"nav-button", "sec-button"},
-	{"nav-link", "sec-link"},
-	{"nav-input", "sec-input"},
-	{"nav-textarea", "sec-textarea"},
-	{"nav-inputnumber", "sec-inputnumber"},
-	{"nav-select", "sec-select"},
-	{"nav-checkbox", "sec-checkbox"},
-	{"nav-radio", "sec-radio"},
-	{"nav-switch", "sec-switch"},
-	{"nav-slider", "sec-slider"},
-	{"nav-rate", "sec-rate"},
-	{"nav-tag", "sec-tag"},
-	{"nav-badge", "sec-badge"},
-	{"nav-avatar", "sec-avatar"},
-	{"nav-progress", "sec-progress"},
-	{"nav-table", "sec-table"},
-	{"nav-list", "sec-list"},
-	{"nav-card", "sec-card"},
-	{"nav-statistic", "sec-statistic"},
-	{"nav-collapse", "sec-collapse"},
-	{"nav-timeline", "sec-timeline"},
-	{"nav-tabs", "sec-tabs"},
-	{"nav-menu", "sec-menu"},
-	{"nav-breadcrumb", "sec-breadcrumb"},
-	{"nav-pagination", "sec-pagination"},
-	{"nav-steps", "sec-steps"},
-	{"nav-alert", "sec-alert"},
-	{"nav-message", "sec-message"},
-	{"nav-loading", "sec-loading"},
-	{"nav-empty", "sec-empty"},
-	{"nav-divider", "sec-divider"},
-	{"nav-grid", "sec-grid"},
-	{"nav-space", "sec-space"},
-	{"nav-panel", "sec-panel"},
-	{"nav-tooltip", "sec-tooltip"},
+// nav maps sidebar list item values to their content section IDs.
+var nav = []struct{ value, section string }{
+	{"button", "sec-button"},
+	{"link", "sec-link"},
+	{"input", "sec-input"},
+	{"textarea", "sec-textarea"},
+	{"inputnumber", "sec-inputnumber"},
+	{"select", "sec-select"},
+	{"checkbox", "sec-checkbox"},
+	{"radio", "sec-radio"},
+	{"switch", "sec-switch"},
+	{"slider", "sec-slider"},
+	{"rate", "sec-rate"},
+	{"tag", "sec-tag"},
+	{"badge", "sec-badge"},
+	{"avatar", "sec-avatar"},
+	{"progress", "sec-progress"},
+	{"table", "sec-table"},
+	{"list", "sec-list"},
+	{"card", "sec-card"},
+	{"statistic", "sec-statistic"},
+	{"collapse", "sec-collapse"},
+	{"timeline", "sec-timeline"},
+	{"tabs", "sec-tabs"},
+	{"menu", "sec-menu"},
+	{"breadcrumb", "sec-breadcrumb"},
+	{"pagination", "sec-pagination"},
+	{"steps", "sec-steps"},
+	{"alert", "sec-alert"},
+	{"message", "sec-message"},
+	{"loading", "sec-loading"},
+	{"empty", "sec-empty"},
+	{"divider", "sec-divider"},
+	{"grid", "sec-grid"},
+	{"space", "sec-space"},
+	{"panel", "sec-panel"},
+	{"tooltip", "sec-tooltip"},
+	{"texttest", "sec-texttest"},
 }
 
 func main() {
+	backendFlag := flag.String("backend", "auto", "rendering backend: auto, vulkan, dx11")
+	flag.Parse()
+
+	var backend ui.BackendType
+	switch *backendFlag {
+	case "dx11", "d3d11", "directx":
+		backend = ui.BackendDX11
+	case "vulkan", "vk":
+		backend = ui.BackendVulkan
+	default:
+		backend = ui.BackendAuto
+	}
+
 	app, err := ui.NewApp(ui.AppOptions{
-		Title:  "GoUI — 组件库文档",
-		Width:  1280,
-		Height: 800,
+		Title:   "GoUI — 组件库文档",
+		Width:   1280,
+		Height:  800,
+		Backend: backend,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -84,14 +100,12 @@ func main() {
 	}
 }
 
-// setupNavigation wires sidebar buttons to show/hide content sections.
+// setupNavigation wires sidebar list to show/hide content sections.
 func setupNavigation(doc *ui.Document) {
-	// Collect all section widgets
-	sections := make([]widget.Widget, 0, len(nav))
+	// Build value→section map
+	sectionMap := make(map[string]string, len(nav))
 	for _, n := range nav {
-		if w := doc.QueryByID(n.section); w != nil {
-			sections = append(sections, w)
-		}
+		sectionMap[n.value] = n.section
 	}
 
 	showSection := func(targetID string) {
@@ -113,11 +127,12 @@ func setupNavigation(doc *ui.Document) {
 	// Initially show only Button section
 	showSection("sec-button")
 
-	// Wire up click handlers
-	for _, n := range nav {
-		sid := n.section
-		doc.OnClick(n.btn, func() {
-			showSection(sid)
+	// Wire up sidebar list onChange
+	if ls, ok := doc.QueryByID("sidebar-nav").(*widget.List); ok {
+		ls.OnChange(func(value string) {
+			if sec, ok := sectionMap[value]; ok {
+				showSection(sec)
+			}
 		})
 	}
 }
@@ -473,54 +488,50 @@ const demoHTML = `
 
 	<div style="display: flex; flex-direction: row; flex-grow: 1">
 		<aside width="180" style="padding: 0px">
-			<div id="sidebar-scroll" style="padding: 12px">
-				<span class="cat-title">基础</span>
-				<button id="nav-button" variant="text">Button 按钮</button>
-				<button id="nav-link" variant="text">Link 链接</button>
+			<list id="sidebar-nav" selectable value="button" item-height="36" style="padding: 8px 0">
+				<list-item value="button" group="基础">Button 按钮</list-item>
+				<list-item value="link" group="基础">Link 链接</list-item>
 
-				<span class="cat-title">输入</span>
-				<button id="nav-input" variant="text">Input 输入框</button>
-				<button id="nav-textarea" variant="text">TextArea 文本域</button>
-				<button id="nav-inputnumber" variant="text">InputNumber 数字</button>
-				<button id="nav-select" variant="text">Select 选择器</button>
-				<button id="nav-checkbox" variant="text">Checkbox 多选</button>
-				<button id="nav-radio" variant="text">Radio 单选</button>
-				<button id="nav-switch" variant="text">Switch 开关</button>
-				<button id="nav-slider" variant="text">Slider 滑块</button>
-				<button id="nav-rate" variant="text">Rate 评分</button>
+				<list-item value="input" group="输入">Input 输入框</list-item>
+				<list-item value="textarea" group="输入">TextArea 文本域</list-item>
+				<list-item value="inputnumber" group="输入">InputNumber 数字</list-item>
+				<list-item value="select" group="输入">Select 选择器</list-item>
+				<list-item value="checkbox" group="输入">Checkbox 多选</list-item>
+				<list-item value="radio" group="输入">Radio 单选</list-item>
+				<list-item value="switch" group="输入">Switch 开关</list-item>
+				<list-item value="slider" group="输入">Slider 滑块</list-item>
+				<list-item value="rate" group="输入">Rate 评分</list-item>
 
-				<span class="cat-title">数据展示</span>
-				<button id="nav-tag" variant="text">Tag 标签</button>
-				<button id="nav-badge" variant="text">Badge 徽标</button>
-				<button id="nav-avatar" variant="text">Avatar 头像</button>
-				<button id="nav-progress" variant="text">Progress 进度</button>
-				<button id="nav-table" variant="text">Table 表格</button>
-				<button id="nav-list" variant="text">List 列表</button>
-				<button id="nav-card" variant="text">Card 卡片</button>
-				<button id="nav-statistic" variant="text">Statistic 统计</button>
-				<button id="nav-collapse" variant="text">Collapse 折叠</button>
-				<button id="nav-timeline" variant="text">Timeline 时间线</button>
+				<list-item value="tag" group="数据展示">Tag 标签</list-item>
+				<list-item value="badge" group="数据展示">Badge 徽标</list-item>
+				<list-item value="avatar" group="数据展示">Avatar 头像</list-item>
+				<list-item value="progress" group="数据展示">Progress 进度</list-item>
+				<list-item value="table" group="数据展示">Table 表格</list-item>
+				<list-item value="list" group="数据展示">List 列表</list-item>
+				<list-item value="card" group="数据展示">Card 卡片</list-item>
+				<list-item value="statistic" group="数据展示">Statistic 统计</list-item>
+				<list-item value="collapse" group="数据展示">Collapse 折叠</list-item>
+				<list-item value="timeline" group="数据展示">Timeline 时间线</list-item>
 
-				<span class="cat-title">导航</span>
-				<button id="nav-tabs" variant="text">Tabs 选项卡</button>
-				<button id="nav-menu" variant="text">Menu 菜单</button>
-				<button id="nav-breadcrumb" variant="text">Breadcrumb 面包屑</button>
-				<button id="nav-pagination" variant="text">Pagination 分页</button>
-				<button id="nav-steps" variant="text">Steps 步骤条</button>
+				<list-item value="tabs" group="导航">Tabs 选项卡</list-item>
+				<list-item value="menu" group="导航">Menu 菜单</list-item>
+				<list-item value="breadcrumb" group="导航">Breadcrumb 面包屑</list-item>
+				<list-item value="pagination" group="导航">Pagination 分页</list-item>
+				<list-item value="steps" group="导航">Steps 步骤条</list-item>
 
-				<span class="cat-title">反馈</span>
-				<button id="nav-alert" variant="text">Alert 警告</button>
-				<button id="nav-message" variant="text">Message 消息</button>
-				<button id="nav-loading" variant="text">Loading 加载</button>
-				<button id="nav-empty" variant="text">Empty 空状态</button>
+				<list-item value="alert" group="反馈">Alert 警告</list-item>
+				<list-item value="message" group="反馈">Message 消息</list-item>
+				<list-item value="loading" group="反馈">Loading 加载</list-item>
+				<list-item value="empty" group="反馈">Empty 空状态</list-item>
 
-				<span class="cat-title">布局</span>
-				<button id="nav-divider" variant="text">Divider 分割线</button>
-				<button id="nav-grid" variant="text">Grid 栅格</button>
-				<button id="nav-space" variant="text">Space 间距</button>
-				<button id="nav-panel" variant="text">Panel 面板</button>
-				<button id="nav-tooltip" variant="text">Tooltip 提示</button>
-			</div>
+				<list-item value="divider" group="布局">Divider 分割线</list-item>
+				<list-item value="grid" group="布局">Grid 栅格</list-item>
+				<list-item value="space" group="布局">Space 间距</list-item>
+				<list-item value="panel" group="布局">Panel 面板</list-item>
+				<list-item value="tooltip" group="布局">Tooltip 提示</list-item>
+
+				<list-item value="texttest" group="测试">Text 渲染测试</list-item>
+			</list>
 		</aside>
 
 		<main id="content">
@@ -894,6 +905,22 @@ const demoHTML = `
 				<div class="demo-card">
 					<button variant="secondary">悬停查看提示</button>
 					<tooltip>这是一个工具提示 Tooltip!</tooltip>
+				</div>
+			</div>
+
+			<!-- ===== Text Rendering Test ===== -->
+			<div id="sec-texttest">
+				<h2 class="section-title">Text 渲染测试</h2>
+				<span class="section-desc">用于对比 DX11 和 Vulkan 后端的文字渲染质量。</span>
+				<div class="demo-card">
+					<span style="font-size: 72px; color: rgba(0,0,0,0.9)">中国智造Abc</span>
+					<span style="font-size: 48px; color: rgba(0,0,0,0.9)">中国智造Abc</span>
+					<span style="font-size: 36px; color: rgba(0,0,0,0.9)">中国智造Abc</span>
+					<span style="font-size: 24px; color: rgba(0,0,0,0.9)">中国智造Abc</span>
+					<span style="font-size: 16px; color: rgba(0,0,0,0.9)">中国智造Abc 按钮用于开启一个闭环的操作任务</span>
+					<span style="font-size: 14px; color: rgba(0,0,0,0.6)">中国智造Abc 按钮用于开启一个闭环的操作任务</span>
+					<span style="font-size: 72px; color: #1677ff">中国智造Abc</span>
+					<span style="font-size: 72px; color: #e34d59">中国智造Abc</span>
 				</div>
 			</div>
 
