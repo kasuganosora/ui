@@ -478,7 +478,7 @@ float4 main(PS_INPUT input) : COLOR0 {
     return texColor * input.color;
 }`
 
-	// ---- Text pixel shader (SDF alpha from R channel) ----
+	// ---- Text pixel shader (coverage from R channel) ----
 	textPSCode := `
 sampler2D tex : register(s0);
 struct PS_INPUT {
@@ -487,6 +487,7 @@ struct PS_INPUT {
     float4 color : COLOR1;
 };
 float4 main(PS_INPUT input) : COLOR0 {
+    // Font atlas uses D3DFMT_L8: coverage in RGB (r=g=b=luminance), a=1.0
     float coverage = tex2D(tex, input.uv).r;
     return float4(input.color.rgb, input.color.a * coverage);
 }`
@@ -804,6 +805,14 @@ func (b *Backend) applyScissor(clip *render.ClipCmd) {
 	comCall(comVtbl(b.device, devSetScissorRect), b.device, uintptr(unsafe.Pointer(&scissor)))
 }
 
+// texelHalfPixelOffset returns the DX9 half-pixel correction in NDC space
+// for texture sampling alignment. DX9 pixel centers are at integers (0,0),
+// while DX10+ are at (0.5,0.5). Applied only to textured rendering (text/images),
+// not to SDF rects which don't sample textures.
+func (b *Backend) texelHalfPixelOffset() (float32, float32) {
+	return -1.0 / float32(b.width), 1.0 / float32(b.height)
+}
+
 func (b *Backend) renderRect(c render.Command) {
 	rect := c.Rect
 	opacity := c.Opacity
@@ -816,7 +825,7 @@ func (b *Backend) renderRect(c render.Command) {
 	qx, qy := x-pad, y-pad
 	qw, qh := w+pad*2, h+pad*2
 
-	// DX9 NDC: same as DX11, Y+ is up
+	// No half-pixel offset for SDF rects (no texture sampling)
 	ndcX := (qx/logW)*2 - 1
 	ndcY := 1 - (qy/logH)*2
 	ndcW := (qw / logW) * 2
@@ -882,12 +891,14 @@ func (b *Backend) renderText(c render.Command) {
 		return
 	}
 
+	hpX, hpY := b.texelHalfPixelOffset()
+
 	vertices := make([]TexturedVertex, 0, len(glyphs)*6)
 	for _, g := range glyphs {
-		x0 := (g.X/logW)*2 - 1
-		y0 := 1 - (g.Y/logH)*2
-		x1 := ((g.X + g.Width) / logW) * 2 - 1
-		y1 := 1 - ((g.Y+g.Height)/logH)*2
+		x0 := (g.X/logW)*2 - 1 + hpX
+		y0 := 1 - (g.Y/logH)*2 + hpY
+		x1 := ((g.X+g.Width)/logW)*2 - 1 + hpX
+		y1 := 1 - ((g.Y+g.Height)/logH)*2 + hpY
 
 		clr := TexturedVertex{
 			ColorR: tc.Color.R, ColorG: tc.Color.G,
@@ -916,6 +927,9 @@ func (b *Backend) renderText(c render.Command) {
 	comCall(comVtbl(dev, devSetPixelShader), dev, b.textPS)
 	comCall(comVtbl(dev, devSetTexture), dev, 0, entry.texture)
 
+	// Font atlas is coverage data, not color — disable sRGB texture read
+	comCall(comVtbl(dev, devSetSamplerState), dev, 0, D3DSAMP_SRGBTEXTURE, 0)
+
 	comCall(comVtbl(dev, devSetStreamSource), dev, 0, b.texturedVB, 0, uintptr(stride))
 	comCall(comVtbl(dev, devDrawPrimitive), dev, D3DPT_TRIANGLELIST, 0, uintptr(len(vertices)/3))
 }
@@ -929,11 +943,12 @@ func (b *Backend) renderImage(c render.Command) {
 
 	logW := float32(b.width) / b.dpiScale
 	logH := float32(b.height) / b.dpiScale
+	hpX, hpY := b.texelHalfPixelOffset()
 
-	x0 := (ic.DstRect.X/logW)*2 - 1
-	y0 := 1 - (ic.DstRect.Y/logH)*2
-	x1 := ((ic.DstRect.X + ic.DstRect.Width) / logW) * 2 - 1
-	y1 := 1 - ((ic.DstRect.Y+ic.DstRect.Height)/logH)*2
+	x0 := (ic.DstRect.X/logW)*2 - 1 + hpX
+	y0 := 1 - (ic.DstRect.Y/logH)*2 + hpY
+	x1 := ((ic.DstRect.X+ic.DstRect.Width)/logW)*2 - 1 + hpX
+	y1 := 1 - ((ic.DstRect.Y+ic.DstRect.Height)/logH)*2 + hpY
 
 	u0, v0 := ic.SrcRect.X, ic.SrcRect.Y
 	u1 := ic.SrcRect.X + ic.SrcRect.Width
