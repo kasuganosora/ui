@@ -132,3 +132,31 @@ func TestListStateRemoveOutOfBounds(t *testing.T) {
 		t.Errorf("expected 1 item, got %d", ls.Len())
 	}
 }
+
+func TestListStateWatchUnsubscribe(t *testing.T) {
+	ls := NewListState([]string{"a"})
+	calls := 0
+	unsub := ls.Watch(func(items []string) { calls++ })
+
+	ls.Set([]string{"b"})
+	if calls != 1 {
+		t.Fatalf("expected 1 call, got %d", calls)
+	}
+
+	unsub()
+	ls.Set([]string{"c"})
+	if calls != 1 {
+		t.Errorf("expected still 1 call after unsub, got %d", calls)
+	}
+}
+
+func TestListStateSetNotifiesObservers(t *testing.T) {
+	ls := NewListState([]int{})
+	var received []int
+	ls.Watch(func(items []int) { received = items })
+
+	ls.Set([]int{10, 20})
+	if len(received) != 2 {
+		t.Errorf("expected 2 items in notification, got %d", len(received))
+	}
+}

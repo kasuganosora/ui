@@ -126,15 +126,14 @@ func (a *Animation) Value() float32 {
 		return a.To
 	}
 	t := a.progress()
+	if a.isReversed() {
+		t = 1 - t
+	}
 	eased := t
 	if a.Easing != nil {
 		eased = a.Easing(t)
 	}
-	from, to := a.From, a.To
-	if a.isReversed() {
-		from, to = to, from
-	}
-	return from + (to-from)*eased
+	return a.From + (a.To-a.From)*eased
 }
 
 // State returns the animation state.
@@ -168,9 +167,6 @@ func (a *Animation) Resume() {
 func (a *Animation) progress() float32 {
 	active := a.elapsed - a.Delay
 	if active < 0 {
-		if a.Fill == FillBackwards || a.Fill == FillBoth {
-			return 0
-		}
 		return 0
 	}
 	if a.Duration <= 0 {
@@ -207,12 +203,23 @@ func (a *Animation) tick(dt float32) {
 	}
 	a.state = StateRunning
 
+	if a.Duration <= 0 {
+		a.state = StateFinished
+		if a.onUpdate != nil {
+			a.onUpdate(a.Value())
+		}
+		if a.onFinish != nil {
+			a.onFinish()
+		}
+		return
+	}
+
 	active := a.elapsed - a.Delay
-	if active >= a.Duration && a.Duration > 0 {
+	if active >= a.Duration {
 		// Iteration complete
 		if a.Repeat == -1 || a.iteration < a.Repeat {
 			a.iteration++
-			a.elapsed = a.Delay // reset for next iteration
+			a.elapsed = a.Delay + (active - a.Duration) // preserve overshoot
 			if a.onUpdate != nil {
 				a.onUpdate(a.Value())
 			}
@@ -356,7 +363,7 @@ func (ka *KeyframeAnimation) tick(dt float32) {
 	if active >= ka.Duration && ka.Duration > 0 {
 		if ka.Repeat == -1 || ka.iteration < ka.Repeat {
 			ka.iteration++
-			ka.elapsed = ka.Delay
+			ka.elapsed = ka.Delay + (active - ka.Duration)
 			if ka.onUpdate != nil {
 				ka.onUpdate(ka.Value())
 			}

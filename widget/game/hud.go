@@ -66,32 +66,40 @@ func (h *HUD) AddElement(w widget.Widget, anchor HUDAnchor, offsetX, offsetY flo
 
 // LayoutElements positions HUD elements based on viewport size.
 func (h *HUD) LayoutElements(vpW, vpH float32) {
+	tree := h.Tree()
 	for _, elem := range h.elements {
 		var x, y float32
+		var ew, eh float32
+		if e := tree.Get(elem.Widget.ElementID()); e != nil {
+			wb := e.Layout().Bounds
+			ew, eh = wb.Width, wb.Height
+		}
+
 		switch elem.Anchor {
 		case AnchorTopLeft:
 			x, y = 0, 0
 		case AnchorTopCenter:
-			x, y = vpW/2, 0
+			x, y = vpW/2-ew/2, 0
 		case AnchorTopRight:
-			x, y = vpW, 0
+			x, y = vpW-ew, 0
 		case AnchorMiddleLeft:
-			x, y = 0, vpH/2
+			x, y = 0, vpH/2-eh/2
 		case AnchorMiddleCenter:
-			x, y = vpW/2, vpH/2
+			x, y = vpW/2-ew/2, vpH/2-eh/2
 		case AnchorMiddleRight:
-			x, y = vpW, vpH/2
+			x, y = vpW-ew, vpH/2-eh/2
 		case AnchorBottomLeft:
-			x, y = 0, vpH
+			x, y = 0, vpH-eh
 		case AnchorBottomCenter:
-			x, y = vpW/2, vpH
+			x, y = vpW/2-ew/2, vpH-eh
 		case AnchorBottomRight:
-			x, y = vpW, vpH
+			x, y = vpW-ew, vpH-eh
 		}
 		x += elem.OffsetX
 		y += elem.OffsetY
-		_ = x
-		_ = y
+		tree.SetLayout(elem.Widget.ElementID(), core.LayoutResult{
+			Bounds: uimath.NewRect(x, y, ew, eh),
+		})
 	}
 }
 
@@ -331,7 +339,13 @@ func formatFloat(v float32) string {
 	if float32(i) == v {
 		return itoa(i)
 	}
-	return itoa(i)
+	// Format with one decimal place
+	if v < 0 {
+		return "-" + formatFloat(-v)
+	}
+	whole := int(v)
+	frac := int((v - float32(whole)) * 10)
+	return itoa(whole) + "." + itoa(frac)
 }
 
 func itoa(i int) string {

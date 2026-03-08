@@ -79,7 +79,7 @@ func (st *SkillTree) FindNode(id string) *SkillNode {
 
 func (st *SkillTree) UnlockNode(id string) bool {
 	node := st.FindNode(id)
-	if node == nil || node.State == SkillMaxed || st.points < node.Cost {
+	if node == nil || node.State == SkillMaxed || node.Level >= node.MaxLevel || st.points < node.Cost {
 		return false
 	}
 	// Check prerequisites

@@ -5,36 +5,164 @@ import (
 	"strings"
 
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/css"
 	"github.com/kasuganosora/ui/layout"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/widget"
 )
 
+// Document represents a parsed HTML document with query capabilities.
+type Document struct {
+	Root    *widget.Div
+	ids     map[string]widget.Widget
+	classes map[string][]widget.Widget
+	tags    map[string][]widget.Widget
+}
+
+// QueryByID returns the widget with the given HTML id attribute, or nil.
+func (d *Document) QueryByID(id string) widget.Widget {
+	return d.ids[id]
+}
+
+// QueryByClass returns all widgets with the given CSS class.
+func (d *Document) QueryByClass(class string) []widget.Widget {
+	return d.classes[class]
+}
+
+// QueryByTag returns all widgets with the given HTML tag name.
+func (d *Document) QueryByTag(tag string) []widget.Widget {
+	return d.tags[tag]
+}
+
 // LoadHTML parses a simple HTML string and builds a widget tree.
-// Supported tags: div, span, button, input, p, h1-h6, img, br.
+// Supported tags: div, span, button, input, p, h1-h6, img, br, a, select, textarea,
+// header, footer, aside, main, nav, section, article, space, row, col, layout,
+// checkbox, switch, radio, tag, progress, message, empty, loading, tooltip.
 // Inline styles are parsed from the style attribute.
+// If the HTML contains <style> blocks, CSS rules are extracted and applied.
 func LoadHTML(tree *core.Tree, cfg *widget.Config, html string) widget.Widget {
+	doc := LoadHTMLDocument(tree, cfg, html, "")
+	return doc.Root
+}
+
+// LoadHTMLWithCSS parses HTML with an external CSS stylesheet.
+// The CSS rules are applied to elements based on selectors.
+func LoadHTMLWithCSS(tree *core.Tree, cfg *widget.Config, html, cssText string) widget.Widget {
+	doc := LoadHTMLDocument(tree, cfg, html, cssText)
+	return doc.Root
+}
+
+// LoadHTMLDocument parses HTML with optional CSS and returns a Document for querying.
+func LoadHTMLDocument(tree *core.Tree, cfg *widget.Config, html, cssText string) *Document {
 	if cfg == nil {
 		cfg = widget.DefaultConfig()
 	}
-	p := &htmlParser{tree: tree, cfg: cfg, src: html, pos: 0}
-	return p.parse()
+	var sheet *css.Stylesheet
+	if cssText != "" {
+		sheet = css.Parse(cssText)
+	}
+	p := &htmlParser{
+		tree:  tree,
+		cfg:   cfg,
+		src:   html,
+		pos:   0,
+		sheet: sheet,
+		doc: &Document{
+			ids:     make(map[string]widget.Widget),
+			classes: make(map[string][]widget.Widget),
+			tags:    make(map[string][]widget.Widget),
+		},
+	}
+	p.doc.Root = p.parse()
+	return p.doc
 }
 
 type htmlParser struct {
-	tree *core.Tree
-	cfg  *widget.Config
-	src  string
-	pos  int
+	tree  *core.Tree
+	cfg   *widget.Config
+	src   string
+	pos   int
+	sheet *css.Stylesheet
+	doc   *Document
+	// widgetInfo tracks element info for CSS matching after tree construction.
+	widgetInfo []widgetStyleInfo
+	// radioGroups maps group name to RadioGroup for radio button grouping.
+	radioGroups map[string]*widget.RadioGroup
 }
 
-func (p *htmlParser) parse() widget.Widget {
+// widgetStyleInfo records a widget and its CSS-matching metadata.
+type widgetStyleInfo struct {
+	widget    widget.Widget
+	tag       string
+	id        string
+	classes   []string
+	inlineCSS string
+	ancestors []css.ElementInfo
+}
+
+func (p *htmlParser) parse() *widget.Div {
+	// Extract <style> blocks before parsing
+	p.extractStyleBlocks()
+
 	root := widget.NewDiv(p.tree, p.cfg)
-	p.parseChildren(root)
+	p.parseChildren(root, nil)
+
+	// Apply CSS rules to all collected widgets
+	if p.sheet != nil && len(p.sheet.Rules) > 0 {
+		p.applyCSS()
+	}
 	return root
 }
 
-func (p *htmlParser) parseChildren(parent *widget.Div) {
+// extractStyleBlocks finds and parses all <style>...</style> blocks.
+func (p *htmlParser) extractStyleBlocks() {
+	src := p.src
+	var cssText strings.Builder
+	for {
+		idx := strings.Index(strings.ToLower(src), "<style")
+		if idx < 0 {
+			break
+		}
+		// Find end of opening tag
+		closeTag := strings.Index(src[idx:], ">")
+		if closeTag < 0 {
+			break
+		}
+		contentStart := idx + closeTag + 1
+		endTag := strings.Index(strings.ToLower(src[contentStart:]), "</style>")
+		if endTag < 0 {
+			break
+		}
+		cssText.WriteString(src[contentStart : contentStart+endTag])
+		cssText.WriteByte('\n')
+
+		// Remove the <style> block from src
+		blockEnd := contentStart + endTag + len("</style>")
+		src = src[:idx] + src[blockEnd:]
+	}
+	p.src = src
+
+	if cssText.Len() > 0 {
+		parsed := css.Parse(cssText.String())
+		if p.sheet == nil {
+			p.sheet = parsed
+		} else {
+			// Merge: append rules and variables
+			for k, v := range parsed.Variables {
+				p.sheet.Variables[k] = v
+			}
+			p.sheet.Rules = append(p.sheet.Rules, parsed.Rules...)
+		}
+	}
+}
+
+// containerWidget is any widget that supports AppendChild.
+type containerWidget interface {
+	widget.Widget
+	AppendChild(child widget.Widget)
+}
+
+func (p *htmlParser) parseChildren(parent containerWidget, ancestorStack []css.ElementInfo) {
 	for p.pos < len(p.src) {
 		p.skipWhitespace()
 		if p.pos >= len(p.src) {
@@ -44,7 +172,12 @@ func (p *htmlParser) parseChildren(parent *widget.Div) {
 			if p.pos+1 < len(p.src) && p.src[p.pos+1] == '/' {
 				return // closing tag
 			}
-			p.parseElement(parent)
+			// Skip comments
+			if p.pos+3 < len(p.src) && p.src[p.pos:p.pos+4] == "<!--" {
+				p.skipComment()
+				continue
+			}
+			p.parseElement(parent, ancestorStack)
 		} else {
 			// Text content
 			text := p.readUntil('<')
@@ -57,7 +190,7 @@ func (p *htmlParser) parseChildren(parent *widget.Div) {
 	}
 }
 
-func (p *htmlParser) parseElement(parent *widget.Div) {
+func (p *htmlParser) parseElement(parent containerWidget, ancestors []css.ElementInfo) {
 	p.expect('<')
 	tag := p.readTagName()
 	attrs := p.readAttributes()
@@ -68,13 +201,21 @@ func (p *htmlParser) parseElement(parent *widget.Div) {
 	}
 	p.expect('>')
 
+	id := attrs["id"]
+	classes := strings.Fields(attrs["class"])
+	inlineStyle := attrs["style"]
+
+	// Self-closing / void elements
 	switch tag {
 	case "br":
 		return
 	case "img":
 		img := widget.NewImage(p.tree, 0, p.cfg)
-		_ = attrs["src"] // src stored as property for later resolution
-		applyInlineStyle(img, attrs["style"])
+		if src, ok := attrs["src"]; ok {
+			img.SetSrc(src)
+		}
+		applyInlineStyle(img, inlineStyle)
+		p.registerWidget(img, tag, id, classes, inlineStyle, ancestors)
 		parent.AppendChild(img)
 		return
 	case "input":
@@ -88,12 +229,20 @@ func (p *htmlParser) parseElement(parent *widget.Div) {
 		if _, ok := attrs["disabled"]; ok {
 			inp.SetDisabled(true)
 		}
+		p.registerWidget(inp, tag, id, classes, inlineStyle, ancestors)
 		parent.AppendChild(inp)
 		return
 	}
 
 	if selfClose {
 		return
+	}
+
+	// Build ancestor info for this element (used by children)
+	selfInfo := css.ElementInfo{
+		Tag:     tag,
+		ID:      id,
+		Classes: classes,
 	}
 
 	switch tag {
@@ -103,13 +252,32 @@ func (p *htmlParser) parseElement(parent *widget.Div) {
 		if _, ok := attrs["disabled"]; ok {
 			btn.SetDisabled(true)
 		}
+		if v, ok := attrs["variant"]; ok {
+			switch v {
+			case "secondary":
+				btn.SetVariant(widget.ButtonSecondary)
+			case "text":
+				btn.SetVariant(widget.ButtonText)
+			case "link":
+				btn.SetVariant(widget.ButtonLink)
+			}
+		}
+		p.registerWidget(btn, tag, id, classes, inlineStyle, ancestors)
 		parent.AppendChild(btn)
 
 	case "p", "span":
 		text := p.readTextContent(tag)
 		t := widget.NewText(p.tree, text, p.cfg)
-		applyTextStyle(t, attrs["style"])
+		applyTextStyle(t, inlineStyle)
+		p.registerWidget(t, tag, id, classes, inlineStyle, ancestors)
 		parent.AppendChild(t)
+
+	case "a":
+		text := p.readTextContent(tag)
+		href := attrs["href"]
+		lnk := widget.NewLink(p.tree, text, href, p.cfg)
+		p.registerWidget(lnk, tag, id, classes, inlineStyle, ancestors)
+		parent.AppendChild(lnk)
 
 	case "h1", "h2", "h3", "h4", "h5", "h6":
 		text := p.readTextContent(tag)
@@ -119,17 +287,357 @@ func (p *htmlParser) parseElement(parent *widget.Div) {
 		if level >= 1 && level <= 6 {
 			t.SetFontSize(sizes[level-1])
 		}
+		p.registerWidget(t, tag, id, classes, inlineStyle, ancestors)
 		parent.AppendChild(t)
 
-	default: // div and unknown tags
-		d := widget.NewDiv(p.tree, p.cfg)
-		applyDivStyle(d, attrs["style"])
-		if cls, ok := attrs["class"]; ok {
-			p.tree.SetClasses(d.ElementID(), strings.Fields(cls))
+	case "select":
+		p.readTextContent(tag) // consume content
+		sel := widget.NewSelect(p.tree, nil, p.cfg)
+		p.registerWidget(sel, tag, id, classes, inlineStyle, ancestors)
+		parent.AppendChild(sel)
+
+	case "textarea":
+		text := p.readTextContent(tag)
+		ta := widget.NewTextArea(p.tree, p.cfg)
+		ta.SetValue(text)
+		if ph, ok := attrs["placeholder"]; ok {
+			ta.SetPlaceholder(ph)
 		}
-		p.parseChildren(d)
+		if r, ok := attrs["rows"]; ok {
+			if n, err := strconv.Atoi(r); err == nil {
+				ta.SetRows(n)
+			}
+		}
+		p.registerWidget(ta, tag, id, classes, inlineStyle, ancestors)
+		parent.AppendChild(ta)
+
+	// --- Layout semantic tags ---
+	case "layout":
+		l := widget.NewLayout(p.tree, p.cfg)
+		applyLayoutBgColor(l, inlineStyle)
+		p.registerWidget(l, tag, id, classes, inlineStyle, ancestors)
+		// Layout uses Div embedding, so we cast to *Div for parseChildren
+		childAncestors := append([]css.ElementInfo{selfInfo}, ancestors...)
+		p.parseChildren(l, childAncestors)
+		parent.AppendChild(l)
+		p.skipClosingTag(tag)
+
+	case "header":
+		h := widget.NewHeader(p.tree, p.cfg)
+		if v, ok := attrs["height"]; ok {
+			if n, err := parsePx(v); err == nil {
+				h.SetHeight(n)
+			}
+		}
+		applyHeaderBgColor(h, inlineStyle)
+		p.registerWidget(h, tag, id, classes, inlineStyle, ancestors)
+		childAncestors := append([]css.ElementInfo{selfInfo}, ancestors...)
+		p.parseChildren(h, childAncestors)
+		parent.AppendChild(h)
+		p.skipClosingTag(tag)
+
+	case "footer":
+		f := widget.NewFooter(p.tree, p.cfg)
+		applyFooterBgColor(f, inlineStyle)
+		p.registerWidget(f, tag, id, classes, inlineStyle, ancestors)
+		childAncestors := append([]css.ElementInfo{selfInfo}, ancestors...)
+		p.parseChildren(f, childAncestors)
+		parent.AppendChild(f)
+		p.skipClosingTag(tag)
+
+	case "aside":
+		a := widget.NewAside(p.tree, p.cfg)
+		if v, ok := attrs["width"]; ok {
+			if n, err := parsePx(v); err == nil {
+				a.SetWidth(n)
+			}
+		}
+		applyAsideBgColor(a, inlineStyle)
+		p.registerWidget(a, tag, id, classes, inlineStyle, ancestors)
+		childAncestors := append([]css.ElementInfo{selfInfo}, ancestors...)
+		p.parseChildren(a, childAncestors)
+		parent.AppendChild(a)
+		p.skipClosingTag(tag)
+
+	case "main":
+		c := widget.NewContent(p.tree, p.cfg)
+		applyContentBgColor(c, inlineStyle)
+		p.registerWidget(c, tag, id, classes, inlineStyle, ancestors)
+		childAncestors := append([]css.ElementInfo{selfInfo}, ancestors...)
+		p.parseChildren(c, childAncestors)
+		parent.AppendChild(c)
+		p.skipClosingTag(tag)
+
+	case "space":
+		s := widget.NewSpace(p.tree, p.cfg)
+		if v, ok := attrs["gap"]; ok {
+			if n, err := parsePx(v); err == nil {
+				s.SetGap(n)
+			}
+		}
+		p.registerWidget(s, tag, id, classes, inlineStyle, ancestors)
+		childAncestors := append([]css.ElementInfo{selfInfo}, ancestors...)
+		p.parseChildren(s, childAncestors)
+		parent.AppendChild(s)
+		p.skipClosingTag(tag)
+
+	case "row":
+		r := widget.NewRow(p.tree, p.cfg)
+		if v, ok := attrs["gutter"]; ok {
+			if n, err := parsePx(v); err == nil {
+				r.SetGutter(n)
+			}
+		}
+		p.registerWidget(r, tag, id, classes, inlineStyle, ancestors)
+		childAncestors := append([]css.ElementInfo{selfInfo}, ancestors...)
+		p.parseChildren(r, childAncestors)
+		parent.AppendChild(r)
+		p.skipClosingTag(tag)
+
+	case "col":
+		span := 1
+		if v, ok := attrs["span"]; ok {
+			if n, err := strconv.Atoi(v); err == nil {
+				span = n
+			}
+		}
+		c := widget.NewCol(p.tree, span, p.cfg)
+		p.registerWidget(c, tag, id, classes, inlineStyle, ancestors)
+		childAncestors := append([]css.ElementInfo{selfInfo}, ancestors...)
+		p.parseChildren(c, childAncestors)
+		parent.AppendChild(c)
+		p.skipClosingTag(tag)
+
+	// --- Custom widget tags ---
+	case "checkbox":
+		label := p.readTextContent(tag)
+		cb := widget.NewCheckbox(p.tree, label, p.cfg)
+		if _, ok := attrs["checked"]; ok {
+			cb.SetChecked(true)
+		}
+		if _, ok := attrs["disabled"]; ok {
+			cb.SetDisabled(true)
+		}
+		p.registerWidget(cb, tag, id, classes, inlineStyle, ancestors)
+		parent.AppendChild(cb)
+
+	case "switch":
+		p.readTextContent(tag) // consume
+		sw := widget.NewSwitch(p.tree, p.cfg)
+		if _, ok := attrs["checked"]; ok {
+			sw.SetChecked(true)
+		}
+		if _, ok := attrs["disabled"]; ok {
+			sw.SetDisabled(true)
+		}
+		p.registerWidget(sw, tag, id, classes, inlineStyle, ancestors)
+		parent.AppendChild(sw)
+
+	case "radio":
+		label := p.readTextContent(tag)
+		r := widget.NewRadio(p.tree, label, p.cfg)
+		if _, ok := attrs["checked"]; ok {
+			r.SetChecked(true)
+		}
+		// Group radios by group attribute
+		group := attrs["group"]
+		if group == "" {
+			group = "_default"
+		}
+		if p.radioGroups == nil {
+			p.radioGroups = make(map[string]*widget.RadioGroup)
+		}
+		rg, ok := p.radioGroups[group]
+		if !ok {
+			rg = widget.NewRadioGroup()
+			p.radioGroups[group] = rg
+		}
+		rg.Add(r)
+		p.registerWidget(r, tag, id, classes, inlineStyle, ancestors)
+		parent.AppendChild(r)
+
+	case "tag":
+		label := p.readTextContent(tag)
+		tg := widget.NewTag(p.tree, label, p.cfg)
+		if v, ok := attrs["type"]; ok {
+			switch v {
+			case "success":
+				tg.SetTagType(widget.TagSuccess)
+			case "warning":
+				tg.SetTagType(widget.TagWarning)
+			case "error":
+				tg.SetTagType(widget.TagError)
+			case "processing":
+				tg.SetTagType(widget.TagProcessing)
+			}
+		}
+		p.registerWidget(tg, tag, id, classes, inlineStyle, ancestors)
+		parent.AppendChild(tg)
+
+	case "progress":
+		p.readTextContent(tag) // consume
+		pg := widget.NewProgress(p.tree, p.cfg)
+		if v, ok := attrs["percent"]; ok {
+			if n, err := parsePx(v); err == nil {
+				pg.SetPercent(n)
+			}
+		}
+		p.registerWidget(pg, tag, id, classes, inlineStyle, ancestors)
+		parent.AppendChild(pg)
+
+	case "message":
+		text := p.readTextContent(tag)
+		msg := widget.NewMessage(p.tree, text, p.cfg)
+		if v, ok := attrs["type"]; ok {
+			switch v {
+			case "success":
+				msg.SetMsgType(widget.MessageSuccess)
+			case "warning":
+				msg.SetMsgType(widget.MessageWarning)
+			case "error":
+				msg.SetMsgType(widget.MessageError)
+			}
+		}
+		p.registerWidget(msg, tag, id, classes, inlineStyle, ancestors)
+		parent.AppendChild(msg)
+
+	case "empty":
+		p.readTextContent(tag) // consume
+		e := widget.NewEmpty(p.tree, p.cfg)
+		p.registerWidget(e, tag, id, classes, inlineStyle, ancestors)
+		parent.AppendChild(e)
+
+	case "loading":
+		p.readTextContent(tag) // consume
+		l := widget.NewLoading(p.tree, p.cfg)
+		if v, ok := attrs["tip"]; ok {
+			l.SetTip(v)
+		}
+		p.registerWidget(l, tag, id, classes, inlineStyle, ancestors)
+		parent.AppendChild(l)
+
+	case "tooltip":
+		text := p.readTextContent(tag)
+		// Tooltip attaches to the previous sibling
+		children := parent.Children()
+		if len(children) > 0 {
+			anchorID := children[len(children)-1].ElementID()
+			widget.NewTooltip(p.tree, text, anchorID, p.cfg)
+		}
+
+	default: // div, nav, section, article, and unknown tags
+		d := widget.NewDiv(p.tree, p.cfg)
+		applyDivStyle(d, inlineStyle)
+		if len(classes) > 0 {
+			p.tree.SetClasses(d.ElementID(), classes)
+		}
+		if id != "" {
+			p.tree.SetProperty(d.ElementID(), "id", id)
+		}
+		p.registerWidget(d, tag, id, classes, inlineStyle, ancestors)
+		childAncestors := append([]css.ElementInfo{selfInfo}, ancestors...)
+		p.parseChildren(d, childAncestors)
 		parent.AppendChild(d)
 		p.skipClosingTag(tag)
+	}
+}
+
+// registerWidget stores widget info for CSS application and indexes it for querying.
+func (p *htmlParser) registerWidget(w widget.Widget, tag, id string, classes []string, inlineStyle string, ancestors []css.ElementInfo) {
+	// Index for Document queries
+	if p.doc != nil {
+		if id != "" {
+			p.doc.ids[id] = w
+		}
+		for _, cls := range classes {
+			p.doc.classes[cls] = append(p.doc.classes[cls], w)
+		}
+		p.doc.tags[tag] = append(p.doc.tags[tag], w)
+	}
+
+	// Index for CSS matching
+	if p.sheet == nil {
+		return
+	}
+	info := widgetStyleInfo{
+		widget:    w,
+		tag:       tag,
+		id:        id,
+		classes:   classes,
+		inlineCSS: inlineStyle,
+	}
+	// Copy ancestors slice
+	info.ancestors = make([]css.ElementInfo, len(ancestors))
+	copy(info.ancestors, ancestors)
+	p.widgetInfo = append(p.widgetInfo, info)
+}
+
+// applyCSS resolves CSS rules for each recorded widget and applies the computed style.
+func (p *htmlParser) applyCSS() {
+	for _, info := range p.widgetInfo {
+		el := &css.ElementInfo{
+			Tag:     info.tag,
+			ID:      info.id,
+			Classes: info.classes,
+		}
+		inline := css.ParseInlineDeclarations(info.inlineCSS)
+		computed := css.ResolveStyle(p.sheet, el, info.ancestors, inline)
+
+		// Apply layout style
+		info.widget.SetStyle(computed.Layout)
+
+		// Apply visual properties to specific widget types
+		applyVisualProps(info.widget, &computed)
+	}
+}
+
+// applyVisualProps applies non-layout CSS properties (color, background, font-size, etc.)
+func applyVisualProps(w widget.Widget, cs *css.ComputedStyle) {
+	if cs.Color != "" {
+		if c, ok := css.ParseColor(cs.Color); ok {
+			if t, isText := w.(*widget.Text); isText {
+				t.SetColor(c)
+			}
+		}
+	}
+	if cs.BackgroundColor != "" {
+		if c, ok := css.ParseColor(cs.BackgroundColor); ok {
+			switch d := w.(type) {
+			case *widget.Div:
+				d.SetBgColor(c)
+			case *widget.Layout:
+				d.SetBgColor(c)
+			case *widget.Header:
+				d.SetBgColor(c)
+			case *widget.Footer:
+				d.SetBgColor(c)
+			case *widget.Aside:
+				d.SetBgColor(c)
+			case *widget.Content:
+				d.SetBgColor(c)
+			}
+		}
+	}
+	if cs.FontSize != "" {
+		size := css.ParseFloat(cs.FontSize)
+		if size > 0 {
+			if t, isText := w.(*widget.Text); isText {
+				t.SetFontSize(size)
+			}
+		}
+	}
+	if cs.BorderRadius != "" {
+		r := css.ParseFloat(cs.BorderRadius)
+		if d, isDiv := w.(*widget.Div); isDiv {
+			d.SetBorderRadius(r)
+		}
+	}
+	if cs.BorderColor != "" {
+		if c, ok := css.ParseColor(cs.BorderColor); ok {
+			if d, isDiv := w.(*widget.Div); isDiv {
+				d.SetBorderColor(c)
+			}
+		}
 	}
 }
 
@@ -237,6 +745,16 @@ func (p *htmlParser) skipClosingTag(tag string) {
 	closing := "</" + tag + ">"
 	if p.pos+len(closing) <= len(p.src) && strings.ToLower(p.src[p.pos:p.pos+len(closing)]) == closing {
 		p.pos += len(closing)
+	}
+}
+
+func (p *htmlParser) skipComment() {
+	p.pos += 4 // skip <!--
+	idx := strings.Index(p.src[p.pos:], "-->")
+	if idx < 0 {
+		p.pos = len(p.src)
+	} else {
+		p.pos += idx + 3
 	}
 }
 
@@ -364,6 +882,72 @@ func applyTextStyle(t *widget.Text, style string) {
 				t.SetFontSize(v)
 			}
 		}
+	}
+}
+
+// Background color helpers for layout widgets (parse from inline style).
+func applyLayoutBgColor(l *widget.Layout, style string) {
+	if style == "" {
+		return
+	}
+	props := parseInlineCSS(style)
+	if v, ok := props["background-color"]; ok {
+		l.SetBgColor(parseColor(v))
+	}
+	if v, ok := props["background"]; ok {
+		l.SetBgColor(parseColor(v))
+	}
+}
+
+func applyHeaderBgColor(h *widget.Header, style string) {
+	if style == "" {
+		return
+	}
+	props := parseInlineCSS(style)
+	if v, ok := props["background-color"]; ok {
+		h.SetBgColor(parseColor(v))
+	}
+	if v, ok := props["background"]; ok {
+		h.SetBgColor(parseColor(v))
+	}
+}
+
+func applyFooterBgColor(f *widget.Footer, style string) {
+	if style == "" {
+		return
+	}
+	props := parseInlineCSS(style)
+	if v, ok := props["background-color"]; ok {
+		f.SetBgColor(parseColor(v))
+	}
+	if v, ok := props["background"]; ok {
+		f.SetBgColor(parseColor(v))
+	}
+}
+
+func applyAsideBgColor(a *widget.Aside, style string) {
+	if style == "" {
+		return
+	}
+	props := parseInlineCSS(style)
+	if v, ok := props["background-color"]; ok {
+		a.SetBgColor(parseColor(v))
+	}
+	if v, ok := props["background"]; ok {
+		a.SetBgColor(parseColor(v))
+	}
+}
+
+func applyContentBgColor(c *widget.Content, style string) {
+	if style == "" {
+		return
+	}
+	props := parseInlineCSS(style)
+	if v, ok := props["background-color"]; ok {
+		c.SetBgColor(parseColor(v))
+	}
+	if v, ok := props["background"]; ok {
+		c.SetBgColor(parseColor(v))
 	}
 }
 

@@ -279,18 +279,26 @@ func (ctx *Context) Slider(id string, min, max float32) float32 {
 		Corners:   uimath.CornersAll(thumbR),
 	}, 53, 1)
 
-	// Interaction
+	// Interaction: use activeID so drag continues even if cursor leaves track
 	trackBounds := uimath.NewRect(x, y, w, h)
-	if trackBounds.Contains(uimath.Vec2{X: ctx.MouseX, Y: ctx.MouseY}) && ctx.MouseDown {
-		t := (ctx.MouseX - x) / w
-		if t < 0 {
-			t = 0
+	mousePos := uimath.Vec2{X: ctx.MouseX, Y: ctx.MouseY}
+	if trackBounds.Contains(mousePos) && ctx.MouseClicked {
+		ctx.activeID = id
+	}
+	if ctx.activeID == id {
+		if ctx.MouseDown {
+			t := (ctx.MouseX - x) / w
+			if t < 0 {
+				t = 0
+			}
+			if t > 1 {
+				t = 1
+			}
+			val = min + t*(max-min)
+			ctx.sliderValues[id] = val
+		} else {
+			ctx.activeID = ""
 		}
-		if t > 1 {
-			t = 1
-		}
-		val = min + t*(max-min)
-		ctx.sliderValues[id] = val
 	}
 
 	ctx.cursorY += h + ctx.spacing

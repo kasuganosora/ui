@@ -19,6 +19,7 @@ type loader struct {
 
 	ftInitFreeType    uintptr
 	ftDoneFreeType    uintptr
+	ftNewFace         uintptr
 	ftNewMemoryFace   uintptr
 	ftDoneFace        uintptr
 	ftSetPixelSizes   uintptr
@@ -116,6 +117,7 @@ func newLoader() (*loader, error) {
 	}{
 		{"FT_Init_FreeType", &l.ftInitFreeType},
 		{"FT_Done_FreeType", &l.ftDoneFreeType},
+		{"FT_New_Face", &l.ftNewFace},
 		{"FT_New_Memory_Face", &l.ftNewMemoryFace},
 		{"FT_Done_Face", &l.ftDoneFace},
 		{"FT_Set_Pixel_Sizes", &l.ftSetPixelSizes},

@@ -136,7 +136,6 @@ func drawUnitFrame(buf *render.CommandBuffer, cfg *widget.Config, x, y, w, h flo
 
 	// Name + level
 	if cfg.TextRenderer != nil {
-		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 		nameText := data.Name
 		if data.Level > 0 {
 			nameText = "[" + itoa(data.Level) + "] " + data.Name
@@ -146,7 +145,6 @@ func drawUnitFrame(buf *render.CommandBuffer, cfg *widget.Config, x, y, w, h flo
 			nameColor = uimath.RGBA(0.5, 0.5, 0.5, 1)
 		}
 		cfg.TextRenderer.DrawText(buf, nameText, x+cfg.SpaceXS, y+2, cfg.FontSizeSm, w-cfg.SpaceXS*2, nameColor, 1)
-		_ = lh
 	}
 
 	// HP bar

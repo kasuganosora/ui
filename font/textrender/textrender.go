@@ -20,6 +20,9 @@ type Renderer struct {
 	sdf       bool
 	dpiScale  float32 // DPI scale for converting atlas bitmap (physical) to logical pixels
 	keepAlive func() // Called during heavy rasterization to keep the window responsive
+
+	// Batched keepAlive: only call every N glyph misses to reduce overhead
+	missCount int
 }
 
 // Engine is the subset of font.Engine needed by the renderer.
@@ -131,8 +134,10 @@ func (r *Renderer) ensureGlyph(fontID font.ID, glyphID font.GlyphID, size float3
 	metrics := r.engine.GlyphMetrics(fontID, glyphID, size)
 	entry := r.atlas.Insert(key, bitmap, metrics)
 
-	// Pump OS messages after rasterization to prevent "Not Responding"
-	if r.keepAlive != nil {
+	// Pump OS messages periodically to prevent "Not Responding".
+	// Batching reduces syscall overhead from per-glyph to every 16 glyphs.
+	r.missCount++
+	if r.keepAlive != nil && r.missCount&15 == 0 {
 		r.keepAlive()
 	}
 

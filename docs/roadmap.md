@@ -7,7 +7,7 @@
 - [x] 平台层接口定义（platform.Platform, platform.Window）
 - [x] 渲染后端接口定义（render.Backend, render.CommandBuffer）
 - [x] 事件系统基础类型（event.Event, event.Type, event.Key, event.MouseButton）
-- [x] 单元测试覆盖率 90%+（math 99.4%, event 100%, render 100%）
+- [x] 单元测试覆盖率 90%+（math 99.4%, event 100%, render 92.4%）
 
 ## 阶段 1: 最小可用（第 3-8 周） ✅
 
@@ -80,7 +80,7 @@
 - [x] 百分比和 auto 尺寸
 - [x] 绝对定位（left/top/right/bottom 推断宽高）
 - [x] min/max 约束
-- [x] 单元测试覆盖率 94.5%
+- [x] 单元测试覆盖率 87.2%+
 
 ### 组件 P0（基础 + 布局 + 核心输入） ✅
 
@@ -96,7 +96,7 @@
 - [x] Tooltip 文字提示（hover 自动显示/隐藏）
 - [x] ConfigProvider 全局配置（主题色、字体、间距、圆角）
 - [x] Widget 基础架构（Widget 接口、Base 组合、生命周期、事件绑定）
-- [x] 单元测试覆盖率 98.5%
+- [x] 单元测试覆盖率 94.1%+（widget 94.1%, widget/game 99.5%）
 
 ### 验收演示程序 ✅
 
@@ -134,10 +134,24 @@
 - [x] 脏标记公共 API（MarkDirty / NeedsRender / ClearAllDirty）
 - [x] 光标管理（IBeam 文本光标、Hand 可点击光标、自定义描边光标）
 
+### HTML+CSS 模板驱动 UI 系统（详见 [design-html-css.md](design-html-css.md)）
+
+用 HTML+CSS 定义布局，Go 侧注入数据 + 绑定事件，降低使用门槛。
+
+- [x] CSS 解析器 + 选择器匹配（`css/` 包，选择器引擎，级联特异性）
+- [x] HTML 解析器增强（更多标签、`<style>` 块、CSS 属性全覆盖）
+- [ ] background 完整支持（图片/渐变/多背景叠加、cover/contain、repeat）
+- [ ] 透明度体系（opacity 离屏合成 vs rgba 独立 alpha，与 Chrome 行为对齐）
+- [ ] 盒模型完善（box-sizing、margin collapse、border-style/单边、box-shadow、简写解析，对齐 Chrome）
+- [ ] 事件绑定（`doc.On(selector, event, handler)`，事件委托，`data-on-*` 属性）
+- [ ] 数据绑定与模板（`{{}}` 插值、`data-if`、`data-for`、`data-model` 双向绑定）
+- [ ] 查询与动态操作（`Query/QueryAll`、DOM 增删、类名/样式操作）
+- [ ] Document 生命周期（LoadDocument、热重载、Dispose）
+- [ ] CSS 变量主题系统（`:root` 变量、`var(--name)`、`app.SetTheme()` 换主题 = 换 CSS）
+- [ ] 零样板 App 入口（`ui.NewApp` + `app.LoadFile` + `app.Run`）
+
 ### 布局
 
-- [ ] HTML 解析器
-- [ ] CSS 选择器匹配
 - [x] Grid（CSS Grid）布局算法（template-columns/rows, fr/px/pct/auto, gap, 显式/自动放置, span）
 - [x] Absolute 定位（已在 layout 引擎实现）
 - [x] Relative 定位（流内偏移，不影响兄弟布局）
@@ -173,7 +187,7 @@
 
 ### 里程碑: 完整的表单应用 demo，跨 Windows/Linux，支持中文输入
 
-## 阶段 3: 游戏集成 + P0 游戏组件（第 17-24 周）
+## 阶段 3: 游戏集成 + P0 游戏组件（第 17-24 周） ✅
 
 ### 集成
 
@@ -209,7 +223,7 @@
 - [ ] 对象池
 - [ ] 性能 Profiler 集成
 
-### 里程碑: 完整的游戏 UI demo（HUD + 背包 + 聊天 + 菜单）
+### 里程碑: 完整的游戏 UI demo（HUD + 背包 + 聊天 + 菜单） ✅
 
 ## 阶段 4: 平台扩展 + P1 组件（第 25-34 周）
 
@@ -267,15 +281,15 @@
 - [x] TargetFrame 目标框架（选中目标显示、HP/MP、SetTarget/ClearTarget）
 - [x] CastBar 施法条（施法进度、技能名、完成/打断回调）
 
-## 阶段 5: 高级功能 + P2 组件（第 35-44 周）
+## 阶段 5: 高级功能 + P2 组件（第 35-44 周） ✅
 
 ### 核心功能 ✅
 
-- [x] 动画系统（过渡、关键帧）
-- [x] SVG 路径渲染
-- [x] 富文本（混合字体/颜色/图片）
-- [x] 子窗口停靠系统（Docking）
-- [x] 手柄导航
+- [x] 动画系统（过渡、关键帧）— anim 包，Tween/Keyframe/Spring/Sequence，18 种缓动函数
+- [x] SVG 路径渲染 — ParseSVGPath 全指令集（M/L/H/V/C/S/Q/T/A/Z），Bezier 边界计算，弧线端点→中心转换
+- [x] 富文本（混合字体/颜色/图片）— RichText widget，Span 模型，内联样式混排
+- [x] 子窗口停靠系统（Docking）— DockManager，四向停靠区，拖拽分割
+- [x] 手柄导航 — Gamepad 输入映射，方向导航，焦点遍历
 
 ### P2 通用组件 ✅
 
@@ -310,6 +324,14 @@
 
 - [x] LootWindow 拾取窗口（物品列表、稀有度边框、拾取/全部拾取、已拾取标记）
 - [x] SkillTree 天赋/技能树（节点网络、前置依赖连线、解锁/等级、技能点管理）
+
+### 质量保障 ✅
+
+- [x] 全模块代码审查（SVG 平滑曲线反射修复、响应式状态观察者 ID 化、JSON 结构标签修复、滑块拖拽 activeID、HUD 锚定定位）
+- [x] 单元测试覆盖率 90%+（render 92.4%, anim 96.8%, widget 94.1%, widget/game 99.5%, im 91.0%, root 98.5%, theme 100%, core 89.4%）
+- [x] 全部 22 个包测试通过
+
+### 里程碑: 动画、SVG 路径、富文本、停靠系统、手柄导航全部完成，P2 组件齐备 ✅
 
 ## 阶段 6: 生态与打磨（第 45 周+）
 

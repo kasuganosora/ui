@@ -23,6 +23,7 @@ type Image struct {
 	srcRect uimath.Rect
 	fit     ImageFit
 	tint    uimath.Color
+	src     string // source URL/path for lazy loading
 }
 
 // NewImage creates an image widget.
@@ -41,11 +42,13 @@ func NewImage(tree *core.Tree, texture render.TextureHandle, cfg *Config) *Image
 
 func (img *Image) Texture() render.TextureHandle { return img.texture }
 func (img *Image) Fit() ImageFit                 { return img.fit }
+func (img *Image) Src() string                   { return img.src }
 
 func (img *Image) SetTexture(t render.TextureHandle) { img.texture = t }
 func (img *Image) SetSrcRect(r uimath.Rect)          { img.srcRect = r }
 func (img *Image) SetFit(f ImageFit)                  { img.fit = f }
 func (img *Image) SetTint(c uimath.Color)             { img.tint = c }
+func (img *Image) SetSrc(s string)                    { img.src = s }
 
 func (img *Image) Draw(buf *render.CommandBuffer) {
 	bounds := img.Bounds()

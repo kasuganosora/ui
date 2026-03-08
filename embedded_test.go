@@ -25,6 +25,13 @@ func TestEmbeddedUI(t *testing.T) {
 	}
 }
 
+func TestEmbeddedUINilConfig(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	if ui.Config() == nil {
+		t.Fatal("expected default config")
+	}
+}
+
 func TestEmbeddedUIResize(t *testing.T) {
 	cfg := widget.DefaultConfig()
 	ui := NewEmbeddedUI(cfg)
@@ -45,9 +52,13 @@ func TestEmbeddedUISetRoot(t *testing.T) {
 	_ = buf
 }
 
-func TestEmbeddedUIHandleEvent(t *testing.T) {
+func TestEmbeddedUIHandleEventMouse(t *testing.T) {
 	cfg := widget.DefaultConfig()
 	ui := NewEmbeddedUI(cfg)
+
+	root := widget.NewDiv(ui.Tree(), cfg)
+	ui.SetRoot(root)
+	ui.Resize(800, 600)
 
 	evt := &event.Event{
 		Type:    event.MouseMove,
@@ -56,6 +67,33 @@ func TestEmbeddedUIHandleEvent(t *testing.T) {
 	}
 	ui.HandleEvent(evt)
 	// No panic is success
+}
+
+func TestEmbeddedUIHandleEventMouseMissesTarget(t *testing.T) {
+	cfg := widget.DefaultConfig()
+	ui := NewEmbeddedUI(cfg)
+
+	evt := &event.Event{
+		Type:    event.MouseMove,
+		GlobalX: 999,
+		GlobalY: 999,
+	}
+	ui.HandleEvent(evt)
+	// No panic is success
+}
+
+func TestEmbeddedUIHandleEventKeyboard(t *testing.T) {
+	cfg := widget.DefaultConfig()
+	ui := NewEmbeddedUI(cfg)
+
+	root := widget.NewDiv(ui.Tree(), cfg)
+	ui.SetRoot(root)
+
+	evt := &event.Event{
+		Type: event.KeyDown,
+	}
+	ui.HandleEvent(evt)
+	// No panic — keyboard events go to focused element
 }
 
 func TestEmbeddedUINeedsRedraw(t *testing.T) {

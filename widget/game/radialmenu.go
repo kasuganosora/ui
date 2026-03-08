@@ -128,9 +128,7 @@ func (rm *RadialMenu) Draw(buf *render.CommandBuffer) {
 		// Label
 		if cfg.TextRenderer != nil && item.Label != "" {
 			tw := cfg.TextRenderer.MeasureText(item.Label, cfg.FontSizeSm)
-			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 			cfg.TextRenderer.DrawText(buf, item.Label, ix-tw/2, iy+dotSize/2+2, cfg.FontSizeSm, tw+4, color, 1)
-			_ = lh
 		}
 	}
 }

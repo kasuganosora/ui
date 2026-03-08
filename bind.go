@@ -2,12 +2,19 @@ package ui
 
 import "sync"
 
+// observer pairs a unique ID with a callback.
+type observer[T any] struct {
+	id uint64
+	fn func(T)
+}
+
 // State is a reactive value container. When the value changes,
 // all registered observers are notified.
 type State[T comparable] struct {
 	mu        sync.RWMutex
 	value     T
-	observers []func(T)
+	observers []observer[T]
+	nextID    uint64
 }
 
 // NewState creates a reactive state with an initial value.
@@ -31,12 +38,12 @@ func (s *State[T]) Set(v T) {
 	}
 	s.value = v
 	// Copy observers under lock to avoid holding lock during callbacks
-	obs := make([]func(T), len(s.observers))
+	obs := make([]observer[T], len(s.observers))
 	copy(obs, s.observers)
 	s.mu.Unlock()
 
-	for _, fn := range obs {
-		fn(v)
+	for _, o := range obs {
+		o.fn(v)
 	}
 }
 
@@ -44,15 +51,19 @@ func (s *State[T]) Set(v T) {
 // Returns an unsubscribe function.
 func (s *State[T]) Watch(fn func(T)) func() {
 	s.mu.Lock()
-	s.observers = append(s.observers, fn)
-	idx := len(s.observers) - 1
+	id := s.nextID
+	s.nextID++
+	s.observers = append(s.observers, observer[T]{id: id, fn: fn})
 	s.mu.Unlock()
 
 	return func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		if idx < len(s.observers) {
-			s.observers = append(s.observers[:idx], s.observers[idx+1:]...)
+		for i, o := range s.observers {
+			if o.id == id {
+				s.observers = append(s.observers[:i], s.observers[i+1:]...)
+				return
+			}
 		}
 	}
 }
@@ -78,7 +89,8 @@ func Computed[S comparable, T comparable](source *State[S], transform func(S) T)
 type ListState[T any] struct {
 	mu        sync.RWMutex
 	items     []T
-	observers []func([]T)
+	observers []observer[[]T]
+	nextID    uint64
 }
 
 // NewListState creates a reactive list.
@@ -109,14 +121,14 @@ func (ls *ListState[T]) Set(items []T) {
 	ls.mu.Lock()
 	ls.items = make([]T, len(items))
 	copy(ls.items, items)
-	obs := make([]func([]T), len(ls.observers))
+	obs := make([]observer[[]T], len(ls.observers))
 	copy(obs, ls.observers)
 	snapshot := make([]T, len(ls.items))
 	copy(snapshot, ls.items)
 	ls.mu.Unlock()
 
-	for _, fn := range obs {
-		fn(snapshot)
+	for _, o := range obs {
+		o.fn(snapshot)
 	}
 }
 
@@ -124,14 +136,14 @@ func (ls *ListState[T]) Set(items []T) {
 func (ls *ListState[T]) Append(items ...T) {
 	ls.mu.Lock()
 	ls.items = append(ls.items, items...)
-	obs := make([]func([]T), len(ls.observers))
+	obs := make([]observer[[]T], len(ls.observers))
 	copy(obs, ls.observers)
 	snapshot := make([]T, len(ls.items))
 	copy(snapshot, ls.items)
 	ls.mu.Unlock()
 
-	for _, fn := range obs {
-		fn(snapshot)
+	for _, o := range obs {
+		o.fn(snapshot)
 	}
 }
 
@@ -143,29 +155,33 @@ func (ls *ListState[T]) RemoveAt(index int) {
 		return
 	}
 	ls.items = append(ls.items[:index], ls.items[index+1:]...)
-	obs := make([]func([]T), len(ls.observers))
+	obs := make([]observer[[]T], len(ls.observers))
 	copy(obs, ls.observers)
 	snapshot := make([]T, len(ls.items))
 	copy(snapshot, ls.items)
 	ls.mu.Unlock()
 
-	for _, fn := range obs {
-		fn(snapshot)
+	for _, o := range obs {
+		o.fn(snapshot)
 	}
 }
 
 // Watch registers an observer on the list.
 func (ls *ListState[T]) Watch(fn func([]T)) func() {
 	ls.mu.Lock()
-	ls.observers = append(ls.observers, fn)
-	idx := len(ls.observers) - 1
+	id := ls.nextID
+	ls.nextID++
+	ls.observers = append(ls.observers, observer[[]T]{id: id, fn: fn})
 	ls.mu.Unlock()
 
 	return func() {
 		ls.mu.Lock()
 		defer ls.mu.Unlock()
-		if idx < len(ls.observers) {
-			ls.observers = append(ls.observers[:idx], ls.observers[idx+1:]...)
+		for i, o := range ls.observers {
+			if o.id == id {
+				ls.observers = append(ls.observers[:i], ls.observers[i+1:]...)
+				return
+			}
 		}
 	}
 }

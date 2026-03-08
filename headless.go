@@ -84,13 +84,20 @@ type ExportedCommand struct {
 	Opacity float32 `json:"opacity"`
 
 	// Rect fields
-	X, Y, W, H           float32 `json:"x,omitempty"`
-	FillR, FillG, FillB   float32 `json:"fill_r,omitempty"`
-	FillA                 float32 `json:"fill_a,omitempty"`
-	BorderR, BorderG, BorderB float32 `json:"border_r,omitempty"`
-	BorderA               float32 `json:"border_a,omitempty"`
-	BorderWidth           float32 `json:"border_width,omitempty"`
-	CornerRadius          float32 `json:"corner_radius,omitempty"`
+	X            float32 `json:"x"`
+	Y            float32 `json:"y"`
+	W            float32 `json:"w"`
+	H            float32 `json:"h"`
+	FillR        float32 `json:"fill_r,omitempty"`
+	FillG        float32 `json:"fill_g,omitempty"`
+	FillB        float32 `json:"fill_b,omitempty"`
+	FillA        float32 `json:"fill_a,omitempty"`
+	BorderR      float32 `json:"border_r,omitempty"`
+	BorderG      float32 `json:"border_g,omitempty"`
+	BorderB      float32 `json:"border_b,omitempty"`
+	BorderA      float32 `json:"border_a,omitempty"`
+	BorderWidth  float32 `json:"border_width,omitempty"`
+	CornerRadius float32 `json:"corner_radius,omitempty"`
 }
 
 // ExportCommands converts render commands to a serializable format.

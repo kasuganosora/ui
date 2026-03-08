@@ -30,6 +30,13 @@ const (
 	ftPixelModeSDF  = 8
 )
 
+// glyphMetricsKey caches glyph metrics to avoid redundant FT_Load_Glyph calls.
+type glyphMetricsKey struct {
+	fontID  font.ID
+	glyphID font.GlyphID
+	size    uint16 // half-pixels (size * 2)
+}
+
 // Engine implements font.Engine using FreeType.
 type Engine struct {
 	mu  sync.Mutex
@@ -40,6 +47,11 @@ type Engine struct {
 	nextID         font.ID
 	pixelsPerPoint float32 // converts point sizes to pixels; default 96/72
 	dpiScale       float32 // DPI scale factor for converting metrics to logical units
+
+	// Performance caches
+	lastFace      ftFace // last face passed to setPixelSize
+	lastPixels    uint32 // last pixel size set (avoids redundant FT_Set_Pixel_Sizes)
+	metricsCache  map[glyphMetricsKey]font.GlyphMetrics
 }
 
 type faceEntry struct {
@@ -69,6 +81,7 @@ func New() (*Engine, error) {
 		nextID:         1,
 		pixelsPerPoint: 96.0 / 72.0,
 		dpiScale:       1.0,
+		metricsCache:   make(map[glyphMetricsKey]font.GlyphMetrics),
 	}, nil
 }
 
@@ -99,11 +112,35 @@ func (e *Engine) LoadFont(data []byte) (font.ID, error) {
 }
 
 func (e *Engine) LoadFontFile(path string) (font.ID, error) {
-	data, err := readFile(path)
-	if err != nil {
-		return font.InvalidFontID, fmt.Errorf("freetype: read font file: %w", err)
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// Use FT_New_Face for file-based loading — avoids reading the entire file
+	// into memory. FreeType handles memory-mapping internally.
+	pathBytes := append([]byte(path), 0) // null-terminated C string
+	var face ftFace
+	ret := ftCall(e.ldr.ftNewFace,
+		uintptr(e.lib),
+		uintptr(unsafe.Pointer(&pathBytes[0])),
+		0, // face_index
+		uintptr(unsafe.Pointer(&face)),
+	)
+	if ret != 0 {
+		// Fallback to memory-based loading
+		data, err := readFile(path)
+		if err != nil {
+			return font.InvalidFontID, fmt.Errorf("freetype: read font file: %w", err)
+		}
+		e.mu.Unlock()
+		id, err := e.LoadFont(data)
+		e.mu.Lock()
+		return id, err
 	}
-	return e.LoadFont(data)
+
+	id := e.nextID
+	e.nextID++
+	e.faces[id] = &faceEntry{face: face}
+	return id, nil
 }
 
 func (e *Engine) UnloadFont(id font.ID) {
@@ -170,6 +207,12 @@ func (e *Engine) GlyphMetrics(id font.ID, glyph font.GlyphID, size float32) font
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
+	// Check cache first
+	cacheKey := glyphMetricsKey{fontID: id, glyphID: glyph, size: uint16(size * 2)}
+	if cached, ok := e.metricsCache[cacheKey]; ok {
+		return cached
+	}
+
 	entry := e.faces[id]
 	if entry == nil {
 		return font.GlyphMetrics{}
@@ -193,13 +236,15 @@ func (e *Engine) GlyphMetrics(id font.ID, glyph font.GlyphID, size float32) font
 	}
 
 	s := e.dpiScale
-	return font.GlyphMetrics{
+	m := font.GlyphMetrics{
 		Width:    fix26_6ToFloat(readI32(slot, offSlotMetricsWidth)) / s,
 		Height:   fix26_6ToFloat(readI32(slot, offSlotMetricsHeight)) / s,
 		BearingX: fix26_6ToFloat(readI32(slot, offSlotMetricsHoriBearingX)) / s,
 		BearingY: fix26_6ToFloat(readI32(slot, offSlotMetricsHoriBearingY)) / s,
 		Advance:  fix26_6ToFloat(readI32(slot, offSlotMetricsHoriAdvance)) / s,
 	}
+	e.metricsCache[cacheKey] = m
+	return m
 }
 
 func (e *Engine) RasterizeGlyph(id font.ID, glyph font.GlyphID, size float32, sdf bool) (font.GlyphBitmap, error) {
@@ -327,6 +372,9 @@ func (e *Engine) SetDPIScale(scale float32) {
 	}
 	e.dpiScale = scale
 	e.pixelsPerPoint = scale * 96.0 / 72.0
+	// Invalidate metrics cache since metrics depend on DPI
+	e.metricsCache = make(map[glyphMetricsKey]font.GlyphMetrics)
+	e.lastPixels = 0 // force next setPixelSize
 }
 
 func (e *Engine) setPixelSize(face ftFace, sizePoints float32) {
@@ -334,11 +382,17 @@ func (e *Engine) setPixelSize(face ftFace, sizePoints float32) {
 	if pixels < 1 {
 		pixels = 1
 	}
+	// Skip redundant FT_Set_Pixel_Sizes calls for the same face+size
+	if face == e.lastFace && pixels == e.lastPixels {
+		return
+	}
 	ftCall(e.ldr.ftSetPixelSizes,
 		uintptr(face),
 		0,
 		uintptr(pixels),
 	)
+	e.lastFace = face
+	e.lastPixels = pixels
 }
 
 // Ensure Engine implements font.Engine at compile time.

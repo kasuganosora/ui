@@ -252,6 +252,29 @@ func (a *Atlas) resetDirty() {
 	a.dirtyMaxY = 0
 }
 
+// EnsureTexture pre-creates the GPU texture if it doesn't exist yet.
+// Call this after atlas creation to ensure Texture() returns a valid handle
+// before the first Draw/Upload cycle. Without this, the first frame's text
+// commands reference InvalidTexture since Upload() hasn't been called yet.
+func (a *Atlas) EnsureTexture() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.texture != render.InvalidTexture || a.backend == nil {
+		return nil
+	}
+
+	var err error
+	a.texture, err = a.backend.CreateTexture(render.TextureDesc{
+		Width:  a.width,
+		Height: a.height,
+		Format: render.TextureFormatR8,
+		Filter: render.TextureFilterLinear,
+		Data:   a.pixels,
+	})
+	return err
+}
+
 // Texture returns the GPU texture handle for this atlas.
 func (a *Atlas) Texture() render.TextureHandle {
 	return a.texture
