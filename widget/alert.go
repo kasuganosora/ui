@@ -88,17 +88,17 @@ func (a *Alert) alertColors() (bg, border, text uimath.Color) {
 	}
 }
 
-// alertIconText returns the icon character and color for the alert type.
-func (a *Alert) alertIconText() (string, uimath.Color) {
+// alertIconName returns the MDI icon name, fallback character, and color.
+func (a *Alert) alertIconName() (string, string, uimath.Color) {
 	switch a.theme {
 	case AlertThemeSuccess:
-		return "\u2713", uimath.ColorHex("#2ba471") // ✓
+		return "check_circle", "\u2713", uimath.ColorHex("#2ba471")
 	case AlertThemeWarning:
-		return "!", uimath.ColorHex("#e37318")
+		return "warning", "!", uimath.ColorHex("#e37318")
 	case AlertThemeError:
-		return "\u00d7", uimath.ColorHex("#d54941") // ×
+		return "cancel", "\u00d7", uimath.ColorHex("#d54941")
 	default: // Info
-		return "i", uimath.ColorHex("#0052d9")
+		return "info", "i", uimath.ColorHex("#0052d9")
 	}
 }
 
@@ -130,23 +130,24 @@ func (a *Alert) Draw(buf *render.CommandBuffer) {
 		dotY = bounds.Y + (bounds.Height-dotSize)/2
 	}
 
-	iconText, iconColor := a.alertIconText()
+	iconName, iconFallback, iconColor := a.alertIconName()
 
-	// Draw circle background
-	buf.DrawRect(render.RectCmd{
-		Bounds:    uimath.NewRect(dotX, dotY, dotSize, dotSize),
-		FillColor: iconColor,
-		Corners:   uimath.CornersAll(dotSize / 2),
-	}, 1, 1)
-
-	// Draw icon character inside circle
-	if cfg.TextRenderer != nil {
-		iconFontSize := float32(10)
-		lh := cfg.TextRenderer.LineHeight(iconFontSize)
-		iw := cfg.TextRenderer.MeasureText(iconText, iconFontSize)
-		cfg.TextRenderer.DrawText(buf, iconText,
-			dotX+(dotSize-iw)/2, dotY+(dotSize-lh)/2,
-			iconFontSize, dotSize, uimath.ColorWhite, 1)
+	// Try Material Design Icon first, fall back to circle+character
+	if !cfg.DrawMDIcon(buf, iconName, dotX, dotY, dotSize, iconColor, 1, 1) {
+		// Fallback: colored circle with text character
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(dotX, dotY, dotSize, dotSize),
+			FillColor: iconColor,
+			Corners:   uimath.CornersAll(dotSize / 2),
+		}, 1, 1)
+		if cfg.TextRenderer != nil {
+			iconFontSize := float32(10)
+			lh := cfg.TextRenderer.LineHeight(iconFontSize)
+			iw := cfg.TextRenderer.MeasureText(iconFallback, iconFontSize)
+			cfg.TextRenderer.DrawText(buf, iconFallback,
+				dotX+(dotSize-iw)/2, dotY+(dotSize-lh)/2,
+				iconFontSize, dotSize, uimath.ColorWhite, 1)
+		}
 	}
 
 	// Text area
@@ -223,15 +224,17 @@ func (a *Alert) Draw(buf *render.CommandBuffer) {
 			closeY = bounds.Y + (bounds.Height-closeSize)/2
 		}
 
-		// Draw X as cross
-		buf.DrawRect(render.RectCmd{
-			Bounds:    uimath.NewRect(closeX+closeSize/2-1, closeY, 2, closeSize),
-			FillColor: cfg.TextColor,
-		}, 1, 1)
-		buf.DrawRect(render.RectCmd{
-			Bounds:    uimath.NewRect(closeX, closeY+closeSize/2-1, closeSize, 2),
-			FillColor: cfg.TextColor,
-		}, 1, 1)
+		// Draw close icon
+		if !cfg.DrawMDIcon(buf, "close", closeX, closeY, closeSize, cfg.TextColor, 1, 1) {
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(closeX+closeSize/2-1, closeY, 2, closeSize),
+				FillColor: cfg.TextColor,
+			}, 1, 1)
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(closeX, closeY+closeSize/2-1, closeSize, 2),
+				FillColor: cfg.TextColor,
+			}, 1, 1)
+		}
 
 		// Set layout for hit testing
 		hitSize := closeSize + 4

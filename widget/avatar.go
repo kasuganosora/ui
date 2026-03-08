@@ -202,11 +202,18 @@ func (a *Avatar) Draw(buf *render.CommandBuffer) {
 
 // drawDefaultIcon draws a simple user silhouette placeholder.
 func (a *Avatar) drawDefaultIcon(buf *render.CommandBuffer, bounds uimath.Rect, radius float32) {
+	cfg := a.config
+	iconSize := bounds.Width * 0.6
+	ix := bounds.X + (bounds.Width-iconSize)/2
+	iy := bounds.Y + (bounds.Height-iconSize)/2
+	if cfg.DrawMDIcon(buf, "person", ix, iy, iconSize, uimath.ColorWhite, 1, 1) {
+		return
+	}
+	// Fallback: manual silhouette
 	cx := bounds.X + bounds.Width/2
 	cy := bounds.Y + bounds.Height/2
 	px := bounds.Width
 
-	// Head (circle)
 	headR := px * 0.18
 	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(cx-headR, cy-px*0.18-headR, headR*2, headR*2),
@@ -214,7 +221,6 @@ func (a *Avatar) drawDefaultIcon(buf *render.CommandBuffer, bounds uimath.Rect, 
 		Corners:   uimath.CornersAll(headR),
 	}, 1, 1)
 
-	// Body (wider ellipse at bottom)
 	bodyW := px * 0.38
 	bodyH := px * 0.22
 	bodyY := cy + px*0.05

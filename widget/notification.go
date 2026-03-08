@@ -106,16 +106,16 @@ func notificationColor(t NotificationTheme) uimath.Color {
 	}
 }
 
-func notificationIcon(t NotificationTheme) string {
+func notificationIconInfo(t NotificationTheme) (string, string) {
 	switch t {
 	case NotificationThemeSuccess:
-		return "\u2713" // check
+		return "check_circle", "\u2713"
 	case NotificationThemeWarning:
-		return "!"
+		return "warning", "!"
 	case NotificationThemeError:
-		return "\u00d7" // x
+		return "cancel", "\u00d7"
 	default:
-		return "i"
+		return "info", "i"
 	}
 }
 
@@ -168,23 +168,26 @@ func (n *Notification) Draw(buf *render.CommandBuffer) {
 	}, 52, 1)
 
 	// Status icon in accent bar area
-	if cfg.TextRenderer != nil {
-		iconStr := notificationIcon(n.theme)
+	{
+		iconName, iconFallback := notificationIconInfo(n.theme)
 		iconSize := float32(16)
 		iconX := n.x + 12
 		iconY := n.y + (h-iconSize)/2
-		// Icon circle background
-		buf.DrawOverlay(render.RectCmd{
-			Bounds:    uimath.NewRect(iconX, iconY, iconSize, iconSize),
-			FillColor: accentColor,
-			Corners:   uimath.CornersAll(iconSize / 2),
-		}, 53, 1)
-		iconFontSize := float32(10)
-		tw := cfg.TextRenderer.MeasureText(iconStr, iconFontSize)
-		lh := cfg.TextRenderer.LineHeight(iconFontSize)
-		cfg.TextRenderer.DrawText(buf, iconStr,
-			iconX+(iconSize-tw)/2, iconY+(iconSize-lh)/2,
-			iconFontSize, iconSize, uimath.ColorWhite, 1)
+		if !cfg.DrawMDIconOverlay(buf, iconName, iconX, iconY, iconSize, accentColor, 53, 1) {
+			buf.DrawOverlay(render.RectCmd{
+				Bounds:    uimath.NewRect(iconX, iconY, iconSize, iconSize),
+				FillColor: accentColor,
+				Corners:   uimath.CornersAll(iconSize / 2),
+			}, 53, 1)
+			if cfg.TextRenderer != nil {
+				iconFontSize := float32(10)
+				tw := cfg.TextRenderer.MeasureText(iconFallback, iconFontSize)
+				lh := cfg.TextRenderer.LineHeight(iconFontSize)
+				cfg.TextRenderer.DrawText(buf, iconFallback,
+					iconX+(iconSize-tw)/2, iconY+(iconSize-lh)/2,
+					iconFontSize, iconSize, uimath.ColorWhite, 1)
+			}
+		}
 	}
 
 	// Title and content text
@@ -204,15 +207,17 @@ func (n *Notification) Draw(buf *render.CommandBuffer) {
 		closeX := n.x + n.width - cfg.SpaceMD - closeSize
 		closeY := n.y + cfg.SpaceSM
 
-		// Draw X as two crossing lines
-		buf.DrawOverlay(render.RectCmd{
-			Bounds:    uimath.NewRect(closeX+closeSize/2-1, closeY, 2, closeSize),
-			FillColor: cfg.DisabledColor,
-		}, 54, 1)
-		buf.DrawOverlay(render.RectCmd{
-			Bounds:    uimath.NewRect(closeX, closeY+closeSize/2-1, closeSize, 2),
-			FillColor: cfg.DisabledColor,
-		}, 54, 1)
+		// Draw close icon
+		if !cfg.DrawMDIconOverlay(buf, "close", closeX, closeY, closeSize, cfg.DisabledColor, 54, 1) {
+			buf.DrawOverlay(render.RectCmd{
+				Bounds:    uimath.NewRect(closeX+closeSize/2-1, closeY, 2, closeSize),
+				FillColor: cfg.DisabledColor,
+			}, 54, 1)
+			buf.DrawOverlay(render.RectCmd{
+				Bounds:    uimath.NewRect(closeX, closeY+closeSize/2-1, closeSize, 2),
+				FillColor: cfg.DisabledColor,
+			}, 54, 1)
+		}
 
 		// Set layout on close element for hit testing
 		closeHit := closeSize + 8

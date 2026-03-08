@@ -107,16 +107,16 @@ func (m *Message) iconColor() uimath.Color {
 	}
 }
 
-func (m *Message) iconText() string {
+func (m *Message) iconInfo() (string, string) {
 	switch m.theme {
 	case MessageThemeSuccess:
-		return "\u2713" // ✓
+		return "check_circle", "\u2713"
 	case MessageThemeWarning:
-		return "!"
+		return "warning", "!"
 	case MessageThemeError:
-		return "\u00d7" // ×
+		return "cancel", "\u00d7"
 	default:
-		return "i"
+		return "info", "i"
 	}
 }
 
@@ -162,23 +162,22 @@ func (m *Message) Draw(buf *render.CommandBuffer) {
 	dotX := bounds.X + cfg.SpaceMD
 	dotY := bounds.Y + (bounds.Height-dotSize)/2
 	iconClr := m.iconColor()
+	iconName, iconFallback := m.iconInfo()
 
-	// Draw icon circle background
-	buf.DrawRect(render.RectCmd{
-		Bounds:    uimath.NewRect(dotX, dotY, dotSize, dotSize),
-		FillColor: iconClr,
-		Corners:   uimath.CornersAll(dotSize / 2),
-	}, 21, 1)
-
-	// Draw icon character
-	if cfg.TextRenderer != nil {
-		iconStr := m.iconText()
-		iconFontSize := float32(10)
-		tw := cfg.TextRenderer.MeasureText(iconStr, iconFontSize)
-		lh := cfg.TextRenderer.LineHeight(iconFontSize)
-		cfg.TextRenderer.DrawText(buf, iconStr,
-			dotX+(dotSize-tw)/2, dotY+(dotSize-lh)/2,
-			iconFontSize, dotSize, uimath.ColorWhite, 1)
+	if !cfg.DrawMDIcon(buf, iconName, dotX, dotY, dotSize, iconClr, 21, 1) {
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(dotX, dotY, dotSize, dotSize),
+			FillColor: iconClr,
+			Corners:   uimath.CornersAll(dotSize / 2),
+		}, 21, 1)
+		if cfg.TextRenderer != nil {
+			iconFontSize := float32(10)
+			tw := cfg.TextRenderer.MeasureText(iconFallback, iconFontSize)
+			lh := cfg.TextRenderer.LineHeight(iconFontSize)
+			cfg.TextRenderer.DrawText(buf, iconFallback,
+				dotX+(dotSize-tw)/2, dotY+(dotSize-lh)/2,
+				iconFontSize, dotSize, uimath.ColorWhite, 1)
+		}
 	}
 
 	// Text

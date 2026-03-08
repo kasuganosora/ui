@@ -94,6 +94,53 @@ type IconLookup interface {
 	Has(name string) bool
 }
 
+// DrawMDIcon draws a Material Design Icon at the given position.
+// Returns true if the icon was drawn, false if no registry or icon not found.
+func (c *Config) DrawMDIcon(buf *render.CommandBuffer, name string, x, y, size float32, clr uimath.Color, zOrder int32, opacity float32) bool {
+	if c.IconRegistry == nil {
+		return false
+	}
+	pixelSize := int(size)
+	if pixelSize < 1 {
+		pixelSize = 1
+	}
+	tex, ok := c.IconRegistry.Get(name, pixelSize)
+	if !ok {
+		return false
+	}
+	buf.DrawImage(render.ImageCmd{
+		Texture: tex,
+		SrcRect: uimath.NewRect(0, 0, 1, 1),
+		DstRect: uimath.NewRect(x, y, size, size),
+		Tint:    clr,
+	}, zOrder, opacity)
+	return true
+}
+
+// DrawMDIconOverlay is like DrawMDIcon but draws to the overlay layer.
+func (c *Config) DrawMDIconOverlay(buf *render.CommandBuffer, name string, x, y, size float32, clr uimath.Color, zOrder int32, opacity float32) bool {
+	if c.IconRegistry == nil {
+		return false
+	}
+	pixelSize := int(size)
+	if pixelSize < 1 {
+		pixelSize = 1
+	}
+	tex, ok := c.IconRegistry.Get(name, pixelSize)
+	if !ok {
+		return false
+	}
+	before := buf.Len()
+	buf.DrawImage(render.ImageCmd{
+		Texture: tex,
+		SrcRect: uimath.NewRect(0, 0, 1, 1),
+		DstRect: uimath.NewRect(x, y, size, size),
+		Tint:    clr,
+	}, zOrder, opacity)
+	buf.MoveToOverlay(before, zOrder)
+	return true
+}
+
 // DefaultConfig returns a default configuration with light theme defaults.
 func DefaultConfig() *Config {
 	return &Config{

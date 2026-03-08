@@ -250,15 +250,17 @@ func (s *Steps) Draw(buf *render.CommandBuffer) {
 // drawCheckmark draws a checkmark inside a circle at (cx, cy).
 func (s *Steps) drawCheckmark(buf *render.CommandBuffer, cx, cy, size float32, color uimath.Color) {
 	cfg := s.config
+	iconSize := size * 1.2
+	if cfg.DrawMDIcon(buf, "check", cx-iconSize/2, cy-iconSize/2, iconSize, color, 3, 1) {
+		return
+	}
 	if cfg.TextRenderer != nil {
 		tw := cfg.TextRenderer.MeasureText("✓", cfg.FontSizeSm)
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 		cfg.TextRenderer.DrawText(buf, "✓", cx-tw/2, cy-lh/2, cfg.FontSizeSm, stepDotSize, color, 1)
 		return
 	}
-	// Fallback: draw checkmark with small rects
 	t := float32(1.5)
-	// Short arm (going down-right at 45 degrees)
 	for i := 0; i < 3; i++ {
 		fi := float32(i)
 		buf.DrawRect(render.RectCmd{
@@ -266,7 +268,6 @@ func (s *Steps) drawCheckmark(buf *render.CommandBuffer, cx, cy, size float32, c
 			FillColor: color,
 		}, 3, 1)
 	}
-	// Long arm (going up-right at 45 degrees)
 	for i := 0; i < 5; i++ {
 		fi := float32(i)
 		buf.DrawRect(render.RectCmd{
@@ -279,6 +280,10 @@ func (s *Steps) drawCheckmark(buf *render.CommandBuffer, cx, cy, size float32, c
 // drawCross draws an X inside a circle at (cx, cy).
 func (s *Steps) drawCross(buf *render.CommandBuffer, cx, cy, size float32, color uimath.Color) {
 	cfg := s.config
+	iconSize := size * 1.2
+	if cfg.DrawMDIcon(buf, "close", cx-iconSize/2, cy-iconSize/2, iconSize, color, 3, 1) {
+		return
+	}
 	if cfg.TextRenderer != nil {
 		tw := cfg.TextRenderer.MeasureText("×", cfg.FontSizeSm)
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
@@ -290,12 +295,10 @@ func (s *Steps) drawCross(buf *render.CommandBuffer, cx, cy, size float32, color
 	for i := 0; i < steps; i++ {
 		fi := float32(i)
 		off := fi*t - float32(steps/2)*t
-		// Diagonal backslash
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(cx+off, cy+off, t, t),
 			FillColor: color,
 		}, 3, 1)
-		// Diagonal forward slash
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(cx+off, cy-off, t, t),
 			FillColor: color,

@@ -200,27 +200,27 @@ func (p *Popconfirm) Draw(buf *render.CommandBuffer) {
 		p.drawArrow(buf, popBounds, 52)
 	}
 
-	// Warning icon: "!" text in orange circle
+	// Warning icon
 	iconSize := float32(16)
 	iconX := x + cfg.SpaceSM
 	iconY := y + cfg.SpaceSM
-	buf.DrawOverlay(render.RectCmd{
-		Bounds:    uimath.NewRect(iconX, iconY, iconSize, iconSize),
-		FillColor: cfg.WarningColor,
-		Corners:   uimath.CornersAll(iconSize / 2),
-	}, 52, 1)
-	if cfg.TextRenderer != nil {
-		// Draw "!" centered in the circle
-		bangW := cfg.TextRenderer.MeasureText("!", cfg.FontSizeSm)
-		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, "!", iconX+(iconSize-bangW)/2, iconY+(iconSize-lh)/2, cfg.FontSizeSm, iconSize, uimath.ColorWhite, 1)
-	} else {
-		// Fallback: small white rect for "!"
+	if !cfg.DrawMDIconOverlay(buf, "warning", iconX, iconY, iconSize, cfg.WarningColor, 52, 1) {
 		buf.DrawOverlay(render.RectCmd{
-			Bounds:    uimath.NewRect(iconX+6, iconY+3, 4, 10),
-			FillColor: uimath.ColorWhite,
-			Corners:   uimath.CornersAll(1),
-		}, 53, 1)
+			Bounds:    uimath.NewRect(iconX, iconY, iconSize, iconSize),
+			FillColor: cfg.WarningColor,
+			Corners:   uimath.CornersAll(iconSize / 2),
+		}, 52, 1)
+		if cfg.TextRenderer != nil {
+			bangW := cfg.TextRenderer.MeasureText("!", cfg.FontSizeSm)
+			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
+			cfg.TextRenderer.DrawText(buf, "!", iconX+(iconSize-bangW)/2, iconY+(iconSize-lh)/2, cfg.FontSizeSm, iconSize, uimath.ColorWhite, 1)
+		} else {
+			buf.DrawOverlay(render.RectCmd{
+				Bounds:    uimath.NewRect(iconX+6, iconY+3, 4, 10),
+				FillColor: uimath.ColorWhite,
+				Corners:   uimath.CornersAll(1),
+			}, 53, 1)
+		}
 	}
 
 	// Title text

@@ -192,22 +192,29 @@ func (s *Statistic) Draw(buf *render.CommandBuffer) {
 
 	// Trend arrow
 	if s.trend != TrendNone {
-		var arrow string
+		var mdiName, arrow string
 		var arrowColor uimath.Color
 		if s.trend == TrendIncrease {
+			mdiName = "arrow_upward"
 			arrow = "\u25B2" // ▲
 			arrowColor = uimath.ColorHex("#2ba471") // green
 		} else {
+			mdiName = "arrow_downward"
 			arrow = "\u25BC" // ▼
 			arrowColor = uimath.ColorHex("#d54941") // red
 		}
 		arrowSize := valSize * 0.7
-		aw := cfg.TextRenderer.MeasureText(arrow, arrowSize)
-		arrowLH := cfg.TextRenderer.LineHeight(arrowSize)
-		// Vertically center arrow with value text
-		arrowY := valY + (cfg.TextRenderer.LineHeight(valSize)-arrowLH)/2
-		cfg.TextRenderer.DrawText(buf, arrow, valX, arrowY, arrowSize, aw+4, arrowColor, 1)
-		valX += aw + 4
+		valLH := cfg.TextRenderer.LineHeight(valSize)
+		arrowY := valY + (valLH-arrowSize)/2
+		if cfg.DrawMDIcon(buf, mdiName, valX, arrowY, arrowSize, arrowColor, 0, 1) {
+			valX += arrowSize + 2
+		} else {
+			aw := cfg.TextRenderer.MeasureText(arrow, arrowSize)
+			arrowLH := cfg.TextRenderer.LineHeight(arrowSize)
+			arrowY = valY + (valLH-arrowLH)/2
+			cfg.TextRenderer.DrawText(buf, arrow, valX, arrowY, arrowSize, aw+4, arrowColor, 1)
+			valX += aw + 4
+		}
 	}
 
 	// Build display text: prefix + formatted value + suffix
