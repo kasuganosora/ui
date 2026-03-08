@@ -58,13 +58,15 @@ var nav = []struct{ value, section string }{
 }
 
 func main() {
-	backendFlag := flag.String("backend", "auto", "rendering backend: auto, vulkan, dx11, gl")
+	backendFlag := flag.String("backend", "auto", "rendering backend: auto, vulkan, dx11, dx9, gl")
 	flag.Parse()
 
 	var backend ui.BackendType
 	switch *backendFlag {
 	case "dx11", "d3d11", "directx":
 		backend = ui.BackendDX11
+	case "dx9", "d3d9", "directx9":
+		backend = ui.BackendDX9
 	case "vulkan", "vk":
 		backend = ui.BackendVulkan
 	case "gl", "opengl":

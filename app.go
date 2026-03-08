@@ -18,6 +18,7 @@ import (
 	"github.com/kasuganosora/ui/theme"
 	"github.com/kasuganosora/ui/platform/win32"
 	"github.com/kasuganosora/ui/render"
+	"github.com/kasuganosora/ui/render/dx9"
 	"github.com/kasuganosora/ui/render/dx11"
 	"github.com/kasuganosora/ui/render/gl"
 	"github.com/kasuganosora/ui/render/vulkan"
@@ -31,6 +32,7 @@ const (
 	BackendAuto    BackendType = iota // Try Vulkan first, fall back to DX11
 	BackendVulkan                     // Force Vulkan
 	BackendDX11                       // Force DirectX 11
+	BackendDX9                        // Force DirectX 9
 	BackendOpenGL                     // Force OpenGL 3.3
 )
 
@@ -50,6 +52,12 @@ type AppOptions struct {
 // createBackend creates a render.Backend based on the selected type.
 func createBackend(bt BackendType, win platform.Window) (render.Backend, error) {
 	switch bt {
+	case BackendDX9:
+		b := dx9.New()
+		if err := b.Init(win); err != nil {
+			return nil, fmt.Errorf("dx9 init: %w", err)
+		}
+		return b, nil
 	case BackendDX11:
 		b := dx11.New()
 		if err := b.Init(win); err != nil {
