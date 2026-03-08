@@ -345,7 +345,7 @@
 - [ ] 完整文档和示例
 - [ ] 可视化 UI 编辑器（可选）
 - [ ] 更多内置主题
-- [ ] 内置图标集
+- [x] 内置图标集（Material Design Icons 2100+，SVG path go:embed，按需光栅化+纹理缓存）
 - [x] 无障碍（Accessibility）基础支持
 - [ ] 性能基准测试
 - [ ] 稳定 API，发布 v1.0

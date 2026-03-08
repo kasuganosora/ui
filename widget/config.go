@@ -83,6 +83,15 @@ type Config struct {
 	ButtonHeight float32
 	InputHeight  float32
 	IconSize     float32
+
+	// Icon registry for SVG icon lookup by name (e.g., Material Design Icons)
+	IconRegistry IconLookup
+}
+
+// IconLookup provides icon texture lookup by name and size.
+type IconLookup interface {
+	Get(name string, size int) (render.TextureHandle, bool)
+	Has(name string) bool
 }
 
 // DefaultConfig returns a default configuration with light theme defaults.

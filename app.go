@@ -22,6 +22,7 @@ import (
 	"github.com/kasuganosora/ui/render/dx11"
 	"github.com/kasuganosora/ui/render/gl"
 	"github.com/kasuganosora/ui/render/vulkan"
+	"github.com/kasuganosora/ui/icon/material"
 	"github.com/kasuganosora/ui/widget"
 )
 
@@ -215,6 +216,7 @@ func NewApp(opts AppOptions) (*App, error) {
 	}
 	a.cfg.Window = a.win
 	a.cfg.Platform = a.plat
+	a.cfg.IconRegistry = material.NewRegistry(a.backend)
 	a.buf = render.NewCommandBuffer()
 
 	return a, nil

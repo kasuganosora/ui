@@ -59,10 +59,25 @@ func (ic *Icon) Draw(buf *render.CommandBuffer) {
 		return
 	}
 
-	if ic.texture != render.InvalidTexture {
+	tex := ic.texture
+	uv := ic.uvRect
+
+	// If no texture set, try to resolve from icon registry by name
+	if tex == render.InvalidTexture && ic.name != "" && ic.config.IconRegistry != nil {
+		size := int(ic.size)
+		if size < 1 {
+			size = int(ic.config.IconSize)
+		}
+		if t, ok := ic.config.IconRegistry.Get(ic.name, size); ok {
+			tex = t
+			uv = uimath.NewRect(0, 0, 1, 1)
+		}
+	}
+
+	if tex != render.InvalidTexture {
 		buf.DrawImage(render.ImageCmd{
-			Texture: ic.texture,
-			SrcRect: ic.uvRect,
+			Texture: tex,
+			SrcRect: uv,
 			DstRect: bounds,
 			Tint:    ic.color,
 		}, 0, 1)
