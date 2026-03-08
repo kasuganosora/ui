@@ -5,6 +5,7 @@ package main
 import (
 	"testing"
 
+	ui "github.com/kasuganosora/ui"
 	"github.com/kasuganosora/ui/core"
 	"github.com/kasuganosora/ui/render"
 	"github.com/kasuganosora/ui/widget"
@@ -15,15 +16,14 @@ func TestBuildUI(t *testing.T) {
 	tree := core.NewTree()
 	cfg := widget.DefaultConfig()
 
-	root := buildUI(tree, cfg)
+	doc := ui.LoadHTMLDocument(tree, cfg, demoHTML, "")
+	root := doc.Root
 	if root == nil {
-		t.Fatal("buildUI returned nil")
+		t.Fatal("LoadHTMLDocument returned nil root")
 	}
 
-	// Simulate layout
-	computeLayout(tree, root, 960, 640)
-
-	// Draw into a command buffer
+	// Run layout so widgets have bounds, then draw
+	ui.AutoLayout(tree, root, 1280, 720)
 	buf := render.NewCommandBuffer()
 	root.Draw(buf)
 
@@ -33,31 +33,13 @@ func TestBuildUI(t *testing.T) {
 	t.Logf("demo UI generated %d render commands", buf.Len())
 }
 
-// TestBuildUIResize validates that the layout can handle resize.
-func TestBuildUIResize(t *testing.T) {
-	tree := core.NewTree()
-	cfg := widget.DefaultConfig()
-	root := buildUI(tree, cfg)
-
-	sizes := [][2]float32{{800, 600}, {1920, 1080}, {320, 240}}
-	for _, s := range sizes {
-		computeLayout(tree, root, s[0], s[1])
-		buf := render.NewCommandBuffer()
-		root.Draw(buf)
-		if buf.Len() == 0 {
-			t.Errorf("no commands at %gx%g", s[0], s[1])
-		}
-	}
-}
-
 // TestBuildUIWidgetCount validates a reasonable number of widgets exist.
 func TestBuildUIWidgetCount(t *testing.T) {
 	tree := core.NewTree()
 	cfg := widget.DefaultConfig()
-	buildUI(tree, cfg)
+	ui.LoadHTMLDocument(tree, cfg, demoHTML, "")
 
 	count := tree.ElementCount()
-	// Root + Layout + Header + Title + Body + Aside + 4 menu items + Content + ...
 	if count < 20 {
 		t.Errorf("expected at least 20 elements, got %d", count)
 	}

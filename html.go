@@ -34,6 +34,45 @@ func (d *Document) QueryByTag(tag string) []widget.Widget {
 	return d.tags[tag]
 }
 
+// OnClick binds a click handler to a button identified by HTML id.
+func (d *Document) OnClick(id string, fn func()) {
+	if btn, ok := d.QueryByID(id).(*widget.Button); ok {
+		btn.OnClick(fn)
+	}
+}
+
+// OnChange binds a change handler to an input/textarea/select identified by HTML id.
+// The handler receives the new string value.
+func (d *Document) OnChange(id string, fn func(string)) {
+	w := d.QueryByID(id)
+	if w == nil {
+		return
+	}
+	switch v := w.(type) {
+	case *widget.Input:
+		v.OnChange(fn)
+	case *widget.TextArea:
+		v.OnChange(fn)
+	case *widget.Select:
+		v.OnChange(fn)
+	}
+}
+
+// OnToggle binds a toggle handler to a checkbox/switch identified by HTML id.
+// The handler receives the new boolean value.
+func (d *Document) OnToggle(id string, fn func(bool)) {
+	w := d.QueryByID(id)
+	if w == nil {
+		return
+	}
+	switch v := w.(type) {
+	case *widget.Checkbox:
+		v.OnChange(fn)
+	case *widget.Switch:
+		v.OnChange(fn)
+	}
+}
+
 // LoadHTML parses a simple HTML string and builds a widget tree.
 // Supported tags: div, span, button, input, p, h1-h6, img, br, a, select, textarea,
 // header, footer, aside, main, nav, section, article, space, row, col, layout,
