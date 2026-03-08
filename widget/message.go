@@ -152,7 +152,7 @@ func (m *Message) Draw(buf *render.CommandBuffer) {
 	buf.DrawRect(render.RectCmd{
 		Bounds:      bounds,
 		FillColor:   uimath.ColorWhite,
-		BorderColor: uimath.ColorHex("#e8e8e8"),
+		BorderColor: uimath.ColorHex("#dcdcdc"),
 		BorderWidth: 1,
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 20, 1)

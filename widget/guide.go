@@ -100,7 +100,7 @@ func (g *Guide) Draw(buf *render.CommandBuffer) {
 	if step.TargetW > 0 && step.TargetH > 0 {
 		buf.DrawOverlay(render.RectCmd{
 			Bounds:      uimath.NewRect(step.TargetX-4, step.TargetY-4, step.TargetW+8, step.TargetH+8),
-			BorderColor: uimath.ColorHex("#1890ff"),
+			BorderColor: uimath.ColorHex("#0052d9"),
 			BorderWidth: 2,
 			Corners:     uimath.CornersAll(cfg.BorderRadius),
 		}, 82, 1)

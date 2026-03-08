@@ -293,13 +293,30 @@ func (p *htmlParser) parseElement(parent containerWidget, ancestors []css.Elemen
 		}
 		if v, ok := attrs["variant"]; ok {
 			switch v {
-			case "secondary":
-				btn.SetVariant(widget.ButtonSecondary)
+			case "secondary", "outline":
+				btn.SetVariant(widget.ButtonOutline)
+			case "dashed":
+				btn.SetVariant(widget.ButtonDashed)
 			case "text":
 				btn.SetVariant(widget.ButtonText)
 			case "link":
 				btn.SetVariant(widget.ButtonLink)
 			}
+		}
+		if v, ok := attrs["theme"]; ok {
+			switch v {
+			case "primary":
+				btn.SetTheme(widget.ThemePrimary)
+			case "danger":
+				btn.SetTheme(widget.ThemeDanger)
+			case "warning":
+				btn.SetTheme(widget.ThemeWarning)
+			case "success":
+				btn.SetTheme(widget.ThemeSuccess)
+			}
+		}
+		if _, ok := attrs["ghost"]; ok {
+			btn.SetGhost(true)
 		}
 		p.registerWidget(btn, tag, id, classes, inlineStyle, ancestors)
 		parent.AppendChild(btn)

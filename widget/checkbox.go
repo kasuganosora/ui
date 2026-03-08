@@ -96,7 +96,7 @@ func (c *Checkbox) Draw(buf *render.CommandBuffer) {
 	// Box colors
 	var fillColor, borderColor uimath.Color
 	if c.disabled {
-		fillColor = uimath.ColorHex("#f5f5f5")
+		fillColor = uimath.ColorHex("#f3f3f3")
 		borderColor = cfg.DisabledColor
 	} else if c.checked || c.indeterminate {
 		fillColor = cfg.PrimaryColor

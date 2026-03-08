@@ -85,19 +85,20 @@ type Config struct {
 	IconSize     float32
 }
 
-// DefaultConfig returns a default configuration with sensible defaults.
+// DefaultConfig returns a default configuration with TDesign light theme defaults.
 func DefaultConfig() *Config {
 	return &Config{
-		PrimaryColor:     uimath.ColorHex("#1677ff"),
-		TextColor:        uimath.ColorHex("#4d6274"),
+		// TDesign brand-color-7 (#0052d9)
+		PrimaryColor:     uimath.ColorHex("#0052d9"),
+		TextColor:        uimath.RGBA(0, 0, 0, 0.9),
 		BgColor:          uimath.ColorWhite,
-		BorderColor:      uimath.ColorHex("#d9d9d9"),
-		DisabledColor:    uimath.ColorHex("#bfbfbf"),
-		HoverColor:       uimath.ColorHex("#4096ff"),
-		ActiveColor:      uimath.ColorHex("#0958d9"),
-		FocusBorderColor: uimath.ColorHex("#4096ff"),
-		ErrorColor:       uimath.ColorHex("#ff4d4f"),
-		WarningColor:     uimath.ColorHex("#ed7b2f"),
+		BorderColor:      uimath.ColorHex("#dcdcdc"),
+		DisabledColor:    uimath.RGBA(0, 0, 0, 0.26),
+		HoverColor:       uimath.ColorHex("#366ef4"),
+		ActiveColor:      uimath.ColorHex("#003cab"),
+		FocusBorderColor: uimath.ColorHex("#0052d9"),
+		ErrorColor:       uimath.ColorHex("#d54941"),
+		WarningColor:     uimath.ColorHex("#e37318"),
 		SuccessColor:     uimath.ColorHex("#2ba471"),
 
 		FontID:     0,
@@ -112,6 +113,7 @@ func DefaultConfig() *Config {
 		SpaceLG: 24,
 		SpaceXL: 32,
 
+		// TDesign radius-medium = 6
 		BorderRadius: 6,
 		BorderWidth:  1,
 

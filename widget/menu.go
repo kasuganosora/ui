@@ -275,10 +275,10 @@ func (m *Menu) themeColors() (bg, text, selBg, selText, hoverBg, arrowClr uimath
 	} else {
 		bg = uimath.ColorWhite
 		text = cfg.TextColor
-		selBg = uimath.ColorHex("#e6f4ff")
+		selBg = uimath.ColorHex("#f2f3ff")
 		selText = cfg.PrimaryColor
 		hoverBg = uimath.RGBA(0, 0, 0, 0.04)
-		arrowClr = uimath.ColorHex("#999999")
+		arrowClr = uimath.ColorHex("#8b8b8b")
 	}
 	return
 }

@@ -75,35 +75,40 @@ type Theme struct {
 	ShadowLgY   float32
 }
 
-// Light returns the default light theme (Ant Design inspired).
+// Light returns the default light theme (TDesign).
 func Light() *Theme {
 	return &Theme{
 		Name: "light",
 
-		Primary:       uimath.ColorHex("#1677ff"),
-		PrimaryHover:  uimath.ColorHex("#4096ff"),
-		PrimaryActive: uimath.ColorHex("#0958d9"),
+		// TDesign brand palette: #0052d9 (brand-color-7)
+		Primary:       uimath.ColorHex("#0052d9"),
+		PrimaryHover:  uimath.ColorHex("#366ef4"),
+		PrimaryActive: uimath.ColorHex("#003cab"),
 
-		Success: uimath.ColorHex("#52c41a"),
-		Warning: uimath.ColorHex("#faad14"),
-		Error:   uimath.ColorHex("#ff4d4f"),
-		Info:    uimath.ColorHex("#1677ff"),
+		// TDesign functional colors
+		Success: uimath.ColorHex("#2ba471"),
+		Warning: uimath.ColorHex("#e37318"),
+		Error:   uimath.ColorHex("#d54941"),
+		Info:    uimath.ColorHex("#0052d9"),
 
-		TextPrimary:   uimath.RGBA(0, 0, 0, 0.88),
-		TextSecondary: uimath.RGBA(0, 0, 0, 0.65),
-		TextDisabled:  uimath.RGBA(0, 0, 0, 0.25),
+		// TDesign text colors
+		TextPrimary:   uimath.RGBA(0, 0, 0, 0.9),
+		TextSecondary: uimath.RGBA(0, 0, 0, 0.6),
+		TextDisabled:  uimath.RGBA(0, 0, 0, 0.26),
 		TextInverse:   uimath.ColorWhite,
 
+		// TDesign background colors
 		BgPrimary:   uimath.ColorWhite,
-		BgSecondary: uimath.ColorHex("#f5f5f5"),
+		BgSecondary: uimath.ColorHex("#f3f3f3"),
 		BgElevated:  uimath.ColorWhite,
 
-		Border:      uimath.ColorHex("#d9d9d9"),
-		BorderHover: uimath.ColorHex("#4096ff"),
-		BorderFocus: uimath.ColorHex("#4096ff"),
+		// TDesign border: component-stroke = gray-3
+		Border:      uimath.ColorHex("#dcdcdc"),
+		BorderHover: uimath.ColorHex("#366ef4"),
+		BorderFocus: uimath.ColorHex("#0052d9"),
 
 		Divider: uimath.RGBA(0, 0, 0, 0.06),
-		Mask:    uimath.RGBA(0, 0, 0, 0.45),
+		Mask:    uimath.RGBA(0, 0, 0, 0.6),
 
 		FontSizeXS:  10,
 		FontSizeSM:  12,
@@ -121,9 +126,10 @@ func Light() *Theme {
 		SpaceXL:  32,
 		SpaceXXL: 48,
 
-		RadiusSM:   4,
+		// TDesign radius: default=3, medium=6, large=9
+		RadiusSM:   3,
 		RadiusMD:   6,
-		RadiusLG:   8,
+		RadiusLG:   9,
 		RadiusFull: 9999,
 
 		BorderWidth: 1,
@@ -139,35 +145,35 @@ func Light() *Theme {
 	}
 }
 
-// Dark returns a dark theme.
+// Dark returns a dark theme (TDesign dark).
 func Dark() *Theme {
 	return &Theme{
 		Name: "dark",
 
-		Primary:       uimath.ColorHex("#1668dc"),
-		PrimaryHover:  uimath.ColorHex("#3c89e8"),
-		PrimaryActive: uimath.ColorHex("#1554ad"),
+		Primary:       uimath.ColorHex("#4582e6"),
+		PrimaryHover:  uimath.ColorHex("#618dff"),
+		PrimaryActive: uimath.ColorHex("#366ef4"),
 
-		Success: uimath.ColorHex("#49aa19"),
-		Warning: uimath.ColorHex("#d89614"),
-		Error:   uimath.ColorHex("#dc4446"),
-		Info:    uimath.ColorHex("#1668dc"),
+		Success: uimath.ColorHex("#56c08d"),
+		Warning: uimath.ColorHex("#fa9550"),
+		Error:   uimath.ColorHex("#f6685d"),
+		Info:    uimath.ColorHex("#4582e6"),
 
-		TextPrimary:   uimath.RGBA(1, 1, 1, 0.85),
-		TextSecondary: uimath.RGBA(1, 1, 1, 0.65),
-		TextDisabled:  uimath.RGBA(1, 1, 1, 0.30),
-		TextInverse:   uimath.ColorHex("#141414"),
+		TextPrimary:   uimath.RGBA(1, 1, 1, 0.9),
+		TextSecondary: uimath.RGBA(1, 1, 1, 0.6),
+		TextDisabled:  uimath.RGBA(1, 1, 1, 0.26),
+		TextInverse:   uimath.ColorHex("#181818"),
 
-		BgPrimary:   uimath.ColorHex("#141414"),
-		BgSecondary: uimath.ColorHex("#1f1f1f"),
-		BgElevated:  uimath.ColorHex("#2a2a2a"),
+		BgPrimary:   uimath.ColorHex("#242424"),
+		BgSecondary: uimath.ColorHex("#2c2c2c"),
+		BgElevated:  uimath.ColorHex("#393939"),
 
-		Border:      uimath.ColorHex("#424242"),
-		BorderHover: uimath.ColorHex("#3c89e8"),
-		BorderFocus: uimath.ColorHex("#3c89e8"),
+		Border:      uimath.ColorHex("#4b4b4b"),
+		BorderHover: uimath.ColorHex("#618dff"),
+		BorderFocus: uimath.ColorHex("#4582e6"),
 
 		Divider: uimath.RGBA(1, 1, 1, 0.12),
-		Mask:    uimath.RGBA(0, 0, 0, 0.65),
+		Mask:    uimath.RGBA(0, 0, 0, 0.6),
 
 		FontSizeXS:  10,
 		FontSizeSM:  12,
@@ -185,9 +191,9 @@ func Dark() *Theme {
 		SpaceXL:  32,
 		SpaceXXL: 48,
 
-		RadiusSM:   4,
+		RadiusSM:   3,
 		RadiusMD:   6,
-		RadiusLG:   8,
+		RadiusLG:   9,
 		RadiusFull: 9999,
 
 		BorderWidth: 1,

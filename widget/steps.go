@@ -189,7 +189,7 @@ func (s *Steps) Draw(buf *render.CommandBuffer) {
 
 		case StepError:
 			// Filled red circle with X
-			errColor := uimath.ColorHex("#e34d59")
+			errColor := uimath.ColorHex("#d54941")
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(cx-dotR, cy-dotR, stepDotSize, stepDotSize),
 				FillColor: errColor,
@@ -218,7 +218,7 @@ func (s *Steps) Draw(buf *render.CommandBuffer) {
 		case StepDefault:
 			titleColor = cfg.DisabledColor
 		case StepError:
-			titleColor = uimath.ColorHex("#e34d59")
+			titleColor = uimath.ColorHex("#d54941")
 		}
 
 		titleY := cy + dotR + cfg.SpaceXS

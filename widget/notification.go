@@ -98,11 +98,11 @@ func notificationColor(t NotificationTheme) uimath.Color {
 	case NotificationThemeSuccess:
 		return uimath.ColorHex("#2ba471")
 	case NotificationThemeWarning:
-		return uimath.ColorHex("#ed7b2f")
+		return uimath.ColorHex("#e37318")
 	case NotificationThemeError:
-		return uimath.ColorHex("#ff4d4f")
+		return uimath.ColorHex("#d54941")
 	default:
-		return uimath.ColorHex("#1677ff")
+		return uimath.ColorHex("#0052d9")
 	}
 }
 

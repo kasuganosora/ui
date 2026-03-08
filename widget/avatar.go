@@ -52,7 +52,7 @@ func NewAvatar(tree *core.Tree, cfg *Config) *Avatar {
 	}
 	a := &Avatar{
 		Base:    NewBase(tree, core.TypeCustom, cfg),
-		bgColor: uimath.ColorHex("#bcc4d0"),
+		bgColor: uimath.ColorHex("#c6c6c6"),
 		size:    SizeMedium,
 		shape:   AvatarCircle,
 	}
@@ -334,7 +334,7 @@ func (g *AvatarGroup) Draw(buf *render.CommandBuffer) {
 
 		buf.DrawRect(render.RectCmd{
 			Bounds:    extraBounds,
-			FillColor: uimath.ColorHex("#e7e7e7"),
+			FillColor: uimath.ColorHex("#e8e8e8"),
 			Corners:   uimath.CornersAll(px / 2),
 		}, int32(len(visible)), 1)
 
@@ -349,7 +349,7 @@ func (g *AvatarGroup) Draw(buf *render.CommandBuffer) {
 			cfg.TextRenderer.DrawText(buf, text,
 				extraBounds.X+(px-tw)/2,
 				extraBounds.Y+(px-lh)/2,
-				fs, px, uimath.ColorHex("#999"), 1)
+				fs, px, uimath.ColorHex("#8b8b8b"), 1)
 		}
 	}
 }

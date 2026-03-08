@@ -430,18 +430,18 @@ func setupDemoWidgets(doc *ui.Document, tree *core.Tree, cfg *widget.Config) {
 const demoHTML = `
 <style>
 	:root {
-		--bg-sidebar: #001529;
-		--bg-content: #f0f2f5;
+		--bg-sidebar: #f5f5f5;
+		--bg-content: #ffffff;
 		--bg-card: #ffffff;
-		--bg-header: #001529;
-		--text-title: #1a1a1a;
-		--text-body: #666666;
-		--border: #e8e8e8;
+		--bg-header: #ffffff;
+		--text-title: rgba(0,0,0,0.9);
+		--text-body: rgba(0,0,0,0.6);
+		--border: #dcdcdc;
 	}
 
 	layout { background-color: var(--bg-content); }
-	header { background-color: var(--bg-header); }
-	aside { background-color: var(--bg-sidebar); }
+	header { background-color: var(--bg-header); border-color: var(--border); border-width: 0 0 1 0; }
+	aside { background-color: var(--bg-sidebar); border-color: var(--border); border-width: 0 1 0 0; }
 	main { background-color: var(--bg-content); padding: 24px; }
 
 	.section-title { font-size: 22px; color: var(--text-title); }
@@ -456,14 +456,14 @@ const demoHTML = `
 	}
 	.demo-label { font-size: 12px; color: var(--text-body); }
 
-	.grid-col-1 { background-color: #e6f4ff; border-radius: 4px; padding: 8px; }
-	.grid-col-2 { background-color: #bae0ff; border-radius: 4px; padding: 8px; }
-	.grid-col-3 { background-color: #91caff; border-radius: 4px; padding: 8px; }
-	.grid-col-4 { background-color: #69b1ff; border-radius: 4px; padding: 8px; }
-	.grid-text { color: #0958d9; font-size: 13px; }
+	.grid-col-1 { background-color: #f2f3ff; border-radius: 4px; padding: 8px; }
+	.grid-col-2 { background-color: #d9e1ff; border-radius: 4px; padding: 8px; }
+	.grid-col-3 { background-color: #b5c7ff; border-radius: 4px; padding: 8px; }
+	.grid-col-4 { background-color: #8eabff; border-radius: 4px; padding: 8px; }
+	.grid-text { color: #003cab; font-size: 13px; }
 
-	.cat-title { color: #ffffff60; font-size: 12px; }
-	.logo { color: #ffffff; font-size: 18px; }
+	.cat-title { color: rgba(0,0,0,0.4); font-size: 12px; }
+	.logo { color: rgba(0,0,0,0.9); font-size: 18px; }
 </style>
 
 <layout>
@@ -529,18 +529,38 @@ const demoHTML = `
 				<h2 class="section-title">Button 按钮</h2>
 				<span class="section-desc">按钮用于开启一个闭环的操作任务，如"删除"对象、"购买"商品等。</span>
 				<div class="demo-card">
-					<span class="demo-label">基础按钮</span>
+					<span class="demo-label">填充按钮</span>
 					<space gap="12">
-						<button id="btn-primary">主要按钮</button>
-						<button id="btn-danger" style="background-color: #e34d59">危险按钮</button>
-						<button id="btn-secondary" variant="secondary">次要按钮</button>
-						<button id="btn-text" variant="text">文字按钮</button>
-						<button id="btn-link" variant="link">链接按钮</button>
+						<button id="btn-default" theme="default">默认按钮</button>
+						<button id="btn-primary" theme="primary">主要按钮</button>
+						<button id="btn-danger" theme="danger">危险按钮</button>
+						<button id="btn-warning" theme="warning">警告按钮</button>
+						<button id="btn-success" theme="success">成功按钮</button>
+					</space>
+					<span class="demo-label">描边按钮</span>
+					<space gap="12">
+						<button variant="outline">默认描边</button>
+						<button variant="outline" theme="primary">主要描边</button>
+						<button variant="outline" theme="danger">危险描边</button>
+						<button variant="outline" theme="warning">警告描边</button>
+						<button variant="outline" theme="success">成功描边</button>
+					</space>
+					<span class="demo-label">虚框按钮</span>
+					<space gap="12">
+						<button variant="dashed">默认虚框</button>
+						<button variant="dashed" theme="primary">主要虚框</button>
+						<button variant="dashed" theme="danger">危险虚框</button>
+					</space>
+					<span class="demo-label">文字按钮</span>
+					<space gap="12">
+						<button variant="text">默认文字</button>
+						<button variant="text" theme="primary">主要文字</button>
+						<button variant="text" theme="danger">危险文字</button>
 					</space>
 					<span class="demo-label">按钮状态</span>
 					<space gap="12">
-						<button disabled>禁用状态</button>
-						<button variant="secondary" disabled>禁用次要</button>
+						<button disabled>禁用填充</button>
+						<button variant="outline" disabled>禁用描边</button>
 					</space>
 				</div>
 			</div>

@@ -164,13 +164,13 @@ func (s *Statistic) Draw(buf *render.CommandBuffer) {
 		// Title placeholder
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(bounds.X, bounds.Y, bounds.Width*0.4, cfg.FontSizeSm+2),
-			FillColor: uimath.ColorHex("#e8e8e8"),
+			FillColor: uimath.ColorHex("#dcdcdc"),
 			Corners:   uimath.CornersAll(2),
 		}, 0, 1)
 		// Value placeholder
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(bounds.X, bounds.Y+cfg.FontSizeSm+8, bounds.Width*0.6, cfg.FontSize*1.8+2),
-			FillColor: uimath.ColorHex("#e8e8e8"),
+			FillColor: uimath.ColorHex("#dcdcdc"),
 			Corners:   uimath.CornersAll(2),
 		}, 0, 1)
 		return
@@ -199,7 +199,7 @@ func (s *Statistic) Draw(buf *render.CommandBuffer) {
 			arrowColor = uimath.ColorHex("#2ba471") // green
 		} else {
 			arrow = "\u25BC" // ▼
-			arrowColor = uimath.ColorHex("#ff4d4f") // red
+			arrowColor = uimath.ColorHex("#d54941") // red
 		}
 		arrowSize := valSize * 0.7
 		aw := cfg.TextRenderer.MeasureText(arrow, arrowSize)

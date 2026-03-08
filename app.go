@@ -722,12 +722,12 @@ func itemHeight(child widget.Widget) float32 {
 	case *widget.List:
 		return v.TotalHeight()
 	case *widget.Collapse:
-		// Each panel header is 40px + expanded content
+		// Each panel header is 40px + expanded content (60 + 8*2 spacing)
 		h := float32(0)
 		for _, p := range v.Panels() {
 			h += 40
 			if v.IsActive(p.Value) {
-				h += 60 // default content height
+				h += 60 + 16 // contentH + SpaceSM*2
 			}
 		}
 		if h == 0 {
@@ -735,7 +735,19 @@ func itemHeight(child widget.Widget) float32 {
 		}
 		return h
 	case *widget.Card:
-		return 200 // reasonable card default
+		pad := float32(24)
+		headerH := float32(0)
+		if v.Title() != "" {
+			headerH = 48
+		}
+		h := headerH + pad*2 // header + top/bottom padding
+		for _, c := range v.Children() {
+			h += itemHeight(c) + 8
+		}
+		if h < 100 {
+			h = 100
+		}
+		return h
 	case *widget.InputNumber:
 		return 32
 	}
@@ -791,6 +803,14 @@ func layoutSectionContent(tree *core.Tree, parent widget.Widget, x, y, w, h floa
 		} else if _, ok := child.(*widget.Panel); ok {
 			// Panel has 40px title header; lay out children below it
 			layoutSectionContent(tree, child, x+12, cy+40+4, w-24, ih-40-8)
+		} else if card, ok := child.(*widget.Card); ok {
+			// Card has header; lay out children below it
+			pad := float32(24)
+			headerH := float32(0)
+			if card.Title() != "" {
+				headerH = 48
+			}
+			layoutSectionContent(tree, child, x+pad, cy+headerH+pad, w-pad*2, ih-headerH-pad*2)
 		} else if len(child.Children()) > 0 {
 			layoutSectionContent(tree, child, x+4, cy+4, w-8, ih-8)
 		}

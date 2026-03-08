@@ -171,9 +171,9 @@ func (b *Button) themeBaseColor() uimath.Color {
 	case ThemePrimary:
 		return cfg.PrimaryColor
 	case ThemeDanger:
-		return uimath.ColorHex("#e34d59")
+		return uimath.ColorHex("#d54941")
 	case ThemeWarning:
-		return uimath.ColorHex("#ed7b2f")
+		return uimath.ColorHex("#e37318")
 	case ThemeSuccess:
 		return uimath.ColorHex("#2ba471")
 	default:
@@ -184,7 +184,7 @@ func (b *Button) themeBaseColor() uimath.Color {
 func (b *Button) bgColor() uimath.Color {
 	cfg := b.config
 	if b.disabled {
-		return cfg.DisabledColor
+		return uimath.ColorHex("#eeeeee") // TDesign gray-2
 	}
 	elem := b.Element()
 	hovered := elem != nil && elem.IsHovered()
@@ -194,7 +194,7 @@ func (b *Button) bgColor() uimath.Color {
 		if b.pressed {
 			base := b.themeBaseColor()
 			if base.A == 0 && b.theme == ThemeDefault {
-				return uimath.ColorHex("#e6f4ff")
+				return uimath.ColorHex("#d9e1ff")
 			}
 			base.A = 0.1
 			return base
@@ -202,7 +202,7 @@ func (b *Button) bgColor() uimath.Color {
 		if hovered {
 			base := b.themeBaseColor()
 			if base.A == 0 && b.theme == ThemeDefault {
-				return uimath.ColorHex("#f0f5ff")
+				return uimath.ColorHex("#f2f3ff")
 			}
 			base.A = 0.06
 			return base
@@ -210,18 +210,16 @@ func (b *Button) bgColor() uimath.Color {
 		return uimath.ColorTransparent
 	}
 
-	// Theme override takes precedence for non-default themes
-	if b.theme != ThemeDefault {
+	// Filled button with non-default theme: colored background
+	if b.theme != ThemeDefault && b.variant == ButtonBase {
 		base := b.themeBaseColor()
 		if b.pressed {
-			// Darken slightly
 			base.R *= 0.85
 			base.G *= 0.85
 			base.B *= 0.85
 			return base
 		}
 		if hovered {
-			// Lighten slightly
 			base.R = base.R + (1-base.R)*0.15
 			base.G = base.G + (1-base.G)*0.15
 			base.B = base.B + (1-base.B)*0.15
@@ -230,48 +228,50 @@ func (b *Button) bgColor() uimath.Color {
 		return base
 	}
 
+	// Outline / Dashed / Text variants (all themes) + Default theme Base variant
 	switch b.variant {
-	case ButtonPrimary:
+	case ButtonBase:
+		// ThemeDefault + Base = TDesign default button (white bg, gray border)
 		if b.pressed {
-			return cfg.ActiveColor
+			return uimath.ColorHex("#e8e8e8")
 		}
 		if hovered {
-			return cfg.HoverColor
+			return uimath.ColorHex("#f3f3f3")
 		}
-		return cfg.PrimaryColor
-	case ButtonSecondary:
+		return cfg.BgColor
+	case ButtonOutline:
 		if b.pressed {
-			return uimath.ColorHex("#e6e6e6")
+			return uimath.ColorHex("#e8e8e8")
 		}
 		if hovered {
-			return uimath.ColorHex("#f5f5f5")
+			return uimath.ColorHex("#f3f3f3")
 		}
 		return cfg.BgColor
 	case ButtonText:
 		if b.pressed {
-			return uimath.ColorHex("#e6f4ff")
+			return uimath.ColorHex("#e8e8e8")
 		}
 		if hovered {
-			return uimath.ColorHex("#f0f5ff")
+			return uimath.ColorHex("#f3f3f3")
 		}
 		return uimath.ColorTransparent
 	case ButtonDashed:
 		if b.pressed {
-			return uimath.ColorHex("#e6e6e6")
+			return uimath.ColorHex("#e8e8e8")
 		}
 		if hovered {
-			return uimath.ColorHex("#f5f5f5")
+			return uimath.ColorHex("#f3f3f3")
 		}
 		return cfg.BgColor
 	default:
-		return cfg.PrimaryColor
+		return cfg.BgColor
 	}
 }
 
 func (b *Button) textColor() uimath.Color {
 	cfg := b.config
 	if b.disabled {
-		return cfg.BgColor
+		return uimath.RGBA(0, 0, 0, 0.26) // TDesign text-disabled
 	}
 	elem := b.Element()
 	hovered := elem != nil && elem.IsHovered()
@@ -281,7 +281,6 @@ func (b *Button) textColor() uimath.Color {
 		if b.theme != ThemeDefault {
 			return b.themeBaseColor()
 		}
-		// Default ghost uses primary color
 		if b.pressed {
 			return cfg.ActiveColor
 		}
@@ -291,14 +290,31 @@ func (b *Button) textColor() uimath.Color {
 		return cfg.PrimaryColor
 	}
 
-	// Non-default theme: white text on colored background
-	if b.theme != ThemeDefault {
+	// Filled button with non-default theme: white text on colored bg
+	if b.theme != ThemeDefault && b.variant == ButtonBase {
 		return uimath.ColorWhite
 	}
 
+	// Outline/Dashed/Text with non-default theme: theme-colored text
+	if b.theme != ThemeDefault {
+		base := b.themeBaseColor()
+		if b.pressed {
+			base.R *= 0.85
+			base.G *= 0.85
+			base.B *= 0.85
+		} else if hovered {
+			base.R = base.R + (1-base.R)*0.15
+			base.G = base.G + (1-base.G)*0.15
+			base.B = base.B + (1-base.B)*0.15
+		}
+		return base
+	}
+
+	// ThemeDefault
 	switch b.variant {
 	case ButtonBase:
-		return uimath.ColorWhite
+		// Default button: dark text
+		return cfg.TextColor
 	case ButtonOutline, ButtonDashed:
 		if b.pressed {
 			return cfg.ActiveColor
@@ -314,9 +330,9 @@ func (b *Button) textColor() uimath.Color {
 		if hovered {
 			return cfg.HoverColor
 		}
-		return cfg.PrimaryColor
+		return cfg.TextColor
 	default:
-		return uimath.ColorWhite
+		return cfg.TextColor
 	}
 }
 
@@ -336,7 +352,7 @@ func (b *Button) Draw(buf *render.CommandBuffer) {
 	borderClr := cfg.BorderColor
 	borderW := cfg.BorderWidth
 
-	// Ghost mode: outline style with theme-colored border
+	// Determine border color based on theme/variant
 	if b.ghost {
 		if b.theme != ThemeDefault {
 			borderClr = b.themeBaseColor()
@@ -344,14 +360,38 @@ func (b *Button) Draw(buf *render.CommandBuffer) {
 			borderClr = cfg.PrimaryColor
 		}
 		borderW = cfg.BorderWidth
-	} else if b.theme != ThemeDefault {
+	} else if b.theme != ThemeDefault && b.variant == ButtonBase {
+		// Filled themed button: no visible border
 		borderClr = uimath.ColorTransparent
 		borderW = 0
-	} else {
-		switch b.variant {
-		case ButtonBase:
+	} else if b.theme != ThemeDefault {
+		// Outline/Dashed themed button: theme-colored border
+		base := b.themeBaseColor()
+		if b.pressed {
+			base.R *= 0.85
+			base.G *= 0.85
+			base.B *= 0.85
+		} else if hovered {
+			base.R = base.R + (1-base.R)*0.15
+			base.G = base.G + (1-base.G)*0.15
+			base.B = base.B + (1-base.B)*0.15
+		}
+		borderClr = base
+		borderW = cfg.BorderWidth
+		if b.variant == ButtonText {
 			borderClr = uimath.ColorTransparent
 			borderW = 0
+		}
+	} else {
+		// ThemeDefault
+		switch b.variant {
+		case ButtonBase:
+			// Default button: gray border (TDesign default button has border)
+			if b.pressed {
+				borderClr = cfg.ActiveColor
+			} else if hovered {
+				borderClr = cfg.HoverColor
+			}
 		case ButtonOutline:
 			if b.pressed {
 				borderClr = cfg.ActiveColor
@@ -364,7 +404,6 @@ func (b *Button) Draw(buf *render.CommandBuffer) {
 			} else if hovered {
 				borderClr = cfg.HoverColor
 			}
-			// TODO: render dashed border style
 		case ButtonText:
 			borderClr = uimath.ColorTransparent
 			borderW = 0

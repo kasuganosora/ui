@@ -40,7 +40,7 @@ func NewBadge(tree *core.Tree, cfg *Config) *Badge {
 	return &Badge{
 		Base:     NewBase(tree, core.TypeCustom, cfg),
 		maxCount: 99,
-		color:    uimath.ColorHex("#ff4d4f"),
+		color:    uimath.ColorHex("#d54941"),
 		shape:    BadgeShapeCircle,
 		size:     SizeMedium,
 	}

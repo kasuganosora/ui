@@ -260,7 +260,7 @@ func (l *List) drawItem(buf *render.CommandBuffer, item ListItem, bounds uimath.
 			// Draw text avatar
 			avatarBg := item.AvatarColor
 			if avatarBg == (uimath.Color{}) {
-				avatarBg = uimath.ColorHex("#bcc4d0")
+				avatarBg = uimath.ColorHex("#c6c6c6")
 			}
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(avatarX, avatarY, avatarSize, avatarSize),

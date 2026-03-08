@@ -108,7 +108,7 @@ func (s *Switch) Draw(buf *render.CommandBuffer) {
 		if s.value {
 			trackColor = cfg.DisabledColor
 		} else {
-			trackColor = uimath.ColorHex("#bfbfbf")
+			trackColor = uimath.ColorHex("#c6c6c6")
 		}
 	} else if s.value {
 		trackColor = cfg.PrimaryColor
@@ -116,9 +116,9 @@ func (s *Switch) Draw(buf *render.CommandBuffer) {
 			trackColor = cfg.HoverColor
 		}
 	} else {
-		trackColor = uimath.ColorHex("#bfbfbf")
+		trackColor = uimath.ColorHex("#c6c6c6")
 		if hovered {
-			trackColor = uimath.ColorHex("#8c8c8c")
+			trackColor = uimath.ColorHex("#8b8b8b")
 		}
 	}
 
@@ -172,7 +172,7 @@ func (s *Switch) Draw(buf *render.CommandBuffer) {
 		dotSize := sk * 0.15
 		dotColor := cfg.PrimaryColor
 		if !s.value {
-			dotColor = uimath.ColorHex("#8c8c8c")
+			dotColor = uimath.ColorHex("#8b8b8b")
 		}
 		knobCX := knobX + sk/2
 		knobCY := knobY + sk/2

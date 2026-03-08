@@ -119,7 +119,7 @@ func (p *Progress) bgColor() uimath.Color {
 	if p.trackColor != "" {
 		return uimath.ColorHex(p.trackColor)
 	}
-	return uimath.ColorHex("#f5f5f5")
+	return uimath.ColorHex("#f3f3f3")
 }
 
 func (p *Progress) labelText() string {
@@ -167,7 +167,7 @@ func (p *Progress) drawLine(buf *render.CommandBuffer) {
 	// Track
 	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(bounds.X, trackY, trackW, barH),
-		FillColor: uimath.ColorHex("#f5f5f5"),
+		FillColor: uimath.ColorHex("#f3f3f3"),
 		Corners:   uimath.CornersAll(radius),
 	}, 0, 1)
 
@@ -223,8 +223,8 @@ func (p *Progress) drawCircle(buf *render.CommandBuffer) {
 	// Track ring: a large rounded-rect circle with border only
 	buf.DrawRect(render.RectCmd{
 		Bounds:      uimath.NewRect(cx, cy, diameter, diameter),
-		FillColor:   uimath.ColorHex("#f5f5f5"),
-		BorderColor: uimath.ColorHex("#e8e8e8"),
+		FillColor:   uimath.ColorHex("#f3f3f3"),
+		BorderColor: uimath.ColorHex("#dcdcdc"),
 		BorderWidth: sw,
 		Corners:     uimath.CornersAll(diameter / 2),
 	}, 0, 1)
@@ -280,7 +280,7 @@ func (p *Progress) drawPlump(buf *render.CommandBuffer) {
 	// Track
 	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(bounds.X, trackY, bounds.Width, barH),
-		FillColor: uimath.ColorHex("#f5f5f5"),
+		FillColor: uimath.ColorHex("#f3f3f3"),
 		Corners:   uimath.CornersAll(radius),
 	}, 0, 1)
 

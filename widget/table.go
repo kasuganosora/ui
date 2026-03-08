@@ -273,7 +273,7 @@ func (t *Table) Draw(buf *render.CommandBuffer) {
 	}
 
 	// Header text
-	headerTextColor := uimath.ColorHex("#909399")
+	headerTextColor := uimath.ColorHex("#8b8b8b")
 	cx := bounds.X
 	for i, col := range t.columns {
 		if cfg.TextRenderer != nil {
@@ -292,7 +292,7 @@ func (t *Table) Draw(buf *render.CommandBuffer) {
 		if t.bordered && i < len(t.columns)-1 {
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(cx+colWidths[i]-0.5, bounds.Y+8, 1, t.headerH-16),
-				FillColor: uimath.ColorHex("#e7e7e7"),
+				FillColor: uimath.ColorHex("#e8e8e8"),
 			}, 2, 1)
 		}
 		cx += colWidths[i]
@@ -321,14 +321,14 @@ func (t *Table) Draw(buf *render.CommandBuffer) {
 			// Striped background
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(bounds.X+1, ry, bounds.Width-2, t.rowHeight),
-				FillColor: uimath.ColorHex("#fafafa"),
+				FillColor: uimath.ColorHex("#f3f3f3"),
 			}, 1, 1)
 		}
 
 		// Row bottom divider
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(bounds.X, ry+t.rowHeight-1, bounds.Width, 1),
-			FillColor: uimath.ColorHex("#ebedf0"),
+			FillColor: uimath.ColorHex("#e8e8e8"),
 		}, 2, 1)
 
 		// Cell text
@@ -354,7 +354,7 @@ func (t *Table) Draw(buf *render.CommandBuffer) {
 			if t.bordered && ci < len(t.columns)-1 {
 				buf.DrawRect(render.RectCmd{
 					Bounds:    uimath.NewRect(cx+colWidths[ci]-0.5, ry, 1, t.rowHeight),
-					FillColor: uimath.ColorHex("#ebedf0"),
+					FillColor: uimath.ColorHex("#e8e8e8"),
 				}, 2, 1)
 			}
 			cx += colWidths[ci]

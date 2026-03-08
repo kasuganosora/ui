@@ -243,25 +243,35 @@ func (c *Collapse) Draw(buf *render.CommandBuffer) {
 
 		if active && panel.Content != nil {
 			contentH := float32(60) // default content height
-			// Try to get content height from its layout bounds
-			contentElem := c.tree.Get(panel.Content.ElementID())
-			if contentElem != nil {
-				cb := contentElem.Layout().Bounds
-				if cb.Height > 0 {
-					contentH = cb.Height
-				}
-			}
 			// Set content bounds so it draws in the right position
 			contentPad := cfg.SpaceMD
 			contentBounds := uimath.NewRect(bounds.X+contentPad, y+cfg.SpaceSM, bounds.Width-contentPad*2, contentH)
-			if contentElem != nil {
-				lo := contentElem.Layout()
-				lo.Bounds = contentBounds
-				c.tree.SetLayout(panel.Content.ElementID(), lo)
-			}
+			c.tree.SetLayout(panel.Content.ElementID(), core.LayoutResult{
+				Bounds: contentBounds,
+			})
+			// Also set bounds for content's children so they render
+			c.fillContentChildren(panel.Content, contentBounds)
 			panel.Content.Draw(buf)
 			y += contentH + cfg.SpaceSM*2
 		}
+	}
+}
+
+// fillContentChildren recursively sets layout bounds for content widget children.
+func (c *Collapse) fillContentChildren(w Widget, bounds uimath.Rect) {
+	children := w.Children()
+	if len(children) == 0 {
+		return
+	}
+	cy := bounds.Y
+	for _, child := range children {
+		childH := bounds.Height / float32(len(children))
+		childBounds := uimath.NewRect(bounds.X, cy, bounds.Width, childH)
+		c.tree.SetLayout(child.ElementID(), core.LayoutResult{
+			Bounds: childBounds,
+		})
+		c.fillContentChildren(child, childBounds)
+		cy += childH
 	}
 }
 

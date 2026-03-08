@@ -98,13 +98,13 @@ func (t *Timeline) TotalHeight() float32 {
 func timelineDotColor(dotColor string) uimath.Color {
 	switch dotColor {
 	case "warning":
-		return uimath.ColorHex("#faad14")
+		return uimath.ColorHex("#e37318")
 	case "error":
-		return uimath.ColorHex("#ff4d4f")
+		return uimath.ColorHex("#d54941")
 	case "default":
-		return uimath.ColorHex("#c0c4cc")
+		return uimath.ColorHex("#c6c6c6")
 	case "primary", "":
-		return uimath.ColorHex("#1890ff")
+		return uimath.ColorHex("#0052d9")
 	default:
 		// Treat as hex color string
 		return uimath.ColorHex(dotColor)

@@ -142,13 +142,13 @@ func (t *Tag) tagBaseColor() uimath.Color {
 	}
 	switch t.theme {
 	case TagThemeSuccess:
-		return uimath.ColorHex("#52c41a")
+		return uimath.ColorHex("#2ba471")
 	case TagThemeWarning:
-		return uimath.ColorHex("#faad14")
+		return uimath.ColorHex("#e37318")
 	case TagThemeDanger:
-		return uimath.ColorHex("#ff4d4f")
+		return uimath.ColorHex("#d54941")
 	case TagThemePrimary:
-		return uimath.ColorHex("#1677ff")
+		return uimath.ColorHex("#0052d9")
 	default:
 		return t.config.TextColor
 	}
@@ -175,15 +175,15 @@ func (t *Tag) tagColors() (bg, border, text uimath.Color) {
 		}
 		switch t.theme {
 		case TagThemeSuccess:
-			return uimath.ColorHex("#f6ffed"), uimath.ColorHex("#b7eb8f"), uimath.ColorHex("#52c41a")
+			return uimath.ColorHex("#e3f9e9"), uimath.ColorHex("#c6f3d7"), uimath.ColorHex("#2ba471")
 		case TagThemeWarning:
-			return uimath.ColorHex("#fffbe6"), uimath.ColorHex("#ffe58f"), uimath.ColorHex("#faad14")
+			return uimath.ColorHex("#fff1e9"), uimath.ColorHex("#ffd9c2"), uimath.ColorHex("#e37318")
 		case TagThemeDanger:
-			return uimath.ColorHex("#fff2f0"), uimath.ColorHex("#ffccc7"), uimath.ColorHex("#ff4d4f")
+			return uimath.ColorHex("#fff0ed"), uimath.ColorHex("#ffd8d2"), uimath.ColorHex("#d54941")
 		case TagThemePrimary:
-			return uimath.ColorHex("#e6f4ff"), uimath.ColorHex("#91caff"), uimath.ColorHex("#1677ff")
+			return uimath.ColorHex("#f2f3ff"), uimath.ColorHex("#b5c7ff"), uimath.ColorHex("#0052d9")
 		default:
-			return uimath.ColorHex("#fafafa"), uimath.ColorHex("#d9d9d9"), t.config.TextColor
+			return uimath.ColorHex("#f3f3f3"), uimath.ColorHex("#dcdcdc"), t.config.TextColor
 		}
 	}
 }

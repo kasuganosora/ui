@@ -258,7 +258,7 @@ func (s *Select) Draw(buf *render.CommandBuffer) {
 
 	bgClr := cfg.BgColor
 	if s.disabled {
-		bgClr = uimath.ColorHex("#f5f5f5")
+		bgClr = uimath.ColorHex("#f3f3f3")
 	}
 
 	buf.DrawRect(render.RectCmd{
@@ -435,7 +435,7 @@ func (s *Select) drawDropdown(buf *render.CommandBuffer, triggerBounds uimath.Re
 			if optElem != nil && optElem.IsHovered() {
 				buf.DrawOverlay(render.RectCmd{
 					Bounds:    optRect,
-					FillColor: uimath.ColorHex("#f5f5f5"),
+					FillColor: uimath.ColorHex("#f3f3f3"),
 				}, 102, 1)
 			}
 		}
@@ -444,7 +444,7 @@ func (s *Select) drawDropdown(buf *render.CommandBuffer, triggerBounds uimath.Re
 		if opt.Value == s.value {
 			buf.DrawOverlay(render.RectCmd{
 				Bounds:    optRect,
-				FillColor: uimath.ColorHex("#e6f4ff"),
+				FillColor: uimath.ColorHex("#f2f3ff"),
 			}, 102, 1)
 		}
 

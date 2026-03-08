@@ -510,31 +510,44 @@ func TestButtonVariantColors(t *testing.T) {
 	btn := NewButton(tree, "X", cfg)
 	btn.SetDisabled(true)
 	bg := btn.bgColor()
-	if bg != cfg.DisabledColor {
-		t.Error("disabled should use disabled color")
+	expectedDisabledBg := uimath.ColorHex("#eeeeee")
+	if bg != expectedDisabledBg {
+		t.Errorf("disabled bg should be #eeeeee, got %+v", bg)
 	}
 	tc := btn.textColor()
-	if tc != cfg.BgColor {
-		t.Error("disabled text should use bg color")
+	expectedDisabledText := uimath.RGBA(0, 0, 0, 0.26)
+	if tc != expectedDisabledText {
+		t.Errorf("disabled text should be rgba(0,0,0,0.26), got %+v", tc)
 	}
 }
 
 func TestButtonHoverAndPressed(t *testing.T) {
 	tree := newTestTree()
-	btn := NewButton(tree, "X", nil)
 
-	// Hovered
+	// ThemeDefault + ButtonBase = TDesign default button (white bg, gray border)
+	btn := NewButton(tree, "X", nil)
 	tree.SetHovered(btn.ElementID(), true)
 	bg := btn.bgColor()
-	if bg != btn.config.HoverColor {
-		t.Error("hovered primary should use hover color")
+	if bg != uimath.ColorHex("#f3f3f3") {
+		t.Errorf("hovered default button should use #f3f3f3, got %+v", bg)
 	}
-
-	// Pressed
 	btn.pressed = true
 	bg = btn.bgColor()
-	if bg != btn.config.ActiveColor {
-		t.Error("pressed primary should use active color")
+	if bg != uimath.ColorHex("#e8e8e8") {
+		t.Errorf("pressed default button should use #e8e8e8, got %+v", bg)
+	}
+
+	// ThemePrimary + ButtonBase = blue filled button
+	btn2 := NewButton(tree, "X", nil)
+	btn2.SetTheme(ThemePrimary)
+	tree.SetHovered(btn2.ElementID(), true)
+	bg2 := btn2.bgColor()
+	base := btn2.config.PrimaryColor
+	base.R = base.R + (1-base.R)*0.15
+	base.G = base.G + (1-base.G)*0.15
+	base.B = base.B + (1-base.B)*0.15
+	if bg2 != base {
+		t.Errorf("hovered primary button should lighten, got %+v", bg2)
 	}
 }
 
@@ -3978,8 +3991,8 @@ func TestButtonTextColorTextLink(t *testing.T) {
 		btn.SetVariant(v)
 
 		tc := btn.textColor()
-		if tc != btn.config.PrimaryColor {
-			t.Errorf("variant %d normal text should be PrimaryColor", v)
+		if tc != btn.config.TextColor {
+			t.Errorf("variant %d normal text should be TextColor", v)
 		}
 
 		tree.SetHovered(btn.ElementID(), true)

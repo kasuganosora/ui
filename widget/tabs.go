@@ -207,7 +207,7 @@ func (t *Tabs) Draw(buf *render.CommandBuffer) {
 	if t.theme == TabThemeCard {
 		buf.DrawRect(render.RectCmd{
 			Bounds:    headerBounds,
-			FillColor: uimath.ColorHex("#f5f5f5"),
+			FillColor: uimath.ColorHex("#f3f3f3"),
 		}, 0, 1)
 	}
 
@@ -287,7 +287,7 @@ func (t *Tabs) drawHorizontalHeaders(buf *render.CommandBuffer, hb uimath.Rect) 
 				if hovered && !active {
 					buf.DrawRect(render.RectCmd{
 						Bounds:    uimath.NewRect(tabX, hb.Y, tabW, hb.Height-1),
-						FillColor: uimath.ColorHex("#fafafa"),
+						FillColor: uimath.ColorHex("#f3f3f3"),
 					}, 0, 1)
 				}
 			}
@@ -373,12 +373,12 @@ func (t *Tabs) drawVerticalHeaders(buf *render.CommandBuffer, hb uimath.Rect) {
 			if active {
 				buf.DrawRect(render.RectCmd{
 					Bounds:    uimath.NewRect(hb.X, tabY, tabW, tabH),
-					FillColor: uimath.ColorHex("#e6f4ff"),
+					FillColor: uimath.ColorHex("#f2f3ff"),
 				}, 0, 1)
 			} else if hovered {
 				buf.DrawRect(render.RectCmd{
 					Bounds:    uimath.NewRect(hb.X, tabY, tabW, tabH),
-					FillColor: uimath.ColorHex("#fafafa"),
+					FillColor: uimath.ColorHex("#f3f3f3"),
 				}, 0, 1)
 			}
 
@@ -473,7 +473,7 @@ func (t *Tabs) drawCardTab(buf *render.CommandBuffer, x, y, w, h float32, active
 	} else if hovered {
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(x, y, w, h),
-			FillColor: uimath.ColorHex("#fafafa"),
+			FillColor: uimath.ColorHex("#f3f3f3"),
 		}, 0, 1)
 	}
 }
@@ -482,7 +482,7 @@ func (t *Tabs) drawCardTab(buf *render.CommandBuffer, x, y, w, h float32, active
 func (t *Tabs) drawCloseButton(buf *render.CommandBuffer, x, y float32, value string, index int) {
 	cfg := t.config
 	s := tabCloseSize
-	clr := uimath.ColorHex("#999999")
+	clr := uimath.ColorHex("#8b8b8b")
 	// Draw two diagonal lines as small rects to approximate "x"
 	for i := 0; i < int(s); i++ {
 		fi := float32(i)
@@ -505,7 +505,7 @@ func (t *Tabs) drawCloseButton(buf *render.CommandBuffer, x, y float32, value st
 // drawAddButton draws the "+" add-tab button.
 func (t *Tabs) drawAddButton(buf *render.CommandBuffer, x, y, w, h float32) {
 	cfg := t.config
-	clr := uimath.ColorHex("#999999")
+	clr := uimath.ColorHex("#8b8b8b")
 
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)

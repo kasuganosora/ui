@@ -107,7 +107,7 @@ func (r *Radio) Draw(buf *render.CommandBuffer) {
 	// Colors
 	var fillColor, borderColor uimath.Color
 	if r.disabled {
-		fillColor = uimath.ColorHex("#f5f5f5")
+		fillColor = uimath.ColorHex("#f3f3f3")
 		borderColor = cfg.DisabledColor
 	} else if r.checked {
 		fillColor = uimath.ColorWhite

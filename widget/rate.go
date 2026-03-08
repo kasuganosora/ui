@@ -32,7 +32,7 @@ func NewRate(tree *core.Tree, cfg *Config) *Rate {
 		count:    5,
 		size:     24,
 		gap:      4,
-		color:    [2]uimath.Color{uimath.ColorHex("#fadb14"), cfg.BorderColor},
+		color:    [2]uimath.Color{uimath.ColorHex("#e37318"), cfg.BorderColor},
 	}
 	tree.AddHandler(r.id, event.MouseClick, func(e *event.Event) {
 		if r.disabled {

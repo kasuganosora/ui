@@ -698,9 +698,9 @@ func (inp *Input) Draw(buf *render.CommandBuffer) {
 
 	bgClr := cfg.BgColor
 	if inp.disabled {
-		bgClr = uimath.ColorHex("#f5f5f5")
+		bgClr = uimath.ColorHex("#f3f3f3")
 	} else if inp.readonly {
-		bgClr = uimath.ColorHex("#fafafa")
+		bgClr = uimath.ColorHex("#f3f3f3")
 	}
 
 	// Background + border
@@ -745,7 +745,7 @@ func (inp *Input) Draw(buf *render.CommandBuffer) {
 		}
 		selY := bounds.Y + (bounds.Height-lh)/2
 
-		selColor := uimath.ColorHex("#1677ff")
+		selColor := uimath.ColorHex("#0052d9")
 		selColor.A = 0.3
 
 		buf.DrawRect(render.RectCmd{

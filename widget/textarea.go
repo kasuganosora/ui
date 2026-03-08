@@ -788,7 +788,7 @@ func (ta *TextArea) Draw(buf *render.CommandBuffer) {
 
 	bgClr := cfg.BgColor
 	if ta.disabled {
-		bgClr = uimath.ColorHex("#f5f5f5")
+		bgClr = uimath.ColorHex("#f3f3f3")
 	}
 
 	buf.DrawRect(render.RectCmd{
@@ -939,7 +939,7 @@ func (ta *TextArea) drawSelection(buf *render.CommandBuffer, bounds uimath.Rect,
 	loLine, loCol := ta.runeOffsetToVisualLineCol(lo, contentW)
 	hiLine, hiCol := ta.runeOffsetToVisualLineCol(hi, contentW)
 
-	selColor := uimath.ColorHex("#1677ff")
+	selColor := uimath.ColorHex("#0052d9")
 	selColor.A = 0.3
 
 	vlines := ta.visualLines(contentW)

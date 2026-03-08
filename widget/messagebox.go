@@ -85,13 +85,13 @@ func (mb *MessageBox) Close() {
 func (mb *MessageBox) typeColor() uimath.Color {
 	switch mb.boxType {
 	case MessageBoxSuccess:
-		return uimath.ColorHex("#52c41a")
+		return uimath.ColorHex("#2ba471")
 	case MessageBoxWarning:
-		return uimath.ColorHex("#faad14")
+		return uimath.ColorHex("#e37318")
 	case MessageBoxError:
-		return uimath.ColorHex("#ff4d4f")
+		return uimath.ColorHex("#d54941")
 	case MessageBoxConfirm:
-		return uimath.ColorHex("#faad14")
+		return uimath.ColorHex("#e37318")
 	default:
 		return mb.config.PrimaryColor
 	}

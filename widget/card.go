@@ -63,20 +63,27 @@ func NewCard(tree *core.Tree, cfg *Config) *Card {
 		c.hovered = false
 	})
 
+	c.updatePadding()
 	return c
 }
 
-func (c *Card) SetTitle(t string)          { c.title = t }
-func (c *Card) SetSubtitle(s string)       { c.subtitle = s }
+func (c *Card) SetTitle(t string) {
+	c.title = t
+	c.updatePadding()
+}
+func (c *Card) SetSubtitle(s string) {
+	c.subtitle = s
+	c.updatePadding()
+}
 func (c *Card) SetDescription(d string)    { c.description = d }
 func (c *Card) SetBordered(b bool)         { c.bordered = b }
 func (c *Card) SetShadow(v bool)          { c.shadow = v }
 func (c *Card) SetBgColor(cl uimath.Color) { c.bgColor = cl }
 func (c *Card) SetActions(w Widget)        { c.actions = w }
-func (c *Card) SetFooter(w Widget)         { c.footer = w }
+func (c *Card) SetFooter(w Widget)         { c.footer = w; c.updatePadding() }
 func (c *Card) SetHoverShadow(v bool)      { c.hoverShadow = v }
 func (c *Card) SetHeaderBordered(v bool)   { c.headerBordered = v }
-func (c *Card) SetSize(s Size)             { c.size = s }
+func (c *Card) SetSize(s Size)             { c.size = s; c.updatePadding() }
 func (c *Card) SetCover(url string)        { c.cover = url }
 func (c *Card) SetAvatar(url string)       { c.avatar = url }
 func (c *Card) SetStatus(s string)         { c.status = s }
@@ -90,6 +97,7 @@ func (c *Card) HeaderBordered() bool       { return c.headerBordered }
 // AddFooterAction adds a widget to the footer action bar.
 func (c *Card) AddFooterAction(w Widget) {
 	c.footerActions = append(c.footerActions, w)
+	c.updatePadding()
 }
 
 // FooterActions returns the footer action widgets.
@@ -103,6 +111,45 @@ func (c *Card) cardPadding() float32 {
 		return c.config.SpaceSM
 	}
 	return c.config.SpaceLG
+}
+
+// headerHeight returns the height of the header area (0 if no title).
+func (c *Card) headerHeight() float32 {
+	if c.title == "" {
+		return 0
+	}
+	if c.size == SizeSmall {
+		if c.subtitle != "" {
+			return 52
+		}
+		return 40
+	}
+	if c.subtitle != "" {
+		return 64
+	}
+	return 48
+}
+
+// footerHeight returns the height of the footer area.
+func (c *Card) footerHeight() float32 {
+	if c.footer == nil && len(c.footerActions) == 0 {
+		return 0
+	}
+	if c.size == SizeSmall {
+		return 40
+	}
+	return 48
+}
+
+// updatePadding adjusts the style padding so children don't overlap header/footer.
+func (c *Card) updatePadding() {
+	pad := c.cardPadding()
+	c.style.Padding = layout.EdgeValues{
+		Top:    layout.Px(c.headerHeight() + pad),
+		Bottom: layout.Px(c.footerHeight() + pad),
+		Left:   layout.Px(pad),
+		Right:  layout.Px(pad),
+	}
 }
 
 func (c *Card) Draw(buf *render.CommandBuffer) {
@@ -153,18 +200,8 @@ func (c *Card) Draw(buf *render.CommandBuffer) {
 	y := bounds.Y
 
 	// Header section (title + subtitle + actions)
-	headerH := float32(0)
+	headerH := c.headerHeight()
 	if c.title != "" {
-		headerH = 48
-		if c.subtitle != "" {
-			headerH = 64
-		}
-		if c.size == SizeSmall {
-			headerH = 40
-			if c.subtitle != "" {
-				headerH = 52
-			}
-		}
 
 		// Title
 		titleFs := cfg.FontSizeLg
@@ -241,12 +278,8 @@ func (c *Card) Draw(buf *render.CommandBuffer) {
 	c.DrawChildren(buf)
 
 	// Footer section
-	footerH := float32(0)
-	if c.footer != nil || len(c.footerActions) > 0 {
-		footerH = 48
-		if c.size == SizeSmall {
-			footerH = 40
-		}
+	footerH := c.footerHeight()
+	if footerH > 0 {
 		footerY := bounds.Y + bounds.Height - footerH
 
 		// Footer top divider
