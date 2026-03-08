@@ -15,22 +15,70 @@ import (
 	"github.com/kasuganosora/ui/font/textrender"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/platform"
+	"github.com/kasuganosora/ui/theme"
 	"github.com/kasuganosora/ui/platform/win32"
 	"github.com/kasuganosora/ui/render"
+	"github.com/kasuganosora/ui/render/dx11"
+	"github.com/kasuganosora/ui/render/gl"
 	"github.com/kasuganosora/ui/render/vulkan"
 	"github.com/kasuganosora/ui/widget"
 )
 
+// BackendType selects the rendering backend.
+type BackendType int
+
+const (
+	BackendAuto    BackendType = iota // Try Vulkan first, fall back to DX11
+	BackendVulkan                     // Force Vulkan
+	BackendDX11                       // Force DirectX 11
+	BackendOpenGL                     // Force OpenGL 3.3
+)
+
 // AppOptions configures an App instance.
 type AppOptions struct {
-	Title  string // Window title
-	Width  int    // Window width (logical pixels)
-	Height int    // Window height (logical pixels)
-	Font   string // Path to font file (e.g. "C:\\Windows\\Fonts\\msyh.ttc")
+	Title   string      // Window title
+	Width   int         // Window width (logical pixels)
+	Height  int         // Window height (logical pixels)
+	Font    string      // Path to font file (e.g. "C:\\Windows\\Fonts\\msyh.ttc")
+	Backend BackendType // Rendering backend (default: auto)
 
 	// OnLayout is an optional custom layout callback.
 	// If nil, the App uses a basic auto-layout.
 	OnLayout func(tree *core.Tree, root widget.Widget, w, h float32)
+}
+
+// createBackend creates a render.Backend based on the selected type.
+func createBackend(bt BackendType, win platform.Window) (render.Backend, error) {
+	switch bt {
+	case BackendDX11:
+		b := dx11.New()
+		if err := b.Init(win); err != nil {
+			return nil, fmt.Errorf("dx11 init: %w", err)
+		}
+		return b, nil
+	case BackendVulkan:
+		b := vulkan.New()
+		if err := b.Init(win); err != nil {
+			return nil, fmt.Errorf("vulkan init: %w", err)
+		}
+		return b, nil
+	case BackendOpenGL:
+		b := gl.New()
+		if err := b.Init(win); err != nil {
+			return nil, fmt.Errorf("gl init: %w", err)
+		}
+		return b, nil
+	default: // BackendAuto: try Vulkan first, fall back to DX11
+		b := vulkan.New()
+		if err := b.Init(win); err == nil {
+			return b, nil
+		}
+		d := dx11.New()
+		if err := d.Init(win); err != nil {
+			return nil, fmt.Errorf("no backend available: dx11: %w", err)
+		}
+		return d, nil
+	}
 }
 
 // App encapsulates the full UI application lifecycle:
@@ -110,11 +158,11 @@ func NewApp(opts AppOptions) (*App, error) {
 	}
 
 	// --- Renderer ---
-	a.backend = vulkan.New()
-	if err := a.backend.Init(a.win); err != nil {
+	a.backend, err = createBackend(opts.Backend, a.win)
+	if err != nil {
 		a.win.Destroy()
 		a.plat.Terminate()
-		return nil, fmt.Errorf("vulkan init: %w", err)
+		return nil, err
 	}
 
 	// --- Font System ---
@@ -207,6 +255,42 @@ func (a *App) Config() *widget.Config { return a.cfg }
 
 // Window returns the platform window.
 func (a *App) Window() platform.Window { return a.win }
+
+// SetTheme applies a theme to the application, updating widget.Config values
+// and injecting CSS variables into the current document's stylesheet.
+func (a *App) SetTheme(t *theme.Theme) {
+	// Update widget.Config from theme
+	cv := t.ToConfig()
+	a.cfg.PrimaryColor = cv.PrimaryColor
+	a.cfg.TextColor = cv.TextColor
+	a.cfg.BgColor = cv.BgColor
+	a.cfg.BorderColor = cv.BorderColor
+	a.cfg.DisabledColor = cv.DisabledColor
+	a.cfg.HoverColor = cv.HoverColor
+	a.cfg.ActiveColor = cv.ActiveColor
+	a.cfg.FocusBorderColor = cv.FocusBorderColor
+	a.cfg.ErrorColor = cv.ErrorColor
+	a.cfg.FontSize = cv.FontSize
+	a.cfg.FontSizeSm = cv.FontSizeSm
+	a.cfg.FontSizeLg = cv.FontSizeLg
+	a.cfg.SpaceXS = cv.SpaceXS
+	a.cfg.SpaceSM = cv.SpaceSM
+	a.cfg.SpaceMD = cv.SpaceMD
+	a.cfg.SpaceLG = cv.SpaceLG
+	a.cfg.SpaceXL = cv.SpaceXL
+	a.cfg.BorderRadius = cv.BorderRadius
+	a.cfg.BorderWidth = cv.BorderWidth
+	a.cfg.ButtonHeight = cv.ButtonHeight
+	a.cfg.InputHeight = cv.InputHeight
+
+	// Inject CSS variables into document
+	if a.doc != nil {
+		a.doc.SetTheme(t)
+	}
+
+	// Mark tree dirty so everything redraws
+	a.tree.MarkDirty(a.tree.Root())
+}
 
 // Run starts the main loop. Blocks until the window is closed.
 func (a *App) Run() error {
@@ -750,6 +834,12 @@ func itemHeight(child widget.Widget) float32 {
 		return h
 	case *widget.InputNumber:
 		return 32
+	case *widget.Text:
+		fs := v.FontSize()
+		if fs <= 0 {
+			fs = 14
+		}
+		return fs * 1.4 // line-height ~1.4x font size
 	}
 	// Check if this is a container (demo-card) with children
 	children := child.Children()

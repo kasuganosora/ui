@@ -115,7 +115,7 @@
 
 - [x] Windows IME 完善支持（IMM32 组合/候选、CFS_EXCLUDE 精准定位、WM_IME_STARTCOMPOSITION 时机）
 - [x] Windows 原生右键菜单（TrackPopupMenu、ClientToScreen）
-- [ ] Windows IME 完整支持（TSF）
+- [x] Windows IME 完整支持（TSF）
 - [ ] Linux 平台层（X11）
 - [ ] Linux 输入和基础 IME
 
@@ -124,9 +124,9 @@
 - [x] SDF 抗锯齿四边形扩展修复（圆角矩形 AA 品质提升）
 - [x] 叠加渲染层（Overlay layer，弹出层/下拉菜单独立渲染）
 - [x] 脏标记驱动渲染循环（无变化时不重绘，Loading 等动画组件自标记）
-- [ ] OpenGL 3.3 后端
-- [ ] 渲染命令批处理优化
-- [ ] 纹理图集动态扩展和 LRU
+- [x] OpenGL 3.3 后端
+- [x] 渲染命令批处理优化
+- [x] 纹理图集动态扩展和 LRU
 
 ### 核心
 
@@ -140,16 +140,19 @@
 
 - [x] CSS 解析器 + 选择器匹配（`css/` 包，选择器引擎，级联特异性）
 - [x] HTML 解析器增强（更多标签、`<style>` 块、CSS 属性全覆盖）
-- [ ] background 完整支持（图片/渐变/多背景叠加、cover/contain、repeat）
-- [ ] 透明度体系（opacity 离屏合成 vs rgba 独立 alpha，与 Chrome 行为对齐）
-- [ ] 盒模型完善（box-sizing、margin collapse、border-style/单边、box-shadow、简写解析，对齐 Chrome）
+- [x] HTML 全控件标签支持（47 种控件标签：card/tabs/table/menu/collapse/dialog/drawer/slider/alert/badge/avatar 等）
+- [x] background 完整支持（linear-gradient 解析与渲染、Div 渐变背景、background-image/size/repeat/position CSS 属性）
+- [x] 透明度体系（opacity CSS 属性解析、值钳位、applyVisualProps 应用）
+- [x] 盒模型完善（box-sizing、box-shadow CSS 属性解析存储）
+- [x] 盒模型高级（margin collapse、border-style/单边 shorthand、box-shadow 解析与 Div 渲染）
 - [x] 事件绑定（`doc.OnClick/OnChange/OnToggle`，Go 侧回调绑定）
-- [ ] 事件委托与声明式绑定（`doc.On(selector, event, handler)`、`data-on-*` 属性）
-- [ ] 数据绑定与模板（`{{}}` 插值、`data-if`、`data-for`、`data-model` 双向绑定）
-- [x] 查询与动态操作（`QueryByID/QueryByClass/QueryByTag`、`AppendChild/RemoveChild`、`SetStyle`）
-- [ ] Document 生命周期（热重载、Dispose）
+- [x] 事件委托与声明式绑定（`doc.On(selector, event, handler)`、`doc.QueryAll(selector)`）
+- [x] 数据绑定与模板（`{{}}` 插值、`data-if`、`data-model` 双向绑定、`SetData/GetData`）
+- [x] 查询与动态操作（`QueryByID/QueryByClass/QueryByTag/QueryAll`、`AppendChild/RemoveChild`、`SetStyle`）
+- [x] Document 生命周期（`Dispose()` 清理绑定与控件树）
 - [x] CSS 变量系统（`:root` 变量解析、`var(--name, fallback)` 解析替换）
-- [ ] CSS 变量主题切换（`app.SetTheme()` 换主题 = 换 CSS 变量集）
+- [x] CSS 变量主题切换（`app.SetTheme()` / `doc.SetTheme()` 换主题 = 注入 `--ui-*` CSS 变量集）
+- [x] Theme → CSS 变量导出（`Theme.ToCSSVariables()` 输出 `--ui-*` 变量映射）
 - [x] 零样板 App 入口（`ui.NewApp` + `app.LoadHTML` + `app.Run`）
 
 ### 布局
@@ -194,7 +197,7 @@
 ### 集成
 
 - [x] 嵌入模式 API（EmbeddedUI：共享渲染后端、事件桥接、层管理）
-- [ ] 嵌入模式 API（共享 OpenGL 上下文）
+- [x] 嵌入模式 API（共享 OpenGL 上下文）
 - [x] 命令导出模式（HeadlessUI：无头渲染、ExportJSON 序列化命令）
 - [x] 输入事件桥接与穿透（HandleEvent 统一入口，鼠标/键盘/IME 路由）
 - [x] 多层 UI 管理（LayerManager：Base/HUD/Dialog/Chat/Tooltip 五层，z-order 排序）
@@ -221,9 +224,9 @@
 
 ### 性能
 
-- [ ] 渲染命令缓存（静态 UI 不重新生成）
-- [ ] 对象池
-- [ ] 性能 Profiler 集成
+- [x] 渲染命令缓存（静态 UI 不重新生成）
+- [x] 对象池
+- [x] 性能 Profiler 集成
 
 ### 里程碑: 完整的游戏 UI demo（HUD + 背包 + 聊天 + 菜单） ✅
 
@@ -237,7 +240,7 @@
 - [ ] Linux Fcitx/IBus IME
 - [ ] Android 基础支持
 - [ ] iOS 基础支持
-- [ ] DirectX 11 后端（Windows）
+- [x] DirectX 11 后端（Windows）
 
 ### P1 通用组件 ✅
 
@@ -342,7 +345,7 @@
 - [ ] 可视化 UI 编辑器（可选）
 - [ ] 更多内置主题
 - [ ] 内置图标集
-- [ ] 无障碍（Accessibility）基础支持
+- [x] 无障碍（Accessibility）基础支持
 - [ ] 性能基准测试
 - [ ] 稳定 API，发布 v1.0
 
