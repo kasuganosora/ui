@@ -283,6 +283,11 @@ func wndProc(hwnd, msg, wParam, lParam uintptr) uintptr {
 		ret, _, _ := procDefWindowProcW.Call(hwnd, msg, wParam, lParam)
 		return ret
 
+	case WM_GETOBJECT:
+		if result, handled := w.uiaProvider.HandleGetObject(wParam, lParam); handled {
+			return result
+		}
+
 	case WM_DESTROY:
 		return 0
 	}

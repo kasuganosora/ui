@@ -7,22 +7,22 @@ import (
 	"github.com/kasuganosora/ui/render"
 )
 
-// BreadcrumbItem is a single breadcrumb entry (TDesign: TdBreadcrumbItemProps).
+// BreadcrumbItem is a single breadcrumb entry.
 type BreadcrumbItem struct {
-	Content  string // display text (TDesign: content)
-	Href     string // navigation link (TDesign: href)
-	Disabled bool   // whether click is disabled (TDesign: disabled)
-	MaxWidth string // max width with ellipsis (TDesign: maxWidth)
+	Content  string // display text
+	Href     string // navigation link
+	Disabled bool   // whether click is disabled
+	MaxWidth string // max width with ellipsis
 }
 
-// Breadcrumb displays a path of navigable links (TDesign: TdBreadcrumbProps).
+// Breadcrumb displays a path of navigable links.
 type Breadcrumb struct {
 	Base
-	options      []BreadcrumbItem // breadcrumb items (TDesign: options)
-	separator    string           // separator character (TDesign: separator)
-	maxItemWidth string           // max width per item (TDesign: maxItemWidth)
-	maxItems     int              // max visible items, 0 = unlimited (TDesign: maxItems)
-	theme        string           // visual theme (TDesign: theme)
+	options      []BreadcrumbItem // breadcrumb items
+	separator    string           // separator character
+	maxItemWidth string           // max width per item
+	maxItems     int              // max visible items, 0 = unlimited
+	theme        string           // visual theme
 	onClick      func(index int, href string)
 	itemIDs      []core.ElementID
 }
@@ -38,7 +38,7 @@ func NewBreadcrumb(tree *core.Tree, cfg *Config) *Breadcrumb {
 	}
 }
 
-// SetOptions sets the breadcrumb items (TDesign: options).
+// SetOptions sets the breadcrumb items.
 func (b *Breadcrumb) SetOptions(items []BreadcrumbItem) {
 	// Clean up old item elements
 	for _, id := range b.itemIDs {
@@ -76,7 +76,7 @@ func (b *Breadcrumb) SetMaxItemWidth(w string)  { b.maxItemWidth = w }
 func (b *Breadcrumb) SetMaxItems(n int)         { b.maxItems = n }
 func (b *Breadcrumb) SetTheme(t string)         { b.theme = t }
 
-// OnClick sets the callback for breadcrumb item clicks (TDesign: onClick on BreadcrumbItem).
+// OnClick sets the callback for breadcrumb item clicks.
 func (b *Breadcrumb) OnClick(fn func(int, string)) { b.onClick = fn }
 
 func (b *Breadcrumb) Draw(buf *render.CommandBuffer) {

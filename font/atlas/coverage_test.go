@@ -40,10 +40,16 @@ func TestAtlasUploadNoDirty(t *testing.T) {
 }
 
 func TestAtlasEvictionTriggered(t *testing.T) {
-	// Very small atlas: can only fit one 10x10 glyph per shelf, maybe 2 shelves
-	a := New(Options{Width: 16, Height: 16})
+	// Very small atlas: can only fit one 10x10 glyph per shelf, maybe 2 shelves.
+	// MaxSize = 16 prevents growth so eviction must handle it.
+	a := New(Options{Width: 16, Height: 16, MaxSize: 16})
 	bitmap := font.GlyphBitmap{Width: 10, Height: 10, Data: make([]byte, 100)}
 	metrics := font.GlyphMetrics{Advance: 10}
+
+	// Advance past stale threshold so eviction can identify stale glyphs
+	for i := 0; i < 15; i++ {
+		a.BeginFrame()
+	}
 
 	// Insert first glyph — should succeed
 	e1 := a.Insert(MakeKey(1, 1, 16), bitmap, metrics)
@@ -54,13 +60,18 @@ func TestAtlasEvictionTriggered(t *testing.T) {
 		t.Errorf("expected 1 glyph, got %d", a.GlyphCount())
 	}
 
-	// Insert second glyph — should trigger eviction then succeed
+	// Advance frames so glyph 1 becomes stale
+	for i := 0; i < 15; i++ {
+		a.BeginFrame()
+	}
+
+	// Insert second glyph — should trigger stale eviction then succeed
 	e2 := a.Insert(MakeKey(1, 2, 16), bitmap, metrics)
 	if e2 == nil {
 		t.Fatal("second insert should succeed after eviction")
 	}
 
-	// First glyph should be gone (eviction clears all)
+	// First glyph should be gone (eviction clears stale + rebuild)
 	if a.Lookup(MakeKey(1, 1, 16)) != nil {
 		t.Error("first glyph should be evicted")
 	}

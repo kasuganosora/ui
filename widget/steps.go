@@ -8,17 +8,17 @@ import (
 	"github.com/kasuganosora/ui/render"
 )
 
-// StepStatus indicates the state of a step (TDesign: StepStatus).
+// StepStatus indicates the state of a step.
 type StepStatus uint8
 
 const (
-	StepDefault StepStatus = iota // TDesign: 'default'
-	StepProcess                   // TDesign: 'process'
-	StepFinish                    // TDesign: 'finish'
-	StepError                     // TDesign: 'error'
+	StepDefault StepStatus = iota // default
+	StepProcess                   // process
+	StepFinish                    // finish
+	StepError                     // error
 )
 
-// StepsLayout controls the direction of the steps bar (TDesign: layout).
+// StepsLayout controls the direction of the steps bar.
 type StepsLayout int
 
 const (
@@ -26,7 +26,7 @@ const (
 	StepsLayoutVertical
 )
 
-// StepsSeparator controls the separator style (TDesign: separator).
+// StepsSeparator controls the separator style.
 type StepsSeparator int
 
 const (
@@ -35,7 +35,7 @@ const (
 	StepsSeparatorArrow
 )
 
-// StepsSequence controls the display order (TDesign: sequence).
+// StepsSequence controls the display order.
 type StepsSequence int
 
 const (
@@ -43,7 +43,7 @@ const (
 	StepsSequenceReverse
 )
 
-// StepsTheme controls the visual style (TDesign: theme).
+// StepsTheme controls the visual style.
 type StepsTheme int
 
 const (
@@ -51,26 +51,26 @@ const (
 	StepsThemeDot
 )
 
-// StepItem represents a single step (TDesign: TdStepItemProps).
+// StepItem represents a single step.
 type StepItem struct {
-	Title   string     // step title (TDesign: title)
-	Content string     // step description (TDesign: content)
-	Extra   string     // extra content below description (TDesign: extra)
-	Status  StepStatus // override auto status (TDesign: status)
-	Value   string     // unique step identifier (TDesign: value)
+	Title   string     // step title
+	Content string     // step description
+	Extra   string     // extra content below description
+	Status  StepStatus // override auto status
+	Value   string     // unique step identifier
 }
 
-// Steps displays a navigation progress bar (TDesign: TdStepsProps).
+// Steps displays a navigation progress bar.
 type Steps struct {
 	Base
-	options   []StepItem     // step items (TDesign: options)
-	current   int            // current step index (TDesign: current)
-	layout    StepsLayout    // horizontal or vertical (TDesign: layout)
-	readonly  bool           // read-only mode (TDesign: readonly)
-	separator StepsSeparator // separator style (TDesign: separator)
-	sequence  StepsSequence  // display order (TDesign: sequence)
-	theme     StepsTheme     // visual theme (TDesign: theme)
-	onChange  func(current int, previous int) // TDesign: onChange
+	options   []StepItem     // step items
+	current   int            // current step index
+	layout    StepsLayout    // horizontal or vertical
+	readonly  bool           // read-only mode
+	separator StepsSeparator // separator style
+	sequence  StepsSequence  // display order
+	theme     StepsTheme     // visual theme
+	onChange  func(current int, previous int) // called on step change
 }
 
 func NewSteps(tree *core.Tree, cfg *Config) *Steps {
@@ -96,10 +96,10 @@ func (s *Steps) Sequence() StepsSequence          { return s.sequence }
 func (s *Steps) SetTheme(t StepsTheme)            { s.theme = t }
 func (s *Steps) Theme() StepsTheme                { return s.theme }
 
-// OnChange sets the callback for step changes (TDesign: onChange).
+// OnChange sets the callback for step changes.
 func (s *Steps) OnChange(fn func(current int, previous int)) { s.onChange = fn }
 
-// SetOptions sets the step items (TDesign: options).
+// SetOptions sets the step items.
 func (s *Steps) SetOptions(items []StepItem) {
 	s.options = items
 }

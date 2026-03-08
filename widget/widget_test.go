@@ -524,7 +524,7 @@ func TestButtonVariantColors(t *testing.T) {
 func TestButtonHoverAndPressed(t *testing.T) {
 	tree := newTestTree()
 
-	// ThemeDefault + ButtonBase = TDesign default button (white bg, gray border)
+	// ThemeDefault + ButtonBase = default button (white bg, gray border)
 	btn := NewButton(tree, "X", nil)
 	tree.SetHovered(btn.ElementID(), true)
 	bg := btn.bgColor()

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/layout"
 	"github.com/kasuganosora/ui/widget"
 )
 
@@ -974,5 +975,373 @@ func TestHTMLSwitchDisabled(t *testing.T) {
 	sws := doc.QueryByTag("switch")
 	if len(sws) != 1 {
 		t.Fatal("expected 1 switch")
+	}
+}
+
+// === Feature: Event Delegation (doc.On / doc.QueryAll) ===
+
+func TestDocumentQueryAll(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `
+		<button id="b1" class="btn">A</button>
+		<button id="b2" class="btn">B</button>
+		<p>text</p>
+	`, "")
+
+	// By ID
+	ws := doc.QueryAll("#b1")
+	if len(ws) != 1 {
+		t.Fatalf("QueryAll(#b1): expected 1, got %d", len(ws))
+	}
+
+	// By class
+	ws = doc.QueryAll(".btn")
+	if len(ws) != 2 {
+		t.Fatalf("QueryAll(.btn): expected 2, got %d", len(ws))
+	}
+
+	// By tag
+	ws = doc.QueryAll("button")
+	if len(ws) != 2 {
+		t.Fatalf("QueryAll(button): expected 2, got %d", len(ws))
+	}
+
+	// Not found
+	ws = doc.QueryAll("#nonexistent")
+	if len(ws) != 0 {
+		t.Fatalf("QueryAll(#nonexistent): expected 0, got %d", len(ws))
+	}
+
+	// Empty selector
+	ws = doc.QueryAll("")
+	if len(ws) != 0 {
+		t.Fatalf("QueryAll(empty): expected 0, got %d", len(ws))
+	}
+
+	// By class not found
+	ws = doc.QueryAll(".nope")
+	if len(ws) != 0 {
+		t.Fatalf("QueryAll(.nope): expected 0, got %d", len(ws))
+	}
+}
+
+func TestDocumentOnClick(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `
+		<button id="b1" class="btn">A</button>
+		<button id="b2" class="btn">B</button>
+	`, "")
+
+	clicked := 0
+	doc.On(".btn", "click", func(w widget.Widget) {
+		clicked++
+	})
+
+	// Verify handlers were registered (buttons have OnClick)
+	// We can't easily simulate clicks here, but we can verify no panic
+	_ = clicked
+}
+
+func TestDocumentOnChange(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `
+		<input id="inp" class="field"/>
+		<textarea id="ta" class="field">text</textarea>
+		<select id="sel" class="field">opts</select>
+	`, "")
+
+	doc.On(".field", "change", func(w widget.Widget) {})
+	// No panic = success
+}
+
+func TestDocumentOnToggle(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `
+		<checkbox id="cb" class="toggle">Check</checkbox>
+		<switch id="sw" class="toggle"></switch>
+	`, "")
+
+	doc.On(".toggle", "toggle", func(w widget.Widget) {})
+	// No panic = success
+}
+
+// === Feature: Dispose ===
+
+func TestDocumentDispose(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `<div id="main"><p>Hello</p></div>`, "")
+
+	if doc.Root == nil {
+		t.Fatal("expected root before dispose")
+	}
+
+	cleanupCalled := false
+	doc.addCleanup(func() { cleanupCalled = true })
+
+	doc.Dispose()
+
+	if !cleanupCalled {
+		t.Error("expected cleanup to be called")
+	}
+	if doc.Root != nil {
+		t.Error("expected root to be nil after dispose")
+	}
+	if len(doc.cleanups) != 0 {
+		t.Error("expected cleanups to be cleared")
+	}
+	if len(doc.bindings) != 0 {
+		t.Error("expected bindings to be cleared")
+	}
+}
+
+func TestDocumentDisposeMultipleCleanups(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `<p>test</p>`, "")
+
+	count := 0
+	doc.addCleanup(func() { count++ })
+	doc.addCleanup(func() { count++ })
+	doc.addCleanup(func() { count++ })
+
+	doc.Dispose()
+	if count != 3 {
+		t.Errorf("expected 3 cleanups called, got %d", count)
+	}
+}
+
+// === Feature: Data Binding & Templates ===
+
+func TestDocumentSetGetData(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `<p>test</p>`, "")
+
+	// Get before set
+	if doc.GetData("key") != nil {
+		t.Error("expected nil for unset key")
+	}
+
+	doc.SetData("name", "Alice")
+	if doc.GetData("name") != "Alice" {
+		t.Errorf("expected Alice, got %v", doc.GetData("name"))
+	}
+
+	doc.SetData("count", 42)
+	if doc.GetData("count") != 42 {
+		t.Errorf("expected 42, got %v", doc.GetData("count"))
+	}
+}
+
+func TestDocumentTemplateInterpolation(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `<p>Hello {{name}}</p>`, "")
+
+	// Before data set, template key resolves to empty
+	p := doc.QueryByTag("p")
+	if len(p) != 1 {
+		t.Fatalf("expected 1 p, got %d", len(p))
+	}
+	txt, ok := p[0].(*widget.Text)
+	if !ok {
+		t.Fatal("expected *widget.Text")
+	}
+	if txt.Text() != "Hello " {
+		t.Errorf("expected 'Hello ', got %q", txt.Text())
+	}
+
+	// After SetData, binding should update text
+	doc.SetData("name", "World")
+	if txt.Text() != "Hello World" {
+		t.Errorf("expected 'Hello World', got %q", txt.Text())
+	}
+}
+
+func TestDocumentTemplateMultipleKeys(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `<span>{{first}} {{last}}</span>`, "")
+
+	doc.SetData("first", "Jane")
+	doc.SetData("last", "Doe")
+
+	spans := doc.QueryByTag("span")
+	if len(spans) != 1 {
+		t.Fatalf("expected 1 span, got %d", len(spans))
+	}
+	txt := spans[0].(*widget.Text)
+	if txt.Text() != "Jane Doe" {
+		t.Errorf("expected 'Jane Doe', got %q", txt.Text())
+	}
+}
+
+func TestDocumentTemplateBareText(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `<div>Count: {{count}}</div>`, "")
+
+	doc.SetData("count", 5)
+
+	// The bare text inside div should be interpolated
+	div := doc.Root.Children()[0]
+	if len(div.Children()) != 1 {
+		t.Fatalf("expected 1 child in div, got %d", len(div.Children()))
+	}
+	txt := div.Children()[0].(*widget.Text)
+	if txt.Text() != "Count: 5" {
+		t.Errorf("expected 'Count: 5', got %q", txt.Text())
+	}
+}
+
+func TestDocumentTemplateHeading(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `<h1>Welcome {{user}}</h1>`, "")
+
+	doc.SetData("user", "Admin")
+
+	h := doc.QueryByTag("h1")
+	if len(h) != 1 {
+		t.Fatalf("expected 1 h1, got %d", len(h))
+	}
+	txt := h[0].(*widget.Text)
+	if txt.Text() != "Welcome Admin" {
+		t.Errorf("expected 'Welcome Admin', got %q", txt.Text())
+	}
+}
+
+func TestDocumentDataIf(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `<div id="msg" data-if="visible"><p>Hello</p></div>`, "")
+
+	// Initially hidden (no data set)
+	w := doc.QueryByID("msg")
+	if w == nil {
+		t.Fatal("expected widget")
+	}
+	if w.Style().Display != layout.DisplayNone {
+		t.Error("expected display:none when data-if key is not set")
+	}
+
+	// Set to true
+	doc.SetData("visible", true)
+	if w.Style().Display == layout.DisplayNone {
+		t.Error("expected visible after SetData(visible, true)")
+	}
+
+	// Set to false
+	doc.SetData("visible", false)
+	if w.Style().Display != layout.DisplayNone {
+		t.Error("expected hidden after SetData(visible, false)")
+	}
+}
+
+func TestDocumentDataModel(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `<input id="name" data-model="username"/>`, "")
+
+	// SetData should push value to input
+	doc.SetData("username", "alice")
+	w := doc.QueryByID("name")
+	inp, ok := w.(*widget.Input)
+	if !ok {
+		t.Fatal("expected *widget.Input")
+	}
+	if inp.Value() != "alice" {
+		t.Errorf("expected 'alice', got %q", inp.Value())
+	}
+}
+
+func TestDocumentDataModelTextArea(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `<textarea id="bio" data-model="bio">init</textarea>`, "")
+
+	doc.SetData("bio", "Hello World")
+	w := doc.QueryByID("bio")
+	ta, ok := w.(*widget.TextArea)
+	if !ok {
+		t.Fatal("expected *widget.TextArea")
+	}
+	if ta.Value() != "Hello World" {
+		t.Errorf("expected 'Hello World', got %q", ta.Value())
+	}
+}
+
+func TestExtractTemplateKeys(t *testing.T) {
+	keys := extractTemplateKeys("Hello {{name}}, you have {{count}} items")
+	if len(keys) != 2 {
+		t.Fatalf("expected 2 keys, got %d", len(keys))
+	}
+	if keys[0] != "name" || keys[1] != "count" {
+		t.Errorf("expected [name, count], got %v", keys)
+	}
+
+	// Duplicate keys
+	keys = extractTemplateKeys("{{x}} and {{x}}")
+	if len(keys) != 1 {
+		t.Errorf("expected 1 unique key, got %d", len(keys))
+	}
+
+	// No keys
+	keys = extractTemplateKeys("no templates here")
+	if len(keys) != 0 {
+		t.Errorf("expected 0 keys, got %d", len(keys))
+	}
+
+	// Unclosed template
+	keys = extractTemplateKeys("{{unclosed")
+	if len(keys) != 0 {
+		t.Errorf("expected 0 keys for unclosed, got %d", len(keys))
+	}
+}
+
+func TestIsTruthy(t *testing.T) {
+	tests := []struct {
+		val  interface{}
+		want bool
+	}{
+		{nil, false},
+		{true, true},
+		{false, false},
+		{0, false},
+		{1, true},
+		{0.0, false},
+		{1.5, true},
+		{"", false},
+		{"hello", true},
+		{[]int{1}, true},
+	}
+	for _, tt := range tests {
+		got := isTruthy(tt.val)
+		if got != tt.want {
+			t.Errorf("isTruthy(%v) = %v, want %v", tt.val, got, tt.want)
+		}
+	}
+}
+
+func TestDocumentInterpolateNoData(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `<p>test</p>`, "")
+
+	result := doc.interpolate("Hello {{missing}}")
+	if result != "Hello " {
+		t.Errorf("expected 'Hello ', got %q", result)
+	}
+}
+
+func TestDocumentGetDataNilMap(t *testing.T) {
+	doc := &Document{}
+	if doc.GetData("key") != nil {
+		t.Error("expected nil from nil data map")
 	}
 }

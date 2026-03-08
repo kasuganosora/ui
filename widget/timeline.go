@@ -135,7 +135,7 @@ func (t *Timeline) Draw(buf *render.CommandBuffer) {
 			}, 1, 1)
 		}
 
-		// Dot (outlined ring like TDesign)
+		// Dot (outlined ring)
 		buf.DrawRect(render.RectCmd{
 			Bounds:      uimath.NewRect(bounds.X, y, t.dotSize, t.dotSize),
 			FillColor:   uimath.ColorWhite,

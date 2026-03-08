@@ -90,76 +90,127 @@ func NewCommandBuffer() *CommandBuffer {
 	}
 }
 
-// Reset clears all commands for reuse.
+// Reset releases all pooled command objects and clears the buffer for reuse.
 func (cb *CommandBuffer) Reset() {
+	cb.releaseAll()
 	cb.commands = cb.commands[:0]
 	cb.overlays = cb.overlays[:0]
 }
 
+// releaseAll returns all command structs to their pools.
+func (cb *CommandBuffer) releaseAll() {
+	for i := range cb.commands {
+		cb.releaseCommand(&cb.commands[i])
+	}
+	for i := range cb.overlays {
+		cb.releaseCommand(&cb.overlays[i])
+	}
+}
+
+// releaseCommand returns a single command's struct to its pool.
+func (cb *CommandBuffer) releaseCommand(c *Command) {
+	switch c.Type {
+	case CmdRect:
+		if c.Rect != nil {
+			ReleaseRectCmd(c.Rect)
+			c.Rect = nil
+		}
+	case CmdText:
+		if c.Text != nil {
+			ReleaseTextCmd(c.Text)
+			c.Text = nil
+		}
+	case CmdImage:
+		if c.Image != nil {
+			ReleaseImageCmd(c.Image)
+			c.Image = nil
+		}
+	case CmdClip:
+		if c.Clip != nil {
+			ReleaseClipCmd(c.Clip)
+			c.Clip = nil
+		}
+	}
+}
+
 // DrawRect adds a rectangle draw command.
 func (cb *CommandBuffer) DrawRect(cmd RectCmd, zOrder int32, opacity float32) {
+	rc := AcquireRectCmd()
+	*rc = cmd
 	cb.commands = append(cb.commands, Command{
 		Type:    CmdRect,
 		ZOrder:  zOrder,
 		Opacity: opacity,
-		Rect:    &cmd,
+		Rect:    rc,
 	})
 }
 
 // DrawText adds a text draw command.
 func (cb *CommandBuffer) DrawText(cmd TextCmd, zOrder int32, opacity float32) {
+	tc := AcquireTextCmd()
+	*tc = cmd
 	cb.commands = append(cb.commands, Command{
 		Type:    CmdText,
 		ZOrder:  zOrder,
 		Opacity: opacity,
-		Text:    &cmd,
+		Text:    tc,
 	})
 }
 
 // DrawImage adds an image draw command.
 func (cb *CommandBuffer) DrawImage(cmd ImageCmd, zOrder int32, opacity float32) {
+	ic := AcquireImageCmd()
+	*ic = cmd
 	cb.commands = append(cb.commands, Command{
 		Type:    CmdImage,
 		ZOrder:  zOrder,
 		Opacity: opacity,
-		Image:   &cmd,
+		Image:   ic,
 	})
 }
 
 // PushClip pushes a scissor rectangle.
 func (cb *CommandBuffer) PushClip(bounds uimath.Rect) {
+	cc := AcquireClipCmd()
+	cc.Bounds = bounds
 	cb.commands = append(cb.commands, Command{
 		Type: CmdClip,
-		Clip: &ClipCmd{Bounds: bounds},
+		Clip: cc,
 	})
 }
 
 // PopClip resets the scissor to the full viewport (max bounds).
 func (cb *CommandBuffer) PopClip() {
+	cc := AcquireClipCmd()
+	cc.Bounds = uimath.NewRect(0, 0, 1e6, 1e6)
 	cb.commands = append(cb.commands, Command{
 		Type: CmdClip,
-		Clip: &ClipCmd{Bounds: uimath.NewRect(0, 0, 1e6, 1e6)},
+		Clip: cc,
 	})
 }
 
 // DrawOverlay adds a rect command to the overlay layer.
 // Overlays are rendered after all normal commands with no clip applied.
 func (cb *CommandBuffer) DrawOverlay(cmd RectCmd, zOrder int32, opacity float32) {
+	rc := AcquireRectCmd()
+	*rc = cmd
 	cb.overlays = append(cb.overlays, Command{
 		Type:    CmdRect,
 		ZOrder:  zOrder,
 		Opacity: opacity,
-		Rect:    &cmd,
+		Rect:    rc,
 	})
 }
 
 // DrawOverlayTextCmd adds a text command to the overlay layer.
 func (cb *CommandBuffer) DrawOverlayTextCmd(cmd TextCmd, zOrder int32, opacity float32) {
+	tc := AcquireTextCmd()
+	*tc = cmd
 	cb.overlays = append(cb.overlays, Command{
 		Type:    CmdText,
 		ZOrder:  zOrder,
 		Opacity: opacity,
-		Text:    &cmd,
+		Text:    tc,
 	})
 }
 

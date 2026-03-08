@@ -226,12 +226,14 @@ func (l *List) Draw(buf *render.CommandBuffer) {
 	}
 	cfg := l.config
 
-	// Background
-	buf.DrawRect(render.RectCmd{
-		Bounds:    bounds,
-		FillColor: uimath.ColorWhite,
-		Corners:   uimath.CornersAll(cfg.BorderRadius),
-	}, 0, 1)
+	// Background (skip for selectable nav lists — use parent's bg)
+	if !l.selectable {
+		buf.DrawRect(render.RectCmd{
+			Bounds:    bounds,
+			FillColor: uimath.ColorWhite,
+			Corners:   uimath.CornersAll(cfg.BorderRadius),
+		}, 0, 1)
+	}
 
 	if l.bordered {
 		buf.DrawRect(render.RectCmd{
@@ -305,6 +307,41 @@ func (l *List) Draw(buf *render.CommandBuffer) {
 		l.drawItem(buf, item, bounds, y, ih, cfg)
 		y += ih
 	}
+
+	// Draw scrollbar if content overflows
+	totalH := l.TotalHeight()
+	if totalH > bounds.Height {
+		sbWidth := float32(8)
+		trackX := bounds.X + bounds.Width - sbWidth - 2
+		// Track
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(trackX, bounds.Y+2, sbWidth, bounds.Height-4),
+			FillColor: uimath.RGBA(0, 0, 0, 0.05),
+			Corners:   uimath.CornersAll(sbWidth / 2),
+		}, 10, 1)
+		// Thumb
+		trackH := bounds.Height - 4
+		ratio := bounds.Height / totalH
+		if ratio > 1 {
+			ratio = 1
+		}
+		thumbH := trackH * ratio
+		if thumbH < 20 {
+			thumbH = 20
+		}
+		maxScroll := totalH - bounds.Height
+		scrollRatio := float32(0)
+		if maxScroll > 0 {
+			scrollRatio = l.scrollY / maxScroll
+		}
+		thumbY := bounds.Y + 2 + (trackH-thumbH)*scrollRatio
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(trackX, thumbY, sbWidth, thumbH),
+			FillColor: uimath.RGBA(0, 0, 0, 0.25),
+			Corners:   uimath.CornersAll(sbWidth / 2),
+		}, 11, 1)
+	}
+
 	buf.PopClip()
 }
 

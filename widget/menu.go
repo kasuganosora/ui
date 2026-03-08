@@ -8,7 +8,7 @@ import (
 	"github.com/kasuganosora/ui/render"
 )
 
-// MenuTheme controls the color scheme of the menu (TDesign: theme).
+// MenuTheme controls the color scheme of the menu.
 type MenuTheme int
 
 const (
@@ -18,12 +18,12 @@ const (
 	MenuThemeDark
 )
 
-// MenuItem represents a single menu entry (TDesign: TdMenuItemProps).
+// MenuItem represents a single menu entry.
 type MenuItem struct {
-	Value    string            // unique identifier (TDesign: value)
-	Content  string            // menu item text content (TDesign: content)
-	Icon     render.TextureHandle // icon (TDesign: icon)
-	Disabled bool              // whether disabled (TDesign: disabled)
+	Value    string            // unique identifier
+	Content  string            // menu item text content
+	Icon     render.TextureHandle // icon
+	Disabled bool              // whether disabled
 	Children []MenuItem        // submenu items
 }
 
@@ -34,22 +34,22 @@ type menuItemRect struct {
 	hasSub bool
 }
 
-// Menu is a vertical navigation menu (TDesign: TdMenuProps).
+// Menu is a vertical navigation menu.
 type Menu struct {
 	Base
 	items       []MenuItem
-	value       string          // active menu item value (TDesign: value)
-	expanded    map[string]bool // expanded submenu values (TDesign: expanded)
-	onChange    func(value string)        // TDesign: onChange
-	onExpand    func(expanded []string)   // TDesign: onExpand
+	value       string          // active menu item value
+	expanded    map[string]bool // expanded submenu values
+	onChange    func(value string)        // called when active item changes
+	onExpand    func(expanded []string)   // called when expanded submenus change
 	itemHeight  float32
 	indent      float32
 	hoveredValue string
 	itemRects   []menuItemRect // rebuilt each Draw for hit testing
 	theme       MenuTheme
-	collapsed   bool    // collapsed sidebar mode (TDesign: collapsed)
-	expandMutex bool    // same-level mutual exclusion (TDesign: expandMutex)
-	width       float32 // menu width, 0 = auto (TDesign: width)
+	collapsed   bool    // collapsed sidebar mode
+	expandMutex bool    // same-level mutual exclusion
+	width       float32 // menu width, 0 = auto
 }
 
 func NewMenu(tree *core.Tree, cfg *Config) *Menu {
@@ -103,10 +103,10 @@ func (m *Menu) SetExpanded(values []string) {
 	}
 }
 
-// OnChange sets the callback invoked when the active menu item changes (TDesign: onChange).
+// OnChange sets the callback invoked when the active menu item changes.
 func (m *Menu) OnChange(fn func(value string)) { m.onChange = fn }
 
-// OnExpand sets the callback invoked when expanded submenus change (TDesign: onExpand).
+// OnExpand sets the callback invoked when expanded submenus change.
 func (m *Menu) OnExpand(fn func(expanded []string)) { m.onExpand = fn }
 
 // SetTheme sets the menu color theme.

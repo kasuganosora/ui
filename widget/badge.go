@@ -16,7 +16,7 @@ const (
 	BadgeShapeRound                    // pill / rounded-rect
 )
 
-// Deprecated: BadgeShapeRibbon is not part of TDesign spec.
+// Deprecated: BadgeShapeRibbon is not part of the standard spec.
 const BadgeShapeRibbon BadgeShape = 2
 
 // Badge displays a small count, text, or dot indicator.

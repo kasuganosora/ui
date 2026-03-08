@@ -10,7 +10,7 @@ import (
 	"github.com/kasuganosora/ui/render"
 )
 
-// MessageTheme controls the message appearance (maps to TDesign theme).
+// MessageTheme controls the message appearance.
 type MessageTheme uint8
 
 const (

@@ -6,7 +6,7 @@ import (
 	"github.com/kasuganosora/ui/render"
 )
 
-// DividerLayout controls orientation (matches TDesign `layout`).
+// DividerLayout controls orientation.
 type DividerLayout uint8
 
 const (

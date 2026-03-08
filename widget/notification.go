@@ -9,7 +9,7 @@ import (
 	"github.com/kasuganosora/ui/render"
 )
 
-// NotificationTheme determines the visual style (maps to TDesign theme).
+// NotificationTheme determines the visual style.
 type NotificationTheme uint8
 
 const (

@@ -8,7 +8,7 @@ import (
 	"github.com/kasuganosora/ui/render"
 )
 
-// DialogTheme controls the dialog style (maps to TDesign theme).
+// DialogTheme controls the dialog style.
 type DialogTheme uint8
 
 const (

@@ -115,8 +115,9 @@ type App struct {
 	// Scrollable content (auto-detected from <main> tag)
 	content *widget.Content
 
-	// Scrollable sidebar div (auto-detected)
-	sidebarDiv *widget.Div
+	// Scrollable sidebar (auto-detected from aside)
+	sidebarDiv  *widget.Div
+	sidebarList *widget.List
 }
 
 // NewApp creates and initializes a new App.
@@ -233,12 +234,16 @@ func (a *App) LoadHTML(html string) *Document {
 		}
 	}
 
-	// Auto-detect sidebar div (first div child of aside)
+	// Auto-detect sidebar scrollable element (div or list child of aside)
 	if asides := a.doc.QueryByTag("aside"); len(asides) > 0 {
 		for _, child := range asides[0].Children() {
 			if d, ok := child.(*widget.Div); ok {
 				a.sidebarDiv = d
 				d.SetScrollable(true) // enable clipping + scroll
+				break
+			}
+			if l, ok := child.(*widget.List); ok {
+				a.sidebarList = l
 				break
 			}
 		}
@@ -407,6 +412,26 @@ func (a *App) handleEvent(evt *event.Event) {
 			if mx >= sb.X && mx < sb.X+sb.Width &&
 				my >= sb.Y && my < sb.Y+sb.Height {
 				a.sidebarDiv.ScrollTo(0, a.sidebarDiv.ScrollY()-evt.WheelDY*30)
+				handled = true
+			}
+		}
+		if !handled && a.sidebarList != nil {
+			sb := a.sidebarList.Bounds()
+			if mx >= sb.X && mx < sb.X+sb.Width &&
+				my >= sb.Y && my < sb.Y+sb.Height {
+				newY := a.sidebarList.ScrollY() - evt.WheelDY*30
+				if newY < 0 {
+					newY = 0
+				}
+				maxScroll := a.sidebarList.TotalHeight() - sb.Height
+				if maxScroll < 0 {
+					maxScroll = 0
+				}
+				if newY > maxScroll {
+					newY = maxScroll
+				}
+				a.sidebarList.SetScrollY(newY)
+				a.tree.MarkDirty(a.sidebarList.ElementID())
 				handled = true
 			}
 		}
@@ -661,11 +686,21 @@ func layoutBody(tree *core.Tree, body widget.Widget, x, y, w, h float32) {
 	layoutVerticalStack(tree, body, x, y, w, h, 8)
 }
 
-// layoutSidebar lays out sidebar children vertically, supporting scrollable wrapper divs.
+// layoutSidebar lays out sidebar children vertically, supporting scrollable wrapper divs and lists.
 func layoutSidebar(tree *core.Tree, aside widget.Widget, x, y, w, h float32) {
 	children := aside.Children()
 	if len(children) == 0 {
 		return
+	}
+
+	// If there's a single List widget, give it the full aside bounds (it handles its own scrolling)
+	if len(children) == 1 {
+		if _, ok := children[0].(*widget.List); ok {
+			tree.SetLayout(children[0].ElementID(), core.LayoutResult{
+				Bounds: uimath.NewRect(x, y, w, h),
+			})
+			return
+		}
 	}
 
 	// If there's a single wrapper div (e.g. sidebar-scroll), use it as scroll container

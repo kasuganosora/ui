@@ -141,7 +141,7 @@ func (s *Select) SetMultiple(m bool) { s.multiple = m }
 // SelectedValues returns the selected values in multiple mode.
 func (s *Select) SelectedValues() []string { return s.selectedValues }
 
-// TDesign additional prop getters/setters
+// Additional prop getters/setters
 func (s *Select) Borderless() bool              { return s.borderless }
 func (s *Select) SetBorderless(v bool)          { s.borderless = v }
 func (s *Select) Loading() bool                 { return s.loading }
@@ -165,7 +165,7 @@ func (s *Select) SetPopupVisible(v bool)        { s.popupVisible = v }
 func (s *Select) SelectLabel() string           { return s.label }
 func (s *Select) SetLabel(l string)             { s.label = l }
 
-// TDesign event setters
+// Event setters
 func (s *Select) OnBlur(fn func(string))             { s.onBlur = fn }
 func (s *Select) OnFocus(fn func(string))            { s.onFocus = fn }
 func (s *Select) OnClear(fn func())                  { s.onClear = fn }

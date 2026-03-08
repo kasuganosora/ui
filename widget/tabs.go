@@ -29,31 +29,31 @@ const (
 	TabPlacementRight
 )
 
-// TabPanel defines a single tab panel (TDesign: TdTabPanelProps).
+// TabPanel defines a single tab panel.
 type TabPanel struct {
-	Value     string // unique tab identifier (TDesign: value)
-	Label     string // tab header text (TDesign: label)
-	Content   Widget // tab panel content (TDesign: panel)
-	Removable bool   // per-tab remove button (TDesign: removable)
-	Disabled  bool   // whether this tab is disabled (TDesign: disabled)
-	Draggable bool   // whether drag-sorting is allowed for this tab (TDesign: draggable)
+	Value     string // unique tab identifier
+	Label     string // tab header text
+	Content   Widget // tab panel content
+	Removable bool   // per-tab remove button
+	Disabled  bool   // whether this tab is disabled
+	Draggable bool   // whether drag-sorting is allowed for this tab
 }
 
-// Tabs is a tabbed container widget (TDesign: TdTabsProps).
+// Tabs is a tabbed container widget.
 type Tabs struct {
 	Base
 	list     []TabPanel
-	value    string // active tab value (TDesign: value)
+	value    string // active tab value
 	tabIDs   []core.ElementID // element IDs for clickable tab headers
 
-	theme     TabTheme     // visual style: normal or card (TDesign: theme)
-	placement TabPlacement // tab header position (TDesign: placement)
-	size      Size         // component size (TDesign: size)
-	addable   bool         // whether tabs can be added (TDesign: addable)
-	disabled  bool         // whether all tabs are disabled (TDesign: disabled)
+	theme     TabTheme     // visual style: normal or card
+	placement TabPlacement // tab header position
+	size      Size         // component size
+	addable   bool         // whether tabs can be added
+	disabled  bool         // whether all tabs are disabled
 	onAdd     func()
-	onRemove  func(options TabRemoveOptions) // TDesign: onRemove
-	onChange  func(value string)             // TDesign: onChange
+	onRemove  func(options TabRemoveOptions) // called on tab remove
+	onChange  func(value string)             // called on tab change
 
 	addBtnID core.ElementID // element for the "+" button (0 if not addable)
 }

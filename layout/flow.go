@@ -26,6 +26,10 @@ func (e *Engine) layoutBlock(nodeIdx int, availWidth, availHeight float32) {
 	// Collect absolute children to handle after flow
 	var absoluteChildren []int
 
+	// Track the previous sibling's bottom margin for margin collapsing
+	prevMarginBottom := float32(0)
+	firstFlowChild := true
+
 	for _, childIdx := range children {
 		child := &e.nodes[childIdx]
 		cs := &child.style
@@ -47,6 +51,20 @@ func (e *Engine) layoutBlock(nodeIdx int, availWidth, availHeight float32) {
 
 		// Resolve child margins
 		mTop, _, mBottom, mLeft := resolveEdges(cs.Margin, contentW)
+
+		// CSS margin collapse: adjacent vertical margins collapse to the larger value.
+		// Between two block siblings, the gap is max(prevBottom, curTop) not prevBottom + curTop.
+		if !firstFlowChild && (mTop > 0 || prevMarginBottom > 0) {
+			collapsed := mTop
+			if prevMarginBottom > collapsed {
+				collapsed = prevMarginBottom
+			}
+			// We already advanced cursorY by prevMarginBottom, so subtract it
+			// and add the collapsed value instead.
+			cursorY = cursorY - prevMarginBottom + collapsed
+			mTop = 0 // Already accounted for in the collapsed margin
+		}
+		firstFlowChild = false
 
 		// Resolve child width
 		childW := contentW - mLeft
@@ -80,6 +98,7 @@ func (e *Engine) layoutBlock(nodeIdx int, availWidth, availHeight float32) {
 
 		// Advance cursor BEFORE applying relative offset (offset doesn't affect flow)
 		cursorY = child.result.Y + child.result.Height + mBottom
+		prevMarginBottom = mBottom
 
 		e.applyRelativeOffset(childIdx, contentW, availHeight)
 	}

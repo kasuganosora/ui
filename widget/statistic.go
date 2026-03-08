@@ -14,8 +14,8 @@ type Trend uint8
 
 const (
 	TrendNone     Trend = iota
-	TrendIncrease       // TDesign: "increase"
-	TrendDecrease       // TDesign: "decrease"
+	TrendIncrease       // increase
+	TrendDecrease       // decrease
 )
 
 // TrendPlacement controls where the trend arrow is shown.

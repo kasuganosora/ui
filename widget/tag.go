@@ -8,7 +8,7 @@ import (
 	"github.com/kasuganosora/ui/render"
 )
 
-// TagTheme controls the tag appearance (maps to TDesign theme).
+// TagTheme controls the tag appearance.
 type TagTheme uint8
 
 const (
@@ -245,10 +245,12 @@ func (t *Tag) Draw(buf *render.CommandBuffer) {
 	}
 	if t.content != "" {
 		if cfg.TextRenderer != nil {
+			tw := cfg.TextRenderer.MeasureText(t.content, fontSize)
 			lh := cfg.TextRenderer.LineHeight(fontSize)
-			tx := bounds.X + cfg.SpaceSM
+			availW := bounds.Width - closeSpace
+			tx := bounds.X + (availW-tw)/2
 			ty := bounds.Y + (bounds.Height-lh)/2
-			maxW := bounds.Width - cfg.SpaceSM*2 - closeSpace
+			maxW := availW
 			cfg.TextRenderer.DrawText(buf, t.content, tx, ty, fontSize, maxW, textColor, opacity)
 		} else {
 			textW := float32(len(t.content)) * fontSize * 0.55

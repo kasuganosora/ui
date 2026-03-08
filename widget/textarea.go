@@ -328,7 +328,7 @@ func (ta *TextArea) SetAutosizeRows(minRows, maxRows int) {
 	ta.autosize = true
 }
 
-// TDesign event setters
+// Event setters
 func (ta *TextArea) OnBlur(fn func(string))                { ta.onBlur = fn }
 func (ta *TextArea) OnFocus(fn func(string))               { ta.onFocus = fn }
 func (ta *TextArea) OnKeydown(fn func(string, event.Key))  { ta.onKeydown = fn }

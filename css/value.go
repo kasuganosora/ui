@@ -1,6 +1,7 @@
 package css
 
 import (
+	"math"
 	"strings"
 
 	"github.com/kasuganosora/ui/layout"
@@ -370,6 +371,187 @@ func splitValues(val string) []string {
 	return parts
 }
 
+// GradientStop represents a color stop in a gradient.
+type GradientStop struct {
+	Color    uimath.Color
+	Position float32 // 0-1, -1 if not specified
+}
+
+// LinearGradient represents a parsed linear-gradient.
+type LinearGradient struct {
+	Angle float32 // radians, 0 = top to bottom
+	Stops []GradientStop
+}
+
+// ParseLinearGradient parses a CSS linear-gradient() value.
+func ParseLinearGradient(val string) (LinearGradient, bool) {
+	val = strings.TrimSpace(val)
+	if !strings.HasPrefix(val, "linear-gradient(") {
+		return LinearGradient{}, false
+	}
+	// Extract content between ( and )
+	start := strings.Index(val, "(")
+	end := strings.LastIndex(val, ")")
+	if start < 0 || end < 0 || end <= start {
+		return LinearGradient{}, false
+	}
+	inner := strings.TrimSpace(val[start+1 : end])
+
+	// Split by commas, respecting parentheses (for rgb()/rgba())
+	args := splitGradientArgs(inner)
+	if len(args) < 2 {
+		return LinearGradient{}, false
+	}
+
+	grad := LinearGradient{
+		Angle: math.Pi, // default: to bottom = 180deg
+	}
+
+	firstArg := strings.TrimSpace(args[0])
+	stopStart := 0
+
+	// Check if first argument is a direction or angle
+	if strings.HasPrefix(firstArg, "to ") {
+		grad.Angle = parseDirectionKeyword(firstArg)
+		stopStart = 1
+	} else if strings.HasSuffix(firstArg, "deg") {
+		deg := parseFloat32(strings.TrimSuffix(firstArg, "deg"))
+		grad.Angle = deg * math.Pi / 180
+		stopStart = 1
+	} else if strings.HasSuffix(firstArg, "rad") {
+		grad.Angle = parseFloat32(strings.TrimSuffix(firstArg, "rad"))
+		stopStart = 1
+	}
+
+	// Parse color stops
+	for i := stopStart; i < len(args); i++ {
+		stop := parseGradientStop(strings.TrimSpace(args[i]))
+		if stop.Color.A == 0 && stop.Color.R == 0 && stop.Color.G == 0 && stop.Color.B == 0 && stop.Position < 0 {
+			// Failed to parse — skip
+			continue
+		}
+		grad.Stops = append(grad.Stops, stop)
+	}
+
+	if len(grad.Stops) < 2 {
+		return LinearGradient{}, false
+	}
+
+	// Distribute positions for stops that don't have explicit positions
+	distributeStopPositions(grad.Stops)
+
+	return grad, true
+}
+
+// parseDirectionKeyword converts "to right", "to top left", etc. to radians.
+func parseDirectionKeyword(dir string) float32 {
+	dir = strings.TrimSpace(strings.TrimPrefix(dir, "to "))
+	switch dir {
+	case "top":
+		return 0
+	case "right":
+		return math.Pi / 2
+	case "bottom":
+		return math.Pi
+	case "left":
+		return 3 * math.Pi / 2
+	case "top right":
+		return math.Pi / 4
+	case "top left":
+		return 7 * math.Pi / 4
+	case "bottom right":
+		return 3 * math.Pi / 4
+	case "bottom left":
+		return 5 * math.Pi / 4
+	default:
+		return math.Pi // default to bottom
+	}
+}
+
+// parseGradientStop parses a single color stop like "red 50%" or "#ff0000".
+func parseGradientStop(s string) GradientStop {
+	stop := GradientStop{Position: -1}
+	parts := splitValues(s)
+	if len(parts) == 0 {
+		return stop
+	}
+
+	// Last part might be a percentage position
+	if len(parts) >= 2 {
+		last := parts[len(parts)-1]
+		if strings.HasSuffix(last, "%") {
+			pct := parseFloat32(strings.TrimSuffix(last, "%"))
+			stop.Position = pct / 100
+			parts = parts[:len(parts)-1]
+		}
+	}
+
+	// Rejoin remaining parts as the color value
+	colorStr := strings.Join(parts, " ")
+	if c, ok := ParseColor(colorStr); ok {
+		stop.Color = c
+	}
+	return stop
+}
+
+// distributeStopPositions fills in -1 positions with evenly distributed values.
+func distributeStopPositions(stops []GradientStop) {
+	if len(stops) == 0 {
+		return
+	}
+	// First and last default to 0 and 1
+	if stops[0].Position < 0 {
+		stops[0].Position = 0
+	}
+	if stops[len(stops)-1].Position < 0 {
+		stops[len(stops)-1].Position = 1
+	}
+	// Fill gaps
+	for i := 1; i < len(stops)-1; i++ {
+		if stops[i].Position < 0 {
+			// Find next stop with a defined position
+			nextIdx := i + 1
+			for nextIdx < len(stops) && stops[nextIdx].Position < 0 {
+				nextIdx++
+			}
+			// Interpolate
+			prevPos := stops[i-1].Position
+			nextPos := stops[nextIdx].Position
+			count := float32(nextIdx - i + 1)
+			for j := i; j < nextIdx; j++ {
+				t := float32(j-i+1) / count
+				stops[j].Position = prevPos + t*(nextPos-prevPos)
+			}
+		}
+	}
+}
+
+// splitGradientArgs splits gradient arguments by comma, respecting parentheses.
+func splitGradientArgs(s string) []string {
+	var parts []string
+	var current strings.Builder
+	depth := 0
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if ch == '(' {
+			depth++
+			current.WriteByte(ch)
+		} else if ch == ')' {
+			depth--
+			current.WriteByte(ch)
+		} else if ch == ',' && depth == 0 {
+			parts = append(parts, current.String())
+			current.Reset()
+		} else {
+			current.WriteByte(ch)
+		}
+	}
+	if current.Len() > 0 {
+		parts = append(parts, current.String())
+	}
+	return parts
+}
+
 var namedColors = map[string]uimath.Color{
 	"transparent": {},
 	"white":       {R: 1, G: 1, B: 1, A: 1},
@@ -395,4 +577,42 @@ var namedColors = map[string]uimath.Color{
 	"aqua":        {R: 0, G: 1, B: 1, A: 1},
 	"lime":        {R: 0, G: 1, B: 0, A: 1},
 	"fuchsia":     {R: 1, G: 0, B: 1, A: 1},
+}
+
+// ParseBoxShadow parses a simple CSS box-shadow value.
+// Supports: offsetX offsetY [blur] [color]
+func ParseBoxShadow(val string) (ox, oy, blur float32, color uimath.Color, ok bool) {
+	parts := splitValues(val)
+	if len(parts) < 2 {
+		return 0, 0, 0, uimath.Color{}, false
+	}
+	ox = ParseFloat(parts[0])
+	oy = ParseFloat(parts[1])
+	defaultColor := uimath.Color{R: 0, G: 0, B: 0, A: 0.2}
+	if len(parts) >= 3 {
+		// Could be blur or color
+		if isPlainNumber(parts[2]) || strings.HasSuffix(parts[2], "px") {
+			blur = ParseFloat(parts[2])
+			if len(parts) >= 4 {
+				color, ok = ParseColor(strings.Join(parts[3:], " "))
+				if !ok {
+					color = defaultColor
+					ok = true
+				}
+			} else {
+				color = defaultColor
+				ok = true
+			}
+		} else {
+			color, ok = ParseColor(strings.Join(parts[2:], " "))
+			if !ok {
+				color = defaultColor
+				ok = true
+			}
+		}
+	} else {
+		color = defaultColor
+		ok = true
+	}
+	return
 }

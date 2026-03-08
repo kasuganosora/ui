@@ -7,7 +7,7 @@ import (
 	"github.com/kasuganosora/ui/render"
 )
 
-// TableColumnAlign represents column alignment (TDesign: align).
+// TableColumnAlign represents column alignment.
 type TableColumnAlign int
 
 const (
@@ -16,7 +16,7 @@ const (
 	TableAlignRight
 )
 
-// TableColumnFixed represents column fixed position (TDesign: fixed).
+// TableColumnFixed represents column fixed position.
 type TableColumnFixed int
 
 const (
@@ -25,15 +25,15 @@ const (
 	TableFixedRight
 )
 
-// TableColumn defines a column in the table (TDesign: BaseTableCol).
+// TableColumn defines a column in the table.
 type TableColumn struct {
-	ColKey   string           // column key for data mapping (TDesign: colKey)
-	Title    string           // column header text (TDesign: title)
-	Width    float32          // column width, 0 = auto (TDesign: width)
-	Align    TableColumnAlign // horizontal alignment (TDesign: align)
-	Fixed    TableColumnFixed // fixed column position (TDesign: fixed)
-	Ellipsis bool             // text overflow ellipsis (TDesign: ellipsis)
-	Sorter   bool             // whether column is sortable (TDesign: sorter)
+	ColKey   string           // column key for data mapping
+	Title    string           // column header text
+	Width    float32          // column width, 0 = auto
+	Align    TableColumnAlign // horizontal alignment
+	Fixed    TableColumnFixed // fixed column position
+	Ellipsis bool             // text overflow ellipsis
+	Sorter   bool             // whether column is sortable
 }
 
 // RowEventContext provides context for row events.
@@ -47,24 +47,24 @@ type CellEventContext struct {
 	ColIndex int
 }
 
-// Table is a data table with column headers and rows (TDesign: TdBaseTableProps).
+// Table is a data table with column headers and rows.
 type Table struct {
 	Base
 	columns    []TableColumn
 	rows       [][]string
 	rowHeight  float32
 	headerH    float32
-	stripe     bool   // striped rows (TDesign: stripe)
-	bordered   bool   // show borders (TDesign: bordered)
-	hover      bool   // show hover state (TDesign: hover)
-	size       Size   // table size (TDesign: size)
-	rowKey     string // field name for unique row id (TDesign: rowKey)
+	stripe     bool   // striped rows
+	bordered   bool   // show borders
+	hover      bool   // show hover state
+	size       Size   // table size
+	rowKey     string // field name for unique row id
 	hoveredRow int    // -1 = none
 
-	onRowClick  func(ctx RowEventContext)  // TDesign: onRowClick
-	onCellClick func(ctx CellEventContext) // TDesign: onCellClick
-	onPageChange func(pageInfo PageInfo)   // TDesign: onPageChange
-	onSortChange func(sort SortInfo)       // TDesign: onSortChange
+	onRowClick  func(ctx RowEventContext)  // called on row click
+	onCellClick func(ctx CellEventContext) // called on cell click
+	onPageChange func(pageInfo PageInfo)   // called on page change
+	onSortChange func(sort SortInfo)       // called on sort change
 }
 
 // SortInfo describes a column sort state.
@@ -126,16 +126,16 @@ func (t *Table) SetSize(s Size)         { t.size = s }
 func (t *Table) SetRowKey(k string)     { t.rowKey = k }
 func (t *Table) RowKey() string         { return t.rowKey }
 
-// OnRowClick sets the callback for row click events (TDesign: onRowClick).
+// OnRowClick sets the callback for row click events.
 func (t *Table) OnRowClick(fn func(ctx RowEventContext)) { t.onRowClick = fn }
 
-// OnCellClick sets the callback for cell click events (TDesign: onCellClick).
+// OnCellClick sets the callback for cell click events.
 func (t *Table) OnCellClick(fn func(ctx CellEventContext)) { t.onCellClick = fn }
 
-// OnPageChange sets the callback for page change events (TDesign: onPageChange).
+// OnPageChange sets the callback for page change events.
 func (t *Table) OnPageChange(fn func(pageInfo PageInfo)) { t.onPageChange = fn }
 
-// OnSortChange sets the callback for sort change events (TDesign: onSortChange).
+// OnSortChange sets the callback for sort change events.
 func (t *Table) OnSortChange(fn func(sort SortInfo)) { t.onSortChange = fn }
 
 func (t *Table) TotalHeight() float32 {

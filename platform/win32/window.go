@@ -46,10 +46,17 @@ type Window struct {
 	imeX, imeY int32
 	imeLineH   int32 // line height for candidate window exclusion rect
 
+	// TSF (Text Services Framework) for modern IME support
+	tsfMgr       *TSFManager
+	tsfProvider  platform.TSFTextProvider
+
 	// Resize callback — called from WndProc on WM_SIZE during the modal
 	// resize loop so the app can re-layout and render while the user drags.
 	inSizeMove     bool
 	onResizeFunc   func()
+
+	// Accessibility: UI Automation provider
+	uiaProvider *UIAProvider
 }
 
 // newWindow creates a new Win32 window. Called by Platform.CreateWindow.
@@ -159,6 +166,14 @@ func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 		// as "Not Responding" before the app enters its main loop.
 		w.deferredVisible = true
 	}
+
+	// Initialize TSF for modern IME support.
+	// If TSF is unavailable, tsfMgr.IsActive() will be false and
+	// the existing IMM32 code path in ime.go handles everything.
+	w.tsfMgr = NewTSFManager(w)
+
+	// Initialize UI Automation provider for accessibility (screen readers).
+	w.uiaProvider = NewUIAProvider(w.hwnd)
 
 	if opts.Fullscreen {
 		w.SetFullscreen(true)
@@ -573,7 +588,16 @@ func (w *Window) ShowContextMenu(clientX, clientY int, items []platform.ContextM
 	return int(ret) - 1
 }
 
+// TSF returns the TSF manager for this window, or nil if unavailable.
+func (w *Window) TSF() *TSFManager {
+	return w.tsfMgr
+}
+
 func (w *Window) Destroy() {
+	if w.tsfMgr != nil {
+		w.tsfMgr.Release()
+		w.tsfMgr = nil
+	}
 	if w.hwnd != 0 {
 		procDestroyWindow.Call(w.hwnd)
 		w.hwnd = 0

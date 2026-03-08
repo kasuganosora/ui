@@ -354,7 +354,7 @@ func (inp *Input) SetReadonly(r bool)           { inp.readonly = r }
 func (inp *Input) SetTips(t string)             { inp.tips = t }
 func (inp *Input) SetShowLimitNumber(s bool)    { inp.showLimitNumber = s }
 
-// TDesign additional prop getters/setters
+// Additional prop getters/setters
 func (inp *Input) Align() InputAlign             { return inp.align }
 func (inp *Input) SetAlign(a InputAlign)         { inp.align = a }
 func (inp *Input) AllowInputOverMax() bool       { return inp.allowInputOverMax }
@@ -366,7 +366,7 @@ func (inp *Input) SetLabel(l string)             { inp.label = l }
 func (inp *Input) Type() InputType               { return inp.inputType }
 func (inp *Input) SetType(t InputType)           { inp.inputType = t }
 
-// TDesign event setters
+// Event setters
 func (inp *Input) OnBlur(fn func(string))                  { inp.onBlur = fn }
 func (inp *Input) OnFocus(fn func(string))                 { inp.onFocus = fn }
 func (inp *Input) OnClear(fn func())                       { inp.onClear = fn }

@@ -152,6 +152,56 @@ var rectVertGLSL string
 var rectFragGLSL string
 ```
 
+## sRGB 色彩空间与线性混合
+
+### 问题背景
+
+UI 渲染中文字和半透明元素的质量很大程度取决于 alpha 混合发生在哪个色彩空间。在 gamma 空间（UNORM framebuffer）中做混合会导致：
+
+- 文字边缘偏细/偏暗，出现锯齿感
+- 半透明叠加颜色不准确
+- 细线条（如 1px border）可能出现断裂
+
+正确做法是在**线性空间**中做 alpha 混合，由 GPU 自动处理 sRGB 编解码。
+
+### 实现方案
+
+**Vulkan：** 使用 `VK_FORMAT_B8G8R8A8_SRGB` swapchain 格式。GPU 在混合时自动将 framebuffer 内容从 sRGB 解码为线性，混合完成后再编码回 sRGB。
+
+**DX11：** swap chain 使用 `DXGI_FORMAT_R8G8B8A8_UNORM`，但创建 RTV 时指定 `DXGI_FORMAT_R8G8B8A8_UNORM_SRGB`（跨格式 RTV）。效果与 Vulkan 一致。
+
+> **关键要求：** DX11 必须使用 `DXGI_SWAP_EFFECT_FLIP_DISCARD` 而不是 `DXGI_SWAP_EFFECT_DISCARD`。旧的 DISCARD 模式不支持跨格式 RTV，会导致 sRGB 编解码不生效，进而出现断线和颜色错误。`FLIP_DISCARD` 需要 Windows 10+。
+
+### 颜色输入转换
+
+由于 framebuffer 启用了 sRGB 编码，GPU 会对 pixel shader 输出做 linear → sRGB 转换。因此 CSS 颜色值（本身就是 sRGB 空间的）需要先转为线性空间再传给 shader，否则会被双重编码导致颜色偏淡。
+
+转换在顶点着色器中完成：
+
+```glsl
+// GLSL (Vulkan)
+vec3 srgbToLinear(vec3 c) {
+    return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+}
+fragColor = vec4(srgbToLinear(inColor.rgb), inColor.a);
+```
+
+```hlsl
+// HLSL (DX11)
+float3 srgbToLinear(float3 c) {
+    return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4);
+}
+output.color = float4(srgbToLinear(input.color.rgb), input.color.a);
+```
+
+Alpha 通道不需要转换（它不参与 sRGB 编解码）。
+
+### DX11 采样器注意事项
+
+字形 atlas 使用 R8_UNORM 单通道纹理，只有 1 个 mip level。采样器必须使用 `D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT`（而不是 `MIN_MAG_MIP_LINEAR`），并设置 `MaxLOD = 0`。否则 MIP_LINEAR 会尝试在 mip 0 和不存在的 mip 1 之间插值，导致 coverage 值变暗，文字发虚。
+
+Vulkan 侧通过 `maxLod = 1.0` 在 sampler 中限制了 mip 范围，不受此问题影响。
+
 ## 纹理图集
 
 ### 字形 Atlas

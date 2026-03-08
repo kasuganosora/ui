@@ -18,6 +18,13 @@ type Div struct {
 	scrollY       float32
 	contentHeight float32
 	scrollable    bool
+	gradientStart uimath.Color
+	gradientEnd   uimath.Color
+	gradientAngle float32 // radians; 0 = no gradient
+	shadowOffsetX float32
+	shadowOffsetY float32
+	shadowBlur    float32
+	shadowColor   uimath.Color
 }
 
 // NewDiv creates a div container.
@@ -47,6 +54,23 @@ func (d *Div) SetBorderWidth(w float32)          { d.borderWidth = w }
 func (d *Div) SetBorderRadius(r float32)         { d.borderRadius = r }
 func (d *Div) SetScrollable(v bool)              { d.scrollable = v }
 
+func (d *Div) GradientStart() uimath.Color      { return d.gradientStart }
+func (d *Div) GradientEnd() uimath.Color        { return d.gradientEnd }
+func (d *Div) GradientAngle() float32           { return d.gradientAngle }
+
+func (d *Div) SetGradient(start, end uimath.Color, angle float32) {
+	d.gradientStart = start
+	d.gradientEnd = end
+	d.gradientAngle = angle
+}
+
+func (d *Div) SetBoxShadow(ox, oy, blur float32, color uimath.Color) {
+	d.shadowOffsetX = ox
+	d.shadowOffsetY = oy
+	d.shadowBlur = blur
+	d.shadowColor = color
+}
+
 func (d *Div) ContentHeight() float32          { return d.contentHeight }
 func (d *Div) SetContentHeight(h float32)       { d.contentHeight = h }
 
@@ -61,14 +85,32 @@ func (d *Div) Draw(buf *render.CommandBuffer) {
 		return
 	}
 
-	// Draw background
-	if !d.bgColor.IsTransparent() || d.borderWidth > 0 {
+	// Draw box shadow (behind the background)
+	if d.shadowColor.A > 0 {
+		shadowBounds := uimath.NewRect(
+			bounds.X+d.shadowOffsetX-d.shadowBlur,
+			bounds.Y+d.shadowOffsetY-d.shadowBlur,
+			bounds.Width+d.shadowBlur*2,
+			bounds.Height+d.shadowBlur*2,
+		)
 		buf.DrawRect(render.RectCmd{
-			Bounds:      bounds,
-			FillColor:   d.bgColor,
-			BorderColor: d.borderColor,
-			BorderWidth: d.borderWidth,
-			Corners:     uimath.CornersAll(d.borderRadius),
+			Bounds:    shadowBounds,
+			FillColor: d.shadowColor,
+			Corners:   uimath.CornersAll(d.borderRadius + d.shadowBlur),
+		}, -1, 1)
+	}
+
+	// Draw background
+	if !d.bgColor.IsTransparent() || d.borderWidth > 0 || d.gradientAngle != 0 {
+		buf.DrawRect(render.RectCmd{
+			Bounds:        bounds,
+			FillColor:     d.bgColor,
+			BorderColor:   d.borderColor,
+			BorderWidth:   d.borderWidth,
+			Corners:       uimath.CornersAll(d.borderRadius),
+			GradientStart: d.gradientStart,
+			GradientEnd:   d.gradientEnd,
+			GradientAngle: d.gradientAngle,
 		}, 0, 1)
 	}
 

@@ -18,7 +18,7 @@ const (
 )
 
 // Card is a container with optional header, body content, and footer.
-// Matches TDesign Card component: bordered/borderless, shadow, header divider,
+// Supports bordered/borderless, shadow, header divider,
 // title + subtitle + actions, footer with action icons.
 type Card struct {
 	Base

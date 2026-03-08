@@ -52,6 +52,9 @@ type Atlas struct {
 	// LRU
 	currentFrame uint64
 
+	// Maximum texture dimension for growth
+	maxSize int
+
 	// SDF mode
 	sdf bool
 }
@@ -60,6 +63,7 @@ type Atlas struct {
 type Options struct {
 	Width   int
 	Height  int
+	MaxSize int  // Maximum atlas dimension (0 = 4096)
 	SDF     bool // Use SDF rendering
 	Backend render.Backend
 }
@@ -72,6 +76,10 @@ func New(opts Options) *Atlas {
 	if opts.Height == 0 {
 		opts.Height = 1024
 	}
+	maxSize := opts.MaxSize
+	if maxSize <= 0 {
+		maxSize = 4096
+	}
 
 	return &Atlas{
 		width:     opts.Width,
@@ -80,6 +88,7 @@ func New(opts Options) *Atlas {
 		glyphs:    make(map[GlyphKey]*GlyphEntry),
 		pixels:    make([]byte, opts.Width*opts.Height),
 		backend:   opts.Backend,
+		maxSize:   maxSize,
 		sdf:       opts.SDF,
 		dirtyMinX: opts.Width,
 		dirtyMinY: opts.Height,
@@ -124,12 +133,18 @@ func (a *Atlas) Insert(key GlyphKey, bitmap font.GlyphBitmap, metrics font.Glyph
 
 	region, ok := a.packer.Pack(bitmap.Width, bitmap.Height)
 	if !ok {
-		// Atlas full — try eviction
-		a.evictOldest()
+		// Try evicting stale glyphs first
+		a.evictStale()
 		region, ok = a.packer.Pack(bitmap.Width, bitmap.Height)
-		if !ok {
-			return nil // Still can't fit
+	}
+	if !ok {
+		// Try growing the atlas
+		if a.grow() {
+			region, ok = a.packer.Pack(bitmap.Width, bitmap.Height)
 		}
+	}
+	if !ok {
+		return nil // Can't fit even after eviction and growth
 	}
 
 	// Copy bitmap data into atlas pixel buffer
@@ -240,6 +255,7 @@ func (a *Atlas) Upload() error {
 
 	uiRect := uimathRect(float32(dx), float32(dy), float32(dw), float32(dh))
 	err := a.backend.UpdateTexture(a.texture, uiRect, subData)
+
 	a.resetDirty()
 	return err
 }
@@ -287,27 +303,104 @@ func (a *Atlas) BeginFrame() {
 	a.mu.Unlock()
 }
 
-// evictOldest clears the atlas entirely when full.
-// A more sophisticated approach would evict only old entries,
-// but full-reset is simpler and sufficient for most UI workloads.
-func (a *Atlas) evictOldest() {
-	// Clear all cached glyphs
-	for k := range a.glyphs {
-		delete(a.glyphs, k)
+// evictStale removes glyphs not used in the last 10 frames.
+// Returns the number of evicted glyphs. If any were evicted, the packer
+// and pixel buffer are rebuilt since shelf space can't be reclaimed individually.
+func (a *Atlas) evictStale() int {
+	threshold := a.currentFrame - 10
+	if a.currentFrame < 10 {
+		threshold = 0
 	}
-	a.packer.Reset()
+	evicted := 0
+	for k, entry := range a.glyphs {
+		if entry.lastUsedFrame < threshold {
+			delete(a.glyphs, k)
+			evicted++
+		}
+	}
+	if evicted > 0 {
+		a.rebuildPacker()
+	}
+	return evicted
+}
 
-	// Clear pixel data
+// rebuildPacker resets the packer and pixel buffer.
+// Since we don't retain raw bitmap data for remaining glyphs, they are also
+// cleared and will be re-rasterized on the next lookup miss.
+func (a *Atlas) rebuildPacker() {
+	a.packer.Reset()
 	for i := range a.pixels {
 		a.pixels[i] = 0
 	}
-
-	// Mark entire atlas dirty for re-upload
+	// Without stored bitmaps we can't re-pack remaining glyphs,
+	// so clear the glyph map as well.
+	for k := range a.glyphs {
+		delete(a.glyphs, k)
+	}
 	a.dirtyMinX = 0
 	a.dirtyMinY = 0
 	a.dirtyMaxX = a.width
 	a.dirtyMaxY = a.height
 	a.dirty = true
+}
+
+// grow doubles the atlas in one dimension (the smaller one first).
+// Returns true if growth succeeded, false if already at max size.
+func (a *Atlas) grow() bool {
+	maxSize := a.maxSize
+	if a.backend != nil {
+		if ms := a.backend.MaxTextureSize(); ms > 0 && ms < maxSize {
+			maxSize = ms
+		}
+	}
+
+	newW, newH := a.width, a.height
+	// Double the smaller dimension, or width if equal
+	if newW <= newH && newW*2 <= maxSize {
+		newW *= 2
+	} else if newH*2 <= maxSize {
+		newH *= 2
+	} else {
+		return false // Can't grow further
+	}
+
+	// Allocate new pixel buffer and copy old data row by row
+	newPixels := make([]byte, newW*newH)
+	for y := 0; y < a.height; y++ {
+		srcOff := y * a.width
+		dstOff := y * newW
+		copy(newPixels[dstOff:dstOff+a.width], a.pixels[srcOff:srcOff+a.width])
+	}
+
+	// Update packer dimensions
+	a.packer.Grow(newW, newH)
+
+	// Update UV coordinates for existing glyphs
+	for _, entry := range a.glyphs {
+		entry.U0 = float32(entry.Region.X) / float32(newW)
+		entry.V0 = float32(entry.Region.Y) / float32(newH)
+		entry.U1 = float32(entry.Region.X+entry.Region.Width) / float32(newW)
+		entry.V1 = float32(entry.Region.Y+entry.Region.Height) / float32(newH)
+	}
+
+	// Destroy old GPU texture — a new one will be created on next Upload
+	if a.backend != nil && a.texture != render.InvalidTexture {
+		a.backend.DestroyTexture(a.texture)
+		a.texture = render.InvalidTexture
+	}
+
+	a.pixels = newPixels
+	a.width = newW
+	a.height = newH
+
+	// Mark entire atlas dirty for full re-upload
+	a.dirtyMinX = 0
+	a.dirtyMinY = 0
+	a.dirtyMaxX = newW
+	a.dirtyMaxY = newH
+	a.dirty = true
+
+	return true
 }
 
 // Destroy releases GPU resources.

@@ -253,14 +253,10 @@ func (l *Loader) AcquireNextImageKHR(device Device, swapchain SwapchainKHR, time
 }
 
 // ChooseSurfaceFormat picks the best surface format.
+// Prefer sRGB for correct linear-space alpha blending.
 func ChooseSurfaceFormat(formats []SurfaceFormatKHR) SurfaceFormatKHR {
 	for _, f := range formats {
 		if f.Format == FormatB8G8R8A8Srgb && f.ColorSpace == ColorSpaceSrgbNonlinearKHR {
-			return f
-		}
-	}
-	for _, f := range formats {
-		if f.Format == FormatB8G8R8A8Unorm {
 			return f
 		}
 	}

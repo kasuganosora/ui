@@ -11,13 +11,24 @@ import (
 type ComputedStyle struct {
 	Layout layout.Style
 	// Visual properties not in layout.Style
-	Color           string // text color
-	BackgroundColor string // background-color
-	FontSize        string // font-size
-	BorderRadius    string // border-radius
-	BorderColor     string // border-color
-	Opacity         string // opacity
-	ZIndex          string // z-index
+	Color              string // text color
+	BackgroundColor    string // background-color
+	BackgroundImage    string // url() or linear-gradient()
+	BackgroundSize     string // cover, contain, or size values
+	BackgroundRepeat   string // repeat, no-repeat, repeat-x, repeat-y
+	BackgroundPosition string // center, top left, etc.
+	FontSize           string // font-size
+	BorderRadius       string // border-radius
+	BorderColor        string // border-color
+	Opacity            string // opacity
+	ZIndex             string // z-index
+	BoxSizing          string // "content-box" or "border-box"
+	BoxShadow          string // raw box-shadow value
+	BorderStyle        string // solid, dashed, dotted, none
+	BorderTopStyle     string
+	BorderRightStyle   string
+	BorderBottomStyle  string
+	BorderLeftStyle    string
 	// Raw map for any property not directly mapped
 	Raw map[string]string
 }
@@ -170,6 +181,24 @@ func applyProperty(cs *ComputedStyle, prop, val string) {
 	case "border":
 		// Shorthand: width style color
 		parseBorderShorthand(cs, val)
+	case "border-top":
+		parseBorderSideShorthand(cs, val, "top")
+	case "border-right":
+		parseBorderSideShorthand(cs, val, "right")
+	case "border-bottom":
+		parseBorderSideShorthand(cs, val, "bottom")
+	case "border-left":
+		parseBorderSideShorthand(cs, val, "left")
+	case "border-style":
+		cs.BorderStyle = val
+	case "border-top-style":
+		cs.BorderTopStyle = val
+	case "border-right-style":
+		cs.BorderRightStyle = val
+	case "border-bottom-style":
+		cs.BorderBottomStyle = val
+	case "border-left-style":
+		cs.BorderLeftStyle = val
 
 	// Positioning offsets
 	case "top":
@@ -224,8 +253,23 @@ func applyProperty(cs *ComputedStyle, prop, val string) {
 	// Visual properties (stored as strings for widget layer to interpret)
 	case "color":
 		cs.Color = val
-	case "background-color", "background":
+	case "background-color":
 		cs.BackgroundColor = val
+	case "background":
+		// Could be a color, gradient, or shorthand
+		if strings.HasPrefix(val, "linear-gradient") || strings.HasPrefix(val, "radial-gradient") {
+			cs.BackgroundImage = val
+		} else {
+			cs.BackgroundColor = val
+		}
+	case "background-image":
+		cs.BackgroundImage = val
+	case "background-size":
+		cs.BackgroundSize = val
+	case "background-repeat":
+		cs.BackgroundRepeat = val
+	case "background-position":
+		cs.BackgroundPosition = val
 	case "font-size":
 		cs.FontSize = val
 	case "border-radius":
@@ -236,6 +280,10 @@ func applyProperty(cs *ComputedStyle, prop, val string) {
 		cs.Opacity = val
 	case "z-index":
 		cs.ZIndex = val
+	case "box-sizing":
+		cs.BoxSizing = val
+	case "box-shadow":
+		cs.BoxShadow = val
 	}
 }
 
@@ -247,10 +295,41 @@ func parseBorderShorthand(cs *ComputedStyle, val string) {
 			v := ParseValue(p)
 			cs.Layout.Border = layout.EdgeValues{Top: v, Right: v, Bottom: v, Left: v}
 		} else if p == "solid" || p == "dashed" || p == "dotted" || p == "none" {
-			// border-style — store in raw
-			cs.Raw["border-style"] = p
+			cs.BorderStyle = p
 		} else {
 			// Assume color
+			cs.BorderColor = p
+		}
+	}
+}
+
+func parseBorderSideShorthand(cs *ComputedStyle, val, side string) {
+	parts := splitValues(val)
+	for _, p := range parts {
+		if p == "0" || strings.HasSuffix(p, "px") || strings.HasSuffix(p, "em") || isPlainNumber(p) {
+			v := ParseValue(p)
+			switch side {
+			case "top":
+				cs.Layout.Border.Top = v
+			case "right":
+				cs.Layout.Border.Right = v
+			case "bottom":
+				cs.Layout.Border.Bottom = v
+			case "left":
+				cs.Layout.Border.Left = v
+			}
+		} else if p == "solid" || p == "dashed" || p == "dotted" || p == "none" {
+			switch side {
+			case "top":
+				cs.BorderTopStyle = p
+			case "right":
+				cs.BorderRightStyle = p
+			case "bottom":
+				cs.BorderBottomStyle = p
+			case "left":
+				cs.BorderLeftStyle = p
+			}
+		} else {
 			cs.BorderColor = p
 		}
 	}

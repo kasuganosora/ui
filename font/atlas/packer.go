@@ -78,6 +78,13 @@ func (p *shelfPacker) Reset() {
 	p.shelves = p.shelves[:0]
 }
 
+// Grow expands the packer dimensions. Existing shelves remain valid
+// since growth only adds space to the right and/or bottom.
+func (p *shelfPacker) Grow(newWidth, newHeight int) {
+	p.width = newWidth
+	p.height = newHeight
+}
+
 // Occupancy returns the fraction of atlas area used (0.0 to 1.0).
 func (p *shelfPacker) Occupancy() float32 {
 	used := 0

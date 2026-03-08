@@ -9,7 +9,7 @@ import (
 	"github.com/kasuganosora/ui/render"
 )
 
-// PaginationTheme controls the pagination visual style (TDesign: theme).
+// PaginationTheme controls the pagination visual style.
 type PaginationTheme int
 
 const (
@@ -17,7 +17,7 @@ const (
 	PaginationThemeSimple
 )
 
-// PageEllipsisMode controls how ellipsis is shown (TDesign: pageEllipsisMode).
+// PageEllipsisMode controls how ellipsis is shown.
 type PageEllipsisMode int
 
 const (
@@ -25,34 +25,34 @@ const (
 	PageEllipsisModeBothEnds
 )
 
-// PaginationPageInfo is the argument to pagination callbacks (TDesign: PageInfo).
+// PaginationPageInfo is the argument to pagination callbacks.
 type PaginationPageInfo struct {
 	Current  int
 	Previous int
 	PageSize int
 }
 
-// Pagination displays page navigation buttons (TDesign: TdPaginationProps).
+// Pagination displays page navigation buttons.
 type Pagination struct {
 	Base
 	current                int
 	total                  int
 	pageSize               int
 	size                   Size
-	theme                  PaginationTheme  // TDesign: theme
-	disabled               bool             // TDesign: disabled
-	foldedMaxPageBtn       int              // TDesign: foldedMaxPageBtn
-	maxPageBtn             int              // TDesign: maxPageBtn
-	pageEllipsisMode       PageEllipsisMode // TDesign: pageEllipsisMode
-	showFirstAndLastPageBtn bool            // TDesign: showFirstAndLastPageBtn
-	showJumper             bool             // TDesign: showJumper
-	showPageNumber         bool             // TDesign: showPageNumber
-	showPageSize           bool             // TDesign: showPageSize
-	showPreviousAndNextBtn bool             // TDesign: showPreviousAndNextBtn
-	totalContent           bool             // TDesign: totalContent (show total count)
-	onChange               func(pageInfo PaginationPageInfo) // TDesign: onChange
-	onCurrentChange        func(current int, pageInfo PaginationPageInfo) // TDesign: onCurrentChange
-	onPageSizeChange       func(pageSize int, pageInfo PaginationPageInfo) // TDesign: onPageSizeChange
+	theme                  PaginationTheme  // visual style
+	disabled               bool             // whether disabled
+	foldedMaxPageBtn       int              // max page buttons when folded
+	maxPageBtn             int              // max page buttons
+	pageEllipsisMode       PageEllipsisMode // ellipsis display mode
+	showFirstAndLastPageBtn bool            // show first/last page buttons
+	showJumper             bool             // show page jumper input
+	showPageNumber         bool             // show page numbers
+	showPageSize           bool             // show page size selector
+	showPreviousAndNextBtn bool             // show prev/next buttons
+	totalContent           bool             // show total count
+	onChange               func(pageInfo PaginationPageInfo) // called on any page/size change
+	onCurrentChange        func(current int, pageInfo PaginationPageInfo) // called on page change
+	onPageSizeChange       func(pageSize int, pageInfo PaginationPageInfo) // called on page size change
 
 	// Clickable child elements for hit testing
 	prevID    core.ElementID
@@ -126,15 +126,15 @@ func (p *Pagination) SetShowPageSize(v bool)                 { p.showPageSize = 
 func (p *Pagination) SetShowPreviousAndNextBtn(v bool)       { p.showPreviousAndNextBtn = v }
 func (p *Pagination) SetTotalContent(v bool)                 { p.totalContent = v }
 
-// OnChange sets the callback for any page/size change (TDesign: onChange).
+// OnChange sets the callback for any page/size change.
 func (p *Pagination) OnChange(fn func(pageInfo PaginationPageInfo)) { p.onChange = fn }
 
-// OnCurrentChange sets the callback for current page change (TDesign: onCurrentChange).
+// OnCurrentChange sets the callback for current page change.
 func (p *Pagination) OnCurrentChange(fn func(current int, pageInfo PaginationPageInfo)) {
 	p.onCurrentChange = fn
 }
 
-// OnPageSizeChange sets the callback for page size change (TDesign: onPageSizeChange).
+// OnPageSizeChange sets the callback for page size change.
 func (p *Pagination) OnPageSizeChange(fn func(pageSize int, pageInfo PaginationPageInfo)) {
 	p.onPageSizeChange = fn
 }

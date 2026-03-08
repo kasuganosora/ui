@@ -7,7 +7,7 @@ import (
 	"github.com/kasuganosora/ui/render"
 )
 
-// AlertTheme controls the alert style (maps to TDesign theme).
+// AlertTheme controls the alert style.
 type AlertTheme uint8
 
 const (

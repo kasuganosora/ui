@@ -17,7 +17,7 @@ type TextDrawer interface {
 	MeasureText(text string, fontSize float32) float32
 }
 
-// Size represents component size variants (matching TDesign).
+// Size represents component size variants.
 type Size uint8
 
 const (
@@ -26,7 +26,7 @@ const (
 	SizeLarge
 )
 
-// Status represents input validation state (matching TDesign).
+// Status represents input validation state.
 type Status uint8
 
 const (
@@ -85,10 +85,10 @@ type Config struct {
 	IconSize     float32
 }
 
-// DefaultConfig returns a default configuration with TDesign light theme defaults.
+// DefaultConfig returns a default configuration with light theme defaults.
 func DefaultConfig() *Config {
 	return &Config{
-		// TDesign brand-color-7 (#0052d9)
+		// brand-color-7 (#0052d9)
 		PrimaryColor:     uimath.ColorHex("#0052d9"),
 		TextColor:        uimath.RGBA(0, 0, 0, 0.9),
 		BgColor:          uimath.ColorWhite,
@@ -113,7 +113,7 @@ func DefaultConfig() *Config {
 		SpaceLG: 24,
 		SpaceXL: 32,
 
-		// TDesign radius-medium = 6
+		// radius-medium = 6
 		BorderRadius: 6,
 		BorderWidth:  1,
 

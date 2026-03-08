@@ -143,6 +143,27 @@ type ContextMenuItem struct {
 	Enabled bool
 }
 
+// TSFTextProvider provides text content and position info for TSF IME.
+// Widgets that support IME input (e.g., TextArea, Input) implement this
+// interface so the TSF manager can query and modify their text content.
+type TSFTextProvider interface {
+	// GetText returns the text between byte offsets start and end.
+	GetText(start, end int) string
+
+	// GetSelection returns the current selection range (start, end).
+	GetSelection() (start, end int)
+
+	// SetSelection sets the current selection range.
+	SetSelection(start, end int)
+
+	// InsertText replaces the text between start and end with the given string.
+	InsertText(start, end int, text string)
+
+	// GetTextExtent returns the bounding rectangle (in client-area pixels)
+	// of the text between start and end.
+	GetTextExtent(start, end int) (x, y, w, h int)
+}
+
 // CursorShape identifies a standard cursor appearance.
 type CursorShape uint8
 
