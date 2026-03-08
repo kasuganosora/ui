@@ -111,6 +111,7 @@ func (e *testEnv) close() {
 
 func (e *testEnv) buildUI() widget.Widget {
 	doc := ui.LoadHTMLDocument(e.tree, e.cfg, demoHTML, "")
+	setupDemoWidgets(doc, e.tree, e.cfg)
 	if len(doc.Root.Children()) > 0 {
 		return doc.Root.Children()[0]
 	}
@@ -681,5 +682,62 @@ func TestVisualFontSpecimen(t *testing.T) {
 	t.Logf("font specimen: %d distinct colors", nc)
 	if nc < 50 {
 		t.Errorf("expected rich text rendering (>50 colors), got %d", nc)
+	}
+}
+
+func TestVisualListWidget(t *testing.T) {
+	env := newTestEnv(t, 600, 300)
+	defer env.close()
+
+	tree := env.tree
+	cfg := env.cfg
+
+	// Create a List with 3 items that have descriptions and actions
+	l := widget.NewList(tree, cfg)
+	l.SetItems([]widget.ListItem{
+		{Title: "列表主内容", Description: "列表内容列表内容列表内容", Actions: []string{"操作1", "操作2", "操作3"}},
+		{Title: "列表主内容", Description: "列表内容列表内容列表内容", Actions: []string{"操作1", "操作2", "操作3"}},
+		{Title: "列表主内容", Description: "列表内容列表内容列表内容", Actions: []string{"操作1", "操作2", "操作3"}},
+	})
+
+	tree.AppendChild(tree.Root(), l.ElementID())
+
+	w, h := float32(env.width), float32(env.height)
+	tree.SetLayout(tree.Root(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, w, h)})
+
+	// List has 3 items with descriptions → effectiveItemHeight = 64, total = 192
+	totalH := l.TotalHeight()
+	t.Logf("List TotalHeight: %.0f", totalH)
+	if totalH < 180 {
+		t.Errorf("expected List TotalHeight >= 180, got %.0f", totalH)
+	}
+	tree.SetLayout(l.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(10, 10, w-20, totalH)})
+
+	// Render one frame
+	env.plat.PollEvents()
+	env.backend.BeginFrame()
+	env.textRenderer.BeginFrame()
+	env.buf.Reset()
+	l.Draw(env.buf)
+	env.textRenderer.Upload()
+	env.backend.Submit(env.buf)
+	env.backend.EndFrame()
+	_, img := env.screenshot(t, "list_widget")
+	verifyNotUniform(t, img, "list_widget")
+
+	// Verify 3 rows are rendered: check for content in top, middle, and bottom thirds
+	thirdH := img.Bounds().Dy() / 3
+	topColors := countDistinctColors(img, 10, 10, img.Bounds().Dx()-20, thirdH)
+	midColors := countDistinctColors(img, 10, thirdH, img.Bounds().Dx()-20, thirdH)
+	botColors := countDistinctColors(img, 10, thirdH*2, img.Bounds().Dx()-20, thirdH)
+	t.Logf("List row colors: top=%d mid=%d bot=%d", topColors, midColors, botColors)
+	if topColors < 3 {
+		t.Errorf("top third has only %d colors, expected list item rendering", topColors)
+	}
+	if midColors < 3 {
+		t.Errorf("middle third has only %d colors, expected list item rendering", midColors)
+	}
+	if botColors < 2 {
+		t.Errorf("bottom third has only %d colors, expected list item rendering", botColors)
 	}
 }

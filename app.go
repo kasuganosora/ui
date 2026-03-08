@@ -719,6 +719,25 @@ func itemHeight(child widget.Widget) float32 {
 		return 80 // dot + title + description
 	case *widget.Table:
 		return v.TotalHeight()
+	case *widget.List:
+		return v.TotalHeight()
+	case *widget.Collapse:
+		// Each panel header is 40px + expanded content
+		h := float32(0)
+		for _, p := range v.Panels() {
+			h += 40
+			if v.IsActive(p.Value) {
+				h += 60 // default content height
+			}
+		}
+		if h == 0 {
+			h = 40
+		}
+		return h
+	case *widget.Card:
+		return 200 // reasonable card default
+	case *widget.InputNumber:
+		return 32
 	}
 	// Check if this is a container (demo-card) with children
 	children := child.Children()

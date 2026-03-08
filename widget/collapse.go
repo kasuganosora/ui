@@ -65,6 +65,7 @@ func (c *Collapse) AddPanel(p CollapsePanel) {
 	c.createHeaderElement(len(c.panels) - 1)
 }
 
+func (c *Collapse) Panels() []CollapsePanel                      { return c.panels }
 func (c *Collapse) SetExpandMutex(a bool)                        { c.expandMutex = a }
 func (c *Collapse) SetBorderless(b bool)                         { c.borderless = b }
 func (c *Collapse) SetExpandOnRowClick(b bool)                   { c.expandOnRowClick = b }
@@ -241,8 +242,25 @@ func (c *Collapse) Draw(buf *render.CommandBuffer) {
 		y += headerH
 
 		if active && panel.Content != nil {
+			contentH := float32(60) // default content height
+			// Try to get content height from its layout bounds
+			contentElem := c.tree.Get(panel.Content.ElementID())
+			if contentElem != nil {
+				cb := contentElem.Layout().Bounds
+				if cb.Height > 0 {
+					contentH = cb.Height
+				}
+			}
+			// Set content bounds so it draws in the right position
+			contentPad := cfg.SpaceMD
+			contentBounds := uimath.NewRect(bounds.X+contentPad, y+cfg.SpaceSM, bounds.Width-contentPad*2, contentH)
+			if contentElem != nil {
+				lo := contentElem.Layout()
+				lo.Bounds = contentBounds
+				c.tree.SetLayout(panel.Content.ElementID(), lo)
+			}
 			panel.Content.Draw(buf)
-			y += 60 // placeholder content height
+			y += contentH + cfg.SpaceSM*2
 		}
 	}
 }

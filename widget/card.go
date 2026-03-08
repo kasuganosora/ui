@@ -17,23 +17,26 @@ const (
 	CardThemePoster2                  // actions in footer
 )
 
-// Card is a container with optional header and footer.
+// Card is a container with optional header, body content, and footer.
+// Matches TDesign Card component: bordered/borderless, shadow, header divider,
+// title + subtitle + actions, footer with action icons.
 type Card struct {
 	Base
 	title          string
 	subtitle       string
+	description    string
 	bordered       bool
+	shadow         bool // show shadow (useful for borderless cards)
 	bgColor        uimath.Color
-	actions        Widget
-	footer         Widget
+	actions        Widget // header right-side actions
+	footer         Widget // footer content
+	footerActions  []Widget // footer action items (like, comment, share icons)
 	hoverShadow    bool
-	headerBordered bool
+	headerBordered bool // divider between header and body
 	size           Size
 	hovered        bool
-	description    string
-	cover          string
-	avatar         string
-	shadow         bool
+	cover          string // cover image URL
+	avatar         string // avatar URL
 	status         string
 	theme          CardTheme
 	loading        bool
@@ -53,7 +56,6 @@ func NewCard(tree *core.Tree, cfg *Config) *Card {
 	c.style.Display = layout.DisplayFlex
 	c.style.FlexDirection = layout.FlexDirectionColumn
 
-	// Track hover for shadow
 	tree.AddHandler(c.id, event.MouseEnter, func(e *event.Event) {
 		c.hovered = true
 	})
@@ -66,20 +68,32 @@ func NewCard(tree *core.Tree, cfg *Config) *Card {
 
 func (c *Card) SetTitle(t string)          { c.title = t }
 func (c *Card) SetSubtitle(s string)       { c.subtitle = s }
+func (c *Card) SetDescription(d string)    { c.description = d }
 func (c *Card) SetBordered(b bool)         { c.bordered = b }
+func (c *Card) SetShadow(v bool)          { c.shadow = v }
 func (c *Card) SetBgColor(cl uimath.Color) { c.bgColor = cl }
 func (c *Card) SetActions(w Widget)        { c.actions = w }
 func (c *Card) SetFooter(w Widget)         { c.footer = w }
 func (c *Card) SetHoverShadow(v bool)      { c.hoverShadow = v }
 func (c *Card) SetHeaderBordered(v bool)   { c.headerBordered = v }
 func (c *Card) SetSize(s Size)             { c.size = s }
-func (c *Card) SetDescription(d string)    { c.description = d }
 func (c *Card) SetCover(url string)        { c.cover = url }
 func (c *Card) SetAvatar(url string)       { c.avatar = url }
-func (c *Card) SetShadow(v bool)           { c.shadow = v }
 func (c *Card) SetStatus(s string)         { c.status = s }
 func (c *Card) SetTheme(t CardTheme)       { c.theme = t }
 func (c *Card) SetLoading(v bool)          { c.loading = v }
+func (c *Card) Title() string              { return c.title }
+func (c *Card) Bordered() bool             { return c.bordered }
+func (c *Card) Shadow() bool               { return c.shadow }
+func (c *Card) HeaderBordered() bool       { return c.headerBordered }
+
+// AddFooterAction adds a widget to the footer action bar.
+func (c *Card) AddFooterAction(w Widget) {
+	c.footerActions = append(c.footerActions, w)
+}
+
+// FooterActions returns the footer action widgets.
+func (c *Card) FooterActions() []Widget { return c.footerActions }
 
 // Deprecated: Use SetActions instead.
 func (c *Card) SetHeaderExtra(w Widget) { c.actions = w }
@@ -98,16 +112,29 @@ func (c *Card) Draw(buf *render.CommandBuffer) {
 	}
 	cfg := c.config
 	pad := c.cardPadding()
+	radius := cfg.BorderRadius
 
-	// Hover shadow
-	if c.hoverShadow && c.hovered {
+	// Shadow (drawn beneath everything)
+	if c.shadow || (c.hoverShadow && c.hovered) {
+		spread := float32(4)
+		offsetY := float32(2)
+		shadowAlpha := float32(0.08)
+		if c.hoverShadow && c.hovered {
+			spread = 8
+			offsetY = 4
+			shadowAlpha = 0.15
+		}
 		buf.DrawRect(render.RectCmd{
-			Bounds:    uimath.NewRect(bounds.X+2, bounds.Y+2, bounds.Width+4, bounds.Height+4),
-			FillColor: uimath.RGBA(0, 0, 0, 0.08),
-			Corners:   uimath.CornersAll(cfg.BorderRadius + 2),
+			Bounds: uimath.NewRect(
+				bounds.X-spread, bounds.Y-spread+offsetY,
+				bounds.Width+spread*2, bounds.Height+spread*2,
+			),
+			FillColor: uimath.RGBA(0, 0, 0, shadowAlpha),
+			Corners:   uimath.CornersAll(radius + spread),
 		}, -1, 1)
 	}
 
+	// Card background
 	borderW := float32(0)
 	borderC := uimath.Color{}
 	if c.bordered {
@@ -120,14 +147,17 @@ func (c *Card) Draw(buf *render.CommandBuffer) {
 		FillColor:   c.bgColor,
 		BorderColor: borderC,
 		BorderWidth: borderW,
-		Corners:     uimath.CornersAll(cfg.BorderRadius),
+		Corners:     uimath.CornersAll(radius),
 	}, 0, 1)
 
+	y := bounds.Y
+
+	// Header section (title + subtitle + actions)
 	headerH := float32(0)
 	if c.title != "" {
 		headerH = 48
 		if c.subtitle != "" {
-			headerH = 60
+			headerH = 64
 		}
 		if c.size == SizeSmall {
 			headerH = 40
@@ -136,73 +166,84 @@ func (c *Card) Draw(buf *render.CommandBuffer) {
 			}
 		}
 
-		// Header divider
-		if c.headerBordered {
-			buf.DrawRect(render.RectCmd{
-				Bounds:    uimath.NewRect(bounds.X, bounds.Y+headerH-1, bounds.Width, 1),
-				FillColor: uimath.RGBA(0, 0, 0, 0.06),
-			}, 1, 1)
-		}
-
 		// Title
-		titleMaxW := bounds.Width - pad*2
-		headerExtraW := float32(0)
-		if c.actions != nil {
-			// Reserve space for headerExtra
-			headerExtraW = 80 // default reservation
+		titleFs := cfg.FontSizeLg
+		if c.size == SizeSmall {
+			titleFs = cfg.FontSize
 		}
-		titleMaxW -= headerExtraW
-
-		titleY := bounds.Y + (headerH-cfg.FontSize*1.2)/2
-		if c.subtitle != "" {
-			titleY = bounds.Y + pad/2
+		titleMaxW := bounds.Width - pad*2
+		if c.actions != nil {
+			titleMaxW -= 80
 		}
 
 		if cfg.TextRenderer != nil {
-			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-			if c.subtitle == "" {
-				titleY = bounds.Y + (headerH-lh)/2
+			lh := cfg.TextRenderer.LineHeight(titleFs)
+			titleY := y + (headerH-lh)/2
+			if c.subtitle != "" {
+				titleY = y + pad*0.6
 			}
-			cfg.TextRenderer.DrawText(buf, c.title, bounds.X+pad, titleY, cfg.FontSize, titleMaxW, cfg.TextColor, 1)
+			// Title text (bold would be set by font, we draw it larger)
+			cfg.TextRenderer.DrawText(buf, c.title,
+				bounds.X+pad, titleY,
+				titleFs, titleMaxW, cfg.TextColor, 1)
+
+			// Subtitle
+			if c.subtitle != "" {
+				subtitleFs := cfg.FontSizeSm
+				subtitleColor := uimath.RGBA(0, 0, 0, 0.4)
+				subY := titleY + lh + 2
+				cfg.TextRenderer.DrawText(buf, c.subtitle,
+					bounds.X+pad, subY,
+					subtitleFs, titleMaxW, subtitleColor, 1)
+			}
 		} else {
-			tw := float32(len(c.title)) * cfg.FontSize * 0.55
-			th := cfg.FontSize * 1.2
+			// Placeholder rects
+			titleY := y + (headerH-titleFs*1.2)/2
+			if c.subtitle != "" {
+				titleY = y + pad*0.6
+			}
+			tw := float32(len(c.title)) * titleFs * 0.55
+			th := titleFs * 1.2
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(bounds.X+pad, titleY, tw, th),
 				FillColor: cfg.TextColor,
 				Corners:   uimath.CornersAll(2),
 			}, 1, 1)
-		}
 
-		// Subtitle
-		if c.subtitle != "" {
-			subtitleY := titleY + cfg.FontSize*1.4
-			subtitleColor := uimath.RGBA(0, 0, 0, 0.45)
-			if cfg.TextRenderer != nil {
-				cfg.TextRenderer.DrawText(buf, c.subtitle, bounds.X+pad, subtitleY, cfg.FontSizeSm, titleMaxW, subtitleColor, 1)
-			} else {
+			if c.subtitle != "" {
 				sw := float32(len(c.subtitle)) * cfg.FontSizeSm * 0.55
 				sh := cfg.FontSizeSm * 1.2
 				buf.DrawRect(render.RectCmd{
-					Bounds:    uimath.NewRect(bounds.X+pad, subtitleY, sw, sh),
-					FillColor: subtitleColor,
+					Bounds:    uimath.NewRect(bounds.X+pad, titleY+th+4, sw, sh),
+					FillColor: uimath.RGBA(0, 0, 0, 0.4),
 					Corners:   uimath.CornersAll(2),
 				}, 1, 1)
 			}
 		}
 
-		// Header extra widget
+		// Actions (right side of header)
 		if c.actions != nil {
 			c.actions.Draw(buf)
 		}
+
+		// Header divider line
+		if c.headerBordered {
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(bounds.X, y+headerH-1, bounds.Width, 1),
+				FillColor: uimath.RGBA(0, 0, 0, 0.06),
+			}, 1, 1)
+		}
+
+		y += headerH
 	}
 
-	_ = headerH
+	// Body (children)
 	c.DrawChildren(buf)
 
-	// Footer
-	if c.footer != nil {
-		footerH := float32(48)
+	// Footer section
+	footerH := float32(0)
+	if c.footer != nil || len(c.footerActions) > 0 {
+		footerH = 48
 		if c.size == SizeSmall {
 			footerH = 40
 		}
@@ -214,6 +255,26 @@ func (c *Card) Draw(buf *render.CommandBuffer) {
 			FillColor: uimath.RGBA(0, 0, 0, 0.06),
 		}, 1, 1)
 
-		c.footer.Draw(buf)
+		if c.footer != nil {
+			c.footer.Draw(buf)
+		}
+
+		// Footer actions (evenly distributed)
+		if len(c.footerActions) > 0 {
+			actionW := bounds.Width / float32(len(c.footerActions))
+			ax := bounds.X
+			for i, act := range c.footerActions {
+				// Draw vertical divider between actions (not before first)
+				if i > 0 {
+					buf.DrawRect(render.RectCmd{
+						Bounds:    uimath.NewRect(ax, footerY+8, 1, footerH-16),
+						FillColor: uimath.RGBA(0, 0, 0, 0.06),
+					}, 1, 1)
+				}
+				act.Draw(buf)
+				ax += actionW
+			}
+		}
 	}
+	_ = footerH
 }

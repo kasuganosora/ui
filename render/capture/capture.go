@@ -15,12 +15,86 @@ import (
 	"math"
 	"os"
 
+	"github.com/kasuganosora/ui/core"
+	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 )
 
 // Screenshot captures the current framebuffer from the backend as an RGBA image.
 func Screenshot(backend render.Backend) (*image.RGBA, error) {
 	return backend.ReadPixels()
+}
+
+// ScreenshotNode captures a specific element and all its descendants.
+// It takes a full framebuffer screenshot and crops to the element's layout bounds.
+// The dpiScale parameter converts logical layout coordinates to physical pixels
+// (pass 1.0 if layout coordinates already match pixel coordinates).
+func ScreenshotNode(backend render.Backend, tree *core.Tree, id core.ElementID, dpiScale float32) (*image.RGBA, error) {
+	elem := tree.Get(id)
+	if elem == nil {
+		return nil, fmt.Errorf("capture: element %d not found", id)
+	}
+	bounds := elem.Layout().Bounds
+	if bounds.IsEmpty() {
+		return nil, fmt.Errorf("capture: element %d has empty bounds", id)
+	}
+	full, err := backend.ReadPixels()
+	if err != nil {
+		return nil, err
+	}
+	return CropRect(full, bounds, dpiScale), nil
+}
+
+// ScreenshotBounds captures a region of the framebuffer defined by logical bounds.
+// The dpiScale parameter converts logical coordinates to physical pixels.
+func ScreenshotBounds(backend render.Backend, bounds uimath.Rect, dpiScale float32) (*image.RGBA, error) {
+	full, err := backend.ReadPixels()
+	if err != nil {
+		return nil, err
+	}
+	return CropRect(full, bounds, dpiScale), nil
+}
+
+// CropRect crops an image to the given logical rect, applying dpiScale.
+func CropRect(img *image.RGBA, bounds uimath.Rect, dpiScale float32) *image.RGBA {
+	x0 := int(bounds.X * dpiScale)
+	y0 := int(bounds.Y * dpiScale)
+	x1 := int((bounds.X + bounds.Width) * dpiScale)
+	y1 := int((bounds.Y + bounds.Height) * dpiScale)
+
+	// Clamp to image bounds
+	imgBounds := img.Bounds()
+	if x0 < imgBounds.Min.X {
+		x0 = imgBounds.Min.X
+	}
+	if y0 < imgBounds.Min.Y {
+		y0 = imgBounds.Min.Y
+	}
+	if x1 > imgBounds.Max.X {
+		x1 = imgBounds.Max.X
+	}
+	if y1 > imgBounds.Max.Y {
+		y1 = imgBounds.Max.Y
+	}
+
+	w := x1 - x0
+	h := y1 - y0
+	if w <= 0 || h <= 0 {
+		return image.NewRGBA(image.Rect(0, 0, 0, 0))
+	}
+
+	cropped := image.NewRGBA(image.Rect(0, 0, w, h))
+	for dy := 0; dy < h; dy++ {
+		srcOff := img.PixOffset(x0, y0+dy)
+		dstOff := cropped.PixOffset(0, dy)
+		copy(cropped.Pix[dstOff:dstOff+w*4], img.Pix[srcOff:srcOff+w*4])
+	}
+	return cropped
+}
+
+// Crop extracts a sub-region from an image using pixel coordinates.
+func Crop(img *image.RGBA, x, y, w, h int) *image.RGBA {
+	return CropRect(img, uimath.NewRect(float32(x), float32(y), float32(w), float32(h)), 1.0)
 }
 
 // SavePNG saves an RGBA image to a PNG file at the given path.

@@ -376,11 +376,9 @@ func setupDemoWidgets(doc *ui.Document, tree *core.Tree, cfg *widget.Config) {
 	if c := get("demo-list"); c != nil {
 		l := widget.NewList(tree, cfg)
 		l.SetItems([]widget.ListItem{
-			{Title: "Button 按钮", Description: "按钮用于开启一个闭环的操作任务"},
-			{Title: "Input 输入框", Description: "用于承载用户信息录入的文本输入"},
-			{Title: "Select 选择器", Description: "用于收集用户提供的信息"},
-			{Title: "Table 表格", Description: "展示行列数据"},
-			{Title: "Form 表单", Description: "用以收集、校验和提交数据"},
+			{Title: "列表主内容", Description: "列表内容列表内容", Actions: []string{"操作1", "操作2", "操作3"}},
+			{Title: "列表主内容", Description: "列表内容列表内容", Actions: []string{"操作1", "操作2", "操作3"}},
+			{Title: "列表主内容", Description: "列表内容列表内容", Actions: []string{"操作1", "操作2", "操作3"}},
 		})
 		l.SetBordered(true)
 		l.OnSelect(func(i int) { fmt.Printf("[List] selected = %d\n", i) })
@@ -392,7 +390,7 @@ func setupDemoWidgets(doc *ui.Document, tree *core.Tree, cfg *widget.Config) {
 		card := widget.NewCard(tree, cfg)
 		card.SetTitle("卡片标题")
 		card.SetBordered(true)
-		card.SetBgColor(uimath.ColorHex("#fafafa"))
+		card.SetShadow(true)
 		t := widget.NewText(tree, "卡片组件用于展示一组相关的信息，支持标题、内容和底部操作区。", cfg)
 		t.SetColor(uimath.ColorHex("#666666"))
 		card.AppendChild(t)

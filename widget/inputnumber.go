@@ -43,9 +43,9 @@ const (
 
 // Deprecated aliases for backward compatibility.
 const (
-	ThemeNormal = InputNumberThemeRow
+	ThemeNormal = InputNumberThemeNormal
 	ThemeColumn = InputNumberThemeColumn
-	ThemeRow    = InputNumberThemeNormal
+	ThemeRow    = InputNumberThemeRow
 )
 
 // InputNumber is a numeric input with increment/decrement buttons.
@@ -174,8 +174,8 @@ func (n *InputNumber) Draw(buf *render.CommandBuffer) {
 	case InputNumberThemeColumn:
 		n.drawColumn(buf, bounds)
 	case InputNumberThemeNormal:
-		n.drawRow(buf, bounds)
-	default:
+		n.drawInputOnly(buf, bounds)
+	default: // InputNumberThemeRow
 		n.drawNormal(buf, bounds)
 	}
 }
@@ -306,13 +306,10 @@ func (n *InputNumber) drawColumn(buf *render.CommandBuffer, bounds uimath.Rect) 
 	n.drawValueText(buf, bounds.X, bounds.Y, inputW, bounds.Height)
 }
 
-// drawRow renders ThemeRow: full-width [+] on top, [value] in middle, [-] on bottom.
-func (n *InputNumber) drawRow(buf *render.CommandBuffer, bounds uimath.Rect) {
+// drawInputOnly renders ThemeNormal: just the input box, no increment/decrement buttons.
+func (n *InputNumber) drawInputOnly(buf *render.CommandBuffer, bounds uimath.Rect) {
 	cfg := n.config
-	btnH := float32(24)
-	inputH := bounds.Height - btnH*2
 
-	// Main box
 	borderClr := cfg.BorderColor
 	if elem := n.Element(); elem != nil && elem.IsFocused() {
 		borderClr = cfg.FocusBorderColor
@@ -325,46 +322,7 @@ func (n *InputNumber) drawRow(buf *render.CommandBuffer, bounds uimath.Rect) {
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 0, 1)
 
-	// Increment button (top)
-	buf.DrawRect(render.RectCmd{
-		Bounds:    uimath.NewRect(bounds.X, bounds.Y, bounds.Width, btnH),
-		FillColor: uimath.RGBA(0, 0, 0, 0.02),
-	}, 1, 1)
-	buf.DrawRect(render.RectCmd{
-		Bounds:    uimath.NewRect(bounds.X, bounds.Y+btnH, bounds.Width, 1),
-		FillColor: cfg.BorderColor,
-	}, 1, 1)
-	// Plus sign
-	cx := bounds.X + bounds.Width/2
-	cy := bounds.Y + btnH/2
-	buf.DrawRect(render.RectCmd{
-		Bounds:    uimath.NewRect(cx-5, cy-0.5, 10, 1),
-		FillColor: cfg.TextColor,
-	}, 2, 1)
-	buf.DrawRect(render.RectCmd{
-		Bounds:    uimath.NewRect(cx-0.5, cy-5, 1, 10),
-		FillColor: cfg.TextColor,
-	}, 2, 1)
-
-	// Decrement button (bottom)
-	decY := bounds.Y + btnH + inputH
-	buf.DrawRect(render.RectCmd{
-		Bounds:    uimath.NewRect(bounds.X, decY, bounds.Width, btnH),
-		FillColor: uimath.RGBA(0, 0, 0, 0.02),
-	}, 1, 1)
-	buf.DrawRect(render.RectCmd{
-		Bounds:    uimath.NewRect(bounds.X, decY, bounds.Width, 1),
-		FillColor: cfg.BorderColor,
-	}, 1, 1)
-	// Minus sign
-	cy2 := decY + btnH/2
-	buf.DrawRect(render.RectCmd{
-		Bounds:    uimath.NewRect(cx-5, cy2-0.5, 10, 1),
-		FillColor: cfg.TextColor,
-	}, 2, 1)
-
-	// Value text (center area)
-	n.drawValueText(buf, bounds.X, bounds.Y+btnH, bounds.Width, inputH)
+	n.drawValueText(buf, bounds.X, bounds.Y, bounds.Width, bounds.Height)
 }
 
 // drawValueText draws the text value centered in the given region.

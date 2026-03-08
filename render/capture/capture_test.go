@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kasuganosora/ui/core"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/platform"
 	"github.com/kasuganosora/ui/render"
@@ -355,5 +356,138 @@ func TestLoadPNGInvalidData(t *testing.T) {
 	_, err := LoadPNG(path)
 	if err == nil {
 		t.Error("expected error for invalid PNG")
+	}
+}
+
+// checkerImage creates a 100x100 image with 4 colored quadrants.
+func checkerImage() *image.RGBA {
+	img := image.NewRGBA(image.Rect(0, 0, 100, 100))
+	for y := 0; y < 100; y++ {
+		for x := 0; x < 100; x++ {
+			var c color.RGBA
+			switch {
+			case x < 50 && y < 50:
+				c = color.RGBA{R: 255, A: 255} // top-left: red
+			case x >= 50 && y < 50:
+				c = color.RGBA{G: 255, A: 255} // top-right: green
+			case x < 50 && y >= 50:
+				c = color.RGBA{B: 255, A: 255} // bottom-left: blue
+			default:
+				c = color.RGBA{R: 255, G: 255, A: 255} // bottom-right: yellow
+			}
+			img.SetRGBA(x, y, c)
+		}
+	}
+	return img
+}
+
+func TestCropRect(t *testing.T) {
+	img := checkerImage()
+
+	// Crop top-left quadrant (red)
+	cropped := CropRect(img, uimath.NewRect(0, 0, 50, 50), 1.0)
+	if cropped.Bounds().Dx() != 50 || cropped.Bounds().Dy() != 50 {
+		t.Fatalf("expected 50x50, got %dx%d", cropped.Bounds().Dx(), cropped.Bounds().Dy())
+	}
+	r, g, b, _ := cropped.At(25, 25).RGBA()
+	if r == 0 || g != 0 || b != 0 {
+		t.Errorf("expected red pixel, got r=%d g=%d b=%d", r>>8, g>>8, b>>8)
+	}
+
+	// Crop bottom-right quadrant (yellow)
+	cropped2 := CropRect(img, uimath.NewRect(50, 50, 50, 50), 1.0)
+	r2, g2, b2, _ := cropped2.At(25, 25).RGBA()
+	if r2 == 0 || g2 == 0 || b2 != 0 {
+		t.Errorf("expected yellow pixel, got r=%d g=%d b=%d", r2>>8, g2>>8, b2>>8)
+	}
+}
+
+func TestCropRectWithDPIScale(t *testing.T) {
+	// 200x200 physical pixels, logical bounds at scale 2.0
+	img := image.NewRGBA(image.Rect(0, 0, 200, 200))
+	for y := 0; y < 200; y++ {
+		for x := 0; x < 200; x++ {
+			img.SetRGBA(x, y, color.RGBA{R: uint8(x), G: uint8(y), A: 255})
+		}
+	}
+
+	// Logical rect (10, 10, 40, 40) at dpi 2.0 → physical (20, 20, 80, 80)
+	cropped := CropRect(img, uimath.NewRect(10, 10, 40, 40), 2.0)
+	if cropped.Bounds().Dx() != 80 || cropped.Bounds().Dy() != 80 {
+		t.Fatalf("expected 80x80, got %dx%d", cropped.Bounds().Dx(), cropped.Bounds().Dy())
+	}
+	// Top-left pixel of cropped should be from physical (20, 20)
+	r, g, _, _ := cropped.At(0, 0).RGBA()
+	if r>>8 != 20 || g>>8 != 20 {
+		t.Errorf("expected pixel (20,20), got r=%d g=%d", r>>8, g>>8)
+	}
+}
+
+func TestCropRectClamping(t *testing.T) {
+	img := solidImage(100, 100, color.RGBA{R: 255, A: 255})
+
+	// Rect extends beyond image bounds
+	cropped := CropRect(img, uimath.NewRect(80, 80, 50, 50), 1.0)
+	if cropped.Bounds().Dx() != 20 || cropped.Bounds().Dy() != 20 {
+		t.Fatalf("expected 20x20 (clamped), got %dx%d", cropped.Bounds().Dx(), cropped.Bounds().Dy())
+	}
+}
+
+func TestCrop(t *testing.T) {
+	img := checkerImage()
+	cropped := Crop(img, 50, 0, 50, 50)
+	if cropped.Bounds().Dx() != 50 || cropped.Bounds().Dy() != 50 {
+		t.Fatalf("expected 50x50, got %dx%d", cropped.Bounds().Dx(), cropped.Bounds().Dy())
+	}
+	// Should be green quadrant
+	r, g, b, _ := cropped.At(25, 25).RGBA()
+	if r != 0 || g == 0 || b != 0 {
+		t.Errorf("expected green pixel, got r=%d g=%d b=%d", r>>8, g>>8, b>>8)
+	}
+}
+
+func TestScreenshotNode(t *testing.T) {
+	img := checkerImage()
+	backend := &mockBackend{img: img}
+
+	tree := core.NewTree()
+	child := tree.CreateElement(core.TypeDiv)
+	tree.AppendChild(tree.Root(), child)
+	tree.SetLayout(child, core.LayoutResult{
+		Bounds: uimath.NewRect(50, 50, 50, 50),
+	})
+
+	cropped, err := ScreenshotNode(backend, tree, child, 1.0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cropped.Bounds().Dx() != 50 || cropped.Bounds().Dy() != 50 {
+		t.Fatalf("expected 50x50, got %dx%d", cropped.Bounds().Dx(), cropped.Bounds().Dy())
+	}
+	// Should be bottom-right (yellow)
+	r, g, b, _ := cropped.At(25, 25).RGBA()
+	if r == 0 || g == 0 || b != 0 {
+		t.Errorf("expected yellow pixel, got r=%d g=%d b=%d", r>>8, g>>8, b>>8)
+	}
+}
+
+func TestScreenshotNodeNotFound(t *testing.T) {
+	backend := &mockBackend{img: solidImage(10, 10, color.RGBA{A: 255})}
+	tree := core.NewTree()
+	_, err := ScreenshotNode(backend, tree, 999, 1.0)
+	if err == nil {
+		t.Error("expected error for non-existent element")
+	}
+}
+
+func TestScreenshotNodeEmptyBounds(t *testing.T) {
+	backend := &mockBackend{img: solidImage(10, 10, color.RGBA{A: 255})}
+	tree := core.NewTree()
+	child := tree.CreateElement(core.TypeDiv)
+	tree.AppendChild(tree.Root(), child)
+	// No layout set → empty bounds
+	_, err := ScreenshotNode(backend, tree, child, 1.0)
+	if err == nil {
+		t.Error("expected error for empty bounds")
 	}
 }
