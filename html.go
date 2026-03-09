@@ -435,9 +435,26 @@ func (p *htmlParser) parseElement(parent containerWidget, ancestors []css.Elemen
 	case "br":
 		return
 	case "img":
-		img := widget.NewImage(p.tree, 0, p.cfg)
+		img := widget.NewImg(p.tree, p.cfg)
 		if src, ok := attrs["src"]; ok {
 			img.SetSrc(src)
+		}
+		if alt, ok := attrs["alt"]; ok {
+			img.SetAlt(alt)
+		}
+		if w, ok := attrs["width"]; ok {
+			if v, err := strconv.ParseFloat(w, 32); err == nil {
+				s := img.Style()
+				s.Width = layout.Px(float32(v))
+				img.SetStyle(s)
+			}
+		}
+		if h, ok := attrs["height"]; ok {
+			if v, err := strconv.ParseFloat(h, 32); err == nil {
+				s := img.Style()
+				s.Height = layout.Px(float32(v))
+				img.SetStyle(s)
+			}
 		}
 		applyInlineStyle(img, inlineStyle)
 		p.registerWidgetWithAttrs(img, tag, id, classes, inlineStyle, ancestors, attrs)

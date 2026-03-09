@@ -84,6 +84,9 @@ type Config struct {
 	InputHeight  float32
 	IconSize     float32
 
+	// Rendering backend for texture creation (optional — needed for image loading)
+	Backend render.Backend
+
 	// Icon registry for SVG icon lookup by name (e.g., Material Design Icons)
 	IconRegistry IconLookup
 }

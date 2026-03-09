@@ -216,6 +216,7 @@ func NewApp(opts AppOptions) (*App, error) {
 	}
 	a.cfg.Window = a.win
 	a.cfg.Platform = a.plat
+	a.cfg.Backend = a.backend
 	a.cfg.IconRegistry = material.NewRegistry(a.backend)
 	a.buf = render.NewCommandBuffer()
 
