@@ -121,12 +121,13 @@ const feedCSS = `
   gap: 12px;
 }
 
-/* Avatar: fixed 48x48 circle */
+/* Avatar: fixed 48x48 circle with placeholder color */
 .tweet-avatar {
   width: 48px;
   height: 48px;
   border-radius: 24px;
   flex-shrink: 0;
+  background: #1D9BF0;
 }
 
 /* Tweet content: fills remaining space */
@@ -221,8 +222,9 @@ func tweetHTML(name, handle, timeStr, text string, reply, rt, fav int) string {
 // loadBatchSize is how many tweets to load when reaching the bottom.
 const loadBatchSize = 5
 
-// pendingTweets is a channel for thread-safe tweet insertion from goroutines.
-var pendingTweets = make(chan widget.Widget, 32)
+// pendingTweetData is a channel for thread-safe tweet data from goroutines.
+// Only data is sent (not widgets) because widget creation touches the tree (map).
+var pendingTweetData = make(chan *tweetData, 32)
 
 func main() {
 	// Parse embedded tweet data
@@ -301,22 +303,23 @@ func main() {
 		fmt.Printf("[Feed] Loaded %d more (total: %d)\n", loadBatchSize, len(contentWidget.Children()))
 	}
 
-	// Goroutine: create new tweet every 10s, send via channel (thread-safe)
+	// Goroutine: send tweet data every 10s via channel (thread-safe).
+	// Widget creation must happen on main thread since it touches tree maps.
 	go func() {
 		for {
 			time.Sleep(10 * time.Second)
 			td := &allTweets[rand.Intn(len(allTweets))]
-			tw := makeTweet(td, "刚刚")
-			pendingTweets <- tw
+			pendingTweetData <- td
 		}
 	}()
 
 	// Layout: drain pending tweets + CSSLayout engine
 	app.SetOnLayout(func(tree *core.Tree, root widget.Widget, w, h float32) {
-		// Drain pending tweets on the main thread (avoids concurrent map access)
+		// Drain pending tweet data and create widgets on main thread (avoids concurrent map access)
 		for {
 			select {
-			case tw := <-pendingTweets:
+			case td := <-pendingTweetData:
+				tw := makeTweet(td, "刚刚")
 				container.PrependChild(tw)
 				fmt.Println("[Feed] New tweet at top")
 			default:
