@@ -91,6 +91,16 @@ func (b *Base) AppendChild(child Widget) {
 	b.tree.AppendChild(b.id, child.ElementID())
 }
 
+// PrependChild inserts a child widget at the beginning.
+func (b *Base) PrependChild(child Widget) {
+	b.children = append([]Widget{child}, b.children...)
+	if len(b.children) > 1 {
+		b.tree.InsertBefore(b.id, child.ElementID(), b.children[1].ElementID())
+	} else {
+		b.tree.AppendChild(b.id, child.ElementID())
+	}
+}
+
 // RemoveChild removes a child widget (does not destroy it).
 func (b *Base) RemoveChild(child Widget) {
 	for i, c := range b.children {

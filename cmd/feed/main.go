@@ -3,87 +3,85 @@
 // Feed Timeline Demo — A Twitter-like feed to showcase GoUI's complex UI capabilities.
 //
 // This demo demonstrates:
-//   - HTML+CSS layout with flexbox
-//   - Dynamic content insertion (new tweet every 10 seconds)
-//   - Scrollable content area
-//   - Avatar, text, icons, action buttons
-//   - CSS styling (colors, spacing, borders, hover)
+//   - Pure HTML+CSS layout using CSSLayout engine (flexbox/block flow)
+//   - Each tweet built from HTML template with CSS classes
+//   - Real Twitter data loaded from embedded JSON (go:embed)
+//   - New tweets prepended at the top every 10 seconds
+//   - Scroll-to-bottom auto-loads more tweets
+//   - Scrollable content area with scrollbar
 //
 // Run: go run ./cmd/feed
 package main
 
 import (
+	_ "embed"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
 
 	ui "github.com/kasuganosora/ui"
 	"github.com/kasuganosora/ui/core"
-	uimath "github.com/kasuganosora/ui/math"
-	"github.com/kasuganosora/ui/render"
 	"github.com/kasuganosora/ui/widget"
 )
 
-// ── Random tweet data ──────────────────────────────────────────────────
+// ── Embedded tweet data ────────────────────────────────────────────────
 
-var users = []struct {
-	name, handle string
-	avatarColor  uimath.Color
-}{
-	{"猫月ユキ", "@yukinkzk", uimath.ColorHex("#FFB6C1")},
-	{"Linus Torvalds", "@Linus__Torvalds", uimath.ColorHex("#4A90D9")},
-	{"尚硅谷", "@atguigu", uimath.ColorHex("#FF6B35")},
-	{"GoUI Official", "@GoUI_dev", uimath.ColorHex("#2BA471")},
-	{"Miku Hatsune", "@cfm_miku", uimath.ColorHex("#39C5BB")},
-	{"Rust Lang", "@rustlang", uimath.ColorHex("#DEA584")},
-	{"小岛秀夫", "@HIDEO_KOJIMA_EN", uimath.ColorHex("#8B5CF6")},
-	{"Elon Musk", "@elonmusk", uimath.ColorHex("#1DA1F2")},
-	{"阮一峰", "@ruaborntree", uimath.ColorHex("#E8590C")},
-	{"React", "@reactjs", uimath.ColorHex("#61DAFB")},
+//go:embed tweets.json
+var tweetsJSON []byte
+
+type tweetData struct {
+	Name    string `json:"name"`
+	Handle  string `json:"handle"`
+	Text    string `json:"text"`
+	Fav     int    `json:"fav"`
+	RT      int    `json:"rt"`
+	Reply   int    `json:"reply"`
+	Created string `json:"created"`
 }
 
-var tweets = []string{
-	"今天天气真好，适合写代码 ☀️",
-	"Just released v2.0! Check out the new features 🚀",
-	"Go 语言的错误处理确实需要改进，但 error wrapping 已经好很多了",
-	"每次看到自己三个月前写的代码都想重构…",
-	"Zero-CGO is the way. Pure Go, pure performance. 💪",
-	"刚在 GitHub 上发现一个很棒的 UI 库，渲染引擎支持 Vulkan/DX11/OpenGL",
-	"Flexbox is still the best layout system. Change my mind.",
-	"今日のコーディングは楽しかったです！新しい機能を実装しました",
-	"软路由里的内存比它的主板还值钱了（ 还有王法吗，还有法律吗！",
-	"CSS-in-Go might sound crazy, but it works surprisingly well",
-	"周末在家学习 Vulkan，感觉比 OpenGL 复杂但更合理",
-	"The best code is no code. The second best is Go code.",
-	"对不起，我又在凌晨3点推送了一个 breaking change 🙈",
-	"This GPU-accelerated UI framework runs at 144fps. Not bad for Go!",
-	"新建了一个 Twitter 风格的 feed，用纯 Go 渲染的",
-	"半夜饿了，外卖还是泡面？这是个问题",
-	"SDF font rendering + linear-space blending = crisp text at any size",
-	"今天的 PR 终于合并了，开心到起飞 🎉",
-	"Does anyone else rewrite their side project from scratch every 6 months?",
-	"レンダリングパイプラインをゼロから作り直しました。大変でしたが満足しています",
+var allTweets []tweetData
+
+// formatCount formats large numbers: 1234 → "1,234", 12345 → "1.2万"
+func formatCount(n int) string {
+	if n >= 10000 {
+		return fmt.Sprintf("%.1f万", float64(n)/10000)
+	}
+	if n >= 1000 {
+		return fmt.Sprintf("%d,%03d", n/1000, n%1000)
+	}
+	return fmt.Sprintf("%d", n)
 }
 
-var timeAgo = []string{
-	"1分前", "3分前", "5分前", "10分前", "15分前", "30分前",
-	"1小时前", "2小时前", "3小时前", "5小时前", "8小时前", "12小时前",
-	"昨天", "2天前", "3天前",
+// parseCreatedAt converts Twitter date format to relative time string.
+func parseCreatedAt(s string) string {
+	t, err := time.Parse("Mon Jan 02 15:04:05 -0700 2006", s)
+	if err != nil {
+		return s
+	}
+	d := time.Since(t)
+	switch {
+	case d < time.Minute:
+		return "刚刚"
+	case d < time.Hour:
+		return fmt.Sprintf("%d分钟", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%d小时", int(d.Hours()))
+	case d < 7*24*time.Hour:
+		return fmt.Sprintf("%d天", int(d.Hours()/24))
+	default:
+		return t.Format("01-02")
+	}
 }
 
-// ── HTML template ──────────────────────────────────────────────────────
+// ── HTML + CSS ─────────────────────────────────────────────────────────
 
-const feedHTML = `
-<div>
-  <header id="feed-header">
-    <span>首页</span>
-  </header>
-  <main id="feed-content">
-  </main>
-</div>
-<style>
-div {
+// feedCSS is the shared CSS for the feed and all tweet cards.
+const feedCSS = `
+/* Root container: full-screen dark column */
+.feed-root {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -91,7 +89,8 @@ div {
   background: #15202B;
 }
 
-header {
+/* Header bar */
+.feed-header {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -101,18 +100,19 @@ header {
   background: #15202B;
   border-bottom: 1px solid #38444D;
 }
-
-header span {
+.feed-header span {
   font-size: 20px;
   color: #E7E9EA;
 }
 
-main {
+/* Scrollable timeline */
+.feed-timeline {
   flex-grow: 1;
   background: #15202B;
   overflow: scroll;
 }
 
+/* Single tweet row */
 .tweet {
   display: flex;
   flex-direction: row;
@@ -121,6 +121,7 @@ main {
   gap: 12px;
 }
 
+/* Avatar: fixed 48x48 circle */
 .tweet-avatar {
   width: 48px;
   height: 48px;
@@ -128,56 +129,109 @@ main {
   flex-shrink: 0;
 }
 
+/* Tweet content: fills remaining space */
 .tweet-body {
   display: flex;
   flex-direction: column;
   flex-grow: 1;
-  gap: 4px;
+  gap: 2px;
 }
 
-.tweet-header {
+/* Name + handle + time row */
+.tweet-meta {
   display: flex;
   flex-direction: row;
   gap: 4px;
   align-items: center;
 }
-
 .tweet-name {
   font-size: 15px;
   color: #E7E9EA;
 }
-
 .tweet-handle {
   font-size: 13px;
   color: #71767B;
 }
 
-.tweet-time {
-  font-size: 13px;
-  color: #71767B;
-}
-
+/* Tweet text */
 .tweet-text {
   font-size: 15px;
   color: #E7E9EA;
 }
 
+/* Action buttons row */
 .tweet-actions {
   display: flex;
   flex-direction: row;
-  justify-content: space-between;
-  padding-right: 80px;
-  margin-top: 8px;
+  margin-top: 4px;
+  gap: 60px;
 }
-
-.action-btn {
+.action-reply {
   font-size: 13px;
   color: #71767B;
 }
-</style>
+.action-rt {
+  font-size: 13px;
+  color: #00BA7C;
+}
+.action-like {
+  font-size: 13px;
+  color: #F91880;
+}
+.action-share {
+  font-size: 13px;
+  color: #71767B;
+}
 `
 
+// feedHTML is the page skeleton.
+const feedHTML = `
+<div class="feed-root">
+  <header class="feed-header">
+    <span>首页</span>
+  </header>
+  <main class="feed-timeline" id="timeline">
+  </main>
+</div>
+`
+
+// tweetHTML builds HTML for a single tweet.
+func tweetHTML(name, handle, timeStr, text string, reply, rt, fav int) string {
+	text = strings.ReplaceAll(text, "<", "&lt;")
+	text = strings.ReplaceAll(text, ">", "&gt;")
+	name = strings.ReplaceAll(name, "<", "&lt;")
+	return fmt.Sprintf(`
+<div class="tweet">
+  <div class="tweet-avatar"></div>
+  <div class="tweet-body">
+    <div class="tweet-meta">
+      <span class="tweet-name">%s</span>
+      <span class="tweet-handle">%s · %s</span>
+    </div>
+    <span class="tweet-text">%s</span>
+    <div class="tweet-actions">
+      <span class="action-reply">%s</span>
+      <span class="action-rt">%s</span>
+      <span class="action-like">%s</span>
+    </div>
+  </div>
+</div>`, name, handle, timeStr, text, formatCount(reply), formatCount(rt), formatCount(fav))
+}
+
+// loadBatchSize is how many tweets to load when reaching the bottom.
+const loadBatchSize = 5
+
+// pendingTweets is a channel for thread-safe tweet insertion from goroutines.
+var pendingTweets = make(chan widget.Widget, 32)
+
 func main() {
+	// Parse embedded tweet data
+	if err := json.Unmarshal(tweetsJSON, &allTweets); err != nil {
+		fmt.Fprintf(os.Stderr, "parse tweets: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("[Feed] Loaded %d real tweets from embedded data\n", len(allTweets))
+
 	app, err := ui.NewApp(ui.AppOptions{
 		Title:  "GoUI Feed Timeline",
 		Width:  600,
@@ -189,253 +243,104 @@ func main() {
 	}
 	defer app.Destroy()
 
-	doc := app.LoadHTML(feedHTML)
+	doc := app.LoadHTML(feedHTML + "<style>" + feedCSS + "</style>")
 	tree := app.Tree()
 	cfg := app.Config()
 
-	// Get the content area for inserting tweets
-	content := doc.QueryByID("feed-content")
-	if content == nil {
-		fmt.Fprintln(os.Stderr, "feed-content not found")
+	// Get the timeline container
+	timeline := doc.QueryByID("timeline")
+	if timeline == nil {
+		fmt.Fprintln(os.Stderr, "timeline not found")
 		os.Exit(1)
 	}
-	container, ok := content.(interface {
+	contentWidget := timeline.(*widget.Content)
+
+	type feedContainer interface {
 		widget.Widget
 		AppendChild(widget.Widget)
-	})
-	if !ok {
-		fmt.Fprintln(os.Stderr, "content is not a container")
-		os.Exit(1)
+		PrependChild(widget.Widget)
 	}
+	container := timeline.(feedContainer)
 
-	// Use custom layout that supports our feed
-	app.SetOnLayout(func(tree *core.Tree, root widget.Widget, w, h float32) {
-		layoutFeed(tree, root, w, h)
-	})
+	// Helper: create a tweet widget from data using HTML+CSS
+	makeTweet := func(td *tweetData, timeOverride string) widget.Widget {
+		t := timeOverride
+		if t == "" {
+			t = parseCreatedAt(td.Created)
+		}
+		text := strings.ReplaceAll(td.Text, "\n", " ")
+		html := tweetHTML(td.Name, td.Handle, t, text, td.Reply, td.RT, td.Fav)
+		tweetRoot := ui.LoadHTMLWithCSS(tree, cfg, html, feedCSS)
+		// tweetRoot is a Div wrapping the .tweet div; get the actual .tweet child
+		if len(tweetRoot.Children()) > 0 {
+			return tweetRoot.Children()[0]
+		}
+		return tweetRoot
+	}
 
 	// Seed initial tweets
-	for i := 0; i < 8; i++ {
-		addRandomTweet(tree, cfg, container)
+	for i := range min(15, len(allTweets)) {
+		tw := makeTweet(&allTweets[i], "")
+		container.AppendChild(tw)
 	}
 
-	// Insert a new tweet every 10 seconds via a goroutine + MarkDirty
+	// Auto-load more when scrolled to bottom (debounced)
+	var lastLoad time.Time
+	var onNearBottom func()
+	onNearBottom = func() {
+		if time.Since(lastLoad) < 500*time.Millisecond {
+			return
+		}
+		lastLoad = time.Now()
+		for range loadBatchSize {
+			td := &allTweets[rand.Intn(len(allTweets))]
+			tw := makeTweet(td, "")
+			container.AppendChild(tw)
+		}
+		tree.MarkDirty(tree.Root())
+		fmt.Printf("[Feed] Loaded %d more (total: %d)\n", loadBatchSize, len(contentWidget.Children()))
+	}
+
+	// Goroutine: create new tweet every 10s, send via channel (thread-safe)
 	go func() {
 		for {
 			time.Sleep(10 * time.Second)
-			addRandomTweet(tree, cfg, container)
-			tree.MarkDirty(tree.Root())
-			fmt.Println("[Feed] New tweet inserted")
+			td := &allTweets[rand.Intn(len(allTweets))]
+			tw := makeTweet(td, "刚刚")
+			pendingTweets <- tw
 		}
 	}()
+
+	// Layout: drain pending tweets + CSSLayout engine
+	app.SetOnLayout(func(tree *core.Tree, root widget.Widget, w, h float32) {
+		// Drain pending tweets on the main thread (avoids concurrent map access)
+		for {
+			select {
+			case tw := <-pendingTweets:
+				container.PrependChild(tw)
+				fmt.Println("[Feed] New tweet at top")
+			default:
+				goto done
+			}
+		}
+	done:
+		// Use CSS layout engine for the entire widget tree
+		ui.CSSLayout(tree, root, w, h)
+
+		// Check if scrolled near bottom for auto-load
+		scrollY := contentWidget.ScrollY()
+		contentH := contentWidget.ContentHeight()
+		bounds := contentWidget.Bounds()
+		maxScroll := contentH - bounds.Height
+		if maxScroll > 0 && scrollY >= maxScroll-100 && onNearBottom != nil {
+			onNearBottom()
+		}
+	})
+
+	_ = cfg // used by makeTweet closure
 
 	if err := app.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }
-
-// addRandomTweet creates a tweet widget and prepends it to the container.
-func addRandomTweet(tree *core.Tree, cfg *widget.Config, container interface {
-	widget.Widget
-	AppendChild(widget.Widget)
-}) {
-	user := users[rand.Intn(len(users))]
-	text := tweets[rand.Intn(len(tweets))]
-	age := timeAgo[rand.Intn(len(timeAgo))]
-
-	replies := rand.Intn(200)
-	retweets := rand.Intn(500)
-	likes := rand.Intn(2000)
-
-	tweet := newTweetWidget(tree, cfg, user.name, user.handle, user.avatarColor, text, age, replies, retweets, likes)
-	container.AppendChild(tweet)
-	tree.AppendChild(container.ElementID(), tweet.ElementID())
-}
-
-// ── Tweet widget construction ──────────────────────────────────────────
-
-type tweetWidget struct {
-	widget.Base
-	avatarColor uimath.Color
-	name        string
-	handle      string
-	text        string
-	time        string
-	replies     int
-	retweets    int
-	likes       int
-	cfg         *widget.Config
-}
-
-func newTweetWidget(tree *core.Tree, cfg *widget.Config, name, handle string, avatarClr uimath.Color, text, timeStr string, replies, retweets, likes int) *tweetWidget {
-	tw := &tweetWidget{
-		Base:        widget.NewBase(tree, core.TypeDiv, cfg),
-		avatarColor: avatarClr,
-		name:        name,
-		handle:      handle,
-		text:        text,
-		time:        timeStr,
-		replies:     replies,
-		retweets:    retweets,
-		likes:       likes,
-		cfg:         cfg,
-	}
-	return tw
-}
-
-func (tw *tweetWidget) Draw(buf *render.CommandBuffer) {
-	bounds := tw.Bounds()
-	if bounds.IsEmpty() {
-		return
-	}
-
-	cfg := tw.cfg
-	pad := float32(12)
-	gap := float32(12)
-	avatarSize := float32(48)
-
-	// Bottom border
-	buf.DrawRect(render.RectCmd{
-		Bounds:    uimath.NewRect(bounds.X, bounds.Y+bounds.Height-1, bounds.Width, 1),
-		FillColor: uimath.ColorHex("#38444D"),
-	}, 0, 1)
-
-	// Avatar circle
-	ax := bounds.X + pad
-	ay := bounds.Y + pad
-	buf.DrawRect(render.RectCmd{
-		Bounds:    uimath.NewRect(ax, ay, avatarSize, avatarSize),
-		FillColor: tw.avatarColor,
-		Corners:   uimath.CornersAll(avatarSize / 2),
-	}, 0, 1)
-
-	// Avatar initial letter
-	if cfg.TextRenderer != nil {
-		initial := string([]rune(tw.name)[0])
-		fontSize := float32(20)
-		lh := cfg.TextRenderer.LineHeight(fontSize)
-		iw := cfg.TextRenderer.MeasureText(initial, fontSize)
-		cfg.TextRenderer.DrawText(buf, initial,
-			ax+(avatarSize-iw)/2, ay+(avatarSize-lh)/2,
-			fontSize, avatarSize, uimath.ColorWhite, 1)
-	}
-
-	// Text area
-	textX := ax + avatarSize + gap
-	textW := bounds.Width - pad*2 - avatarSize - gap
-
-	if cfg.TextRenderer != nil {
-		// Header line: Name · @handle · time
-		nameY := bounds.Y + pad
-		nameColor := uimath.ColorHex("#E7E9EA")
-		handleColor := uimath.ColorHex("#71767B")
-		nameFontSize := float32(15)
-		smallFontSize := float32(13)
-
-		cx := textX
-		cfg.TextRenderer.DrawText(buf, tw.name, cx, nameY, nameFontSize, textW, nameColor, 1)
-		cx += cfg.TextRenderer.MeasureText(tw.name, nameFontSize) + 4
-
-		handleStr := tw.handle + " · " + tw.time
-		cfg.TextRenderer.DrawText(buf, handleStr, cx, nameY+1, smallFontSize, textW-(cx-textX), handleColor, 1)
-
-		// Tweet text
-		textY := nameY + cfg.TextRenderer.LineHeight(nameFontSize) + 4
-		cfg.TextRenderer.DrawText(buf, tw.text, textX, textY, nameFontSize, textW, nameColor, 1)
-
-		// Action buttons row
-		actY := textY + cfg.TextRenderer.LineHeight(nameFontSize) + 10
-		actionColor := uimath.ColorHex("#71767B")
-		actionSpacing := textW / 4
-
-		// Reply
-		cfg.DrawMDIcon(buf, "chat_bubble_outline", textX, actY, 16, actionColor, 0, 1)
-		cfg.TextRenderer.DrawText(buf, fmt.Sprintf("%d", tw.replies), textX+20, actY+1, smallFontSize, 60, actionColor, 1)
-
-		// Retweet
-		rtX := textX + actionSpacing
-		cfg.DrawMDIcon(buf, "repeat", rtX, actY, 16, uimath.ColorHex("#00BA7C"), 0, 1)
-		cfg.TextRenderer.DrawText(buf, fmt.Sprintf("%d", tw.retweets), rtX+20, actY+1, smallFontSize, 60, uimath.ColorHex("#00BA7C"), 1)
-
-		// Like
-		likeX := textX + actionSpacing*2
-		cfg.DrawMDIcon(buf, "favorite_border", likeX, actY, 16, uimath.ColorHex("#F91880"), 0, 1)
-		cfg.TextRenderer.DrawText(buf, fmt.Sprintf("%d", tw.likes), likeX+20, actY+1, smallFontSize, 60, uimath.ColorHex("#F91880"), 1)
-
-		// Share
-		shareX := textX + actionSpacing*3
-		cfg.DrawMDIcon(buf, "share", shareX, actY, 16, actionColor, 0, 1)
-	}
-}
-
-// ── Custom layout ──────────────────────────────────────────────────────
-
-func layoutFeed(tree *core.Tree, root widget.Widget, w, h float32) {
-	tree.SetLayout(root.ElementID(), core.LayoutResult{
-		Bounds: uimath.NewRect(0, 0, w, h),
-	})
-
-	children := root.Children()
-	if len(children) == 0 {
-		return
-	}
-
-	// Root div
-	rootDiv := children[0]
-	tree.SetLayout(rootDiv.ElementID(), core.LayoutResult{
-		Bounds: uimath.NewRect(0, 0, w, h),
-	})
-
-	divChildren := rootDiv.Children()
-	if len(divChildren) < 2 {
-		return
-	}
-
-	// Header
-	headerH := float32(53)
-	header := divChildren[0]
-	tree.SetLayout(header.ElementID(), core.LayoutResult{
-		Bounds: uimath.NewRect(0, 0, w, headerH),
-	})
-	// Layout header children (span)
-	for _, child := range header.Children() {
-		tree.SetLayout(child.ElementID(), core.LayoutResult{
-			Bounds: uimath.NewRect(16, 0, w-32, headerH),
-		})
-	}
-
-	// Content area (main)
-	contentY := headerH
-	contentH := h - headerH
-	contentW := divChildren[1]
-	tree.SetLayout(contentW.ElementID(), core.LayoutResult{
-		Bounds: uimath.NewRect(0, contentY, w, contentH),
-	})
-
-	// Get scroll offset
-	scrollY := float32(0)
-	if c, ok := contentW.(*widget.Content); ok {
-		scrollY = c.ScrollY()
-	}
-
-	// Layout tweets
-	tweetH := float32(120) // estimated height per tweet
-	tweetChildren := contentW.Children()
-	totalH := float32(0)
-	cy := contentY - scrollY
-
-	for _, child := range tweetChildren {
-		tree.SetLayout(child.ElementID(), core.LayoutResult{
-			Bounds: uimath.NewRect(0, cy, w, tweetH),
-		})
-		cy += tweetH
-		totalH += tweetH
-	}
-
-	// Set content height for scrolling
-	if c, ok := contentW.(*widget.Content); ok {
-		c.SetContentHeight(totalH)
-		c.ScrollBy(0) // clamp
-	}
-}
-
