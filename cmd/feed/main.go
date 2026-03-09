@@ -327,8 +327,8 @@ func main() {
 			}
 		}
 	done:
-		// Use CSS layout engine for the entire widget tree
-		ui.CSSLayout(tree, root, w, h)
+		// Use CSS layout engine for the entire widget tree (with text measurer)
+		ui.CSSLayout(tree, root, w, h, cfg)
 
 		// Check if scrolled near bottom for auto-load
 		scrollY := contentWidget.ScrollY()

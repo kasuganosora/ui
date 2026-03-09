@@ -198,6 +198,9 @@ type Style struct {
 	GridColumnEnd   int // 1-based column end line (0 = auto)
 	GridRowStart    int // 1-based row start line (0 = auto)
 	GridRowEnd      int // 1-based row end line (0 = auto)
+
+	// Typography (for text nodes — used by TextMeasurer)
+	FontSize float32 // font-size in px (0 = inherit/default)
 }
 
 // TrackSize defines the size of a grid track (row or column).

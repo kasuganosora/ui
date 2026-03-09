@@ -239,15 +239,41 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 
 			crossVal := items[idx].crossHint
 			if crossVal == 0 {
-				// Auto cross: use padding+border minimum
+				// Auto cross: measure intrinsic cross size.
+				// For row flex, cross = height. For column flex, cross = width.
 				if isRow {
-					_, cv := resolveEdgesTotal(cs.Padding, containerW)
+					// Measure intrinsic height of the child.
+					if child.text != "" && e.measurer != nil {
+						// Leaf text node: measure height at its resolved width.
+						fontSize := cs.FontSize
+						if fontSize == 0 {
+							fontSize = 14
+						}
+						// Use finalMain as maxWidth for word-wrap height estimation.
+						_, h := e.measurer.MeasureText(child.text, 0, fontSize, items[idx].finalMain)
+						crossVal = h
+					} else {
+						// Container node: recurse to measure its intrinsic height.
+						crossVal = e.measureIntrinsicMain(children[idx], false, containerW, crossSize)
+					}
+					_, pv := resolveEdgesTotal(cs.Padding, containerW)
 					_, bv := resolveEdgesTotal(cs.Border, containerW)
-					crossVal = cv + bv
+					crossVal += pv + bv
 				} else {
-					ch, _ := resolveEdgesTotal(cs.Padding, containerW)
+					// Measure intrinsic width of the child.
+					if child.text != "" && e.measurer != nil {
+						fontSize := cs.FontSize
+						if fontSize == 0 {
+							fontSize = 14
+						}
+						w, _ := e.measurer.MeasureText(child.text, 0, fontSize, mainSize)
+						crossVal = w
+					} else {
+						crossVal = e.measureIntrinsicMain(children[idx], true, mainSize, crossSize)
+					}
+					ph, _ := resolveEdgesTotal(cs.Padding, containerW)
 					bh, _ := resolveEdgesTotal(cs.Border, containerW)
-					crossVal = ch + bh
+					crossVal += ph + bh
 				}
 			}
 			if crossVal > maxCross {
@@ -554,7 +580,11 @@ func (e *Engine) measureIntrinsicMain(nodeIdx int, parentIsRow bool, availW, ava
 	if len(children) == 0 {
 		// Leaf node: check for text content
 		if node.text != "" && e.measurer != nil {
-			w, h := e.measurer.MeasureText(node.text, 0, 14, availW)
+			fontSize := node.style.FontSize
+			if fontSize == 0 {
+				fontSize = 14
+			}
+			w, h := e.measurer.MeasureText(node.text, 0, fontSize, availW)
 			if parentIsRow {
 				return w
 			}
