@@ -235,8 +235,8 @@
 
 ### 平台
 
-- [ ] macOS 平台层（Cocoa via purego）
-- [ ] macOS IME 支持
+- [x] macOS 平台层（Cocoa via purego）
+- [x] macOS IME 支持
 - [ ] Linux Wayland 支持
 - [ ] Linux Fcitx/IBus IME
 - [ ] Android 基础支持
