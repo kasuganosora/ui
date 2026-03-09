@@ -263,6 +263,11 @@ func (a *App) LoadHTML(html string) *Document {
 	return a.doc
 }
 
+// SetOnLayout sets a custom layout callback, replacing the default AutoLayout.
+func (a *App) SetOnLayout(fn func(tree *core.Tree, root widget.Widget, w, h float32)) {
+	a.opts.OnLayout = fn
+}
+
 // Tree returns the underlying element tree.
 func (a *App) Tree() *core.Tree { return a.tree }
 
