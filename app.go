@@ -25,6 +25,7 @@ import (
 	"github.com/kasuganosora/ui/icon/material"
 	uinet "github.com/kasuganosora/ui/net"
 	"github.com/kasuganosora/ui/widget"
+	"github.com/kasuganosora/ui/devtools"
 )
 
 // BackendType selects the rendering backend.
@@ -49,6 +50,10 @@ type AppOptions struct {
 	// OnLayout is an optional custom layout callback.
 	// If nil, the App uses a basic auto-layout.
 	OnLayout func(tree *core.Tree, root widget.Widget, w, h float32)
+
+	// DevTools attaches a Chrome DevTools Protocol server to this App.
+	// Create with devtools.NewServer and start with go srv.Start().
+	DevTools *devtools.Server
 }
 
 // createBackend creates a render.Backend based on the selected type.
@@ -129,6 +134,9 @@ type App struct {
 	// Scrollable sidebar (auto-detected from aside)
 	sidebarDiv  *widget.Div
 	sidebarList *widget.List
+
+	// DevTools server (optional; nil if not configured)
+	devtools *devtools.Server
 }
 
 // NewApp creates and initializes a new App.
@@ -236,6 +244,12 @@ func NewApp(opts AppOptions) (*App, error) {
 	// Create default network client for remote image loading.
 	a.cfg.NetClient = uinet.New(uinet.Options{})
 	a.buf = render.NewCommandBuffer()
+
+	// Wire DevTools server if provided.
+	if opts.DevTools != nil {
+		a.devtools = opts.DevTools
+		a.devtools.Attach(func() { a.tree.MarkDirty(a.tree.Root()) })
+	}
 
 	return a, nil
 }
@@ -369,10 +383,21 @@ func (a *App) Run() error {
 			AutoLayout(a.tree, a.root, float32(lw), float32(lh))
 		}
 
+		// Notify DevTools of updated layout (rebuilds tree snapshot for inspection).
+		if a.devtools != nil {
+			a.devtools.AfterLayout(a.tree, a.root, float32(lw), float32(lh))
+		}
+
 		a.backend.BeginFrame()
 		a.textRenderer.BeginFrame()
 		a.buf.Reset()
 		a.root.Draw(a.buf)
+
+		// Draw DevTools element highlight on top of everything else.
+		if a.devtools != nil {
+			a.devtools.DrawOverlay(a.buf)
+		}
+
 		a.textRenderer.Upload()
 		a.backend.Submit(a.buf)
 		a.backend.EndFrame()
