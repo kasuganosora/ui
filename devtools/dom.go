@@ -8,6 +8,13 @@ import (
 	"github.com/kasuganosora/ui/core"
 )
 
+var htmlEscaper = strings.NewReplacer(
+	"&", "&amp;",
+	"<", "&lt;",
+	">", "&gt;",
+	`"`, "&#34;",
+)
+
 // CDP DOM node type constants (W3C spec).
 const (
 	nodeTypeElement  = 1
@@ -189,6 +196,23 @@ func (s *Session) handleDOM(req Request) {
 			"backendNodeId": int(id),
 			"frameId":       "main",
 		})
+
+	case "DOM.getOuterHTML":
+		var p struct {
+			NodeID int `json:"nodeId"`
+		}
+		_ = json.Unmarshal(req.Params, &p)
+		snap := s.srv.getSnapshot()
+		if snap == nil {
+			s.sendResult(req.ID, map[string]any{"outerHTML": ""})
+			return
+		}
+		html := buildOuterHTML(snap, core.ElementID(p.NodeID), 0)
+		s.sendResult(req.ID, map[string]any{"outerHTML": html})
+
+	case "DOM.setOuterHTML":
+		// We don't support live editing; just acknowledge.
+		s.sendResult(req.ID, map[string]any{})
 
 	case "DOM.setInspectedNode":
 		// Acknowledged; used by DevTools when pinning an element.
@@ -452,4 +476,71 @@ func walkSnap(snap *Snapshot, id core.ElementID, fn func(core.ElementID) bool) {
 	for _, cid := range node.ChildIDs {
 		walkSnap(snap, cid, fn)
 	}
+}
+
+// buildOuterHTML serialises a snapshot node (and its subtree) to an HTML string.
+// indent is the current nesting level for pretty-printing.
+func buildOuterHTML(snap *Snapshot, id core.ElementID, indent int) string {
+	node, ok := snap.Nodes[id]
+	if !ok {
+		return ""
+	}
+
+	// Determine tag name (use original HTML tag if available)
+	tag := node.HTMLTag
+	if tag == "" {
+		tag = string(node.ElemType)
+	}
+
+	pad := strings.Repeat("  ", indent)
+
+	// Build opening tag with class attribute
+	var sb strings.Builder
+	sb.WriteString(pad)
+	sb.WriteByte('<')
+	sb.WriteString(tag)
+	if len(node.Classes) > 0 {
+		sb.WriteString(` class="`)
+		sb.WriteString(htmlEscaper.Replace(strings.Join(node.Classes, " ")))
+		sb.WriteByte('"')
+	}
+	sb.WriteByte('>')
+
+	hasChildren := len(node.ChildIDs) > 0
+	hasText := node.Text != "" && !hasChildren
+
+	if hasText {
+		// Inline text: <span>content</span>
+		sb.WriteString(htmlEscaper.Replace(node.Text))
+		sb.WriteString("</")
+		sb.WriteString(tag)
+		sb.WriteByte('>')
+		return sb.String()
+	}
+
+	if !hasChildren {
+		// Self-closing-style: void or empty element
+		switch tag {
+		case "input", "img", "br", "hr":
+			// Replace > with />
+			s := sb.String()
+			return s[:len(s)-1] + " />"
+		}
+		sb.WriteString("</")
+		sb.WriteString(tag)
+		sb.WriteByte('>')
+		return sb.String()
+	}
+
+	// Block children
+	sb.WriteByte('\n')
+	for _, cid := range node.ChildIDs {
+		sb.WriteString(buildOuterHTML(snap, cid, indent+1))
+		sb.WriteByte('\n')
+	}
+	sb.WriteString(pad)
+	sb.WriteString("</")
+	sb.WriteString(tag)
+	sb.WriteByte('>')
+	return sb.String()
 }
