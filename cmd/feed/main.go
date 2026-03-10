@@ -25,6 +25,7 @@ import (
 
 	ui "github.com/kasuganosora/ui"
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/devtools"
 	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/widget"
@@ -552,10 +553,17 @@ func main() {
 	}
 	fmt.Printf("[Feed] Loaded %d tweets\n", len(allTweets))
 
+	dt := devtools.NewServer(devtools.Options{
+		Addr:    ":9222",
+		AppName: "GoUI Feed Timeline",
+	})
+	go dt.Start()
+
 	app, err := ui.NewApp(ui.AppOptions{
-		Title:  "GoUI Feed Timeline",
-		Width:  600,
-		Height: 860,
+		Title:    "GoUI Feed Timeline",
+		Width:    600,
+		Height:   860,
+		DevTools: dt,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
