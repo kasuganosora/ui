@@ -106,11 +106,24 @@ func (s *Session) handleDOM(req Request) {
 			return
 		}
 
-		children := make([]*domNode, 0, len(node.ChildIDs))
+		children := make([]*domNode, 0, len(node.ChildIDs)+1)
 		for _, cid := range node.ChildIDs {
 			if dn := s.buildDOMNode(snap, cid, depth-1); dn != nil {
 				children = append(children, dn)
 			}
+		}
+		// Leaf text node: add synthetic #text child (mirrors browser DOM).
+		if node.Text != "" && len(node.ChildIDs) == 0 {
+			children = append(children, &domNode{
+				NodeID:        -int(nodeID),
+				BackendNodeID: -int(nodeID),
+				ParentID:      int(nodeID),
+				NodeType:      nodeTypeText,
+				NodeName:      "#text",
+				LocalName:     "",
+				NodeValue:     node.Text,
+				Attributes:    []string{},
+			})
 		}
 		s.sendEvent("DOM.setChildNodes", map[string]any{
 			"parentId": p.NodeID,
@@ -379,6 +392,9 @@ func (s *Session) emptyDocument() *domNode {
 // buildAttributes returns CDP attribute pairs ["key","value",...].
 func buildAttributes(node *NodeSnapshot) []string {
 	var attrs []string
+	if node.IDAttr != "" {
+		attrs = append(attrs, "id", node.IDAttr)
+	}
 	if len(node.Classes) > 0 {
 		attrs = append(attrs, "class", strings.Join(node.Classes, " "))
 	}
@@ -461,7 +477,10 @@ func matchesSelector(node *NodeSnapshot, sel string) bool {
 		}
 		return false
 	}
-	// Tag selector
+	// Tag selector: match against HTMLTag first (e.g. "span"), then ElemType.
+	if node.HTMLTag != "" && strings.EqualFold(node.HTMLTag, sel) {
+		return true
+	}
 	return strings.EqualFold(string(node.ElemType), sel)
 }
 
@@ -494,11 +513,16 @@ func buildOuterHTML(snap *Snapshot, id core.ElementID, indent int) string {
 
 	pad := strings.Repeat("  ", indent)
 
-	// Build opening tag with class attribute
+	// Build opening tag with id and class attributes
 	var sb strings.Builder
 	sb.WriteString(pad)
 	sb.WriteByte('<')
 	sb.WriteString(tag)
+	if node.IDAttr != "" {
+		sb.WriteString(` id="`)
+		sb.WriteString(htmlEscaper.Replace(node.IDAttr))
+		sb.WriteByte('"')
+	}
 	if len(node.Classes) > 0 {
 		sb.WriteString(` class="`)
 		sb.WriteString(htmlEscaper.Replace(strings.Join(node.Classes, " ")))

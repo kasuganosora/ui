@@ -396,6 +396,7 @@ func (a *App) Run() error {
 		// Draw DevTools element highlight on top of everything else.
 		if a.devtools != nil {
 			a.devtools.DrawOverlay(a.buf)
+			a.devtools.DrawOverlayLabel(a.buf, a.textRenderer)
 		}
 
 		a.textRenderer.Upload()

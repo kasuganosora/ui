@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/font"
+	"github.com/kasuganosora/ui/font/textrender"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 	"github.com/kasuganosora/ui/widget"
@@ -177,6 +180,108 @@ func (s *Server) DrawOverlay(buf *render.CommandBuffer) {
 			FillColor: uimath.ColorHex("#ff880010"),
 		}, 998, 1)
 	}
+}
+
+// DrawOverlayLabel draws a Chrome-style info tooltip near the highlighted element.
+// It shows the tag name with classes (e.g. "div.compose-avatar") and the element
+// dimensions (e.g. "40 × 40"). Call this after DrawOverlay in the render loop.
+// tr must be the app's text renderer; if nil the label is silently skipped.
+func (s *Server) DrawOverlayLabel(buf *render.CommandBuffer, tr *textrender.Renderer) {
+	if tr == nil {
+		return
+	}
+	s.overlayMu.Lock()
+	id := s.highlightID
+	s.overlayMu.Unlock()
+	if id == core.InvalidElementID {
+		return
+	}
+	snap := s.getSnapshot()
+	if snap == nil {
+		return
+	}
+	node, ok := snap.Nodes[id]
+	if !ok || node.Bounds.Width <= 0 {
+		return
+	}
+
+	// Build label lines.
+	tag := node.HTMLTag
+	if tag == "" {
+		tag = string(node.ElemType)
+	}
+	tagLine := tag
+	if len(node.Classes) > 0 {
+		tagLine += "." + strings.Join(node.Classes, ".")
+	}
+	dimsLine := fmt.Sprintf("%.0f × %.0f", node.Bounds.Width, node.Bounds.Height)
+
+	const (
+		fontSize  = 11.0
+		padH      = 8.0  // horizontal padding inside label box
+		padV      = 5.0  // vertical padding
+		lineGap   = 3.0  // gap between the two text lines
+		cornerR   = 4.0
+	)
+	shapeOpts := font.ShapeOptions{FontSize: fontSize}
+	tm1 := tr.Measure(tagLine, shapeOpts)
+	tm2 := tr.Measure(dimsLine, shapeOpts)
+
+	lineH := tm1.Height
+	if lineH <= 0 {
+		lineH = fontSize + 2
+	}
+	boxW := tm1.Width
+	if tm2.Width > boxW {
+		boxW = tm2.Width
+	}
+	boxW += padH * 2
+	boxH := lineH*2 + lineGap + padV*2
+
+	// Position the label below the element; flip above if it would go off-screen.
+	b := node.Bounds
+	lx := b.X
+	ly := b.Y + b.Height + 6
+	if ly+boxH > snap.ViewHeight && b.Y-boxH-6 >= 0 {
+		ly = b.Y - boxH - 6
+	}
+	// Clamp horizontally.
+	if lx+boxW > snap.ViewWidth {
+		lx = snap.ViewWidth - boxW - 4
+	}
+	if lx < 0 {
+		lx = 0
+	}
+
+	// Dark background (matches Chrome DevTools tooltip style).
+	buf.DrawOverlay(render.RectCmd{
+		Bounds:    uimath.NewRect(lx, ly, boxW, boxH),
+		FillColor: uimath.ColorHex("#1a1a1aee"),
+		Corners:   uimath.CornersAll(cornerR),
+	}, 1002, 1)
+
+	textX := lx + padH
+	// Line 1: tag.class in blue (Chrome uses #9cdcfe for tag, #d7ba7d for class —
+	// we keep it simple with a single highlight colour).
+	tr.DrawText(buf, tagLine, textrender.DrawOptions{
+		ShapeOpts: shapeOpts,
+		OriginX:   textX,
+		OriginY:   ly + padV + lineH*0.8,
+		Color:     uimath.ColorHex("#5db0d7"), // Chrome tag-name blue
+		ZOrder:    1003,
+		Opacity:   1,
+		Overlay:   true,
+	})
+	// Line 2: dimensions in grey.
+	tr.DrawText(buf, dimsLine, textrender.DrawOptions{
+		ShapeOpts: shapeOpts,
+		OriginX:   textX,
+		OriginY:   ly + padV + lineH*0.8 + lineH + lineGap,
+		Color:     uimath.ColorHex("#cccccc"),
+		ZOrder:    1003,
+		Opacity:   1,
+		Overlay:   true,
+	})
 }
 
 // Log adds an entry to the DevTools Console panel.

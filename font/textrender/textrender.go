@@ -108,14 +108,19 @@ func (r *Renderer) drawRun(buf *render.CommandBuffer, run font.GlyphRun, opts Dr
 		return
 	}
 
-	buf.DrawText(render.TextCmd{
+	cmd := render.TextCmd{
 		X:        opts.OriginX,
 		Y:        opts.OriginY,
 		Glyphs:   instances,
 		Color:    opts.Color,
 		FontSize: run.FontSize,
 		Atlas:    r.atlas.Texture(),
-	}, opts.ZOrder, opts.Opacity)
+	}
+	if opts.Overlay {
+		buf.DrawOverlayTextCmd(cmd, opts.ZOrder, opts.Opacity)
+	} else {
+		buf.DrawText(cmd, opts.ZOrder, opts.Opacity)
+	}
 }
 
 // ensureGlyph checks the atlas and rasterizes on cache miss.
@@ -183,9 +188,12 @@ func (r *Renderer) Destroy() {
 // DrawOptions controls how text is rendered.
 type DrawOptions struct {
 	ShapeOpts font.ShapeOptions
-	OriginX   float32     // Screen X origin
-	OriginY   float32     // Screen Y origin
+	OriginX   float32      // Screen X origin
+	OriginY   float32      // Screen Y origin
 	Color     uimath.Color
 	ZOrder    int32
-	Opacity   float32     // 0..1
+	Opacity   float32 // 0..1
+	// Overlay routes the text command into the overlay layer (rendered above all
+	// normal content, no clip applied). Used for DevTools labels and debug UI.
+	Overlay bool
 }

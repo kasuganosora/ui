@@ -2,7 +2,11 @@ package devtools
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
+
+	"github.com/kasuganosora/ui/core"
 )
 
 // ----- Page domain -----
@@ -129,6 +133,56 @@ func (s *Session) handleRuntime(req Request) {
 		})
 
 	case "Runtime.callFunctionOn":
+		var p struct {
+			ObjectID            string `json:"objectId"`
+			FunctionDeclaration string `json:"functionDeclaration"`
+		}
+		_ = json.Unmarshal(req.Params, &p)
+
+		// Handle node remote objects (objectId = "node-<elementID>").
+		// Detect common DevTools property reads (e.g. outerHTML, innerHTML, textContent)
+		// and return the appropriate value so that "Copy > outerHTML" works.
+		if strings.HasPrefix(p.ObjectID, "node-") {
+			var nodeIDVal int
+			if _, err := fmt.Sscanf(p.ObjectID, "node-%d", &nodeIDVal); err == nil {
+				nodeID := core.ElementID(nodeIDVal)
+				snap := s.srv.getSnapshot()
+				fn := p.FunctionDeclaration
+				switch {
+				case snap != nil && strings.Contains(fn, "outerHTML"):
+					html := buildOuterHTML(snap, nodeID, 0)
+					s.sendResult(req.ID, map[string]any{
+						"result": map[string]any{"type": "string", "value": html},
+					})
+					return
+				case snap != nil && strings.Contains(fn, "innerHTML"):
+					node := snap.Nodes[nodeID]
+					var inner strings.Builder
+					if node != nil {
+						for _, cid := range node.ChildIDs {
+							inner.WriteString(buildOuterHTML(snap, cid, 0))
+						}
+						if node.Text != "" && len(node.ChildIDs) == 0 {
+							inner.WriteString(htmlEscaper.Replace(node.Text))
+						}
+					}
+					s.sendResult(req.ID, map[string]any{
+						"result": map[string]any{"type": "string", "value": inner.String()},
+					})
+					return
+				case snap != nil && strings.Contains(fn, "textContent"):
+					node := snap.Nodes[nodeID]
+					text := ""
+					if node != nil {
+						text = node.Text
+					}
+					s.sendResult(req.ID, map[string]any{
+						"result": map[string]any{"type": "string", "value": text},
+					})
+					return
+				}
+			}
+		}
 		s.sendResult(req.ID, map[string]any{
 			"result": map[string]any{"type": "undefined"},
 		})
