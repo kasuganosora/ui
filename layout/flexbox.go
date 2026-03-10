@@ -1,6 +1,8 @@
 package layout
 
-import "sort"
+import (
+	"sort"
+)
 
 // flexLine represents a single line of flex items (when wrapping).
 type flexLine struct {
@@ -16,7 +18,8 @@ type itemInfo struct {
 	hypotheticalMain float32
 	minMain          float32
 	maxMain          float32
-	crossHint        float32
+	crossHint        float32 // explicit cross size (from width/height CSS property)
+	intrinsicCross   float32 // measured intrinsic cross size (for non-stretch alignment)
 	frozen           bool
 	finalMain        float32
 }
@@ -167,7 +170,7 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 		if isRow && !cs.Height.IsAuto() {
 			items[i].crossHint, _ = cs.Height.Resolve(crossSize)
 		} else if !isRow && !cs.Width.IsAuto() {
-			items[i].crossHint, _ = cs.Width.Resolve(mainSize)
+			items[i].crossHint, _ = cs.Width.Resolve(crossSize)
 		}
 	}
 
@@ -261,26 +264,42 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 					crossVal += pv + bv
 				} else {
 					// Measure intrinsic width of the child.
+					// For column flex, crossSize = containerW (the available width).
+					// Use crossSize (not mainSize) so text/containers are measured
+					// against the actual horizontal space, not the container height.
 					if child.text != "" && e.measurer != nil {
 						fontSize := cs.FontSize
 						if fontSize == 0 {
 							fontSize = 14
 						}
-						w, _ := e.measurer.MeasureText(child.text, 0, fontSize, mainSize)
+						w, _ := e.measurer.MeasureText(child.text, 0, fontSize, crossSize)
 						crossVal = w
 					} else {
-						crossVal = e.measureIntrinsicMain(children[idx], true, mainSize, crossSize)
+						crossVal = e.measureIntrinsicMain(children[idx], true, crossSize, mainSize)
 					}
 					ph, _ := resolveEdgesTotal(cs.Padding, containerW)
 					bh, _ := resolveEdgesTotal(cs.Border, containerW)
 					crossVal += ph + bh
 				}
+				// Store intrinsic cross size so Phase 5 can size items correctly
+				// for non-stretch alignment (center, flex-start, flex-end).
+				items[idx].intrinsicCross = crossVal
 			}
 			if crossVal > maxCross {
 				maxCross = crossVal
 			}
 		}
 		line.crossSize = maxCross
+	}
+
+	// For single-line flex (default, no wrap), ensure the line's cross size fills
+	// the container's available cross axis. This makes align-items:stretch work
+	// correctly: children expand to the full container width/height rather than
+	// only to the measured intrinsic content size.
+	// CSS Flexbox spec §9.4 step 6: single-line → line cross size = container inner cross size.
+	// Always enforce this: content intrinsic size must NOT expand the line beyond the container.
+	if style.FlexWrap == FlexWrapNoWrap && len(lines) == 1 && crossSize > 0 {
+		lines[0].crossSize = crossSize
 	}
 
 	// Phase 5: Position items
@@ -346,6 +365,9 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 			cs := &child.style
 
 			childMainSize := items[idx].finalMain
+			// crossHint is the explicit cross size (from CSS width/height).
+			// intrinsicCross is the measured size when cross is auto.
+			// For stretch: item fills the line. For others: use explicit or intrinsic size.
 			childCrossSize := items[idx].crossHint
 
 			// AlignSelf / AlignItems for cross axis
@@ -354,8 +376,13 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 				align = AlignItems(cs.AlignSelf - 1) // AlignSelfStretch=1 maps to AlignStretch=0
 			}
 
-			if align == AlignStretch && childCrossSize == 0 {
-				childCrossSize = line.crossSize
+			if align == AlignStretch {
+				if childCrossSize == 0 {
+					childCrossSize = line.crossSize
+				}
+			} else if childCrossSize == 0 {
+				// Non-stretch: use intrinsic cross size measured in Phase 4.
+				childCrossSize = items[idx].intrinsicCross
 			}
 
 			crossItemOffset := float32(0)
@@ -371,7 +398,7 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 			}
 
 			// Resolve margins
-			mTop, mRight, _, mLeft := resolveEdges(cs.Margin, containerW)
+			mTop, mRight, mBottom, mLeft := resolveEdges(cs.Margin, containerW)
 
 			var x, y, w, h float32
 			if isRow {
@@ -395,10 +422,19 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 			e.layoutNode(children[idx], w, h)
 			e.applyRelativeOffset(children[idx], containerW, containerH)
 
-			if i < len(lineItems)-1 {
-				mainPos += childMainSize + mLeft + mRight + gap + mainSpacing
+			// Advance main axis position by the item's outer main size (content + margins).
+			// For row containers the main axis is horizontal: use left+right margins.
+			// For column containers the main axis is vertical: use top+bottom margins.
+			var mMainStart, mMainEnd float32
+			if isRow {
+				mMainStart, mMainEnd = mLeft, mRight
 			} else {
-				mainPos += childMainSize + mLeft + mRight
+				mMainStart, mMainEnd = mTop, mBottom
+			}
+			if i < len(lineItems)-1 {
+				mainPos += childMainSize + mMainStart + mMainEnd + gap + mainSpacing
+			} else {
+				mainPos += childMainSize + mMainStart + mMainEnd
 			}
 		}
 
@@ -418,11 +454,12 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 			}
 			node.result.Height = totalCross + innerOffsetV
 		} else {
-			// Column: auto height = total main sizes + main gaps + vertical padding/border
+			// Column: auto height = sum of (item height + vertical margins) + gaps + vertical padding/border
 			totalMain := float32(0)
 			for _, line := range lines {
 				for _, idx := range line.items {
-					totalMain += items[idx].finalMain
+					mTop, _, mBottom, _ := resolveEdges(e.nodes[children[idx]].style.Margin, containerW)
+					totalMain += items[idx].finalMain + mTop + mBottom
 				}
 			}
 			totalMain += gap * float32(len(children)-1)
@@ -441,11 +478,12 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 			}
 			node.result.Width = totalCross + innerOffsetH
 		} else {
-			// Row: auto width = total main sizes + main gaps + horizontal padding/border
+			// Row: auto width = sum of (item width + horizontal margins) + gaps + horizontal padding/border
 			totalMain := float32(0)
 			for _, line := range lines {
 				for _, idx := range line.items {
-					totalMain += items[idx].finalMain
+					_, mRight, _, mLeft := resolveEdges(e.nodes[children[idx]].style.Margin, containerW)
+					totalMain += items[idx].finalMain + mLeft + mRight
 				}
 			}
 			totalMain += gap * float32(len(children)-1)
@@ -629,10 +667,19 @@ func (e *Engine) measureIntrinsicMain(nodeIdx int, parentIsRow bool, availW, ava
 			}
 		}
 
+		// Include child margins in the main-axis total.
+		mTop, mRight, mBottom, mLeft := resolveEdges(child.style.Margin, availW)
+		var mMainStart, mMainEnd float32
+		if childIsRow {
+			mMainStart, mMainEnd = mLeft, mRight
+		} else {
+			mMainStart, mMainEnd = mTop, mBottom
+		}
+
 		if total > 0 {
 			total += gap
 		}
-		total += childMain
+		total += childMain + mMainStart + mMainEnd
 
 		if childMain > maxCross {
 			maxCross = childMain
