@@ -65,7 +65,7 @@ type Server struct {
 // NewServer creates a DevTools server. Call Start() to begin accepting connections.
 func NewServer(opts Options) *Server {
 	if opts.Addr == "" {
-		opts.Addr = ":9222"
+		opts.Addr = "127.0.0.1:9222"
 	}
 	if opts.AppName == "" {
 		opts.AppName = "UI App"
@@ -86,7 +86,7 @@ func (s *Server) Start() error {
 		Addr:    s.opts.Addr,
 		Handler: s.router,
 	}
-	fmt.Printf("[devtools] listening on http://localhost%s\n", s.opts.Addr)
+	fmt.Printf("[devtools] listening on http://%s\n", s.opts.Addr)
 	fmt.Printf("[devtools] open chrome://inspect and click '%s' to connect\n", s.opts.AppName)
 	if err := s.httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err

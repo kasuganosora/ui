@@ -554,7 +554,7 @@ func main() {
 	fmt.Printf("[Feed] Loaded %d tweets\n", len(allTweets))
 
 	dt := devtools.NewServer(devtools.Options{
-		Addr:    ":9222",
+		Addr:    "127.0.0.1:9222",
 		AppName: "GoUI Feed Timeline",
 	})
 	go dt.Start()
