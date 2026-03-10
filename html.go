@@ -1411,6 +1411,10 @@ func (p *htmlParser) registerWidgetWithAttrs(w widget.Widget, tag, id string, cl
 		p.applyDataAttributes(w, attrs)
 	}
 
+	// Store the original HTML tag name so DevTools can show "SPAN", "P", "H1", etc.
+	// instead of the internal element type.
+	p.tree.SetProperty(w.ElementID(), "html-tag", tag)
+
 	// Index for CSS matching
 	if p.sheet == nil {
 		return

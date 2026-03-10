@@ -26,6 +26,7 @@ type NodeSnapshot struct {
 
 	// From core.Element
 	ElemType core.ElementType
+	HTMLTag  string   // original HTML tag (e.g. "span", "p", "h1"); empty for programmatic widgets
 	Classes  []string
 	Text     string // text content (set by widget via element property "text")
 
@@ -69,10 +70,17 @@ func buildSnapshotNode(snap *Snapshot, tree *core.Tree, w widget.Widget, parentI
 	}
 
 	lr := elem.Layout()
+	htmlTag := ""
+	if v, ok := elem.Property("html-tag"); ok {
+		if s, ok := v.(string); ok {
+			htmlTag = s
+		}
+	}
 	node := &NodeSnapshot{
 		ID:       id,
 		ParentID: parentID,
 		ElemType: elem.Type(),
+		HTMLTag:  htmlTag,
 		Classes:  append([]string(nil), elem.Classes()...),
 		Text:     elem.TextContent(),
 		Bounds:   lr.Bounds,

@@ -278,34 +278,62 @@ func (s *Session) buildDOMNode(snap *Snapshot, id core.ElementID, depth int) *do
 		return nil
 	}
 
-	// Determine node type from element type
-	nodeType := nodeTypeElement
-	nodeName := strings.ToUpper(string(node.ElemType))
-	localName := string(node.ElemType)
+	// Prefer original HTML tag name (e.g. "span", "p", "h1") over internal
+	// element type (e.g. "text"). Fall back to element type for programmatic widgets.
+	localName := node.HTMLTag
+	if localName == "" {
+		localName = string(node.ElemType)
+	}
+	nodeName := strings.ToUpper(localName)
+
+	// A #text child is added for leaf elements that carry text content
+	// (e.g. <span>foo</span> → SPAN > #text "foo"), matching browser DOM structure.
+	hasTextChild := node.Text != "" && len(node.ChildIDs) == 0
+	childCount := len(node.ChildIDs)
+	if hasTextChild {
+		childCount = 1
+	}
 
 	dn := &domNode{
 		NodeID:         int(id),
 		BackendNodeID:  int(id),
 		ParentID:       int(node.ParentID),
-		NodeType:       nodeType,
+		NodeType:       nodeTypeElement,
 		NodeName:       nodeName,
 		LocalName:      localName,
 		NodeValue:      "",
-		ChildNodeCount: len(node.ChildIDs),
+		ChildNodeCount: childCount,
 		Attributes:     buildAttributes(node),
 	}
 
 	// Expand children if depth allows
-	if depth != 0 && len(node.ChildIDs) > 0 {
+	if depth != 0 {
 		nextDepth := depth - 1
 		if depth < 0 {
 			nextDepth = -1 // full tree
 		}
-		dn.Children = make([]*domNode, 0, len(node.ChildIDs))
+
+		// Real widget children
 		for _, cid := range node.ChildIDs {
 			if child := s.buildDOMNode(snap, cid, nextDepth); child != nil {
 				dn.Children = append(dn.Children, child)
 			}
+		}
+
+		// Synthetic #text child for leaf text elements
+		if hasTextChild {
+			dn.Children = append(dn.Children, &domNode{
+				// Use a synthetic node ID: negate the parent ID to avoid clashing
+				// with real element IDs (which are always positive).
+				NodeID:        -int(id),
+				BackendNodeID: -int(id),
+				ParentID:      int(id),
+				NodeType:      nodeTypeText,
+				NodeName:      "#text",
+				LocalName:     "",
+				NodeValue:     node.Text,
+				Attributes:    []string{},
+			})
 		}
 	}
 
@@ -330,10 +358,7 @@ func buildAttributes(node *NodeSnapshot) []string {
 	if len(node.Classes) > 0 {
 		attrs = append(attrs, "class", strings.Join(node.Classes, " "))
 	}
-	if node.Text != "" {
-		attrs = append(attrs, "data-text", node.Text)
-	}
-	// Add bounding box as data attributes for easy inspection
+	// Bounding-box data attributes (useful for quick inspection in the Attributes pane)
 	b := node.Bounds
 	attrs = append(attrs,
 		"data-x", fmt.Sprintf("%.0f", b.X),
