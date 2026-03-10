@@ -82,6 +82,19 @@ func (b *Backend) renderAllCommands(cmd CommandBuffer, commands []render.Command
 			}
 			b.writeImageVertices(c)
 			batch.count += 6
+
+		case render.CmdShadow:
+			if c.Shadow == nil {
+				continue
+			}
+			if batch.pipelineType != render.CmdShadow || batch.count == 0 {
+				b.flushBatch(cmd, &batch)
+				batch.pipelineType = render.CmdShadow
+				batch.vertexStart = b.frameVertexOffset
+				batch.count = 0
+			}
+			b.writeShadowVertices(c)
+			batch.count += 6
 		}
 	}
 	b.flushBatch(cmd, &batch)
@@ -128,6 +141,15 @@ func (b *Backend) flushBatch(cmd CommandBuffer, batch *batchState) {
 			uintptr(cmd), uintptr(PipelineBindPointGraphics), uintptr(b.texturedPipelineLayout),
 			0, 1, uintptr(unsafe.Pointer(&batch.descriptorSet)),
 			0, 0,
+		)
+		syscallN(b.loader.vkCmdBindVertexBuffers,
+			uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&vb)), uintptr(unsafe.Pointer(&batch.vertexStart)),
+		)
+		syscallN(b.loader.vkCmdDraw, uintptr(cmd), uintptr(batch.count), 1, 0, 0)
+
+	case render.CmdShadow:
+		syscallN(b.loader.vkCmdBindPipeline,
+			uintptr(cmd), uintptr(PipelineBindPointGraphics), uintptr(b.shadowPipeline),
 		)
 		syscallN(b.loader.vkCmdBindVertexBuffers,
 			uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&vb)), uintptr(unsafe.Pointer(&batch.vertexStart)),
@@ -205,6 +227,100 @@ func (b *Backend) writeRectVertices(c render.Command) {
 	vertices := [6]RectVertex{v0, v1, v2, v0, v2, v3}
 	vertexData := unsafe.Slice((*byte)(unsafe.Pointer(&vertices[0])), len(vertices)*int(unsafe.Sizeof(RectVertex{})))
 	b.writeVertexData(vertexData)
+}
+
+// writeShadowVertices writes 6 vertices for a shadow command.
+// UV (0,0)=element top-left, UV (1,1)=element bottom-right; blur region extends outside [0,1].
+func (b *Backend) writeShadowVertices(c render.Command) {
+	sh := c.Shadow
+	opacity := c.Opacity
+
+	spread := sh.SpreadRadius
+	blur := sh.BlurRadius
+	const pad = float32(1.0) // 1px AA padding
+
+	// Spread-adjusted element size (logical px). Clamp to avoid zero/negative size.
+	elemW := sh.Bounds.Width + 2*spread
+	elemH := sh.Bounds.Height + 2*spread
+	if elemW < 1 {
+		elemW = 1
+	}
+	if elemH < 1 {
+		elemH = 1
+	}
+
+	// Quad expansion: must cover the 3-sigma falloff region (sigma*3 = blur*1.5).
+	// Use blur*2 + pad to leave a safe margin so the cutoff falls within the quad.
+	expand := blur*2 + pad
+
+	// Shadow quad bounds (logical px)
+	qx := sh.Bounds.X + sh.OffsetX - spread - expand
+	qy := sh.Bounds.Y + sh.OffsetY - spread - expand
+	qw := elemW + 2*expand
+	qh := elemH + 2*expand
+
+	logW := float32(b.width) / b.dpiScale
+	logH := float32(b.height) / b.dpiScale
+	ndcX := (qx/logW)*2 - 1
+	ndcY := (qy/logH)*2 - 1
+	ndcW := (qw / logW) * 2
+	ndcH := (qh / logH) * 2
+
+	// UV: element occupies [0,1]; expansion region is outside that range
+	uvL := -expand / elemW
+	uvT := -expand / elemH
+	uvR := 1.0 + expand/elemW
+	uvB := 1.0 + expand/elemH
+
+	s := b.dpiScale
+	// Clamp corner radii to valid range (radius <= half element size after spread)
+	maxR := min32(elemW, elemH) * 0.5
+	radTL := clamp32(sh.Corners.TopLeft+spread, 0, maxR) * s
+	radTR := clamp32(sh.Corners.TopRight+spread, 0, maxR) * s
+	radBR := clamp32(sh.Corners.BottomRight+spread, 0, maxR) * s
+	radBL := clamp32(sh.Corners.BottomLeft+spread, 0, maxR) * s
+
+	col := sh.Color
+	a := col.A * opacity
+
+	sv := ShadowVertex{
+		ElemW: elemW * s, ElemH: elemH * s,
+		RadiusTL: radTL, RadiusTR: radTR, RadiusBR: radBR, RadiusBL: radBL,
+		Blur:   blur * s,
+		ColorR: col.R, ColorG: col.G, ColorB: col.B, ColorA: a,
+	}
+	v := func(px, py, u, v float32) ShadowVertex {
+		sv2 := sv
+		sv2.PosX, sv2.PosY, sv2.U, sv2.V = px, py, u, v
+		return sv2
+	}
+	vertices := [6]ShadowVertex{
+		v(ndcX, ndcY, uvL, uvT),
+		v(ndcX+ndcW, ndcY, uvR, uvT),
+		v(ndcX+ndcW, ndcY+ndcH, uvR, uvB),
+		v(ndcX, ndcY, uvL, uvT),
+		v(ndcX+ndcW, ndcY+ndcH, uvR, uvB),
+		v(ndcX, ndcY+ndcH, uvL, uvB),
+	}
+	vertexData := unsafe.Slice((*byte)(unsafe.Pointer(&vertices[0])), len(vertices)*int(unsafe.Sizeof(ShadowVertex{})))
+	b.writeVertexData(vertexData)
+}
+
+func min32(a, b float32) float32 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func clamp32(v, lo, hi float32) float32 {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
 }
 
 // writeTextVertices writes glyph vertices for a text command into the vertex buffer

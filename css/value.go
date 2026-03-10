@@ -579,40 +579,94 @@ var namedColors = map[string]uimath.Color{
 	"fuchsia":     {R: 1, G: 0, B: 1, A: 1},
 }
 
-// ParseBoxShadow parses a simple CSS box-shadow value.
-// Supports: offsetX offsetY [blur] [color]
-func ParseBoxShadow(val string) (ox, oy, blur float32, color uimath.Color, ok bool) {
-	parts := splitValues(val)
-	if len(parts) < 2 {
-		return 0, 0, 0, uimath.Color{}, false
-	}
-	ox = ParseFloat(parts[0])
-	oy = ParseFloat(parts[1])
-	defaultColor := uimath.Color{R: 0, G: 0, B: 0, A: 0.2}
-	if len(parts) >= 3 {
-		// Could be blur or color
-		if isPlainNumber(parts[2]) || strings.HasSuffix(parts[2], "px") {
-			blur = ParseFloat(parts[2])
-			if len(parts) >= 4 {
-				color, ok = ParseColor(strings.Join(parts[3:], " "))
-				if !ok {
-					color = defaultColor
-					ok = true
-				}
-			} else {
-				color = defaultColor
-				ok = true
-			}
-		} else {
-			color, ok = ParseColor(strings.Join(parts[2:], " "))
-			if !ok {
-				color = defaultColor
-				ok = true
+// BoxShadowLayer represents one layer of a CSS box-shadow value.
+type BoxShadowLayer struct {
+	OffsetX, OffsetY float32
+	Blur, Spread     float32
+	Color            uimath.Color
+	Inset            bool
+}
+
+// splitShadowLayers splits a box-shadow value on commas that are not inside
+// parentheses (to avoid splitting rgb(r,g,b) color values).
+func splitShadowLayers(val string) []string {
+	var layers []string
+	depth := 0
+	start := 0
+	for i := 0; i < len(val); i++ {
+		switch val[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case ',':
+			if depth == 0 {
+				layers = append(layers, strings.TrimSpace(val[start:i]))
+				start = i + 1
 			}
 		}
-	} else {
-		color = defaultColor
-		ok = true
 	}
-	return
+	if start < len(val) {
+		layers = append(layers, strings.TrimSpace(val[start:]))
+	}
+	return layers
+}
+
+// ParseBoxShadow parses a CSS box-shadow value, returning one or more shadow layers.
+// Each layer: [inset] offset-x offset-y [blur [spread]] [color]
+// Multiple layers are separated by commas.
+func ParseBoxShadow(val string) []BoxShadowLayer {
+	defaultColor := uimath.Color{R: 0, G: 0, B: 0, A: 0.2}
+	rawLayers := splitShadowLayers(val)
+	var result []BoxShadowLayer
+	for _, raw := range rawLayers {
+		if raw == "" || raw == "none" {
+			continue
+		}
+		layer := BoxShadowLayer{Color: defaultColor}
+		parts := splitValues(raw)
+
+		// Extract inset keyword (can appear anywhere among the tokens)
+		var nums []string
+		var colorParts []string
+		inColorMode := false
+		for _, p := range parts {
+			if p == "inset" {
+				layer.Inset = true
+				continue
+			}
+			if inColorMode {
+				colorParts = append(colorParts, p)
+				continue
+			}
+			if isPlainNumber(p) || strings.HasSuffix(p, "px") || strings.HasSuffix(p, "em") || strings.HasSuffix(p, "rem") {
+				nums = append(nums, p)
+			} else {
+				// Treat remainder as color
+				inColorMode = true
+				colorParts = append(colorParts, p)
+			}
+		}
+
+		if len(nums) < 2 {
+			continue // need at least offset-x and offset-y
+		}
+		layer.OffsetX = ParseFloat(nums[0])
+		layer.OffsetY = ParseFloat(nums[1])
+		if len(nums) >= 3 {
+			layer.Blur = ParseFloat(nums[2])
+		}
+		if len(nums) >= 4 {
+			layer.Spread = ParseFloat(nums[3])
+		}
+
+		if len(colorParts) > 0 {
+			if c, ok := ParseColor(strings.Join(colorParts, " ")); ok {
+				layer.Color = c
+			}
+		}
+
+		result = append(result, layer)
+	}
+	return result
 }

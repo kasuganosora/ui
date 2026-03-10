@@ -1668,9 +1668,9 @@ func applyVisualProps(w widget.Widget, cs *css.ComputedStyle) {
 		}
 	}
 	if cs.BoxShadow != "" && cs.BoxShadow != "none" {
-		if ox, oy, blur, color, ok := css.ParseBoxShadow(cs.BoxShadow); ok {
+		if layers := css.ParseBoxShadow(cs.BoxShadow); len(layers) > 0 {
 			if d, isDiv := w.(*widget.Div); isDiv {
-				d.SetBoxShadow(ox, oy, blur, color)
+				d.SetBoxShadow(layers)
 			}
 		}
 	}

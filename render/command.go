@@ -6,11 +6,12 @@ import uimath "github.com/kasuganosora/ui/math"
 type CommandType uint8
 
 const (
-	CmdRect  CommandType = iota + 1 // Filled/stroked rectangle
-	CmdText                         // Text run
-	CmdImage                        // Textured rectangle
-	CmdClip                         // Set scissor rect
-	CmdPath                         // Custom path (future)
+	CmdRect   CommandType = iota + 1 // Filled/stroked rectangle
+	CmdText                          // Text run
+	CmdImage                         // Textured rectangle
+	CmdClip                          // Set scissor rect
+	CmdShadow                        // Box shadow (SDF-blurred rounded rect)
+	CmdPath                          // Custom path (future)
 )
 
 // Command is a single render command. Value object.
@@ -20,13 +21,15 @@ type Command struct {
 	Opacity float32 // 0..1
 
 	// Used by CmdRect
-	Rect       *RectCmd
+	Rect *RectCmd
 	// Used by CmdText
-	Text       *TextCmd
+	Text *TextCmd
 	// Used by CmdImage
-	Image      *ImageCmd
+	Image *ImageCmd
 	// Used by CmdClip
-	Clip       *ClipCmd
+	Clip *ClipCmd
+	// Used by CmdShadow
+	Shadow *ShadowCmd
 }
 
 // RectCmd describes a rectangle draw.
@@ -68,6 +71,19 @@ type ImageCmd struct {
 	DstRect  uimath.Rect // Destination on screen
 	Tint     uimath.Color
 	Corners  uimath.Corners // Corner radii for rounded image
+}
+
+// ShadowCmd describes a CSS box-shadow layer.
+// The shadow is rendered as a SDF-blurred rounded rect behind the element.
+type ShadowCmd struct {
+	Bounds       uimath.Rect    // element's own bounds (logical px)
+	Corners      uimath.Corners // element's corner radii (logical px)
+	OffsetX      float32        // shadow X offset (logical px)
+	OffsetY      float32        // shadow Y offset (logical px)
+	BlurRadius   float32        // blur radius (logical px); 0 = hard edge
+	SpreadRadius float32        // positive = expand, negative = shrink shadow shape
+	Color        uimath.Color   // shadow color (including alpha)
+	Inset        bool           // true = inset shadow (rendered inside the element)
 }
 
 // ClipCmd sets the scissor rectangle.
@@ -132,6 +148,11 @@ func (cb *CommandBuffer) releaseCommand(c *Command) {
 			ReleaseClipCmd(c.Clip)
 			c.Clip = nil
 		}
+	case CmdShadow:
+		if c.Shadow != nil {
+			ReleaseShadowCmd(c.Shadow)
+			c.Shadow = nil
+		}
 	}
 }
 
@@ -168,6 +189,20 @@ func (cb *CommandBuffer) DrawImage(cmd ImageCmd, zOrder int32, opacity float32) 
 		ZOrder:  zOrder,
 		Opacity: opacity,
 		Image:   ic,
+	})
+}
+
+// DrawShadow adds a box-shadow draw command. The shadow is rendered behind
+// the element using SDF distance-field blur. Call before DrawRect for the
+// same element so the shadow appears beneath it.
+func (cb *CommandBuffer) DrawShadow(cmd ShadowCmd, zOrder int32, opacity float32) {
+	sc := AcquireShadowCmd()
+	*sc = cmd
+	cb.commands = append(cb.commands, Command{
+		Type:    CmdShadow,
+		ZOrder:  zOrder,
+		Opacity: opacity,
+		Shadow:  sc,
 	})
 }
 

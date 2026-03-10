@@ -1,5 +1,3 @@
-//go:build windows
-
 package ui
 
 import (
@@ -11,32 +9,40 @@ import (
 	"github.com/kasuganosora/ui/layout"
 	"github.com/kasuganosora/ui/font"
 	"github.com/kasuganosora/ui/font/atlas"
-	"github.com/kasuganosora/ui/font/freetype"
 	"github.com/kasuganosora/ui/font/textrender"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/platform"
 	"github.com/kasuganosora/ui/theme"
-	"github.com/kasuganosora/ui/platform/win32"
 	"github.com/kasuganosora/ui/render"
-	"github.com/kasuganosora/ui/render/dx9"
-	"github.com/kasuganosora/ui/render/dx11"
-	"github.com/kasuganosora/ui/render/gl"
-	"github.com/kasuganosora/ui/render/vulkan"
 	"github.com/kasuganosora/ui/icon/material"
 	uinet "github.com/kasuganosora/ui/net"
 	"github.com/kasuganosora/ui/widget"
 	"github.com/kasuganosora/ui/devtools"
 )
 
+// resizeCallback is an optional interface for platform windows that support
+// registering an explicit resize notification callback (e.g. win32 WM_SIZE).
+type resizeCallback interface {
+	OnResize(fn func())
+}
+
+// sizeMoveInProgress is an optional interface for platform windows that can
+// report whether a modal resize drag is in progress (e.g. win32 WM_ENTERSIZEMOVE).
+// Rendering should be skipped while this returns true to avoid redundant frames.
+type sizeMoveInProgress interface {
+	InSizeMove() bool
+}
+
 // BackendType selects the rendering backend.
 type BackendType int
 
 const (
-	BackendAuto    BackendType = iota // Try Vulkan first, fall back to DX11
+	BackendAuto    BackendType = iota // Auto-select best available backend
 	BackendVulkan                     // Force Vulkan
-	BackendDX11                       // Force DirectX 11
-	BackendDX9                        // Force DirectX 9
+	BackendDX11                       // Force DirectX 11 (Windows only)
+	BackendDX9                        // Force DirectX 9 (Windows only)
 	BackendOpenGL                     // Force OpenGL 3.3
+	BackendMetal                      // Force Metal (macOS only)
 )
 
 // AppOptions configures an App instance.
@@ -56,53 +62,13 @@ type AppOptions struct {
 	DevTools *devtools.Server
 }
 
-// createBackend creates a render.Backend based on the selected type.
-func createBackend(bt BackendType, win platform.Window) (render.Backend, error) {
-	switch bt {
-	case BackendDX9:
-		b := dx9.New()
-		if err := b.Init(win); err != nil {
-			return nil, fmt.Errorf("dx9 init: %w", err)
-		}
-		return b, nil
-	case BackendDX11:
-		b := dx11.New()
-		if err := b.Init(win); err != nil {
-			return nil, fmt.Errorf("dx11 init: %w", err)
-		}
-		return b, nil
-	case BackendVulkan:
-		b := vulkan.New()
-		if err := b.Init(win); err != nil {
-			return nil, fmt.Errorf("vulkan init: %w", err)
-		}
-		return b, nil
-	case BackendOpenGL:
-		b := gl.New()
-		if err := b.Init(win); err != nil {
-			return nil, fmt.Errorf("gl init: %w", err)
-		}
-		return b, nil
-	default: // BackendAuto: try Vulkan first, fall back to DX11
-		b := vulkan.New()
-		if err := b.Init(win); err == nil {
-			return b, nil
-		}
-		d := dx11.New()
-		if err := d.Init(win); err != nil {
-			return nil, fmt.Errorf("no backend available: dx11: %w", err)
-		}
-		return d, nil
-	}
-}
-
 // App encapsulates the full UI application lifecycle:
 // platform, renderer, font system, widget tree, event routing, and main loop.
 type App struct {
 	opts AppOptions
 
 	// Subsystems
-	plat     *win32.Platform
+	plat     platform.Platform
 	win      platform.Window
 	backend  render.Backend
 	tree     *core.Tree
@@ -158,7 +124,7 @@ func NewApp(opts AppOptions) (*App, error) {
 	}
 
 	// --- Platform ---
-	a.plat = win32.New()
+	a.plat = newPlatform()
 	if err := a.plat.Init(); err != nil {
 		return nil, fmt.Errorf("platform init: %w", err)
 	}
@@ -178,7 +144,7 @@ func NewApp(opts AppOptions) (*App, error) {
 	}
 
 	// --- Renderer ---
-	a.backend, err = createBackend(opts.Backend, a.win)
+	a.backend, err = platformCreateBackend(opts.Backend, a.win)
 	if err != nil {
 		a.win.Destroy()
 		a.plat.Terminate()
@@ -186,8 +152,8 @@ func NewApp(opts AppOptions) (*App, error) {
 	}
 
 	// --- Font System ---
-	if ftEngine, err := freetype.New(); err == nil {
-		a.fontEngine = ftEngine
+	if fe := platformNewFontEngine(); fe != nil {
+		a.fontEngine = fe
 	} else {
 		a.fontEngine = newMockEngine()
 	}
@@ -195,20 +161,15 @@ func NewApp(opts AppOptions) (*App, error) {
 	mgr := font.NewManager(a.fontEngine)
 	fontPath := opts.Font
 	if fontPath == "" {
-		fontPath = `C:\Windows\Fonts\msyh.ttc`
+		fontPath = platformDefaultFont()
 	}
 	a.fontID, _ = mgr.RegisterFile("Default", font.WeightRegular, font.StyleNormal, fontPath)
 	if a.fontID == font.InvalidFontID {
 		a.fontID, _ = mgr.Register("Default", font.WeightRegular, font.StyleNormal, nil)
 	}
 
-	// Register symbol fallback fonts for glyphs not in the primary font.
-	// Segoe UI Symbol covers arrows, hearts, and other common Unicode symbols.
-	// NOTE: seguiemj.ttf (colored emoji) is intentionally excluded — colored CBDT/CBLC
-	// glyphs cannot be rendered correctly through the SDF text pipeline.
-	for _, fallbackPath := range []string{
-		`C:\Windows\Fonts\seguisym.ttf`,
-	} {
+	// Register symbol/fallback fonts for glyphs not in the primary font.
+	for _, fallbackPath := range platformFallbackFonts() {
 		if fbID, err := mgr.RegisterFile("Symbol", font.WeightRegular, font.StyleNormal, fallbackPath); err == nil && fbID != font.InvalidFontID {
 			a.fallbackFontIDs = append(a.fallbackFontIDs, fbID)
 		}
@@ -356,11 +317,6 @@ func (a *App) Run() error {
 	frameCount := 0
 	fpsStart := time.Now()
 
-	var w32 *win32.Window
-	if ww, ok := a.win.(*win32.Window); ok {
-		w32 = ww
-	}
-
 	renderFrame := func() {
 		fw, fh := a.win.FramebufferSize()
 		if fw != lastW || fh != lastH {
@@ -368,7 +324,8 @@ func (a *App) Run() error {
 			lastW, lastH = fw, fh
 		}
 
-		if w32 != nil && w32.InSizeMove() {
+		// Skip rendering while a modal resize drag is in progress (win32-specific).
+		if sm, ok := a.win.(sizeMoveInProgress); ok && sm.InSizeMove() {
 			return
 		}
 
@@ -396,7 +353,7 @@ func (a *App) Run() error {
 		// Draw DevTools element highlight on top of everything else.
 		if a.devtools != nil {
 			a.devtools.DrawOverlay(a.buf)
-			a.devtools.DrawOverlayLabel(a.buf, a.textRenderer)
+			a.devtools.DrawOverlayLabel(a.buf, a.textRenderer, a.fontID)
 		}
 
 		a.textRenderer.Upload()
@@ -404,8 +361,9 @@ func (a *App) Run() error {
 		a.backend.EndFrame()
 	}
 
-	if w32 != nil {
-		w32.OnResize(renderFrame)
+	// Register resize callback if the platform window supports it (win32-specific).
+	if rc, ok := a.win.(resizeCallback); ok {
+		rc.OnResize(renderFrame)
 	}
 
 	needsRedraw := true

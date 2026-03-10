@@ -6,10 +6,11 @@ import "sync"
 // These reduce GC pressure by reusing allocations across frames.
 
 var (
-	rectCmdPool  = sync.Pool{New: func() any { return &RectCmd{} }}
-	textCmdPool  = sync.Pool{New: func() any { return &TextCmd{} }}
-	imageCmdPool = sync.Pool{New: func() any { return &ImageCmd{} }}
-	clipCmdPool  = sync.Pool{New: func() any { return &ClipCmd{} }}
+	rectCmdPool   = sync.Pool{New: func() any { return &RectCmd{} }}
+	textCmdPool   = sync.Pool{New: func() any { return &TextCmd{} }}
+	imageCmdPool  = sync.Pool{New: func() any { return &ImageCmd{} }}
+	clipCmdPool   = sync.Pool{New: func() any { return &ClipCmd{} }}
+	shadowCmdPool = sync.Pool{New: func() any { return &ShadowCmd{} }}
 )
 
 // AcquireRectCmd gets a RectCmd from the pool.
@@ -35,6 +36,12 @@ func AcquireClipCmd() *ClipCmd { return clipCmdPool.Get().(*ClipCmd) }
 
 // ReleaseClipCmd zeroes and returns a ClipCmd to the pool.
 func ReleaseClipCmd(c *ClipCmd) { *c = ClipCmd{}; clipCmdPool.Put(c) }
+
+// AcquireShadowCmd gets a ShadowCmd from the pool.
+func AcquireShadowCmd() *ShadowCmd { return shadowCmdPool.Get().(*ShadowCmd) }
+
+// ReleaseShadowCmd zeroes and returns a ShadowCmd to the pool.
+func ReleaseShadowCmd(c *ShadowCmd) { *c = ShadowCmd{}; shadowCmdPool.Put(c) }
 
 // GlyphSlice pool for reusing []GlyphInstance slices.
 var glyphSlicePool = sync.Pool{New: func() any { s := make([]GlyphInstance, 0, 64); return &s }}

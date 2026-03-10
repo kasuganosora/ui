@@ -231,6 +231,33 @@ func rectVertexAttributeDescriptions() [7]vertexInputAttributeDescription {
 	}
 }
 
+// shadowVertexBindingDescription returns the vertex binding for ShadowVertex.
+func shadowVertexBindingDescription() vertexInputBindingDescription {
+	return vertexInputBindingDescription{
+		Binding:   0,
+		Stride:    uint32(unsafe.Sizeof(ShadowVertex{})), // 60 bytes (15 float32)
+		InputRate: VertexInputRateVertex,
+	}
+}
+
+// shadowVertexAttributeDescriptions returns the per-attribute layout for ShadowVertex.
+func shadowVertexAttributeDescriptions() [6]vertexInputAttributeDescription {
+	return [6]vertexInputAttributeDescription{
+		// location 0: vec2 pos  (PosX, PosY)
+		{Location: 0, Binding: 0, Format: FormatR32G32Sfloat, Offset: 0},
+		// location 1: vec2 uv   (U, V)
+		{Location: 1, Binding: 0, Format: FormatR32G32Sfloat, Offset: 8},
+		// location 2: vec4 color (ColorR..A)
+		{Location: 2, Binding: 0, Format: FormatR32G32B32A32Sfloat, Offset: 16},
+		// location 3: vec2 elemSize (ElemW, ElemH)
+		{Location: 3, Binding: 0, Format: FormatR32G32Sfloat, Offset: 32},
+		// location 4: vec4 radii (RadiusTL, TR, BR, BL)
+		{Location: 4, Binding: 0, Format: FormatR32G32B32A32Sfloat, Offset: 40},
+		// location 5: float blur
+		{Location: 5, Binding: 0, Format: FormatR32Sfloat, Offset: 56},
+	}
+}
+
 var mainEntryPoint = append([]byte("main"), 0)
 
 // createRectPipeline creates the graphics pipeline for rendering rounded rectangles.
@@ -373,5 +400,76 @@ func (b *Backend) createRectPipeline() error {
 		return fmt.Errorf("vulkan: vkCreateGraphicsPipelines failed: %v", Result(r))
 	}
 
+	return nil
+}
+
+// createShadowPipeline creates the graphics pipeline for box-shadow rendering.
+// Shadow uses its own vertex layout (ShadowVertex) and SDF blur shader.
+func (b *Backend) createShadowPipeline() error {
+	vertModule, err := b.createShaderModule(shadowVertSPV)
+	if err != nil {
+		return fmt.Errorf("vulkan: shadow vertex shader: %w", err)
+	}
+	defer syscallN(b.loader.vkDestroyShaderModule, uintptr(b.device), uintptr(vertModule), 0)
+
+	fragModule, err := b.createShaderModule(shadowFragSPV)
+	if err != nil {
+		return fmt.Errorf("vulkan: shadow fragment shader: %w", err)
+	}
+	defer syscallN(b.loader.vkDestroyShaderModule, uintptr(b.device), uintptr(fragModule), 0)
+
+	shaderStages := [2]pipelineShaderStageCreateInfo{
+		{SType: StructureTypePipelineShaderStageCreateInfo, Stage: ShaderStageVertexBit, Module: vertModule, PName: &mainEntryPoint[0]},
+		{SType: StructureTypePipelineShaderStageCreateInfo, Stage: ShaderStageFragmentBit, Module: fragModule, PName: &mainEntryPoint[0]},
+	}
+
+	binding := shadowVertexBindingDescription()
+	attributes := shadowVertexAttributeDescriptions()
+	vertexInput := pipelineVertexInputStateCreateInfo{
+		SType:                           StructureTypePipelineVertexInputStateCreateInfo,
+		VertexBindingDescriptionCount:   1,
+		PVertexBindingDescriptions:      &binding,
+		VertexAttributeDescriptionCount: uint32(len(attributes)),
+		PVertexAttributeDescriptions:    &attributes[0],
+	}
+
+	inputAssembly := pipelineInputAssemblyStateCreateInfo{SType: StructureTypePipelineInputAssemblyStateCreateInfo, Topology: PrimitiveTopologyTriangleList}
+	viewportState := pipelineViewportStateCreateInfo{SType: StructureTypePipelineViewportStateCreateInfo, ViewportCount: 1, ScissorCount: 1}
+	rasterizer := pipelineRasterizationStateCreateInfo{SType: StructureTypePipelineRasterizationStateCreateInfo, PolygonMode: PolygonModeFill, CullMode: CullModeNone, FrontFace: FrontFaceClockwise, LineWidth: 1.0}
+	multisample := pipelineMultisampleStateCreateInfo{SType: StructureTypePipelineMultisampleStateCreateInfo, RasterizationSamples: SampleCount1Bit}
+
+	colorAttachment := pipelineColorBlendAttachmentState{
+		BlendEnable:         1,
+		SrcColorBlendFactor: BlendFactorSrcAlpha,
+		DstColorBlendFactor: BlendFactorOneMinusSrcAlpha,
+		ColorBlendOp:        BlendOpAdd,
+		SrcAlphaBlendFactor: BlendFactorOne,
+		DstAlphaBlendFactor: BlendFactorOneMinusSrcAlpha,
+		AlphaBlendOp:        BlendOpAdd,
+		ColorWriteMask:      ColorComponentAll,
+	}
+	colorBlend := pipelineColorBlendStateCreateInfo{SType: StructureTypePipelineColorBlendStateCreateInfo, AttachmentCount: 1, PAttachments: &colorAttachment}
+
+	dynamicStates := [2]DynamicState{DynamicStateViewport, DynamicStateScissor}
+	dynamicState := pipelineDynamicStateCreateInfo{SType: StructureTypePipelineDynamicStateCreateInfo, DynamicStateCount: 2, PDynamicStates: &dynamicStates[0]}
+
+	layoutInfo := pipelineLayoutCreateInfo{SType: StructureTypePipelineLayoutCreateInfo}
+	r, _, _ := syscallN(b.loader.vkCreatePipelineLayout, uintptr(b.device), uintptr(unsafe.Pointer(&layoutInfo)), 0, uintptr(unsafe.Pointer(&b.shadowPipelineLayout)))
+	if Result(r) != Success {
+		return fmt.Errorf("vulkan: shadow vkCreatePipelineLayout failed: %v", Result(r))
+	}
+
+	pipelineInfo := graphicsPipelineCreateInfo{
+		SType: StructureTypeGraphicsPipelineCreateInfo, StageCount: 2, PStages: &shaderStages[0],
+		PVertexInputState: &vertexInput, PInputAssemblyState: &inputAssembly,
+		PViewportState: &viewportState, PRasterizationState: &rasterizer,
+		PMultisampleState: &multisample, PColorBlendState: &colorBlend,
+		PDynamicState: &dynamicState, Layout: b.shadowPipelineLayout,
+		RenderPass: b.renderPass, Subpass: 0, BasePipelineIndex: -1,
+	}
+	r, _, _ = syscallN(b.loader.vkCreateGraphicsPipelines, uintptr(b.device), 0, 1, uintptr(unsafe.Pointer(&pipelineInfo)), 0, uintptr(unsafe.Pointer(&b.shadowPipeline)))
+	if Result(r) != Success {
+		return fmt.Errorf("vulkan: shadow vkCreateGraphicsPipelines failed: %v", Result(r))
+	}
 	return nil
 }

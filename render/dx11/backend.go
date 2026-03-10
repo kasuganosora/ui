@@ -24,6 +24,16 @@ type RectVertex struct {
 	BorderR, BorderG, BorderB, BorderA             float32
 }
 
+// ShadowVertex matches the shadow shader input layout — 15 float32, 60 bytes.
+type ShadowVertex struct {
+	PosX, PosY                              float32
+	U, V                                    float32
+	ColorR, ColorG, ColorB, ColorA          float32
+	ElemW, ElemH                            float32 // Spread-adjusted element size in physical px
+	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32 // Corner radii in physical px
+	Blur                                    float32
+}
+
 // TexturedVertex for text and image rendering.
 type TexturedVertex struct {
 	PosX, PosY                     float32
@@ -106,6 +116,9 @@ type Backend struct {
 	rectVS          uintptr // ID3D11VertexShader*
 	rectPS          uintptr // ID3D11PixelShader*
 	rectInputLayout uintptr // ID3D11InputLayout*
+	shadowVS          uintptr // ID3D11VertexShader* (shadow)
+	shadowPS          uintptr // ID3D11PixelShader*  (shadow)
+	shadowInputLayout uintptr // ID3D11InputLayout*  (shadow)
 
 	// Textured pipeline (images)
 	texturedVS          uintptr // ID3D11VertexShader*
@@ -419,6 +432,84 @@ float4 main(PS_INPUT input) : SV_TARGET {
 		return fmt.Errorf("dx11: rect PS: %w", err)
 	}
 
+	// ---- Shadow shaders ----
+
+	shadowVSCode := `
+struct VS_INPUT {
+    float2 pos      : POSITION;
+    float2 uv       : TEXCOORD0;
+    float4 color    : COLOR0;
+    float2 elemSize : TEXCOORD1;
+    float4 radii    : TEXCOORD2;
+    float  blur     : TEXCOORD3;
+};
+struct PS_INPUT {
+    float4 pos      : SV_POSITION;
+    float2 uv       : TEXCOORD0;
+    float4 color    : COLOR0;
+    float2 elemSize : TEXCOORD1;
+    float4 radii    : TEXCOORD2;
+    float  blur     : TEXCOORD3;
+};
+float3 srgbToLinear(float3 c) {
+    return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4);
+}
+PS_INPUT main(VS_INPUT input) {
+    PS_INPUT output;
+    output.pos      = float4(input.pos, 0.0, 1.0);
+    output.uv       = input.uv;
+    output.color    = float4(srgbToLinear(input.color.rgb), input.color.a);
+    output.elemSize = input.elemSize;
+    output.radii    = input.radii;
+    output.blur     = input.blur;
+    return output;
+}`
+
+	shadowPSCode := `
+struct PS_INPUT {
+    float4 pos      : SV_POSITION;
+    float2 uv       : TEXCOORD0;
+    float4 color    : COLOR0;
+    float2 elemSize : TEXCOORD1;
+    float4 radii    : TEXCOORD2;
+    float  blur     : TEXCOORD3;
+};
+float roundedBoxSDF(float2 p, float2 b, float4 r) {
+    float radius = (p.x > 0.0) ? ((p.y > 0.0) ? r.z : r.y) : ((p.y > 0.0) ? r.w : r.x);
+    float2 q = abs(p) - b + float2(radius, radius);
+    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - radius;
+}
+float4 main(PS_INPUT input) : SV_TARGET {
+    float2 elemHalf = input.elemSize * 0.5;
+    float2 p = (input.uv - 0.5) * input.elemSize;
+    float dist = roundedBoxSDF(p, elemHalf, input.radii);
+    float blur = max(input.blur, 0.0);
+    float alpha;
+    float aa = max(max(abs(ddx(dist)), abs(ddy(dist))), 0.5);
+    if (blur < 1.0) {
+        alpha = 1.0 - smoothstep(-aa, aa, dist);
+    } else {
+        float sigma = blur * 0.5;
+        float outside = max(0.0, dist);
+        float t = outside / sigma;
+        alpha = exp(-t * t * 0.5);
+        // Fade out at 3-sigma from the element boundary (dist - sigma*3 transitions
+        // from negative to positive at the 3-sigma cutoff point).
+        alpha *= 1.0 - smoothstep(-aa, aa, dist - sigma * 3.0);
+        alpha = clamp(alpha, 0.0, 1.0);
+    }
+    return float4(input.color.rgb, input.color.a * alpha);
+}`
+
+	b.shadowVS, b.shadowInputLayout, err = b.compileVertexShader(shadowVSCode, shadowInputElements())
+	if err != nil {
+		return fmt.Errorf("dx11: shadow VS: %w", err)
+	}
+	b.shadowPS, err = b.compilePixelShader(shadowPSCode)
+	if err != nil {
+		return fmt.Errorf("dx11: shadow PS: %w", err)
+	}
+
 	// ---- Textured shaders (images) ----
 
 	texturedVSCode := `
@@ -510,6 +601,18 @@ func rectInputElements() []D3D11_INPUT_ELEMENT_DESC {
 		{semanticName("TEXCOORD"), 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 40, 0, 0},
 		{semanticName("TEXCOORD"), 3, DXGI_FORMAT_R32_FLOAT, 0, 56, 0, 0},
 		{semanticName("COLOR"), 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 60, 0, 0},
+	}
+}
+
+// shadowInputElements returns the input layout for shadow vertices (ShadowVertex, 60 bytes).
+func shadowInputElements() []D3D11_INPUT_ELEMENT_DESC {
+	return []D3D11_INPUT_ELEMENT_DESC{
+		{semanticName("POSITION"), 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, 0, 0},         // pos (0)
+		{semanticName("TEXCOORD"), 0, DXGI_FORMAT_R32G32_FLOAT, 0, 8, 0, 0},         // uv (8)
+		{semanticName("COLOR"), 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, 0, 0},     // color (16)
+		{semanticName("TEXCOORD"), 1, DXGI_FORMAT_R32G32_FLOAT, 0, 32, 0, 0},        // elemSize (32)
+		{semanticName("TEXCOORD"), 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 40, 0, 0},  // radii (40)
+		{semanticName("TEXCOORD"), 3, DXGI_FORMAT_R32_FLOAT, 0, 56, 0, 0},           // blur (56)
 	}
 }
 
@@ -735,6 +838,10 @@ func (b *Backend) renderCommands(commands []render.Command) {
 			if c.Image != nil {
 				b.renderImage(c)
 			}
+		case render.CmdShadow:
+			if c.Shadow != nil {
+				b.renderShadow(c)
+			}
 		}
 	}
 }
@@ -823,6 +930,91 @@ func (b *Backend) renderRect(c render.Command) {
 	stride := uint32(unsafe.Sizeof(RectVertex{}))
 	data := unsafe.Slice((*byte)(unsafe.Pointer(&vertices[0])), 6*int(stride))
 	b.uploadAndDraw(data, stride, 6, b.rectVS, b.rectPS, b.rectInputLayout, 0)
+}
+
+func (b *Backend) renderShadow(c render.Command) {
+	sh := c.Shadow
+	opacity := c.Opacity
+
+	logW := float32(b.width) / b.dpiScale
+	logH := float32(b.height) / b.dpiScale
+	s := b.dpiScale
+
+	spread := sh.SpreadRadius
+	blur := sh.BlurRadius
+	const pad = float32(1.0)
+
+	elemW := sh.Bounds.Width + 2*spread
+	elemH := sh.Bounds.Height + 2*spread
+	if elemW < 1 {
+		elemW = 1
+	}
+	if elemH < 1 {
+		elemH = 1
+	}
+
+	expand := blur*2 + pad
+	qx := sh.Bounds.X + sh.OffsetX - spread - expand
+	qy := sh.Bounds.Y + sh.OffsetY - spread - expand
+	qw := elemW + 2*expand
+	qh := elemH + 2*expand
+
+	ndcX := (qx/logW)*2 - 1
+	ndcY := 1 - (qy/logH)*2
+	ndcW := (qw / logW) * 2
+	ndcH := (qh / logH) * 2
+
+	uvL := -expand / elemW
+	uvT := -expand / elemH
+	uvR := 1.0 + expand/elemW
+	uvB := 1.0 + expand/elemH
+
+	maxR := min32dx(elemW, elemH) * 0.5
+	radTL := clamp32dx(sh.Corners.TopLeft+spread, 0, maxR) * s
+	radTR := clamp32dx(sh.Corners.TopRight+spread, 0, maxR) * s
+	radBR := clamp32dx(sh.Corners.BottomRight+spread, 0, maxR) * s
+	radBL := clamp32dx(sh.Corners.BottomLeft+spread, 0, maxR) * s
+
+	col := sh.Color
+	a := col.A * opacity
+
+	makeVertex := func(px, py, u, v float32) ShadowVertex {
+		return ShadowVertex{
+			PosX: px, PosY: py, U: u, V: v,
+			ColorR: col.R, ColorG: col.G, ColorB: col.B, ColorA: a,
+			ElemW: elemW * s, ElemH: elemH * s,
+			RadiusTL: radTL, RadiusTR: radTR, RadiusBR: radBR, RadiusBL: radBL,
+			Blur: blur * s,
+		}
+	}
+	vertices := [6]ShadowVertex{
+		makeVertex(ndcX, ndcY, uvL, uvT),
+		makeVertex(ndcX+ndcW, ndcY, uvR, uvT),
+		makeVertex(ndcX+ndcW, ndcY-ndcH, uvR, uvB),
+		makeVertex(ndcX, ndcY, uvL, uvT),
+		makeVertex(ndcX+ndcW, ndcY-ndcH, uvR, uvB),
+		makeVertex(ndcX, ndcY-ndcH, uvL, uvB),
+	}
+	stride := uint32(unsafe.Sizeof(ShadowVertex{}))
+	data := unsafe.Slice((*byte)(unsafe.Pointer(&vertices[0])), 6*int(stride))
+	b.uploadAndDraw(data, stride, 6, b.shadowVS, b.shadowPS, b.shadowInputLayout, 0)
+}
+
+func min32dx(a, b float32) float32 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func clamp32dx(v, lo, hi float32) float32 {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
 }
 
 func (b *Backend) renderText(c render.Command) {
@@ -1218,6 +1410,15 @@ func (b *Backend) Destroy() {
 	}
 	if b.rectVS != 0 {
 		comRelease(b.rectVS)
+	}
+	if b.shadowPS != 0 {
+		comRelease(b.shadowPS)
+	}
+	if b.shadowInputLayout != 0 {
+		comRelease(b.shadowInputLayout)
+	}
+	if b.shadowVS != 0 {
+		comRelease(b.shadowVS)
 	}
 	if b.rasterizerState != 0 {
 		comRelease(b.rasterizerState)

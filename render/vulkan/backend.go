@@ -37,8 +37,10 @@ type Backend struct {
 	currentFrame       int
 
 	// Pipelines
-	rectPipeline       Pipeline
-	rectPipelineLayout PipelineLayout
+	rectPipeline         Pipeline
+	rectPipelineLayout   PipelineLayout
+	shadowPipeline       Pipeline
+	shadowPipelineLayout PipelineLayout
 
 	// Textured pipeline (for text and images)
 	texturedPipeline       Pipeline
@@ -203,6 +205,10 @@ func (b *Backend) Init(window platform.Window) error {
 		return err
 	}
 	err = b.createTextPipeline()
+	if err != nil {
+		return err
+	}
+	err = b.createShadowPipeline()
 	if err != nil {
 		return err
 	}
@@ -503,13 +509,23 @@ func (b *Backend) DPIScale() float32 { return b.dpiScale }
 
 // RectVertex for rect rendering — 19 float32 fields, 76 bytes.
 type RectVertex struct {
-	PosX, PosY                             float32 // NDC position
-	U, V                                   float32 // UV for SDF computation
-	ColorR, ColorG, ColorB, ColorA         float32 // Fill color
-	RectW, RectH                           float32 // Rect size in pixels for SDF
+	PosX, PosY                              float32 // NDC position
+	U, V                                    float32 // UV for SDF computation
+	ColorR, ColorG, ColorB, ColorA          float32 // Fill color
+	RectW, RectH                            float32 // Rect size in pixels for SDF
 	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32 // Corner radii
-	BorderWidth                            float32
-	BorderR, BorderG, BorderB, BorderA     float32 // Border color
+	BorderWidth                             float32
+	BorderR, BorderG, BorderB, BorderA      float32 // Border color
+}
+
+// ShadowVertex for shadow rendering — 15 float32 fields, 60 bytes.
+type ShadowVertex struct {
+	PosX, PosY                              float32 // NDC position
+	U, V                                    float32 // UV relative to element (0,0)..(1,1)
+	ColorR, ColorG, ColorB, ColorA          float32 // Shadow color
+	ElemW, ElemH                            float32 // Spread-adjusted element size in physical px
+	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32 // Corner radii in physical px (spread-adjusted)
+	Blur                                    float32 // Blur radius in physical px
 }
 
 // BeginFrame implements render.Backend.
@@ -1103,6 +1119,12 @@ func (b *Backend) Destroy() {
 	}
 	if b.rectPipelineLayout != 0 {
 		syscallN(b.loader.vkDestroyPipelineLayout, uintptr(b.device), uintptr(b.rectPipelineLayout), 0)
+	}
+	if b.shadowPipeline != 0 {
+		syscallN(b.loader.vkDestroyPipeline, uintptr(b.device), uintptr(b.shadowPipeline), 0)
+	}
+	if b.shadowPipelineLayout != 0 {
+		syscallN(b.loader.vkDestroyPipelineLayout, uintptr(b.device), uintptr(b.shadowPipelineLayout), 0)
 	}
 
 	// Destroy sync objects

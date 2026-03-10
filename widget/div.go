@@ -2,6 +2,7 @@ package widget
 
 import (
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/css"
 	"github.com/kasuganosora/ui/layout"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
@@ -21,10 +22,7 @@ type Div struct {
 	gradientStart uimath.Color
 	gradientEnd   uimath.Color
 	gradientAngle float32 // radians; 0 = no gradient
-	shadowOffsetX float32
-	shadowOffsetY float32
-	shadowBlur    float32
-	shadowColor   uimath.Color
+	shadows       []css.BoxShadowLayer
 }
 
 // NewDiv creates a div container.
@@ -64,11 +62,8 @@ func (d *Div) SetGradient(start, end uimath.Color, angle float32) {
 	d.gradientAngle = angle
 }
 
-func (d *Div) SetBoxShadow(ox, oy, blur float32, color uimath.Color) {
-	d.shadowOffsetX = ox
-	d.shadowOffsetY = oy
-	d.shadowBlur = blur
-	d.shadowColor = color
+func (d *Div) SetBoxShadow(layers []css.BoxShadowLayer) {
+	d.shadows = layers
 }
 
 func (d *Div) ContentHeight() float32          { return d.contentHeight }
@@ -85,18 +80,20 @@ func (d *Div) Draw(buf *render.CommandBuffer) {
 		return
 	}
 
-	// Draw box shadow (behind the background)
-	if d.shadowColor.A > 0 {
-		shadowBounds := uimath.NewRect(
-			bounds.X+d.shadowOffsetX-d.shadowBlur,
-			bounds.Y+d.shadowOffsetY-d.shadowBlur,
-			bounds.Width+d.shadowBlur*2,
-			bounds.Height+d.shadowBlur*2,
-		)
-		buf.DrawRect(render.RectCmd{
-			Bounds:    shadowBounds,
-			FillColor: d.shadowColor,
-			Corners:   uimath.CornersAll(d.borderRadius + d.shadowBlur),
+	// Draw box shadows (behind the background), back-to-front (last layer first)
+	for i := len(d.shadows) - 1; i >= 0; i-- {
+		sh := d.shadows[i]
+		if sh.Inset {
+			continue // inset shadows drawn after background; skip here
+		}
+		buf.DrawShadow(render.ShadowCmd{
+			Bounds:       bounds,
+			Corners:      uimath.CornersAll(d.borderRadius),
+			OffsetX:      sh.OffsetX,
+			OffsetY:      sh.OffsetY,
+			BlurRadius:   sh.Blur,
+			SpreadRadius: sh.Spread,
+			Color:        sh.Color,
 		}, -1, 1)
 	}
 

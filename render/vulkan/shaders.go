@@ -6,11 +6,13 @@ import _ "embed"
 //   1. Install the Vulkan SDK (provides glslc)
 //   2. Run:
 //        cd render/vulkan/shaders
-//        glslc -O --target-env=vulkan1.0 -fshader-stage=vertex rect.vert.glsl -o rect.vert.spv
-//        glslc -O --target-env=vulkan1.0 -fshader-stage=fragment rect.frag.glsl -o rect.frag.spv
-//        glslc -O --target-env=vulkan1.0 -fshader-stage=vertex textured.vert.glsl -o textured.vert.spv
+//        glslc -O --target-env=vulkan1.0 -fshader-stage=vertex   rect.vert.glsl   -o rect.vert.spv
+//        glslc -O --target-env=vulkan1.0 -fshader-stage=fragment rect.frag.glsl   -o rect.frag.spv
+//        glslc -O --target-env=vulkan1.0 -fshader-stage=vertex   textured.vert.glsl -o textured.vert.spv
 //        glslc -O --target-env=vulkan1.0 -fshader-stage=fragment textured.frag.glsl -o textured.frag.spv
-//        glslc -O --target-env=vulkan1.0 -fshader-stage=fragment text.frag.glsl -o text.frag.spv
+//        glslc -O --target-env=vulkan1.0 -fshader-stage=fragment text.frag.glsl   -o text.frag.spv
+//        glslc -O --target-env=vulkan1.0 -fshader-stage=vertex   shadow.vert.glsl -o shadow.vert.spv
+//        glslc -O --target-env=vulkan1.0 -fshader-stage=fragment shadow.frag.glsl -o shadow.frag.spv
 
 // rectVertSPV contains the compiled SPIR-V for the rect vertex shader.
 //
@@ -36,3 +38,13 @@ var texturedFragSPV []byte
 //
 //go:embed shaders/text.frag.spv
 var textFragSPV []byte
+
+// shadowVertSPV contains the compiled SPIR-V for the shadow vertex shader.
+//
+//go:embed shaders/shadow.vert.spv
+var shadowVertSPV []byte
+
+// shadowFragSPV contains the compiled SPIR-V for the shadow fragment shader.
+//
+//go:embed shaders/shadow.frag.spv
+var shadowFragSPV []byte

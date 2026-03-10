@@ -33,6 +33,8 @@ type Loader struct {
 	// Platform surface creation (loaded per-platform)
 	vkCreateWin32SurfaceKHR   uintptr
 	vkCreateXlibSurfaceKHR    uintptr
+	vkCreateMetalSurfaceEXT   uintptr // macOS (MoltenVK 1.1+)
+	vkCreateMacOSSurfaceMVK   uintptr // macOS legacy MoltenVK
 
 	// Device functions (loaded after device creation)
 	vkDestroyDevice             uintptr
@@ -150,6 +152,8 @@ func (l *Loader) LoadInstanceFunctions(instance Instance) {
 	// Platform surface extensions
 	l.vkCreateWin32SurfaceKHR = l.getInstanceProcAddr(inst, "vkCreateWin32SurfaceKHR")
 	l.vkCreateXlibSurfaceKHR = l.getInstanceProcAddr(inst, "vkCreateXlibSurfaceKHR")
+	l.vkCreateMetalSurfaceEXT = l.getInstanceProcAddr(inst, "vkCreateMetalSurfaceEXT")
+	l.vkCreateMacOSSurfaceMVK = l.getInstanceProcAddr(inst, "vkCreateMacOSSurfaceMVK")
 }
 
 // LoadDeviceFunctions loads all device-level Vulkan functions.

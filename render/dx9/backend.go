@@ -27,6 +27,16 @@ type RectVertex struct {
 	BorderR, BorderG, BorderB, BorderA         float32
 }
 
+// ShadowVertex matches the shadow shader input layout — 15 float32, 60 bytes.
+type ShadowVertex struct {
+	PosX, PosY                              float32
+	U, V                                    float32
+	ColorR, ColorG, ColorB, ColorA          float32
+	ElemW, ElemH                            float32
+	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32
+	Blur                                    float32
+}
+
 // TexturedVertex for text and image rendering.
 type TexturedVertex struct {
 	PosX, PosY                     float32
@@ -208,16 +218,21 @@ type Backend struct {
 	texturedVS uintptr // IDirect3DVertexShader9*
 	texturedPS uintptr // IDirect3DPixelShader9*
 	textPS     uintptr // IDirect3DPixelShader9* (SDF text)
+	shadowVS   uintptr // IDirect3DVertexShader9*
+	shadowPS   uintptr // IDirect3DPixelShader9*
 
 	// Vertex declarations
 	rectDecl     uintptr // IDirect3DVertexDeclaration9*
 	texturedDecl uintptr // IDirect3DVertexDeclaration9*
+	shadowDecl   uintptr // IDirect3DVertexDeclaration9*
 
 	// Dynamic vertex buffers
-	rectVB       uintptr // IDirect3DVertexBuffer9*
-	rectVBSize   uint32
-	texturedVB   uintptr
+	rectVB         uintptr // IDirect3DVertexBuffer9*
+	rectVBSize     uint32
+	texturedVB     uintptr
 	texturedVBSize uint32
+	shadowVB       uintptr
+	shadowVBSize   uint32
 
 	// State
 	width, height int
@@ -518,6 +533,82 @@ float4 main(PS_INPUT input) : COLOR0 {
 		return fmt.Errorf("dx9: text PS: %w", err)
 	}
 
+	// ---- Shadow vertex shader (SM 3.0) ----
+	shadowVSCode := `
+struct VS_INPUT {
+    float2 pos      : POSITION;
+    float2 uv       : TEXCOORD0;
+    float4 color    : COLOR0;
+    float2 elemSize : TEXCOORD1;
+    float4 radii    : TEXCOORD2;
+    float  blur     : TEXCOORD3;
+};
+struct PS_INPUT {
+    float4 pos      : POSITION;
+    float2 uv       : TEXCOORD0;
+    float4 color    : COLOR1;
+    float2 elemSize : TEXCOORD1;
+    float4 radii    : TEXCOORD2;
+    float  blur     : TEXCOORD3;
+};
+float3 srgbToLinear(float3 c) {
+    return pow(max(c, 0.0), 2.2);
+}
+PS_INPUT main(VS_INPUT input) {
+    PS_INPUT output;
+    output.pos      = float4(input.pos, 0.0, 1.0);
+    output.uv       = input.uv;
+    output.color    = float4(srgbToLinear(input.color.rgb), input.color.a);
+    output.elemSize = input.elemSize;
+    output.radii    = input.radii;
+    output.blur     = input.blur;
+    return output;
+}`
+
+	shadowPSCode := `
+struct PS_INPUT {
+    float4 pos      : POSITION;
+    float2 uv       : TEXCOORD0;
+    float4 color    : COLOR1;
+    float2 elemSize : TEXCOORD1;
+    float4 radii    : TEXCOORD2;
+    float  blur     : TEXCOORD3;
+};
+float roundedRectSDF(float2 p, float2 halfSize, float4 r) {
+    float radius = (p.x > 0.0) ? ((p.y > 0.0) ? r.z : r.y)
+                               : ((p.y > 0.0) ? r.w : r.x);
+    float2 q = abs(p) - halfSize + float2(radius, radius);
+    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - radius;
+}
+float4 main(PS_INPUT input) : COLOR0 {
+    float2 elemHalf = input.elemSize * 0.5;
+    float2 p        = (input.uv - 0.5) * input.elemSize;
+    float  dist     = roundedRectSDF(p, elemHalf, input.radii);
+    float  aa       = 1.0;
+    float  alpha;
+    float  blur     = input.blur;
+    if (blur < 1.0) {
+        alpha = 1.0 - smoothstep(-aa, aa, dist);
+    } else {
+        float sigma = blur * 0.5;
+        float t     = max(0.0, dist) / sigma;
+        alpha       = exp(-t * t * 0.5);
+        // Fade out at 3-sigma from the element boundary.
+        alpha      *= 1.0 - smoothstep(-aa, aa, dist - sigma * 3.0);
+    }
+    return float4(input.color.rgb, input.color.a * alpha);
+}`
+
+	// Compile shadow shaders
+	b.shadowVS, err = b.compileVertexShader(shadowVSCode)
+	if err != nil {
+		return fmt.Errorf("dx9: shadow VS: %w", err)
+	}
+	b.shadowPS, err = b.compilePixelShader(shadowPSCode)
+	if err != nil {
+		return fmt.Errorf("dx9: shadow PS: %w", err)
+	}
+
 	// Create vertex declarations
 	if err := b.createVertexDeclarations(); err != nil {
 		return err
@@ -565,6 +656,27 @@ func (b *Backend) createVertexDeclarations() error {
 		return fmt.Errorf("dx9: CreateVertexDeclaration (textured) failed: 0x%x", hr)
 	}
 
+	// Shadow vertex declaration:
+	// POSITION(float2,0) + TEXCOORD0(float2,8) + COLOR0(float4,16) +
+	// TEXCOORD1(float2,32) + TEXCOORD2(float4,40) + TEXCOORD3(float1,56)
+	shadowElements := []D3DVERTEXELEMENT9{
+		{0, 0, D3DDECLTYPE_FLOAT2, 0, D3DDECLUSAGE_POSITION, 0},
+		{0, 8, D3DDECLTYPE_FLOAT2, 0, D3DDECLUSAGE_TEXCOORD, 0},
+		{0, 16, D3DDECLTYPE_FLOAT4, 0, D3DDECLUSAGE_COLOR, 0},
+		{0, 32, D3DDECLTYPE_FLOAT2, 0, D3DDECLUSAGE_TEXCOORD, 1},
+		{0, 40, D3DDECLTYPE_FLOAT4, 0, D3DDECLUSAGE_TEXCOORD, 2},
+		{0, 56, 0, 0, D3DDECLUSAGE_TEXCOORD, 3}, // D3DDECLTYPE_FLOAT1 = 0
+		D3DVERTEXELEMENT9_END,
+	}
+
+	hr = comCall(comVtbl(b.device, devCreateVertexDeclaration),
+		b.device,
+		uintptr(unsafe.Pointer(&shadowElements[0])),
+		uintptr(unsafe.Pointer(&b.shadowDecl)))
+	if hr != S_OK {
+		return fmt.Errorf("dx9: CreateVertexDeclaration (shadow) failed: 0x%x", hr)
+	}
+
 	return nil
 }
 
@@ -593,6 +705,22 @@ func (b *Backend) createVertexBuffers() error {
 		0)
 	if hr != S_OK {
 		return fmt.Errorf("dx9: CreateVertexBuffer (textured) failed: 0x%x", hr)
+	}
+
+	// Shadow VB
+	if b.shadowVBSize == 0 {
+		b.shadowVBSize = 65536
+	}
+	hr = comCall(comVtbl(b.device, devCreateVertexBuffer),
+		b.device,
+		uintptr(b.shadowVBSize),
+		uintptr(D3DUSAGE_DYNAMIC|D3DUSAGE_WRITEONLY),
+		0,
+		uintptr(D3DPOOL_DEFAULT),
+		uintptr(unsafe.Pointer(&b.shadowVB)),
+		0)
+	if hr != S_OK {
+		return fmt.Errorf("dx9: CreateVertexBuffer (shadow) failed: 0x%x", hr)
 	}
 
 	return nil
@@ -732,6 +860,10 @@ func (b *Backend) resetDevice() {
 		comRelease(b.texturedVB)
 		b.texturedVB = 0
 	}
+	if b.shadowVB != 0 {
+		comRelease(b.shadowVB)
+		b.shadowVB = 0
+	}
 
 	hr := comCall(comVtbl(b.device, devReset), b.device, uintptr(unsafe.Pointer(&b.pp)))
 	if hr != S_OK {
@@ -772,6 +904,10 @@ func (b *Backend) renderCommands(commands []render.Command) {
 		case render.CmdImage:
 			if c.Image != nil {
 				b.renderImage(c)
+			}
+		case render.CmdShadow:
+			if c.Shadow != nil {
+				b.renderShadow(c)
 			}
 		}
 	}
@@ -981,6 +1117,111 @@ func (b *Backend) renderImage(c render.Command) {
 	comCall(comVtbl(dev, devSetTexture), dev, 0, entry.texture)
 
 	comCall(comVtbl(dev, devSetStreamSource), dev, 0, b.texturedVB, 0, uintptr(stride))
+	comCall(comVtbl(dev, devDrawPrimitive), dev, D3DPT_TRIANGLELIST, 0, 2)
+}
+
+func min32dx9(a, b float32) float32 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func clamp32dx9(v, lo, hi float32) float32 {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
+}
+
+func (b *Backend) renderShadow(c render.Command) {
+	sc := c.Shadow
+	opacity := c.Opacity
+
+	logW := float32(b.width) / b.dpiScale
+	logH := float32(b.height) / b.dpiScale
+	s := b.dpiScale
+
+	x, y, w, h := sc.Bounds.X, sc.Bounds.Y, sc.Bounds.Width, sc.Bounds.Height
+	spread := sc.SpreadRadius
+	blur := sc.BlurRadius
+	const pad = float32(1.0)
+
+	// Spread-adjusted element size in logical px. Clamp to 1 to avoid zero/negative.
+	elemWlog := w + 2*spread
+	elemHlog := h + 2*spread
+	if elemWlog < 1 {
+		elemWlog = 1
+	}
+	if elemHlog < 1 {
+		elemHlog = 1
+	}
+
+	// Quad expansion: must cover 3-sigma falloff region (sigma*3 = blur*1.5).
+	// Use blur*2+pad for a safe margin so the cutoff is well inside the quad.
+	expand := blur*2 + pad
+	qx := x + sc.OffsetX - spread - expand
+	qy := y + sc.OffsetY - spread - expand
+	qw := elemWlog + 2*expand
+	qh := elemHlog + 2*expand
+
+	ndcX := (qx/logW)*2 - 1
+	ndcY := 1 - (qy/logH)*2
+	ndcW := (qw / logW) * 2
+	ndcH := (qh / logH) * 2
+
+	// UV: element occupies [0,1]; expansion region is outside that range
+	uvL := -expand / elemWlog
+	uvT := -expand / elemHlog
+	uvR := 1.0 + expand/elemWlog
+	uvB := 1.0 + expand/elemHlog
+
+	// Per-vertex element size and radii (physical px, spread-adjusted)
+	elemW := elemWlog * s
+	elemH := elemHlog * s
+	maxR := min32dx9(elemW, elemH) * 0.5
+	rTL := clamp32dx9(sc.Corners.TopLeft*s+spread*s, 0, maxR)
+	rTR := clamp32dx9(sc.Corners.TopRight*s+spread*s, 0, maxR)
+	rBR := clamp32dx9(sc.Corners.BottomRight*s+spread*s, 0, maxR)
+	rBL := clamp32dx9(sc.Corners.BottomLeft*s+spread*s, 0, maxR)
+	blurPx := blur * s
+
+	r, g, bl, a := sc.Color.R, sc.Color.G, sc.Color.B, sc.Color.A*opacity
+
+	makeVertex := func(px, py, u, v float32) ShadowVertex {
+		return ShadowVertex{
+			PosX: px, PosY: py, U: u, V: v,
+			ColorR: r, ColorG: g, ColorB: bl, ColorA: a,
+			ElemW: elemW, ElemH: elemH,
+			RadiusTL: rTL, RadiusTR: rTR, RadiusBR: rBR, RadiusBL: rBL,
+			Blur: blurPx,
+		}
+	}
+
+	vertices := [6]ShadowVertex{
+		makeVertex(ndcX, ndcY, uvL, uvT),
+		makeVertex(ndcX+ndcW, ndcY, uvR, uvT),
+		makeVertex(ndcX+ndcW, ndcY-ndcH, uvR, uvB),
+		makeVertex(ndcX, ndcY, uvL, uvT),
+		makeVertex(ndcX+ndcW, ndcY-ndcH, uvR, uvB),
+		makeVertex(ndcX, ndcY-ndcH, uvL, uvB),
+	}
+
+	stride := uint32(unsafe.Sizeof(ShadowVertex{}))
+	dataSize := 6 * stride
+	b.uploadToVB(&b.shadowVB, &b.shadowVBSize, unsafe.Pointer(&vertices[0]), dataSize)
+
+	dev := b.device
+	comCall(comVtbl(dev, devSetVertexDeclaration), dev, b.shadowDecl)
+	comCall(comVtbl(dev, devSetVertexShader), dev, b.shadowVS)
+	comCall(comVtbl(dev, devSetPixelShader), dev, b.shadowPS)
+	comCall(comVtbl(dev, devSetTexture), dev, 0, 0) // no texture
+
+	offset := uint32(0)
+	comCall(comVtbl(dev, devSetStreamSource), dev, 0, b.shadowVB, uintptr(offset), uintptr(stride))
 	comCall(comVtbl(dev, devDrawPrimitive), dev, D3DPT_TRIANGLELIST, 0, 2)
 }
 
@@ -1219,11 +1460,17 @@ func (b *Backend) Destroy() {
 	if b.texturedVB != 0 {
 		comRelease(b.texturedVB)
 	}
+	if b.shadowVB != 0 {
+		comRelease(b.shadowVB)
+	}
 	if b.rectDecl != 0 {
 		comRelease(b.rectDecl)
 	}
 	if b.texturedDecl != 0 {
 		comRelease(b.texturedDecl)
+	}
+	if b.shadowDecl != 0 {
+		comRelease(b.shadowDecl)
 	}
 	if b.rectVS != 0 {
 		comRelease(b.rectVS)
@@ -1239,6 +1486,12 @@ func (b *Backend) Destroy() {
 	}
 	if b.textPS != 0 {
 		comRelease(b.textPS)
+	}
+	if b.shadowVS != 0 {
+		comRelease(b.shadowVS)
+	}
+	if b.shadowPS != 0 {
+		comRelease(b.shadowPS)
 	}
 	if b.device != 0 {
 		comRelease(b.device)

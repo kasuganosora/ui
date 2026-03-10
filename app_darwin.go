@@ -1,0 +1,87 @@
+//go:build darwin
+
+package ui
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/kasuganosora/ui/font"
+	"github.com/kasuganosora/ui/font/freetype"
+	"github.com/kasuganosora/ui/platform"
+	"github.com/kasuganosora/ui/platform/darwin"
+	"github.com/kasuganosora/ui/render"
+	"github.com/kasuganosora/ui/render/vulkan"
+)
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// newPlatform returns the Cocoa/macOS platform implementation.
+func newPlatform() platform.Platform {
+	return darwin.New()
+}
+
+// platformCreateBackend creates a render.Backend for macOS.
+// Auto mode tries Vulkan (via MoltenVK) first.
+// TODO: add BackendMetal once a Metal backend is implemented.
+func platformCreateBackend(bt BackendType, win platform.Window) (render.Backend, error) {
+	switch bt {
+	case BackendVulkan:
+		b := vulkan.New()
+		if err := b.Init(win); err != nil {
+			return nil, fmt.Errorf("vulkan init: %w", err)
+		}
+		return b, nil
+	default: // BackendAuto: try Vulkan (MoltenVK)
+		b := vulkan.New()
+		if err := b.Init(win); err != nil {
+			return nil, fmt.Errorf("no backend available on macOS (tried vulkan/MoltenVK): %w\n"+
+				"hint: install MoltenVK (brew install molten-vk) or implement a Metal backend", err)
+		}
+		return b, nil
+	}
+}
+
+// platformNewFontEngine loads FreeType on macOS.
+// Returns nil on failure so the caller falls back to the mock engine.
+func platformNewFontEngine() font.Engine {
+	e, err := freetype.New()
+	if err != nil {
+		return nil
+	}
+	return e
+}
+
+// platformDefaultFont returns the path to the default CJK-capable font on macOS.
+// PingFang SC is the system Chinese font shipped with macOS 10.11+.
+func platformDefaultFont() string {
+	paths := []string{
+		"/System/Library/Fonts/PingFang.ttc",      // macOS 10.11+ (PingFang SC)
+		"/Library/Fonts/Arial Unicode.ttf",         // older macOS fallback
+		"/System/Library/Fonts/STHeiti Light.ttc",  // Snow Leopard / early Lion
+	}
+	for _, p := range paths {
+		if fileExists(p) {
+			return p
+		}
+	}
+	return paths[0] // best guess; RegisterFile will fail and app falls back to mock
+}
+
+// platformFallbackFonts returns additional fallback font paths for symbol glyphs.
+func platformFallbackFonts() []string {
+	candidates := []string{
+		"/System/Library/Fonts/Apple Symbols.ttf",
+		"/System/Library/Fonts/Symbol.ttf",
+	}
+	var result []string
+	for _, p := range candidates {
+		if fileExists(p) {
+			result = append(result, p)
+		}
+	}
+	return result
+}
