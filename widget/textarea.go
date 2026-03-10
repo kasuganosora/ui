@@ -328,6 +328,43 @@ func (ta *TextArea) SetAutosizeRows(minRows, maxRows int) {
 	ta.autosize = true
 }
 
+// UpdateAutosizeHeight recalculates and applies the textarea height based on
+// the current content. Call this from OnLayout after CSSLayout has run so that
+// ta.Bounds().Width is already known. Does nothing if autosize is false.
+func (ta *TextArea) UpdateAutosizeHeight() {
+	if !ta.autosize {
+		return
+	}
+	contentW := ta.contentWidth()
+	if contentW <= 0 {
+		return
+	}
+	vlines := ta.visualLines(contentW)
+	rows := len(vlines)
+
+	minRows := ta.autosizeMinRows
+	if minRows < 1 {
+		minRows = 1
+	}
+	maxRows := ta.autosizeMaxRows
+	if maxRows < minRows {
+		maxRows = minRows
+	}
+	if rows < minRows {
+		rows = minRows
+	}
+	if rows > maxRows {
+		rows = maxRows
+	}
+
+	lineH := ta.config.FontSize * ta.config.LineHeight
+	newH := lineH*float32(rows) + ta.config.SpaceSM*2
+	if ta.style.Height.Amount != newH {
+		ta.style.Height = layout.Px(newH)
+		ta.tree.MarkDirty(ta.id)
+	}
+}
+
 // Event setters
 func (ta *TextArea) OnBlur(fn func(string))                { ta.onBlur = fn }
 func (ta *TextArea) OnFocus(fn func(string))               { ta.onFocus = fn }

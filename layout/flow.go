@@ -103,6 +103,17 @@ func (e *Engine) layoutBlock(nodeIdx int, availWidth, availHeight float32) {
 		e.applyRelativeOffset(childIdx, contentW, availHeight)
 	}
 
+	// For leaf text nodes (no children), advance cursorY by the measured text height
+	// so that the auto-height calculation below picks up the text content size.
+	if len(children) == 0 && node.text != "" && e.measurer != nil {
+		fontSize := style.FontSize
+		if fontSize == 0 {
+			fontSize = 14
+		}
+		_, h := e.measurer.MeasureText(node.text, 0, fontSize, contentW)
+		cursorY = contentY + h
+	}
+
 	// If container height is auto AND not already sized by parent (flex), size to content
 	if style.Height.IsAuto() && node.result.Height == 0 {
 		autoHeight := cursorY + padBottom + bdrBottom

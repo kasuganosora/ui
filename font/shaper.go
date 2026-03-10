@@ -60,7 +60,8 @@ func (s *basicShaper) Shape(text string, opts ShapeOptions) []GlyphRun {
 
 	var runs []GlyphRun
 	var currentGlyphs []PositionedGlyph
-	var currentRunes []rune // Track runes for punctuation compression
+	var currentRunes []rune    // Track runes for punctuation compression
+	var currentFontIDs []ID    // Per-glyph font ID (for fallback support)
 
 	halfEm := opts.FontSize * 0.5
 	cursorX := float32(0)
@@ -68,6 +69,50 @@ func (s *basicShaper) Shape(text string, opts ShapeOptions) []GlyphRun {
 	lastBreakIdx := -1 // Index in currentGlyphs where last word break was
 	runeIdx := 0       // Current rune index in the full text (excluding \r)
 	var prevGlyph GlyphID
+
+	// resolveGlyph finds the best (fontID, glyphID) for rune r.
+	// Tries the primary font first, then each fallback in order.
+	resolveGlyph := func(r rune) (ID, GlyphID) {
+		gid := s.engine.GlyphIndex(opts.FontID, r)
+		if gid != 0 {
+			return opts.FontID, gid
+		}
+		for _, fb := range opts.FallbackFontIDs {
+			if gid = s.engine.GlyphIndex(fb, r); gid != 0 {
+				return fb, gid
+			}
+		}
+		return opts.FontID, 0 // not found; use primary (renders as tofu)
+	}
+
+	// emitRuns groups glyphs by consecutive font ID and appends GlyphRuns.
+	emitRuns := func(glyphs []PositionedGlyph, fontIDs []ID, firstOnPage bool) float32 {
+		maxX := float32(0)
+		start := 0
+		for start < len(glyphs) {
+			fid := fontIDs[start]
+			end := start + 1
+			for end < len(glyphs) && fontIDs[end] == fid {
+				end++
+			}
+			groupGlyphs := make([]PositionedGlyph, end-start)
+			copy(groupGlyphs, glyphs[start:end])
+			for _, g := range groupGlyphs {
+				if e := g.X + g.Advance; e > maxX {
+					maxX = e
+				}
+			}
+			runs = append(runs, GlyphRun{
+				FontID:   fid,
+				FontSize: opts.FontSize,
+				Glyphs:   groupGlyphs,
+				Bounds:   uimath.NewRect(0, cursorY-metrics.Ascent, maxX, lineHeight),
+			})
+			start = end
+			_ = firstOnPage
+		}
+		return maxX
+	}
 
 	flushLine := func(endTextPos int) {
 		if len(currentGlyphs) == 0 {
@@ -81,22 +126,10 @@ func (s *basicShaper) Shape(text string, opts ShapeOptions) []GlyphRun {
 		comps := compressPunctuation(currentRunes, advances, halfEm, len(runs) == 0)
 		applyPunctCompression(currentGlyphs, comps)
 
-		// Calculate bounds
-		maxX := float32(0)
-		for _, g := range currentGlyphs {
-			end := g.X + g.Advance
-			if end > maxX {
-				maxX = end
-			}
-		}
-		runs = append(runs, GlyphRun{
-			FontID:   opts.FontID,
-			FontSize: opts.FontSize,
-			Glyphs:   currentGlyphs,
-			Bounds:   uimath.NewRect(0, cursorY-metrics.Ascent, maxX, lineHeight),
-		})
+		emitRuns(currentGlyphs, currentFontIDs, len(runs) == 0)
 		currentGlyphs = nil
 		currentRunes = nil
+		currentFontIDs = nil
 		cursorX = 0
 		cursorY += lineHeight
 		prevGlyph = 0
@@ -130,10 +163,10 @@ func (s *basicShaper) Shape(text string, opts ShapeOptions) []GlyphRun {
 			continue
 		}
 
-		glyphID := s.engine.GlyphIndex(opts.FontID, r)
-		gm := s.engine.GlyphMetrics(opts.FontID, glyphID, opts.FontSize)
+		glyphFontID, glyphID := resolveGlyph(r)
+		gm := s.engine.GlyphMetrics(glyphFontID, glyphID, opts.FontSize)
 
-		// Apply kerning
+		// Apply kerning (only within same font)
 		kern := float32(0)
 		if prevGlyph != 0 {
 			kern = s.engine.Kerning(opts.FontID, prevGlyph, glyphID, opts.FontSize)
@@ -157,7 +190,7 @@ func (s *basicShaper) Shape(text string, opts ShapeOptions) []GlyphRun {
 		if opts.MaxWidth > 0 && cursorX+gm.Advance > opts.MaxWidth && len(currentGlyphs) > 0 {
 			// If we're on the last allowed line, truncate instead of wrapping
 			if isAtMaxLines() {
-				s.truncateLine(&currentGlyphs, &currentRunes, opts, ellipsis, ellipsisWidth, cursorY)
+				s.truncateLine(&currentGlyphs, &currentRunes, &currentFontIDs, opts, ellipsis, ellipsisWidth, cursorY)
 				flushLine(i)
 				goto truncate
 			}
@@ -168,8 +201,11 @@ func (s *basicShaper) Shape(text string, opts ShapeOptions) []GlyphRun {
 				copy(wrapGlyphs, currentGlyphs[:lastBreakIdx])
 				wrapRunes := make([]rune, lastBreakIdx)
 				copy(wrapRunes, currentRunes[:lastBreakIdx])
+				wrapFontIDs := make([]ID, lastBreakIdx)
+				copy(wrapFontIDs, currentFontIDs[:lastBreakIdx])
 				remaining := currentGlyphs[lastBreakIdx:]
 				remainingRunes := currentRunes[lastBreakIdx:]
+				remainingFontIDs := currentFontIDs[lastBreakIdx:]
 
 				// Apply punctuation compression to wrapped line
 				wrapAdvances := make([]float32, len(wrapGlyphs))
@@ -179,32 +215,21 @@ func (s *basicShaper) Shape(text string, opts ShapeOptions) []GlyphRun {
 				comps := compressPunctuation(wrapRunes, wrapAdvances, halfEm, len(runs) == 0)
 				applyPunctCompression(wrapGlyphs, comps)
 
-				// Emit the line up to break
-				maxX := float32(0)
-				for _, g := range wrapGlyphs {
-					end := g.X + g.Advance
-					if end > maxX {
-						maxX = end
-					}
-				}
-				runs = append(runs, GlyphRun{
-					FontID:   opts.FontID,
-					FontSize: opts.FontSize,
-					Glyphs:   wrapGlyphs,
-					Bounds:   uimath.NewRect(0, cursorY-metrics.Ascent, maxX, lineHeight),
-				})
+				emitRuns(wrapGlyphs, wrapFontIDs, len(runs) == 0)
 
 				// Re-position remaining glyphs on new line
 				cursorY += lineHeight
 				cursorX = 0
 				currentGlyphs = nil
 				currentRunes = nil
+				currentFontIDs = nil
 				for j, g := range remaining {
 					g.X = cursorX
 					g.Y = cursorY
 					cursorX += g.Advance
 					currentGlyphs = append(currentGlyphs, g)
 					currentRunes = append(currentRunes, remainingRunes[j])
+					currentFontIDs = append(currentFontIDs, remainingFontIDs[j])
 				}
 				lastBreakIdx = -1
 				prevGlyph = 0
@@ -228,6 +253,7 @@ func (s *basicShaper) Shape(text string, opts ShapeOptions) []GlyphRun {
 			Advance: gm.Advance,
 		})
 		currentRunes = append(currentRunes, r)
+		currentFontIDs = append(currentFontIDs, glyphFontID)
 
 		cursorX += gm.Advance
 		prevGlyph = glyphID
@@ -248,7 +274,8 @@ truncate:
 }
 
 // truncateLine truncates the current glyph line and appends an ellipsis.
-func (s *basicShaper) truncateLine(glyphs *[]PositionedGlyph, runes *[]rune, opts ShapeOptions, ellipsis string, ellipsisWidth float32, cursorY float32) {
+// fontIDs is updated in sync with glyphs (truncated, then ellipsis uses primary font).
+func (s *basicShaper) truncateLine(glyphs *[]PositionedGlyph, runes *[]rune, fontIDs *[]ID, opts ShapeOptions, ellipsis string, ellipsisWidth float32, cursorY float32) {
 	maxW := opts.MaxWidth
 	if maxW <= 0 {
 		return
@@ -256,6 +283,7 @@ func (s *basicShaper) truncateLine(glyphs *[]PositionedGlyph, runes *[]rune, opt
 
 	g := *glyphs
 	r := *runes
+	fids := *fontIDs
 
 	// Find the cut point: remove glyphs from the end until ellipsis fits
 	cutIdx := len(g)
@@ -298,11 +326,14 @@ func (s *basicShaper) truncateLine(glyphs *[]PositionedGlyph, runes *[]rune, opt
 		cutIdx = 0
 	}
 
-	// Truncate glyphs
+	// Truncate glyphs and font IDs together
 	g = g[:cutIdx]
 	r = r[:cutIdx]
+	if len(fids) > cutIdx {
+		fids = fids[:cutIdx]
+	}
 
-	// Append ellipsis glyphs
+	// Append ellipsis glyphs (always using primary font)
 	cursorX := float32(0)
 	if len(g) > 0 {
 		last := g[len(g)-1]
@@ -318,11 +349,13 @@ func (s *basicShaper) truncateLine(glyphs *[]PositionedGlyph, runes *[]rune, opt
 			Advance: egm.Advance,
 		})
 		r = append(r, er)
+		fids = append(fids, opts.FontID)
 		cursorX += egm.Advance
 	}
 
 	*glyphs = g
 	*runes = r
+	*fontIDs = fids
 }
 
 // buildSegmentBreakMap pre-computes word-boundary break positions from a segmenter.
@@ -394,8 +427,16 @@ func (s *basicShaper) Measure(text string, opts ShapeOptions) TextMetrics {
 			continue
 		}
 
-		glyphID := s.engine.GlyphIndex(opts.FontID, r)
-		gm := s.engine.GlyphMetrics(opts.FontID, glyphID, opts.FontSize)
+		glyphFontID, glyphID := opts.FontID, s.engine.GlyphIndex(opts.FontID, r)
+		if glyphID == 0 {
+			for _, fb := range opts.FallbackFontIDs {
+				if fbGID := s.engine.GlyphIndex(fb, r); fbGID != 0 {
+					glyphFontID, glyphID = fb, fbGID
+					break
+				}
+			}
+		}
+		gm := s.engine.GlyphMetrics(glyphFontID, glyphID, opts.FontSize)
 
 		kern := float32(0)
 		if prevGlyph != 0 {

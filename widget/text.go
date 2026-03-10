@@ -65,7 +65,40 @@ func (t *Text) Draw(buf *render.CommandBuffer) {
 		tx := bounds.X
 		lh := t.config.TextRenderer.LineHeight(t.fontSize)
 		ty := bounds.Y + (bounds.Height-lh)/2
-		t.config.TextRenderer.DrawText(buf, t.text, tx, ty, t.fontSize, bounds.Width, t.color, 1)
+
+		style := t.Base.Style()
+		nowrap := style.WhiteSpace == layout.WhiteSpaceNowrap
+		ellipsis := style.TextOverflow == layout.TextOverflowEllipsis
+
+		if ellipsis && bounds.Width > 0 {
+			// Check if text fits; truncate with "…" if not
+			tw := t.config.TextRenderer.MeasureText(t.text, t.fontSize)
+			if tw > bounds.Width {
+				const dots = "…"
+				dw := t.config.TextRenderer.MeasureText(dots, t.fontSize)
+				avail := bounds.Width - dw
+				runes := []rune(t.text)
+				// Binary search for the longest prefix that fits
+				lo, hi := 0, len(runes)
+				for lo < hi {
+					mid := (lo + hi + 1) / 2
+					if t.config.TextRenderer.MeasureText(string(runes[:mid]), t.fontSize) <= avail {
+						lo = mid
+					} else {
+						hi = mid - 1
+					}
+				}
+				text := string(runes[:lo]) + dots
+				t.config.TextRenderer.DrawText(buf, text, tx, ty, t.fontSize, 0, t.color, 1)
+				return
+			}
+		}
+
+		maxW := bounds.Width
+		if nowrap {
+			maxW = 0 // disable word-wrap
+		}
+		t.config.TextRenderer.DrawText(buf, t.text, tx, ty, t.fontSize, maxW, t.color, 1)
 		return
 	}
 

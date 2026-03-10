@@ -86,6 +86,23 @@ const (
 	AlignContentSpaceAround
 )
 
+// WhiteSpace controls text wrapping behaviour.
+type WhiteSpace uint8
+
+const (
+	WhiteSpaceNormal WhiteSpace = iota // Default: wrap at word boundaries
+	WhiteSpaceNowrap                   // Prevent wrapping (single line)
+	WhiteSpacePre                      // Preserve whitespace and newlines
+)
+
+// TextOverflow controls how overflowing text is indicated.
+type TextOverflow uint8
+
+const (
+	TextOverflowClip     TextOverflow = iota // Clip at bounds (default)
+	TextOverflowEllipsis                     // Show "…" at overflow point
+)
+
 // Overflow determines how overflow content is handled.
 type Overflow uint8
 
@@ -201,6 +218,10 @@ type Style struct {
 
 	// Typography (for text nodes — used by TextMeasurer)
 	FontSize float32 // font-size in px (0 = inherit/default)
+
+	// Text wrapping and overflow
+	WhiteSpace   WhiteSpace   // white-space property
+	TextOverflow TextOverflow // text-overflow property
 }
 
 // TrackSize defines the size of a grid track (row or column).

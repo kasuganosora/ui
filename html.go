@@ -582,6 +582,16 @@ func (p *htmlParser) parseElement(parent containerWidget, ancestors []css.Elemen
 		if _, ok := attrs["ghost"]; ok {
 			btn.SetGhost(true)
 		}
+		if v, ok := attrs["shape"]; ok {
+			switch v {
+			case "square":
+				btn.SetShape(widget.ShapeSquare)
+			case "round":
+				btn.SetShape(widget.ShapeRound)
+			case "circle":
+				btn.SetShape(widget.ShapeCircle)
+			}
+		}
 		p.registerWidgetWithAttrs(btn, tag, id, classes, inlineStyle, ancestors, attrs)
 		parent.AppendChild(btn)
 
@@ -1561,8 +1571,29 @@ func (p *htmlParser) applyCSS() {
 		inline := css.ParseInlineDeclarations(info.inlineCSS)
 		computed := css.ResolveStyle(p.sheet, el, info.ancestors, inline)
 
-		// Apply layout style
-		info.widget.SetStyle(computed.Layout)
+		// Apply layout style.
+		// Form controls (input, textarea, button) manage their own height and padding
+		// via their constructors/SetRows. Only override those dimensions when CSS
+		// explicitly specifies them; otherwise preserve the widget's own values.
+		newStyle := computed.Layout
+		switch info.widget.(type) {
+		case *widget.Input, *widget.TextArea, *widget.Button:
+			existing := info.widget.Style()
+			if _, hasH := computed.Raw["height"]; !hasH {
+				newStyle.Height = existing.Height
+			}
+			hasPadding := false
+			for _, pp := range []string{"padding", "padding-top", "padding-bottom", "padding-left", "padding-right"} {
+				if _, ok := computed.Raw[pp]; ok {
+					hasPadding = true
+					break
+				}
+			}
+			if !hasPadding {
+				newStyle.Padding = existing.Padding
+			}
+		}
+		info.widget.SetStyle(newStyle)
 
 		// Apply visual properties to specific widget types
 		applyVisualProps(info.widget, &computed)

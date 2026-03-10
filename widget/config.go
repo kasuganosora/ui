@@ -87,6 +87,10 @@ type Config struct {
 	// Rendering backend for texture creation (optional — needed for image loading)
 	Backend render.Backend
 
+	// NetClient handles HTTP/HTTPS and data: URL image loading.
+	// If nil, <img src> only loads local file paths.
+	NetClient NetFetcher
+
 	// Icon registry for SVG icon lookup by name (e.g., Material Design Icons)
 	IconRegistry IconLookup
 }
@@ -95,6 +99,13 @@ type Config struct {
 type IconLookup interface {
 	Get(name string, size int) (render.TextureHandle, bool)
 	Has(name string) bool
+}
+
+// NetFetcher loads raw bytes from URLs (http/https/data:).
+// Implemented by net.Client — set Config.NetClient to enable remote image loading.
+type NetFetcher interface {
+	Fetch(rawURL string) ([]byte, error)
+	FetchAsync(rawURL string, cb func([]byte, error))
 }
 
 // DrawMDIcon draws a Material Design Icon at the given position.

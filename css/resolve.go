@@ -284,6 +284,17 @@ func applyProperty(cs *ComputedStyle, prop, val string) {
 		cs.BoxSizing = val
 	case "box-shadow":
 		cs.BoxShadow = val
+	case "white-space":
+		switch val {
+		case "nowrap":
+			cs.Layout.WhiteSpace = layout.WhiteSpaceNowrap
+		case "pre":
+			cs.Layout.WhiteSpace = layout.WhiteSpacePre
+		}
+	case "text-overflow":
+		if val == "ellipsis" {
+			cs.Layout.TextOverflow = layout.TextOverflowEllipsis
+		}
 	}
 }
 

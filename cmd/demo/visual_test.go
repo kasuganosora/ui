@@ -68,7 +68,8 @@ func newTestEnv(t *testing.T, width, height int) *testEnv {
 		t.Fatalf("vulkan init: %v", err)
 	}
 
-	backend.Resize(width, height)
+	fw, fh := win.FramebufferSize()
+	backend.Resize(fw, fh)
 
 	var fontEngine font.Engine
 	if ftEngine, err := freetype.New(); err == nil {

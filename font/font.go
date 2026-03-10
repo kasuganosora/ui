@@ -172,16 +172,17 @@ type Shaper interface {
 
 // ShapeOptions controls text shaping. Value object.
 type ShapeOptions struct {
-	FontID     ID
-	FontSize   float32
-	MaxWidth   float32      // 0 = no wrapping
-	LineHeight float32      // 0 = use font default
-	Align      TextAlign
-	Locale     string       // For locale-specific line breaking rules
-	Segmenter  Segmenter    // Optional: CJK word segmenter for smart line breaking
-	Truncate   TruncateMode // Truncation mode when text exceeds MaxWidth
-	MaxLines   int          // 0 = unlimited; used with Truncate
-	Ellipsis   string       // Ellipsis string, defaults to "…"
+	FontID          ID
+	FallbackFontIDs []ID     // Fallback fonts tried in order when a glyph is missing from FontID
+	FontSize        float32
+	MaxWidth        float32      // 0 = no wrapping
+	LineHeight      float32      // 0 = use font default
+	Align           TextAlign
+	Locale          string       // For locale-specific line breaking rules
+	Segmenter       Segmenter    // Optional: CJK word segmenter for smart line breaking
+	Truncate        TruncateMode // Truncation mode when text exceeds MaxWidth
+	MaxLines        int          // 0 = unlimited; used with Truncate
+	Ellipsis        string       // Ellipsis string, defaults to "…"
 }
 
 // TextAlign specifies horizontal text alignment.

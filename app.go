@@ -23,6 +23,7 @@ import (
 	"github.com/kasuganosora/ui/render/gl"
 	"github.com/kasuganosora/ui/render/vulkan"
 	"github.com/kasuganosora/ui/icon/material"
+	uinet "github.com/kasuganosora/ui/net"
 	"github.com/kasuganosora/ui/widget"
 )
 
@@ -105,10 +106,11 @@ type App struct {
 	buf      *render.CommandBuffer
 
 	// Font
-	fontEngine   font.Engine
-	fontID       font.ID
-	glyphAtlas   *atlas.Atlas
-	textRenderer *textrender.Renderer
+	fontEngine      font.Engine
+	fontID          font.ID
+	fallbackFontIDs []font.ID
+	glyphAtlas      *atlas.Atlas
+	textRenderer    *textrender.Renderer
 
 	// Document
 	doc  *Document
@@ -192,6 +194,18 @@ func NewApp(opts AppOptions) (*App, error) {
 		a.fontID, _ = mgr.Register("Default", font.WeightRegular, font.StyleNormal, nil)
 	}
 
+	// Register symbol fallback fonts for glyphs not in the primary font.
+	// Segoe UI Symbol covers arrows, hearts, and other common Unicode symbols.
+	// NOTE: seguiemj.ttf (colored emoji) is intentionally excluded — colored CBDT/CBLC
+	// glyphs cannot be rendered correctly through the SDF text pipeline.
+	for _, fallbackPath := range []string{
+		`C:\Windows\Fonts\seguisym.ttf`,
+	} {
+		if fbID, err := mgr.RegisterFile("Symbol", font.WeightRegular, font.StyleNormal, fallbackPath); err == nil && fbID != font.InvalidFontID {
+			a.fallbackFontIDs = append(a.fallbackFontIDs, fbID)
+		}
+	}
+
 	dpi := a.backend.DPIScale()
 	a.fontEngine.SetDPIScale(dpi)
 
@@ -210,14 +224,17 @@ func NewApp(opts AppOptions) (*App, error) {
 	a.dispatch = core.NewDispatcher(a.tree)
 	a.cfg = widget.DefaultConfig()
 	a.cfg.TextRenderer = &textDrawerAdapter{
-		renderer: a.textRenderer,
-		fontID:   a.fontID,
-		engine:   a.fontEngine,
+		renderer:        a.textRenderer,
+		fontID:          a.fontID,
+		fallbackFontIDs: a.fallbackFontIDs,
+		engine:          a.fontEngine,
 	}
 	a.cfg.Window = a.win
 	a.cfg.Platform = a.plat
 	a.cfg.Backend = a.backend
 	a.cfg.IconRegistry = material.NewRegistry(a.backend)
+	// Create default network client for remote image loading.
+	a.cfg.NetClient = uinet.New(uinet.Options{})
 	a.buf = render.NewCommandBuffer()
 
 	return a, nil
@@ -311,6 +328,12 @@ func (a *App) SetTheme(t *theme.Theme) {
 
 	// Mark tree dirty so everything redraws
 	a.tree.MarkDirty(a.tree.Root())
+}
+
+// SetProxy configures the HTTP proxy for remote image loading.
+// Call before loading any images. Example: app.SetProxy("http://127.0.0.1:7890")
+func (a *App) SetProxy(proxyURL string) {
+	a.cfg.NetClient = uinet.New(uinet.Options{Proxy: proxyURL})
 }
 
 // Run starts the main loop. Blocks until the window is closed.
@@ -1060,25 +1083,28 @@ func isType[T any](w widget.Widget) bool {
 
 // NewTextDrawer creates a widget.TextDrawer from a textrender.Renderer.
 // Useful for tests that set up their own font pipeline.
-func NewTextDrawer(renderer *textrender.Renderer, fontID font.ID, engine font.Engine) widget.TextDrawer {
-	return &textDrawerAdapter{renderer: renderer, fontID: fontID, engine: engine}
+// Pass optional fallbackFontIDs to support glyphs missing from the primary font.
+func NewTextDrawer(renderer *textrender.Renderer, fontID font.ID, engine font.Engine, fallbackFontIDs ...font.ID) widget.TextDrawer {
+	return &textDrawerAdapter{renderer: renderer, fontID: fontID, fallbackFontIDs: fallbackFontIDs, engine: engine}
 }
 
 // textDrawerAdapter bridges textrender.Renderer to widget.TextDrawer.
 type textDrawerAdapter struct {
-	renderer *textrender.Renderer
-	fontID   font.ID
-	engine   font.Engine
+	renderer        *textrender.Renderer
+	fontID          font.ID
+	fallbackFontIDs []font.ID
+	engine          font.Engine
 }
 
 func (a *textDrawerAdapter) DrawText(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32) {
 	a.renderer.DrawText(buf, text, textrender.DrawOptions{
 		ShapeOpts: font.ShapeOptions{
-			FontID:   a.fontID,
-			FontSize: fontSize,
-			MaxWidth: maxWidth,
-			Truncate: font.TruncateChar,
-			MaxLines: 1,
+			FontID:          a.fontID,
+			FallbackFontIDs: a.fallbackFontIDs,
+			FontSize:        fontSize,
+			MaxWidth:        maxWidth,
+			Truncate:        font.TruncateChar,
+			MaxLines:        1,
 		},
 		OriginX: x,
 		OriginY: y,
@@ -1094,8 +1120,9 @@ func (a *textDrawerAdapter) LineHeight(fontSize float32) float32 {
 
 func (a *textDrawerAdapter) MeasureText(text string, fontSize float32) float32 {
 	m := a.renderer.Measure(text, font.ShapeOptions{
-		FontID:   a.fontID,
-		FontSize: fontSize,
+		FontID:          a.fontID,
+		FallbackFontIDs: a.fallbackFontIDs,
+		FontSize:        fontSize,
 	})
 	return m.Width
 }

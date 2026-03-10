@@ -114,35 +114,39 @@ func (d *Div) Draw(buf *render.CommandBuffer) {
 		}, 0, 1)
 	}
 
-	// Clip if scrollable
-	if d.scrollable {
+	// Clip if scrollable or overflow is hidden/scroll/auto
+	needsClip := d.scrollable ||
+		d.style.Overflow == layout.OverflowHidden ||
+		d.style.Overflow == layout.OverflowScroll ||
+		d.style.Overflow == layout.OverflowAuto
+	if needsClip {
 		buf.PushClip(bounds)
 	}
 
 	d.DrawChildren(buf)
 
-	if d.scrollable {
+	if needsClip {
 		buf.PopClip()
+	}
 
-		// Draw scrollbar if content overflows
-		if d.contentHeight > bounds.Height {
-			const barW = 4
-			trackX := bounds.X + bounds.Width - barW - 1
-			ratio := bounds.Height / d.contentHeight
-			thumbH := bounds.Height * ratio
-			if thumbH < 20 {
-				thumbH = 20
-			}
-			maxScroll := d.contentHeight - bounds.Height
-			thumbY := bounds.Y
-			if maxScroll > 0 {
-				thumbY += (bounds.Height - thumbH) * (d.scrollY / maxScroll)
-			}
-			buf.DrawRect(render.RectCmd{
-				Bounds:    uimath.NewRect(trackX, thumbY, barW, thumbH),
-				FillColor: uimath.ColorHex("#ffffff40"),
-				Corners:   uimath.CornersAll(barW / 2),
-			}, 0, 1)
+	// Draw scrollbar if content overflows
+	if d.scrollable && d.contentHeight > bounds.Height {
+		const barW = 4
+		trackX := bounds.X + bounds.Width - barW - 1
+		ratio := bounds.Height / d.contentHeight
+		thumbH := bounds.Height * ratio
+		if thumbH < 20 {
+			thumbH = 20
 		}
+		maxScroll := d.contentHeight - bounds.Height
+		thumbY := bounds.Y
+		if maxScroll > 0 {
+			thumbY += (bounds.Height - thumbH) * (d.scrollY / maxScroll)
+		}
+		buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(trackX, thumbY, barW, thumbH),
+			FillColor: uimath.ColorHex("#ffffff40"),
+			Corners:   uimath.CornersAll(barW / 2),
+		}, 0, 1)
 	}
 }

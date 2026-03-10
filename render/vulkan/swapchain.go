@@ -260,6 +260,12 @@ func ChooseSurfaceFormat(formats []SurfaceFormatKHR) SurfaceFormatKHR {
 			return f
 		}
 	}
+	// Prefer B8G8R8A8_UNORM as fallback (native format on most Windows GPUs)
+	for _, f := range formats {
+		if f.Format == FormatB8G8R8A8Unorm {
+			return f
+		}
+	}
 	return formats[0]
 }
 

@@ -118,9 +118,15 @@ func applyLayoutResults(tree *core.Tree, engine *layout.Engine, nodeID layout.No
 		scrollOffsetY = c.ScrollY()
 	}
 
-	// Handle scrollable Div widget
-	if d, ok := w.(*widget.Div); ok && d.IsScrollable() {
-		scrollOffsetY = d.ScrollY()
+	// Handle scrollable Div widget (explicit flag OR CSS overflow:scroll/auto)
+	if d, ok := w.(*widget.Div); ok {
+		ov := d.Style().Overflow
+		if d.IsScrollable() || ov == layout.OverflowScroll || ov == layout.OverflowAuto {
+			if result.ContentHeight > 0 {
+				d.SetContentHeight(result.ContentHeight)
+			}
+			scrollOffsetY = d.ScrollY()
+		}
 	}
 
 	// Recurse into children

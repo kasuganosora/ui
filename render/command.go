@@ -78,8 +78,9 @@ type ClipCmd struct {
 // CommandBuffer collects render commands for a frame.
 // This is an aggregate root - external code must use its methods.
 type CommandBuffer struct {
-	commands []Command
-	overlays []Command // rendered after all commands, without clip
+	commands  []Command
+	overlays  []Command // rendered after all commands, without clip
+	clipStack []uimath.Rect
 }
 
 // NewCommandBuffer creates an empty command buffer.
@@ -95,6 +96,7 @@ func (cb *CommandBuffer) Reset() {
 	cb.releaseAll()
 	cb.commands = cb.commands[:0]
 	cb.overlays = cb.overlays[:0]
+	cb.clipStack = cb.clipStack[:0]
 }
 
 // releaseAll returns all command structs to their pools.
@@ -169,8 +171,12 @@ func (cb *CommandBuffer) DrawImage(cmd ImageCmd, zOrder int32, opacity float32) 
 	})
 }
 
-// PushClip pushes a scissor rectangle.
+// PushClip pushes a scissor rectangle, intersecting with any active clip.
 func (cb *CommandBuffer) PushClip(bounds uimath.Rect) {
+	if len(cb.clipStack) > 0 {
+		bounds = cb.clipStack[len(cb.clipStack)-1].Intersection(bounds)
+	}
+	cb.clipStack = append(cb.clipStack, bounds)
 	cc := AcquireClipCmd()
 	cc.Bounds = bounds
 	cb.commands = append(cb.commands, Command{
@@ -179,10 +185,17 @@ func (cb *CommandBuffer) PushClip(bounds uimath.Rect) {
 	})
 }
 
-// PopClip resets the scissor to the full viewport (max bounds).
+// PopClip restores the scissor to the previous clip rect (or full viewport if none).
 func (cb *CommandBuffer) PopClip() {
+	if len(cb.clipStack) > 0 {
+		cb.clipStack = cb.clipStack[:len(cb.clipStack)-1]
+	}
 	cc := AcquireClipCmd()
-	cc.Bounds = uimath.NewRect(0, 0, 1e6, 1e6)
+	if len(cb.clipStack) > 0 {
+		cc.Bounds = cb.clipStack[len(cb.clipStack)-1]
+	} else {
+		cc.Bounds = uimath.NewRect(0, 0, 1e6, 1e6)
+	}
 	cb.commands = append(cb.commands, Command{
 		Type: CmdClip,
 		Clip: cc,

@@ -1,12 +1,15 @@
 package widget
 
 import (
+	"bytes"
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -121,7 +124,11 @@ func (img *Img) SetSrc(src string) {
 	}
 
 	img.state = ImgStateLoading
-	img.load()
+	if isRemoteURL(src) {
+		img.loadFromURL(src)
+	} else {
+		img.load()
+	}
 }
 
 // Play starts animated GIF playback.
@@ -178,7 +185,12 @@ func (img *Img) load() {
 }
 
 func (img *Img) loadGIF(f *os.File) {
-	g, err := gif.DecodeAll(f)
+	img.loadGIFFromReader(f)
+}
+
+// loadGIFFromReader is like loadGIF but reads from an io.Reader.
+func (img *Img) loadGIFFromReader(r io.Reader) {
+	g, err := gif.DecodeAll(r)
 	if err != nil {
 		img.setError(err)
 		return
@@ -255,6 +267,55 @@ func (img *Img) loadGIF(f *os.File) {
 		img.playing = true
 		img.lastUpdate = time.Now()
 	}
+}
+
+// loadFromURL fetches a remote URL or decodes a data: URL asynchronously.
+func (img *Img) loadFromURL(src string) {
+	nc := img.config.NetClient
+	if nc == nil {
+		img.setError(fmt.Errorf("net: no NetClient configured on Config"))
+		return
+	}
+	nc.FetchAsync(src, func(data []byte, err error) {
+		if err != nil {
+			img.errMsg = err.Error()
+			img.state = ImgStateError
+			if img.onError != nil {
+				img.onError(err)
+			}
+			img.tree.MarkDirty(img.id)
+			return
+		}
+		img.loadFromBytes(data, src)
+		img.tree.MarkDirty(img.id)
+	})
+}
+
+// loadFromBytes decodes image data from an in-memory byte slice.
+func (img *Img) loadFromBytes(data []byte, hint string) {
+	if isGIF(hint) || looksLikeGIF(data) {
+		img.loadGIFFromReader(bytes.NewReader(data))
+		return
+	}
+	decoded, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		img.setError(err)
+		return
+	}
+	bounds := decoded.Bounds()
+	rgba := image.NewRGBA(bounds)
+	draw.Draw(rgba, bounds, decoded, bounds.Min, draw.Src)
+	img.naturalW = bounds.Dx()
+	img.naturalH = bounds.Dy()
+	img.createTexture(rgba.Pix, img.naturalW, img.naturalH)
+}
+
+func isRemoteURL(src string) bool {
+	return len(src) > 7 && (src[:7] == "http://" || len(src) > 8 && src[:8] == "https://" || len(src) > 5 && src[:5] == "data:")
+}
+
+func looksLikeGIF(data []byte) bool {
+	return len(data) >= 6 && (string(data[:6]) == "GIF89a" || string(data[:6]) == "GIF87a")
 }
 
 func (img *Img) createTexture(pixels []byte, w, h int) {
