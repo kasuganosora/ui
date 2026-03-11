@@ -557,6 +557,7 @@ func (b *Backend) createSamplers() error {
 // Acquires the next drawable, creates a command buffer and render encoder.
 func (b *Backend) BeginFrame() {
 	if b.metalLayer == 0 {
+		fmt.Println("[METAL] BeginFrame: metalLayer is 0!")
 		return
 	}
 
@@ -566,6 +567,7 @@ func (b *Backend) BeginFrame() {
 	// Get next drawable
 	b.drawable = msgSend(b.metalLayer, selNextDrawable)
 	if b.drawable == 0 {
+		fmt.Println("[METAL] BeginFrame: drawable is nil!")
 		return
 	}
 
