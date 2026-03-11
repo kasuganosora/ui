@@ -32,6 +32,10 @@ var (
 	msgSendRectArgDisplay       func(obj id, sel SEL, rect NSRect, display bool)
 	msgSendPointArg             func(obj id, sel SEL, pt NSPoint)
 	msgSendInitTrackingAreaRect func(obj id, sel SEL, rect NSRect, options uint64, owner id, userInfo id) id
+	// msgSendFloat64Return is needed on BOTH arm64 and amd64:
+	// float64 return values go in xmm0 (amd64) / d0 (arm64), not in rax/x0.
+	// SyscallN only reads integer return registers, so it cannot capture float returns.
+	msgSendFloat64Return func(obj id, sel SEL) float64
 )
 
 // NSObject selectors
@@ -723,6 +727,7 @@ func init() {
 	purego.RegisterFunc(&msgSendRectArgDisplay, objc_msgSend)           // returns void → normal
 	purego.RegisterFunc(&msgSendPointArg, objc_msgSend)                 // returns void → normal
 	purego.RegisterFunc(&msgSendInitTrackingAreaRect, objc_msgSend)     // returns id (8 bytes) → normal
+	purego.RegisterFunc(&msgSendFloat64Return, objc_msgSend)           // returns float64 → reads from xmm0/d0
 
 	objc_getClass, err = purego.Dlsym(objc, "objc_getClass")
 	if err != nil {

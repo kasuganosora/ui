@@ -145,8 +145,11 @@ func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 		msgSendSizeArg(w.nswindow, selSetMaxSize, maxSize)
 	}
 
-	// Set opaque and background color (transparent)
-	msgSend(w.nswindow, selSetOpaque, 0)
+	// Set opaque and background color
+	msgSend(w.nswindow, selSetOpaque, 1)
+	// Set background color to white
+	whiteColor := msgSend(id(classNSColor), objcSelector("whiteColor"))
+	msgSend(w.nswindow, selSetBackgroundColor, uintptr(whiteColor))
 	
 	// Create tracking area for mouse enter/exit events
 	// NOTE: Disabled temporarily on darwin to avoid ObjC struct-call ABI issues in purego path.
@@ -270,8 +273,12 @@ func (w *Window) DPIScale() float32 {
 func (w *Window) SetVisible(visible bool) {
 	w.visible = visible
 	if visible {
+		// makeKeyAndOrderFront: makes the window the key window and orders it front.
 		msgSend(w.nswindow, selMakeKeyAndOrderFront, 0)
-		// Activate the application when showing the first window
+		// orderFrontRegardless forces the window to the front even if the app
+		// is not active (essential for non-bundle CLI apps on macOS).
+		msgSend(w.nswindow, objcSelector("orderFrontRegardless"))
+		// Activate the application so it becomes frontmost.
 		ActivateApplication()
 	} else {
 		msgSend(w.nswindow, selClose)
@@ -490,7 +497,7 @@ func (w *Window) queryDPI() float32 {
 		return 72.0 // Default macOS DPI
 	}
 	
-	scale := msgSendFloat64(screen, selBackingScaleFactor)
+	scale := msgSendFloat64Return(screen, selBackingScaleFactor)
 	return float32(scale * 72.0)
 }
 

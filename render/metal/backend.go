@@ -600,8 +600,8 @@ func (b *Backend) BeginFrame() {
 	msgSend(att0, selSetTexture, drawableTex)
 	msgSend(att0, selSetLoadAction, uintptr(MTLLoadActionClear))
 	msgSend(att0, selSetStoreAction, uintptr(MTLStoreActionStore))
-	// Clear color: transparent black (0,0,0,0)
-	msgSendClearColor(att0, selSetClearColor, 0.0, 0.0, 0.0, 0.0)
+	// Clear color: opaque white background (1,1,1,1)
+	msgSendClearColor(att0, selSetClearColor, 1.0, 1.0, 1.0, 1.0)
 
 	// Create render encoder
 	b.encoder = msgSend(b.cmdBuffer, selRenderCommandEncoderWithDescriptor, rpd)

@@ -64,9 +64,17 @@ func (p *Platform) Init() error {
 		return fmt.Errorf("darwin: failed to get NSApplication shared instance")
 	}
 
-	// Set activation policy to regular (shows dock icon and menu bar)
+	// Set activation policy to regular (shows dock icon and menu bar).
+	// MUST be done before finishLaunching for non-bundle CLI apps.
 	msgSend(p.app, selSetActivationPolicy, NSApplicationActivationPolicyRegular)
+
+	// finishLaunching performs the Cocoa bootstrap (menu bar, dock icon, etc.)
 	msgSend(p.app, objcSelector("finishLaunching"))
+
+	// Activate the application so it becomes the frontmost app.
+	// For non-bundle CLI processes, this is essential — without it,
+	// the app stays in the background and windows are invisible.
+	msgSend(p.app, selActivateIgnoringOtherApps, 1)
 
 	// Get the general pasteboard for clipboard operations
 	p.pasteboard = msgSend(id(objcClass("NSPasteboard")), selGeneralPasteboard)
@@ -321,8 +329,8 @@ func (p *Platform) convertAndStoreEvent(nsevent id) {
 		})
 
 	case NSEventTypeScrollWheel:
-		deltaX := msgSendFloat64(nsevent, selDeltaX)
-		deltaY := msgSendFloat64(nsevent, selDeltaY)
+		deltaX := msgSendFloat64Return(nsevent, selDeltaX)
+		deltaY := msgSendFloat64Return(nsevent, selDeltaY)
 		p.pushEvent(event.Event{
 			Type:      event.MouseWheel,
 			Timestamp: timestamp,
@@ -453,7 +461,7 @@ func (p *Platform) GetPrimaryMonitorDPI() float32 {
 	}
 	
 	// Get backing scale factor (1.0 = 72 DPI, 2.0 = 144 DPI for Retina)
-	scale := msgSendFloat64(screen, selBackingScaleFactor)
+	scale := msgSendFloat64Return(screen, selBackingScaleFactor)
 	
 	// Convert to DPI (macOS uses 72 as base DPI)
 	return float32(scale * 72.0)
