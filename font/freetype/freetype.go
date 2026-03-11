@@ -172,9 +172,9 @@ func (e *Engine) FontMetrics(id font.ID, size float32) font.Metrics {
 		return font.Metrics{}
 	}
 
-	ascender := fix26_6ToFloat(readI32(sizePtr, offSizeMetricsAscender))
-	descender := fix26_6ToFloat(readI32(sizePtr, offSizeMetricsDescender))
-	height := fix26_6ToFloat(readI32(sizePtr, offSizeMetricsHeight))
+	ascender := fix26_6ToFloat(readLong(sizePtr, offSizeMetricsAscender))
+	descender := fix26_6ToFloat(readLong(sizePtr, offSizeMetricsDescender))
+	height := fix26_6ToFloat(readLong(sizePtr, offSizeMetricsHeight))
 	unitsPerEM := float32(readU16(uintptr(entry.face), offFaceUnitsPerEM))
 
 	// FreeType returns physical pixels; convert to logical by dividing by dpiScale
@@ -237,11 +237,11 @@ func (e *Engine) GlyphMetrics(id font.ID, glyph font.GlyphID, size float32) font
 
 	s := e.dpiScale
 	m := font.GlyphMetrics{
-		Width:    fix26_6ToFloat(readI32(slot, offSlotMetricsWidth)) / s,
-		Height:   fix26_6ToFloat(readI32(slot, offSlotMetricsHeight)) / s,
-		BearingX: fix26_6ToFloat(readI32(slot, offSlotMetricsHoriBearingX)) / s,
-		BearingY: fix26_6ToFloat(readI32(slot, offSlotMetricsHoriBearingY)) / s,
-		Advance:  fix26_6ToFloat(readI32(slot, offSlotMetricsHoriAdvance)) / s,
+		Width:    fix26_6ToFloat(readLong(slot, offSlotMetricsWidth)) / s,
+		Height:   fix26_6ToFloat(readLong(slot, offSlotMetricsHeight)) / s,
+		BearingX: fix26_6ToFloat(readLong(slot, offSlotMetricsHoriBearingX)) / s,
+		BearingY: fix26_6ToFloat(readLong(slot, offSlotMetricsHoriBearingY)) / s,
+		Advance:  fix26_6ToFloat(readLong(slot, offSlotMetricsHoriAdvance)) / s,
 	}
 	e.metricsCache[cacheKey] = m
 	return m

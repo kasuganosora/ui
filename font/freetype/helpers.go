@@ -29,6 +29,13 @@ func readU8(base uintptr, offset uintptr) uint8 {
 	return *(*uint8)(unsafe.Pointer(base + offset))
 }
 
+// readLong reads an FT_Pos/FT_Long value at base+offset (platform 'long' size)
+// and returns it as int32. On LP64 (darwin/linux 64-bit) 'long' is 8 bytes.
+func readLong(base uintptr, offset uintptr) int32 {
+	v := *(*int64)(unsafe.Pointer(base + offset))
+	return int32(v)
+}
+
 // fix26_6ToFloat converts a FreeType 26.6 fixed-point value to float32.
 func fix26_6ToFloat(v int32) float32 {
 	return float32(v) / 64.0
