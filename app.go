@@ -316,12 +316,18 @@ func (a *App) Run() error {
 	var lastW, lastH int
 	frameCount := 0
 	fpsStart := time.Now()
+	debugFrameN := 0
 
 	renderFrame := func() {
 		fw, fh := a.win.FramebufferSize()
 		if fw != lastW || fh != lastH {
 			a.backend.Resize(fw, fh)
 			lastW, lastH = fw, fh
+		}
+		if debugFrameN < 5 {
+			lw, lh := a.win.Size()
+			fmt.Printf("[DEBUG frame %d] fb=%dx%d logical=%dx%d dpi=%.2f\n", debugFrameN, fw, fh, lw, lh, a.win.DPIScale())
+			debugFrameN++
 		}
 
 		// Skip rendering while a modal resize drag is in progress (win32-specific).
