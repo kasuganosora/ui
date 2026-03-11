@@ -63,10 +63,7 @@ func initWindowWithContentRect(rect NSRect, styleMask uint64) id {
 	return msgSendInitWindowRect(
 		alloced,
 		selInitWithContentRect,
-		rect.Origin.X,
-		rect.Origin.Y,
-		rect.Size.Width,
-		rect.Size.Height,
+		rect,
 		styleMask,
 		NSBackingStoreBuffered,
 		false, // defer = NO

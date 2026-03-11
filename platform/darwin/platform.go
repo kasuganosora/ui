@@ -208,10 +208,11 @@ func (p *Platform) convertAndStoreEvent(nsevent id) {
 	timestamp := p.currentTimestamp()
 
 	// Get location in window
+	// locationInWindow returns NSPoint (2× float64) in floating-point registers
+	// (xmm0+xmm1 on amd64, d0+d1 on arm64). Must use typed wrapper, not SyscallN.
 	var location NSPoint
 	if w != nil {
-		loc := msgSend(nsevent, selLocationInWindow)
-		location = pointFromPtr(unsafe.Pointer(&loc))
+		location = msgSendPointReturn(nsevent, selLocationInWindow)
 		// Flip Y coordinate (Cocoa has Y=0 at bottom, we want Y=0 at top)
 		location.Y = float64(w.height) - location.Y
 	}

@@ -25,7 +25,11 @@ var (
 
 // Typed objc_msgSend wrappers for methods with floating-point / struct arguments.
 var (
-	msgSendInitWindowRect       func(obj id, sel SEL, x, y, width, height float64, styleMask uint64, backing uint64, deferFlag bool) id
+	// initWithContentRect:styleMask:backing:defer:
+	// NSRect (32 bytes) is passed as a struct parameter — it MUST be kept as a struct
+	// so purego places it on the stack (amd64) or in contiguous FP regs (arm64 HFA).
+	// Splitting it into 4 float64 would put them in xmm0-xmm3, which is wrong for amd64.
+	msgSendInitWindowRect func(obj id, sel SEL, rect NSRect, styleMask uint64, backing uint64, deferFlag bool) id
 	msgSendSizeArg              func(obj id, sel SEL, size NSSize)
 	msgSendRectReturn           func(obj id, sel SEL) NSRect
 	msgSendRectArgReturnID      func(obj id, sel SEL, rect NSRect) NSRect
@@ -36,6 +40,10 @@ var (
 	// float64 return values go in xmm0 (amd64) / d0 (arm64), not in rax/x0.
 	// SyscallN only reads integer return registers, so it cannot capture float returns.
 	msgSendFloat64Return func(obj id, sel SEL) float64
+	// msgSendPointReturn returns NSPoint (2× float64, 16 bytes).
+	// On amd64: returned in xmm0 (X) + xmm1 (Y). On arm64: d0 + d1.
+	// SyscallN only reads rax, so a typed wrapper is required.
+	msgSendPointReturn func(obj id, sel SEL) NSPoint
 )
 
 // NSObject selectors
@@ -728,6 +736,7 @@ func init() {
 	purego.RegisterFunc(&msgSendPointArg, objc_msgSend)                 // returns void → normal
 	purego.RegisterFunc(&msgSendInitTrackingAreaRect, objc_msgSend)     // returns id (8 bytes) → normal
 	purego.RegisterFunc(&msgSendFloat64Return, objc_msgSend)           // returns float64 → reads from xmm0/d0
+	purego.RegisterFunc(&msgSendPointReturn, objc_msgSend)             // returns NSPoint (16 bytes) → reads from xmm0+xmm1
 
 	objc_getClass, err = purego.Dlsym(objc, "objc_getClass")
 	if err != nil {
