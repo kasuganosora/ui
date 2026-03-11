@@ -12,22 +12,19 @@ import (
 	"github.com/kasuganosora/ui/core"
 	"github.com/kasuganosora/ui/font"
 	"github.com/kasuganosora/ui/font/atlas"
-	"github.com/kasuganosora/ui/font/freetype"
 	"github.com/kasuganosora/ui/font/textrender"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/platform"
-	"github.com/kasuganosora/ui/platform/win32"
 	"github.com/kasuganosora/ui/render"
 	"github.com/kasuganosora/ui/render/capture"
-	"github.com/kasuganosora/ui/render/vulkan"
 	"github.com/kasuganosora/ui/widget"
 )
 
 // feedTestEnv holds a full platform+renderer test environment for feed tests.
 type feedTestEnv struct {
-	plat         *win32.Platform
+	plat         platform.Platform
 	win          platform.Window
-	backend      *vulkan.Backend
+	backend      render.Backend
 	tree         *core.Tree
 	cfg          *widget.Config
 	buf          *render.CommandBuffer
@@ -39,7 +36,7 @@ type feedTestEnv struct {
 func newFeedTestEnv(t *testing.T, width, height int) *feedTestEnv {
 	t.Helper()
 
-	plat := win32.New()
+	plat := ui.NewPlatform()
 	if err := plat.Init(); err != nil {
 		t.Fatalf("platform init: %v", err)
 	}
@@ -57,29 +54,29 @@ func newFeedTestEnv(t *testing.T, width, height int) *feedTestEnv {
 		t.Fatalf("create window: %v", err)
 	}
 
-	backend := vulkan.New()
-	if err := backend.Init(win); err != nil {
+	backend, err := ui.CreateBackend(ui.BackendAuto, win)
+	if err != nil {
 		win.Destroy()
 		plat.Terminate()
-		t.Fatalf("vulkan init: %v", err)
+		t.Fatalf("backend init: %v", err)
 	}
 	fw, fh := win.FramebufferSize()
 	backend.Resize(fw, fh)
 
 	var fontEngine font.Engine
-	if ftEngine, err := freetype.New(); err == nil {
-		fontEngine = ftEngine
+	if fe := ui.NewFontEngine(); fe != nil {
+		fontEngine = fe
 	} else {
 		fontEngine = ui.NewMockEngine()
 	}
 	fontMgr := font.NewManager(fontEngine)
-	fontID, _ := fontMgr.RegisterFile("Default", font.WeightRegular, font.StyleNormal, `C:\Windows\Fonts\msyh.ttc`)
+	fontID, _ := fontMgr.RegisterFile("Default", font.WeightRegular, font.StyleNormal, ui.DefaultFont())
 	if fontID == font.InvalidFontID {
 		fontID, _ = fontMgr.Register("Default", font.WeightRegular, font.StyleNormal, nil)
 	}
 	// Register symbol fallback fonts for glyphs missing from the primary font.
 	var fallbackIDs []font.ID
-	for _, fbPath := range []string{`C:\Windows\Fonts\seguisym.ttf`} {
+	for _, fbPath := range ui.FallbackFonts() {
 		if fbID, err := fontMgr.RegisterFile("Symbol", font.WeightRegular, font.StyleNormal, fbPath); err == nil && fbID != font.InvalidFontID {
 			fallbackIDs = append(fallbackIDs, fbID)
 		}
@@ -277,8 +274,6 @@ func TestVisualFeedTimeline(t *testing.T) {
 		}
 	}
 
-	// Debug: check what style the root has
-	// Debug: check what style the root has
 	rs := root.Style()
 	t.Logf("=== Root style: display=%v W=%v H=%v ===", rs.Display, rs.Width, rs.Height)
 	if len(root.Children()) > 0 {

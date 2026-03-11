@@ -41,20 +41,20 @@ func platformCreateBackend(bt BackendType, win platform.Window) (render.Backend,
 			return nil, fmt.Errorf("vulkan init: %w", err)
 		}
 		return b, nil
-	default: // BackendAuto: try Metal first, then Vulkan/MoltenVK
-		b := metal.New()
-		if err := b.Init(win); err == nil {
-			return b, nil
-		}
+	default: // BackendAuto: VK → Metal
 		v := vulkan.New()
-		if err := v.Init(win); err != nil {
+		if err := v.Init(win); err == nil {
+			return v, nil
+		}
+		b := metal.New()
+		if err := b.Init(win); err != nil {
 			return nil, fmt.Errorf(
-				"no backend available on macOS (tried metal, vulkan/MoltenVK): %w\n"+
-					"hint: update macOS (Metal requires 10.11+) or install MoltenVK (brew install molten-vk)",
+				"no backend available on macOS (tried vulkan/MoltenVK, metal): %w\n"+
+					"hint: install MoltenVK (brew install molten-vk) or update macOS (Metal requires 10.11+)",
 				err,
 			)
 		}
-		return v, nil
+		return b, nil
 	}
 }
 

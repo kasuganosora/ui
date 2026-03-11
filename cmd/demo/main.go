@@ -1,5 +1,3 @@
-//go:build windows
-
 // Demo showcases the GoUI widget library in a component documentation layout.
 // Click a sidebar item to view that component's demo.
 // Run: go run ./cmd/demo

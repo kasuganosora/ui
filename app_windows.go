@@ -22,7 +22,7 @@ func newPlatform() platform.Platform {
 }
 
 // platformCreateBackend creates a render.Backend for Windows.
-// Auto mode tries Vulkan first, then falls back to DX11.
+// Auto mode: VK → GL → DX11.
 func platformCreateBackend(bt BackendType, win platform.Window) (render.Backend, error) {
 	switch bt {
 	case BackendDX9:
@@ -49,14 +49,18 @@ func platformCreateBackend(bt BackendType, win platform.Window) (render.Backend,
 			return nil, fmt.Errorf("gl init: %w", err)
 		}
 		return b, nil
-	default: // BackendAuto: try Vulkan, fall back to DX11
-		b := vulkan.New()
-		if err := b.Init(win); err == nil {
-			return b, nil
+	default: // BackendAuto: VK → GL → DX11
+		vk := vulkan.New()
+		if err := vk.Init(win); err == nil {
+			return vk, nil
+		}
+		g := gl.New()
+		if err := g.Init(win); err == nil {
+			return g, nil
 		}
 		d := dx11.New()
 		if err := d.Init(win); err != nil {
-			return nil, fmt.Errorf("no backend available (tried vulkan, dx11): %w", err)
+			return nil, fmt.Errorf("no backend available (tried vulkan, gl, dx11): %w", err)
 		}
 		return d, nil
 	}

@@ -1,5 +1,3 @@
-//go:build windows
-
 package main
 
 import (
@@ -14,22 +12,19 @@ import (
 	"github.com/kasuganosora/ui/core"
 	"github.com/kasuganosora/ui/font"
 	"github.com/kasuganosora/ui/font/atlas"
-	"github.com/kasuganosora/ui/font/freetype"
 	"github.com/kasuganosora/ui/font/textrender"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/platform"
-	"github.com/kasuganosora/ui/platform/win32"
 	"github.com/kasuganosora/ui/render"
 	"github.com/kasuganosora/ui/render/capture"
-	"github.com/kasuganosora/ui/render/vulkan"
 	"github.com/kasuganosora/ui/widget"
 )
 
 // testEnv holds a full platform+renderer test environment.
 type testEnv struct {
-	plat         *win32.Platform
+	plat         platform.Platform
 	win          platform.Window
-	backend      *vulkan.Backend
+	backend      render.Backend
 	tree         *core.Tree
 	cfg          *widget.Config
 	buf          *render.CommandBuffer
@@ -43,7 +38,7 @@ type testEnv struct {
 func newTestEnv(t *testing.T, width, height int) *testEnv {
 	t.Helper()
 
-	plat := win32.New()
+	plat := ui.NewPlatform()
 	if err := plat.Init(); err != nil {
 		t.Fatalf("platform init: %v", err)
 	}
@@ -61,24 +56,24 @@ func newTestEnv(t *testing.T, width, height int) *testEnv {
 		t.Fatalf("create window: %v", err)
 	}
 
-	backend := vulkan.New()
-	if err := backend.Init(win); err != nil {
+	backend, err := ui.CreateBackend(ui.BackendAuto, win)
+	if err != nil {
 		win.Destroy()
 		plat.Terminate()
-		t.Fatalf("vulkan init: %v", err)
+		t.Fatalf("backend init: %v", err)
 	}
 
 	fw, fh := win.FramebufferSize()
 	backend.Resize(fw, fh)
 
 	var fontEngine font.Engine
-	if ftEngine, err := freetype.New(); err == nil {
-		fontEngine = ftEngine
+	if fe := ui.NewFontEngine(); fe != nil {
+		fontEngine = fe
 	} else {
 		fontEngine = ui.NewMockEngine()
 	}
 	fontMgr := font.NewManager(fontEngine)
-	fontID, _ := fontMgr.RegisterFile("Default", font.WeightRegular, font.StyleNormal, `C:\Windows\Fonts\msyh.ttc`)
+	fontID, _ := fontMgr.RegisterFile("Default", font.WeightRegular, font.StyleNormal, ui.DefaultFont())
 	if fontID == font.InvalidFontID {
 		fontID, _ = fontMgr.Register("Default", font.WeightRegular, font.StyleNormal, nil)
 	}
@@ -318,21 +313,12 @@ func TestVisualDemoFullUI(t *testing.T) {
 	}
 
 	dumpTree(t, env.tree)
-	// Only check depth ≤2: deeper elements (sidebar items, section content)
-	// don't get bounds from AutoLayout's simple block positioning.
 	verifyAllVisibleHaveBounds(t, env.tree, 2)
-	// Note: verifyNoOverlappingSiblings skipped — AutoLayout uses simple block
-	// positioning and doesn't handle flex-direction:row, so flex children overlap.
-	// The real layout engine handles this correctly at runtime.
 
 	_, img := env.screenshot(t, "demo_full_ui")
 	verifyNotUniform(t, img, "demo_full_ui")
 
 	w := img.Bounds().Dx()
-	// Note: AutoLayout does simple block positioning and doesn't handle deeply
-	// nested flex containers (sidebar/content), so most inner elements get 0x0
-	// bounds. The header and top-level containers still render, so just verify
-	// the image is not uniform (i.e. something rendered).
 	topColors := countDistinctColors(img, 0, 0, w, 60)
 	t.Logf("distinct colors in top 60px: %d", topColors)
 	if topColors < 2 {
@@ -367,7 +353,6 @@ func TestVisualButtonRendering(t *testing.T) {
 		}
 		nc := countDistinctColors(img, rx, ry, min(rw, img.Bounds().Dx()-rx), min(rh, img.Bounds().Dy()-ry))
 		if nc < 2 {
-			// Text-variant sidebar buttons may render as single color
 			t.Logf("button %d %q: only %d color(s)", id, elem.TextContent(), nc)
 		}
 		return true
@@ -417,10 +402,8 @@ func TestVisualGridColors(t *testing.T) {
 
 	_, img := env.screenshot(t, "grid_colors")
 
-	// Verify the screenshot is not uniform — content was rendered.
 	w := img.Bounds().Dx()
 	verifyNotUniform(t, img, "grid_colors")
-	// Check top region (header area) which AutoLayout can position
 	nc := countDistinctColors(img, 0, 0, w, 60)
 	t.Logf("top region colors: %d", nc)
 	if nc < 2 {
@@ -693,7 +676,6 @@ func TestVisualListWidget(t *testing.T) {
 	tree := env.tree
 	cfg := env.cfg
 
-	// Create a List with 3 items that have descriptions and actions
 	l := widget.NewList(tree, cfg)
 	l.SetItems([]widget.ListItem{
 		{Title: "列表主内容", Description: "列表内容列表内容列表内容", Actions: []string{"操作1", "操作2", "操作3"}},
@@ -706,7 +688,6 @@ func TestVisualListWidget(t *testing.T) {
 	w, h := float32(env.width), float32(env.height)
 	tree.SetLayout(tree.Root(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, w, h)})
 
-	// List has 3 items with descriptions → effectiveItemHeight = 64, total = 192
 	totalH := l.TotalHeight()
 	t.Logf("List TotalHeight: %.0f", totalH)
 	if totalH < 180 {
@@ -714,7 +695,6 @@ func TestVisualListWidget(t *testing.T) {
 	}
 	tree.SetLayout(l.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(10, 10, w-20, totalH)})
 
-	// Render one frame
 	env.plat.PollEvents()
 	env.backend.BeginFrame()
 	env.textRenderer.BeginFrame()
@@ -726,7 +706,6 @@ func TestVisualListWidget(t *testing.T) {
 	_, img := env.screenshot(t, "list_widget")
 	verifyNotUniform(t, img, "list_widget")
 
-	// Verify 3 rows are rendered: check for content in top, middle, and bottom thirds
 	thirdH := img.Bounds().Dy() / 3
 	topColors := countDistinctColors(img, 10, 10, img.Bounds().Dx()-20, thirdH)
 	midColors := countDistinctColors(img, 10, thirdH, img.Bounds().Dx()-20, thirdH)

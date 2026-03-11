@@ -359,7 +359,7 @@ func (a *App) Run() error {
 	// Draw DevTools element highlight on top of everything else.
 	if a.devtools != nil {
 		a.devtools.DrawOverlay(a.buf)
-		a.devtools.DrawOverlayLabel(a.buf, a.textRenderer)
+		a.devtools.DrawOverlayLabel(a.buf, a.textRenderer, a.fontID)
 	}
 
 		a.textRenderer.Upload()
@@ -1119,6 +1119,29 @@ func (a *textDrawerAdapter) MeasureText(text string, fontSize float32) float32 {
 
 // NewMockEngine creates a fallback font engine for testing when FreeType is unavailable.
 func NewMockEngine() font.Engine { return newMockEngine() }
+
+// --- Exported platform factory functions ---
+// These allow tests and tools to auto-select the correct platform/backend
+// without hard-coding platform-specific imports.
+
+// NewPlatform creates the platform implementation for the current OS.
+func NewPlatform() platform.Platform { return newPlatform() }
+
+// CreateBackend creates a render.Backend for the given BackendType.
+// Use BackendAuto to auto-select the best available backend.
+func CreateBackend(bt BackendType, win platform.Window) (render.Backend, error) {
+	return platformCreateBackend(bt, win)
+}
+
+// NewFontEngine creates a font engine for the current platform.
+// Returns nil if the platform font engine (e.g. FreeType) is unavailable.
+func NewFontEngine() font.Engine { return platformNewFontEngine() }
+
+// DefaultFont returns the path to the default system font for the current OS.
+func DefaultFont() string { return platformDefaultFont() }
+
+// FallbackFonts returns additional fallback font paths for symbol glyphs.
+func FallbackFonts() []string { return platformFallbackFonts() }
 
 // mockEngine is a fallback font engine when FreeType is unavailable.
 type mockEngine struct {
