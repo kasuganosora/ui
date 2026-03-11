@@ -1,5 +1,3 @@
-//go:build windows
-
 // Feed Timeline Demo — A Twitter/X-style feed to showcase GoUI's complex UI capabilities.
 //
 // Demonstrates:

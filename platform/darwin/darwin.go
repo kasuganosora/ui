@@ -7,17 +7,31 @@
 package darwin
 
 import (
-	"github.com/ebitengine/purego"
+	"runtime"
 	"unsafe"
+
+	"github.com/ebitengine/purego"
 )
 
 // Foundation Framework symbols
 var (
 	objc_msgSend        uintptr
+	objc_msgSend_stret  uintptr // amd64-only: for struct returns > 16 bytes
 	objc_getClass       uintptr
 	sel_registerName    uintptr
 	class_getName       uintptr
 	object_getClass     uintptr
+)
+
+// Typed objc_msgSend wrappers for methods with floating-point / struct arguments.
+var (
+	msgSendInitWindowRect       func(obj id, sel SEL, x, y, width, height float64, styleMask uint64, backing uint64, deferFlag bool) id
+	msgSendSizeArg              func(obj id, sel SEL, size NSSize)
+	msgSendRectReturn           func(obj id, sel SEL) NSRect
+	msgSendRectArgReturnID      func(obj id, sel SEL, rect NSRect) NSRect
+	msgSendRectArgDisplay       func(obj id, sel SEL, rect NSRect, display bool)
+	msgSendPointArg             func(obj id, sel SEL, pt NSPoint)
+	msgSendInitTrackingAreaRect func(obj id, sel SEL, rect NSRect, options uint64, owner id, userInfo id) id
 )
 
 // NSObject selectors
@@ -620,17 +634,55 @@ func sizeFromPtr(ptr unsafe.Pointer) NSSize {
 
 var foundationLoaded bool
 
-// ensureFoundation loads Foundation framework if not already loaded.
-// This is called lazily when creating windows, not in init().
+// ensureFoundation loads required macOS frameworks and primes Objective-C class cache.
+// This is called lazily from platform init.
 func ensureFoundation() {
 	if foundationLoaded {
 		return
 	}
-	_, err := purego.Dlopen("/System/Library/Frameworks/Foundation.framework/Foundation", purego.RTLD_LAZY|purego.RTLD_GLOBAL)
-	if err != nil {
-		// Foundation framework load failed, but continue
-		// Classes will return nil, which callers should handle
+
+	// Load Foundation for NSString/NSLocale/... symbols.
+	_, _ = purego.Dlopen("/System/Library/Frameworks/Foundation.framework/Foundation", purego.RTLD_LAZY|purego.RTLD_GLOBAL)
+	_, _ = purego.Dlopen("/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation", purego.RTLD_LAZY|purego.RTLD_GLOBAL)
+	_, _ = purego.Dlopen("Foundation", purego.RTLD_LAZY|purego.RTLD_GLOBAL)
+
+	// Load AppKit for NSApplication/NSWindow/... symbols.
+	appKitHandle, _ := purego.Dlopen("/System/Library/Frameworks/AppKit.framework/AppKit", purego.RTLD_LAZY|purego.RTLD_GLOBAL)
+	if appKitHandle == 0 {
+		appKitHandle, _ = purego.Dlopen("/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit", purego.RTLD_LAZY|purego.RTLD_GLOBAL)
 	}
+	if appKitHandle == 0 {
+		appKitHandle, _ = purego.Dlopen("/System/Library/Frameworks/Cocoa.framework/Cocoa", purego.RTLD_LAZY|purego.RTLD_GLOBAL)
+	}
+	if appKitHandle == 0 {
+		appKitHandle, _ = purego.Dlopen("AppKit", purego.RTLD_LAZY|purego.RTLD_GLOBAL)
+	}
+	if appKitHandle == 0 {
+		appKitHandle, _ = purego.Dlopen("Cocoa", purego.RTLD_LAZY|purego.RTLD_GLOBAL)
+	}
+
+	// In command-line processes, this helps initialize AppKit before sharedApplication.
+	if appKitHandle != 0 {
+		if nsApplicationLoad, err := purego.Dlsym(appKitHandle, "NSApplicationLoad"); err == nil && nsApplicationLoad != 0 {
+			purego.SyscallN(nsApplicationLoad)
+		}
+	}
+
+	// Prime commonly used Cocoa classes to avoid nil class handles at call sites.
+	classNSApplication = objcClass("NSApplication")
+	classNSWindow = objcClass("NSWindow")
+	classNSView = objcClass("NSView")
+	classNSString = objcClass("NSString")
+	classNSEvent = objcClass("NSEvent")
+	classNSMenu = objcClass("NSMenu")
+	classNSMenuItem = objcClass("NSMenuItem")
+	classNSCursor = objcClass("NSCursor")
+	classNSPasteboard = objcClass("NSPasteboard")
+	classNSScreen = objcClass("NSScreen")
+	classNSLocale = objcClass("NSLocale")
+	classNSTrackingArea = objcClass("NSTrackingArea")
+	classNSColor = objcClass("NSColor")
+
 	foundationLoaded = true
 }
 
@@ -646,6 +698,32 @@ func init() {
 	if err != nil {
 		panic("failed to load objc_msgSend: " + err.Error())
 	}
+
+	// On amd64, struct returns > 16 bytes require objc_msgSend_stret.
+	// On arm64, objc_msgSend handles all struct sizes — stret doesn't exist.
+	if runtime.GOARCH == "amd64" {
+		objc_msgSend_stret, err = purego.Dlsym(objc, "objc_msgSend_stret")
+		if err != nil {
+			panic("failed to load objc_msgSend_stret: " + err.Error())
+		}
+	}
+
+	// Choose the correct entry point for methods returning NSRect (32 bytes > 16).
+	// On amd64: objc_msgSend_stret; on arm64: objc_msgSend.
+	msgSendStretOrNormal := objc_msgSend
+	if runtime.GOARCH == "amd64" {
+		msgSendStretOrNormal = objc_msgSend_stret
+	}
+
+	// Register typed wrappers for methods with float/struct arguments.
+	purego.RegisterFunc(&msgSendInitWindowRect, objc_msgSend)           // returns id (8 bytes) → normal
+	purego.RegisterFunc(&msgSendSizeArg, objc_msgSend)                  // returns void → normal
+	purego.RegisterFunc(&msgSendRectReturn, msgSendStretOrNormal)       // returns NSRect (32 bytes) → stret on amd64
+	purego.RegisterFunc(&msgSendRectArgReturnID, msgSendStretOrNormal)  // returns NSRect (32 bytes) → stret on amd64
+	purego.RegisterFunc(&msgSendRectArgDisplay, objc_msgSend)           // returns void → normal
+	purego.RegisterFunc(&msgSendPointArg, objc_msgSend)                 // returns void → normal
+	purego.RegisterFunc(&msgSendInitTrackingAreaRect, objc_msgSend)     // returns id (8 bytes) → normal
+
 	objc_getClass, err = purego.Dlsym(objc, "objc_getClass")
 	if err != nil {
 		panic("failed to load objc_getClass: " + err.Error())
@@ -807,19 +885,19 @@ func init() {
 
 // RunLoop runs the NSApplication main run loop (called from platform.go)
 func RunLoop() {
-	app := msgSend(id(classNSApplication), selSharedApplication)
+	app := msgSend(id(objcClass("NSApplication")), selSharedApplication)
 	msgSend(app, selRun)
 }
 
 // StopApplication stops the NSApplication run loop
 func StopApplication() {
-	app := msgSend(id(classNSApplication), selSharedApplication)
+	app := msgSend(id(objcClass("NSApplication")), selSharedApplication)
 	msgSend(app, selTerminate, 0)
 }
 
 // ActivateApplication activates the application and brings it to front
 func ActivateApplication() {
-	app := msgSend(id(classNSApplication), selSharedApplication)
+	app := msgSend(id(objcClass("NSApplication")), selSharedApplication)
 	// Set activation policy to regular (dock icon, menu bar)
 	msgSend(app, selSetActivationPolicy, NSApplicationActivationPolicyRegular)
 	// Activate the app

@@ -1008,10 +1008,15 @@ func (b *Backend) setScissor(clip *render.ClipCmd) {
 		sh = b.height - sy
 	}
 
-	// MTLScissorRect: {x, y, width, height uint64}
-	// Pass as 4 separate uintptr args after selector
-	msgSend(b.encoder, selSetScissorRect,
-		uintptr(sx), uintptr(sy), uintptr(sw), uintptr(sh))
+	// MTLScissorRect: {x, y, width, height} — 32 bytes struct
+	// Must use typed wrapper because struct > 16 bytes on amd64.
+	scissor := MTLScissorRect{
+		X:      uintptr(sx),
+		Y:      uintptr(sy),
+		Width:  uintptr(sw),
+		Height: uintptr(sh),
+	}
+	msgSendSetScissorRect(b.encoder, selSetScissorRect, scissor)
 }
 
 // CreateTexture implements render.Backend.
@@ -1058,11 +1063,16 @@ func (b *Backend) CreateTexture(desc render.TextureDesc) (render.TextureHandle, 
 	// Upload initial data if provided
 	if len(desc.Data) > 0 {
 		bytesPerRow := bytesPerRowForFormat(desc.Format, desc.Width)
-		// MTLRegion: {origin: {x,y,z}, size: {w,h,d}} — 6 uint64 values
+		region := MTLRegion{
+			Origin: MTLOrigin{X: 0, Y: 0, Z: 0},
+			Size:   MTLSize{Width: uintptr(desc.Width), Height: uintptr(desc.Height), Depth: 1},
+		}
 		// replaceRegion:mipmapLevel:withBytes:bytesPerRow:
-		msgSend(tex, selReplaceRegion,
-			0, 0, 0, // origin x,y,z
-			uintptr(desc.Width), uintptr(desc.Height), 1, // size w,h,d
+		// MTLRegion (48 bytes) MUST be passed via typed wrapper — SyscallN would
+		// break the ABI by splitting struct fields across registers instead of
+		// laying them contiguously on the stack (System V AMD64 ABI requirement
+		// for structs > 16 bytes).
+		msgSendReplaceRegion(tex, selReplaceRegion, region,
 			0, // mipmapLevel
 			uintptr(unsafe.Pointer(&desc.Data[0])),
 			uintptr(bytesPerRow),
@@ -1101,11 +1111,12 @@ func (b *Backend) UpdateTexture(handle render.TextureHandle, region uimath.Rect,
 
 	bytesPerRow := bytesPerRowForFormat(mt.format, rw)
 
+	mtlRegion := MTLRegion{
+		Origin: MTLOrigin{X: uintptr(rx), Y: uintptr(ry), Z: 0},
+		Size:   MTLSize{Width: uintptr(rw), Height: uintptr(rh), Depth: 1},
+	}
 	// replaceRegion:mipmapLevel:withBytes:bytesPerRow:
-	// MTLRegion origin(x,y,z) size(w,h,d), then mipLevel, bytes ptr, bytesPerRow
-	msgSend(mt.tex, selReplaceRegion,
-		uintptr(rx), uintptr(ry), 0, // origin x,y,z
-		uintptr(rw), uintptr(rh), 1, // size w,h,d
+	msgSendReplaceRegion(mt.tex, selReplaceRegion, mtlRegion,
 		0, // mipmapLevel
 		uintptr(unsafe.Pointer(&data[0])),
 		uintptr(bytesPerRow),

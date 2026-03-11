@@ -3,8 +3,6 @@
 package darwin
 
 import (
-	"unsafe"
-
 	"github.com/kasuganosora/ui/event"
 )
 
@@ -66,9 +64,11 @@ func (w *Window) selectedRange() NSRange {
 func (w *Window) firstRectForCharacterRange() NSRect {
 	// Convert IME position to screen coordinates
 	// The IME position is in window coordinates
-	var contentRect NSRect
-	msgSendPtr(w.nswindow, objcSelector("contentRectForFrameRect:"), unsafe.Pointer(&contentRect),
-		uintptr(msgSend(w.nswindow, objcSelector("frame"))))
+	contentRect := msgSendRectArgReturnID(
+		w.nswindow,
+		objcSelector("contentRectForFrameRect:"),
+		msgSendRectReturn(w.nswindow, selFrame),
+	)
 
 	// IME rect in screen coordinates
 	screenX := contentRect.Origin.X + float64(w.imeX)

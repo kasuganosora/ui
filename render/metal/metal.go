@@ -13,6 +13,33 @@ import (
 // id is an Objective-C object pointer (alias for uintptr).
 type id = uintptr
 
+// ---- Metal struct types (matching C layout) ----
+
+// MTLOrigin matches the C struct: {uint64, uint64, uint64}.
+type MTLOrigin struct {
+	X, Y, Z uintptr
+}
+
+// MTLSize matches the C struct: {uint64, uint64, uint64}.
+type MTLSize struct {
+	Width, Height, Depth uintptr
+}
+
+// MTLRegion matches the C struct: {MTLOrigin, MTLSize} — 48 bytes on 64-bit.
+// This is a large struct (> 16 bytes) so it MUST be passed via purego.RegisterFunc
+// typed wrappers, not through raw SyscallN (which would break the System V AMD64 ABI
+// by placing struct fields in registers instead of on the stack).
+type MTLRegion struct {
+	Origin MTLOrigin
+	Size   MTLSize
+}
+
+// MTLScissorRect matches the C struct: {uint64, uint64, uint64, uint64} — 32 bytes.
+// Also > 16 bytes, requires typed wrapper on amd64.
+type MTLScissorRect struct {
+	X, Y, Width, Height uintptr
+}
+
 // ---- Library handles ----
 var (
 	objc_msgSend              uintptr
@@ -24,6 +51,9 @@ var (
 // ---- Typed function registrations for float/struct arguments ----
 // These are needed on ARM64 where float args go in FP registers,
 // not integer registers, so plain SyscallN won't work.
+// They are ALSO needed on AMD64 for methods with struct parameters > 16 bytes,
+// because SyscallN treats each field as a separate integer arg, but the C ABI
+// requires large structs to be laid out contiguously on the stack.
 var (
 	// msgSendCGSize: setDrawableSize: (w, h float64)
 	msgSendCGSize func(obj, sel uintptr, w, h float64)
@@ -35,6 +65,13 @@ var (
 	msgSendID func(obj, sel uintptr) uintptr
 	// msgSendBool: bool arg, returns id
 	msgSendBool func(obj, sel uintptr, v uintptr) uintptr
+
+	// msgSendReplaceRegion: replaceRegion:mipmapLevel:withBytes:bytesPerRow:
+	// MTLRegion (48 bytes) is passed as a struct, then mipmapLevel, bytes ptr, bytesPerRow.
+	msgSendReplaceRegion func(obj, sel uintptr, region MTLRegion, level uintptr, bytes uintptr, bytesPerRow uintptr)
+
+	// msgSendSetScissorRect: setScissorRect: (MTLScissorRect — 32 bytes struct)
+	msgSendSetScissorRect func(obj, sel uintptr, rect MTLScissorRect)
 )
 
 // ---- Metal pixel format constants ----
@@ -276,11 +313,14 @@ func init() {
 	}
 
 	// ---- Register typed function wrappers (needed for float/struct ObjC args on ARM64) ----
+	// Also needed on AMD64 for methods with struct params > 16 bytes (e.g. MTLRegion, MTLScissorRect).
 	purego.RegisterFunc(&msgSendCGSize, objc_msgSend)
 	purego.RegisterFunc(&msgSendCGFloat, objc_msgSend)
 	purego.RegisterFunc(&msgSendClearColor, objc_msgSend)
 	purego.RegisterFunc(&msgSendID, objc_msgSend)
 	purego.RegisterFunc(&msgSendBool, objc_msgSend)
+	purego.RegisterFunc(&msgSendReplaceRegion, objc_msgSend)
+	purego.RegisterFunc(&msgSendSetScissorRect, objc_msgSend)
 
 	// ---- Load Metal framework (optional: Metal may not be available on very old macOS) ----
 	_, _ = purego.Dlopen("/System/Library/Frameworks/Metal.framework/Metal", purego.RTLD_LAZY|purego.RTLD_GLOBAL)

@@ -51,6 +51,28 @@ type Window struct {
 	markedText          string
 }
 
+// initWindowWithContentRect creates an NSWindow using the designated initializer.
+// NOTE: NSWindow's plain -init path is not safe for our purego runtime bridge.
+func initWindowWithContentRect(rect NSRect, styleMask uint64) id {
+	nsWindowClass := id(objcClass("NSWindow"))
+	alloced := msgSend(nsWindowClass, selAlloc)
+	if alloced == 0 {
+		return 0
+	}
+
+	return msgSendInitWindowRect(
+		alloced,
+		selInitWithContentRect,
+		rect.Origin.X,
+		rect.Origin.Y,
+		rect.Size.Width,
+		rect.Size.Height,
+		styleMask,
+		NSBackingStoreBuffered,
+		false, // defer = NO
+	)
+}
+
 // newWindow creates a new Cocoa window.
 func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 	w := &Window{
@@ -66,11 +88,6 @@ func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 		maxHeight: opts.MaxHeight,
 	}
 
-	// Calculate DPI scale
-	w.dpiScale = w.queryDPI() / 72.0
-	w.fbWidth = int(float32(w.width) * w.dpiScale)
-	w.fbHeight = int(float32(w.height) * w.dpiScale)
-
 	// Build window style mask
 	styleMask := uint64(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable)
 	if opts.Resizable {
@@ -84,7 +101,7 @@ func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 	screen := msgSend(id(classNSScreen), selMainScreen)
 	var screenFrame NSRect
 	if screen != 0 {
-		msgSendPtr(screen, selFrame, unsafe.Pointer(&screenFrame))
+		screenFrame = msgSendRectReturn(screen, selFrame)
 	}
 	
 	// Center the window on screen
@@ -96,17 +113,7 @@ func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 	w.posY = int(centerY)
 
 	// Create the window: initWithContentRect:styleMask:backing:defer:
-	w.nswindow = msgSend(
-		msgSend(id(classNSWindow), selAlloc),
-		selInitWithContentRect,
-		*(*uintptr)(unsafe.Pointer(&contentRect.Origin.X)),
-		*(*uintptr)(unsafe.Pointer(&contentRect.Origin.Y)),
-		*(*uintptr)(unsafe.Pointer(&contentRect.Size.Width)),
-		*(*uintptr)(unsafe.Pointer(&contentRect.Size.Height)),
-		uintptr(styleMask),
-		NSBackingStoreBuffered,
-		0, // defer NO
-	)
+	w.nswindow = initWindowWithContentRect(contentRect, styleMask)
 
 	if w.nswindow == 0 {
 		return nil, fmt.Errorf("darwin: failed to create NSWindow")
@@ -114,6 +121,14 @@ func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 
 	// Get the content view
 	w.nsview = msgSend(w.nswindow, selContentView)
+
+	// Calculate DPI scale (must be AFTER window creation so nswindow.screen is valid)
+	w.dpiScale = w.queryDPI() / 72.0
+	if w.dpiScale <= 0 {
+		w.dpiScale = 1.0
+	}
+	w.fbWidth = int(float32(w.width) * w.dpiScale)
+	w.fbHeight = int(float32(w.height) * w.dpiScale)
 
 	// Set window title
 	title := nsString(opts.Title)
@@ -123,22 +138,19 @@ func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 	// Set min/max size constraints
 	if opts.MinWidth > 0 || opts.MinHeight > 0 {
 		minSize := nsSize(float64(opts.MinWidth), float64(opts.MinHeight))
-		msgSend(w.nswindow, selSetMinSize,
-			*(*uintptr)(unsafe.Pointer(&minSize.Width)),
-			*(*uintptr)(unsafe.Pointer(&minSize.Height)))
+		msgSendSizeArg(w.nswindow, selSetMinSize, minSize)
 	}
 	if opts.MaxWidth > 0 || opts.MaxHeight > 0 {
 		maxSize := nsSize(float64(opts.MaxWidth), float64(opts.MaxHeight))
-		msgSend(w.nswindow, selSetMaxSize,
-			*(*uintptr)(unsafe.Pointer(&maxSize.Width)),
-			*(*uintptr)(unsafe.Pointer(&maxSize.Height)))
+		msgSendSizeArg(w.nswindow, selSetMaxSize, maxSize)
 	}
 
 	// Set opaque and background color (transparent)
 	msgSend(w.nswindow, selSetOpaque, 0)
 	
 	// Create tracking area for mouse enter/exit events
-	w.createTrackingArea()
+	// NOTE: Disabled temporarily on darwin to avoid ObjC struct-call ABI issues in purego path.
+	// w.createTrackingArea()
 
 	// Handle visibility
 	if opts.Visible {
@@ -164,28 +176,26 @@ func (w *Window) SetSize(width, height int) {
 	w.fbHeight = int(float32(height) * w.dpiScale)
 
 	// Get current frame
-	var frame NSRect
-	msgSendPtr(w.nswindow, selFrame, unsafe.Pointer(&frame))
+	frame := msgSendRectReturn(w.nswindow, selFrame)
 
 	// Calculate new frame rect that gives us the desired content size
 	contentRect := nsRect(0, 0, float64(width), float64(height))
-	newFrame := msgSend(w.nswindow, selFrameRectForContentRect,
-		*(*uintptr)(unsafe.Pointer(&contentRect.Origin.X)),
-		*(*uintptr)(unsafe.Pointer(&contentRect.Origin.Y)),
-		*(*uintptr)(unsafe.Pointer(&contentRect.Size.Width)),
-		*(*uintptr)(unsafe.Pointer(&contentRect.Size.Height)))
+	newFrameRect := msgSendRectArgReturnID(
+		w.nswindow,
+		selFrameRectForContentRect,
+		contentRect,
+	)
 	
 	// Keep the same top-left position
-	newFrameRect := rectFromPtr(unsafe.Pointer(&newFrame))
 	newFrameRect.Origin = frame.Origin
 
 	// Update the frame
-	msgSend(w.nswindow, selSetFrame,
-		*(*uintptr)(unsafe.Pointer(&newFrameRect.Origin.X)),
-		*(*uintptr)(unsafe.Pointer(&newFrameRect.Origin.Y)),
-		*(*uintptr)(unsafe.Pointer(&newFrameRect.Size.Width)),
-		*(*uintptr)(unsafe.Pointer(&newFrameRect.Size.Height)),
-		1) // display YES
+	msgSendRectArgDisplay(
+		w.nswindow,
+		selSetFrame,
+		newFrameRect,
+		true,
+	) // display YES
 }
 
 func (w *Window) FramebufferSize() (int, int) {
@@ -193,8 +203,7 @@ func (w *Window) FramebufferSize() (int, int) {
 }
 
 func (w *Window) Position() (int, int) {
-	var frame NSRect
-	msgSendPtr(w.nswindow, selFrame, unsafe.Pointer(&frame))
+	frame := msgSendRectReturn(w.nswindow, selFrame)
 	w.posX = int(frame.Origin.X)
 	w.posY = int(frame.Origin.Y)
 	return w.posX, w.posY
@@ -207,14 +216,11 @@ func (w *Window) SetPosition(x, y int) {
 	// Convert to top-left based coordinates (Cocoa uses bottom-left)
 	screen := msgSend(w.nswindow, selScreen)
 	if screen != 0 {
-		var screenFrame NSRect
-		msgSendPtr(screen, selFrame, unsafe.Pointer(&screenFrame))
+		screenFrame := msgSendRectReturn(screen, selFrame)
 		y = int(screenFrame.Size.Height) - y - w.height
 	}
 	
-	msgSend(w.nswindow, selSetFrameTopLeftPoint,
-		*(*uintptr)(unsafe.Pointer(&x)),
-		*(*uintptr)(unsafe.Pointer(&y)))
+	msgSendPointArg(w.nswindow, selSetFrameTopLeftPoint, nsPoint(float64(x), float64(y)))
 }
 
 func (w *Window) SetTitle(title string) {
@@ -248,6 +254,12 @@ func (w *Window) SetShouldClose(close bool) {
 }
 
 func (w *Window) NativeHandle() uintptr {
+	// Render backends (Metal, Vulkan/MoltenVK) expect an NSView, not NSWindow.
+	return uintptr(w.nsview)
+}
+
+// NativeWindowHandle returns the NSWindow pointer for Cocoa-level operations.
+func (w *Window) NativeWindowHandle() uintptr {
 	return uintptr(w.nswindow)
 }
 
@@ -277,18 +289,14 @@ func (w *Window) SetMinSize(width, height int) {
 	w.minWidth = width
 	w.minHeight = height
 	minSize := nsSize(float64(width), float64(height))
-	msgSend(w.nswindow, selSetMinSize,
-		*(*uintptr)(unsafe.Pointer(&minSize.Width)),
-		*(*uintptr)(unsafe.Pointer(&minSize.Height)))
+	msgSendSizeArg(w.nswindow, selSetMinSize, minSize)
 }
 
 func (w *Window) SetMaxSize(width, height int) {
 	w.maxWidth = width
 	w.maxHeight = height
 	maxSize := nsSize(float64(width), float64(height))
-	msgSend(w.nswindow, selSetMaxSize,
-		*(*uintptr)(unsafe.Pointer(&maxSize.Width)),
-		*(*uintptr)(unsafe.Pointer(&maxSize.Height)))
+	msgSendSizeArg(w.nswindow, selSetMaxSize, maxSize)
 }
 
 func (w *Window) SetCursor(cursor platform.CursorShape) {
@@ -419,7 +427,7 @@ func (w *Window) ShowContextMenu(clientX, clientY int, items []platform.ContextM
 	screen := msgSend(w.nswindow, selScreen)
 	var screenFrame NSRect
 	if screen != 0 {
-		msgSendPtr(screen, selFrame, unsafe.Pointer(&screenFrame))
+		screenFrame = msgSendRectReturn(screen, selFrame)
 	}
 	menuY := int(screenFrame.Size.Height) - screenY
 	
@@ -458,16 +466,14 @@ func (w *Window) createTrackingArea() {
 	// Create tracking area for the entire view
 	bounds := nsRect(0, 0, float64(w.width), float64(w.height))
 	
-	w.trackingArea = msgSend(
-		msgSend(id(classNSTrackingArea), selAlloc),
+	w.trackingArea = msgSendInitTrackingAreaRect(
+		msgSend(id(objcClass("NSTrackingArea")), selAlloc),
 		selInitWithRect,
-		*(*uintptr)(unsafe.Pointer(&bounds.Origin.X)),
-		*(*uintptr)(unsafe.Pointer(&bounds.Origin.Y)),
-		*(*uintptr)(unsafe.Pointer(&bounds.Size.Width)),
-		*(*uintptr)(unsafe.Pointer(&bounds.Size.Height)),
+		bounds,
 		NSTrackingMouseEnteredAndExited|NSTrackingMouseMoved|NSTrackingActiveAlways,
-		uintptr(w.nsview), // owner
-		0)                  // userInfo
+		w.nsview, // owner
+		0,
+	) // userInfo
 	
 	if w.trackingArea != 0 {
 		msgSend(w.nsview, selAddTrackingArea, uintptr(w.trackingArea))
@@ -491,8 +497,7 @@ func (w *Window) queryDPI() float32 {
 // updateContentSize updates the cached content size from the window.
 func (w *Window) updateContentSize() {
 	// Get the content view bounds
-	var bounds NSRect
-	msgSendPtr(w.nsview, selBounds, unsafe.Pointer(&bounds))
+	bounds := msgSendRectReturn(w.nsview, selBounds)
 	
 	w.width = int(bounds.Size.Width)
 	w.height = int(bounds.Size.Height)
@@ -502,8 +507,7 @@ func (w *Window) updateContentSize() {
 
 // updatePosition updates the cached position from the window.
 func (w *Window) updatePosition() {
-	var frame NSRect
-	msgSendPtr(w.nswindow, selFrame, unsafe.Pointer(&frame))
+	frame := msgSendRectReturn(w.nswindow, selFrame)
 	w.posX = int(frame.Origin.X)
 	w.posY = int(frame.Origin.Y)
 }

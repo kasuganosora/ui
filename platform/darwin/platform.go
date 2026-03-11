@@ -9,6 +9,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/ebitengine/purego"
 	"github.com/kasuganosora/ui/event"
 	"github.com/kasuganosora/ui/platform"
 )
@@ -24,7 +25,13 @@ type Platform struct {
 	
 	// Clipboard cache
 	pasteboard id
+
+	// Autorelease pool for command-line app lifecycle
+	autoreleasePool id
 	
+	// Cached NSDefaultRunLoopMode constant
+	defaultRunLoopMode id
+
 	// Event timestamp base
 	timebase uint64
 }
@@ -46,17 +53,37 @@ func (p *Platform) Init() error {
 	// Ensure Foundation framework is loaded (needed for Cocoa classes)
 	ensureFoundation()
 
+	// Create an autorelease pool for this thread (CLI app style Cocoa bootstrap).
+	if poolClass := objcClass("NSAutoreleasePool"); poolClass != 0 {
+		p.autoreleasePool = msgSend(msgSend(id(poolClass), selAlloc), selInit)
+	}
+
 	// Get shared NSApplication instance
-	p.app = msgSend(id(classNSApplication), selSharedApplication)
+	p.app = msgSend(id(objcClass("NSApplication")), selSharedApplication)
 	if p.app == 0 {
 		return fmt.Errorf("darwin: failed to get NSApplication shared instance")
 	}
 
 	// Set activation policy to regular (shows dock icon and menu bar)
 	msgSend(p.app, selSetActivationPolicy, NSApplicationActivationPolicyRegular)
+	msgSend(p.app, objcSelector("finishLaunching"))
 
 	// Get the general pasteboard for clipboard operations
-	p.pasteboard = msgSend(id(classNSPasteboard), selGeneralPasteboard)
+	p.pasteboard = msgSend(id(objcClass("NSPasteboard")), selGeneralPasteboard)
+
+	// Load NSDefaultRunLoopMode global constant from Foundation.
+	// It is an exported NSString* variable — Dlsym returns a pointer to the variable,
+	// and we dereference to get the actual NSString* value.
+	if foundationHandle, err := purego.Dlopen("/System/Library/Frameworks/Foundation.framework/Foundation", purego.RTLD_LAZY|purego.RTLD_GLOBAL); err == nil {
+		if sym, err := purego.Dlsym(foundationHandle, "NSDefaultRunLoopMode"); err == nil && sym != 0 {
+			p.defaultRunLoopMode = *(*id)(unsafe.Pointer(sym))
+		}
+	}
+	// Fallback: if we couldn't load the constant, create an NSString manually.
+	// The value of NSDefaultRunLoopMode is the string "kCFRunLoopDefaultMode".
+	if p.defaultRunLoopMode == 0 {
+		p.defaultRunLoopMode = nsString("kCFRunLoopDefaultMode")
+	}
 
 	// Initialize timestamp base
 	p.timebase = uint64(time.Now().UnixMicro())
@@ -111,15 +138,15 @@ func (p *Platform) ProcessMessages() {
 
 // processPendingEvents processes all pending Cocoa events without blocking.
 func (p *Platform) processPendingEvents() {
-	// On macOS, events are delivered via the NSApplication run loop.
-	// We use a custom method to peek at events without blocking.
-	// This is implemented by checking if there are pending events and processing them.
-	
-	// Get the next event matching any mask, with dequeue but without blocking
-	// NSDate distantPast (0) means don't wait
-	distantPast := msgSend(msgSend(id(objcClass("NSDate")), selAlloc), selInit)
-	if distantPast != 0 {
-		defer msgSend(distantPast, selRelease)
+	// [NSDate distantPast] — a date far in the past, meaning "don't wait".
+	distantPast := msgSend(id(objcClass("NSDate")), objcSelector("distantPast"))
+	if distantPast == 0 {
+		return
+	}
+
+	runLoopMode := p.defaultRunLoopMode
+	if runLoopMode == 0 {
+		return
 	}
 
 	for {
@@ -127,7 +154,7 @@ func (p *Platform) processPendingEvents() {
 		event := msgSend(p.app, objcSelector("nextEventMatchingMask:untilDate:inMode:dequeue:"),
 			0xFFFFFFFF, // NSEventMaskAny
 			uintptr(distantPast),
-			uintptr(unsafe.Pointer(cstring("kCFRunLoopDefaultMode"))),
+			uintptr(runLoopMode),
 			1, // dequeue
 		)
 		
@@ -455,6 +482,10 @@ func (p *Platform) Terminate() {
 		w.Destroy()
 	}
 	p.windows = nil
+	if p.autoreleasePool != 0 {
+		msgSend(p.autoreleasePool, selRelease)
+		p.autoreleasePool = 0
+	}
 	p.inited = false
 	runtime.UnlockOSThread()
 }

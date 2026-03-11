@@ -3,6 +3,7 @@
 package darwin
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/kasuganosora/ui/event"
@@ -376,6 +377,33 @@ func TestCharacterIndexForPoint(t *testing.T) {
 	}
 }
 
+func TestInitWindowWithContentRectSmoke(t *testing.T) {
+	skipIfNotDarwin(t)
+
+	// Cocoa APIs require main-thread affinity.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	ensureFoundation()
+
+	app := msgSend(id(objcClass("NSApplication")), selSharedApplication)
+	if app == 0 {
+		t.Fatal("NSApplication sharedApplication returned nil")
+	}
+	msgSend(app, selSetActivationPolicy, NSApplicationActivationPolicyRegular)
+	msgSend(app, objcSelector("finishLaunching"))
+
+	rect := nsRect(100, 100, 320, 240)
+	styleMask := uint64(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable)
+	win := initWindowWithContentRect(rect, styleMask)
+	if win == 0 {
+		t.Fatal("initWindowWithContentRect returned nil")
+	}
+
+	// 避免影响后续测试：关闭窗口，但不做 release（此前 release 路径在 purego 下不稳定）。
+	msgSend(win, selClose)
+}
+
 // ========== Window Tests (Logic Only) ==========
 
 func TestWindowSize(t *testing.T) {
@@ -470,11 +498,19 @@ func TestWindowNativeHandle(t *testing.T) {
 
 	w := &Window{
 		nswindow: 0x12345,
+		nsview:   0xABCDE,
 	}
 	
+	// NativeHandle returns nsview (for render backends).
 	handle := w.NativeHandle()
-	if handle != 0x12345 {
-		t.Errorf("NativeHandle() = 0x%X, want 0x12345", handle)
+	if handle != 0xABCDE {
+		t.Errorf("NativeHandle() = 0x%X, want 0xABCDE (nsview)", handle)
+	}
+
+	// NativeWindowHandle returns nswindow (for Cocoa-level ops).
+	winHandle := w.NativeWindowHandle()
+	if winHandle != 0x12345 {
+		t.Errorf("NativeWindowHandle() = 0x%X, want 0x12345 (nswindow)", winHandle)
 	}
 }
 
