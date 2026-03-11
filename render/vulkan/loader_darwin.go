@@ -5,44 +5,68 @@ package vulkan
 import (
 	"fmt"
 	"syscall"
+
+	"github.com/ebitengine/purego"
 )
 
 // platformLib abstracts the platform-specific shared library handle.
-// Must match the interface expected by loader.go (same as loader_windows.go).
 type platformLib interface {
 	lookup(name string) (uintptr, error)
 	close()
 }
 
-// darwinLib is a stub — MoltenVK/Vulkan dynamic loading on darwin requires
-// CGO, assembly, or the purego package for function pointer calls.
-// openVulkanLib returns an error so the backend gracefully reports unavailability.
-type darwinLib struct{}
+// darwinLib wraps a dylib handle loaded via purego.Dlopen.
+type darwinLib struct {
+	handle uintptr // library handle from purego.Dlopen
+}
 
 func (l *darwinLib) lookup(name string) (uintptr, error) {
-	return 0, fmt.Errorf("vulkan: darwin loader stub — %s not available", name)
+	sym, err := purego.Dlsym(l.handle, name)
+	if err != nil {
+		return 0, fmt.Errorf("vulkan: symbol %q not found: %w", name, err)
+	}
+	return sym, nil
 }
 
-func (l *darwinLib) close() {}
+func (l *darwinLib) close() {
+	// purego doesn't expose Dlclose; zero the handle to prevent reuse.
+	l.handle = 0
+}
 
-// openVulkanLib is a stub on darwin.
-// TODO: implement using assembly (call_darwin_arm64.s) or github.com/ebitengine/purego.
+// openVulkanLib attempts to load libvulkan or MoltenVK from standard locations.
 func openVulkanLib() (platformLib, error) {
-	return nil, fmt.Errorf("vulkan: Vulkan/MoltenVK loading not yet implemented on darwin (requires assembly or purego for function pointer calls)")
+	candidates := []string{
+		"libvulkan.1.dylib",
+		"libvulkan.dylib",
+		"/opt/homebrew/lib/libvulkan.1.dylib",
+		"/usr/local/lib/libvulkan.1.dylib",
+		"/usr/local/lib/libMoltenVK.dylib",
+		"/opt/homebrew/lib/libMoltenVK.dylib",
+	}
+	for _, name := range candidates {
+		handle, err := purego.Dlopen(name, purego.RTLD_NOW|purego.RTLD_LOCAL)
+		if err == nil {
+			return &darwinLib{handle: uintptr(handle)}, nil
+		}
+	}
+	return nil, fmt.Errorf("vulkan: libvulkan / MoltenVK not found on macOS; install with: brew install molten-vk")
 }
 
-// syscall3 calls a function with up to 3 arguments.
-// Stub on darwin — function pointer calling without CGO requires assembly.
+// syscall3 calls a function with up to 3 arguments using purego.SyscallN.
+// Vulkan functions only use integer/pointer args, so SyscallN is safe.
 func syscall3(fn uintptr, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno) {
-	return syscallN(fn, a1, a2, a3)
+	var e uintptr
+	r1, r2, e = purego.SyscallN(fn, a1, a2, a3)
+	err = syscall.Errno(e)
+	return
 }
 
-// syscallN is a stub on darwin.
-// Real implementation would need platform-specific assembly to call C function pointers.
+// syscallN calls a Vulkan function with a variable number of integer/pointer arguments.
 func syscallN(fn uintptr, args ...uintptr) (r1 uintptr, r2 uintptr, err syscall.Errno) {
-	_ = fn
-	_ = args
-	return 0, 0, 0
+	var e uintptr
+	r1, r2, e = purego.SyscallN(fn, args...)
+	err = syscall.Errno(e)
+	return
 }
 
 // requiredSurfaceExtensions returns the Vulkan surface extensions required on macOS.

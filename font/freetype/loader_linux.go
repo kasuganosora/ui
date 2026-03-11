@@ -1,4 +1,4 @@
-//go:build linux
+//go:build linux && !android
 
 package freetype
 
@@ -6,19 +6,21 @@ import (
 	"fmt"
 	"os"
 	"syscall"
-	"unsafe"
+
+	"github.com/ebitengine/purego"
 )
 
 // Types for FreeType handles (opaque pointers).
 type ftLibrary uintptr
 type ftFace uintptr
 
-// loader holds FreeType function pointers loaded via dlopen/dlsym.
+// loader holds FreeType function pointers loaded via purego.
 type loader struct {
 	handle uintptr
 
 	ftInitFreeType  uintptr
 	ftDoneFreeType  uintptr
+	ftNewFace       uintptr
 	ftNewMemoryFace uintptr
 	ftDoneFace      uintptr
 	ftSetPixelSizes uintptr
@@ -28,62 +30,65 @@ type loader struct {
 	ftGetKerning    uintptr
 }
 
-// soNames lists candidate shared library names in priority order.
-var soNames = []string{
-	"libfreetype.so.6",
-	"libfreetype.so",
-}
-
-// dlopen/dlsym/dlclose via manual syscall to libdl.
-// On modern Linux, these are in libc (glibc exposes them directly).
-// We load libdl.so.2 first, then use dlopen from it.
-const (
-	rtldLazy   = 0x00001
-	rtldGlobal = 0x00100
-)
-
+// newLoader opens libfreetype via purego and resolves all function pointers.
 func newLoader() (*loader, error) {
-	// First, try to get dlopen from the process (it may already be linked)
-	libdlNames := []string{"libdl.so.2", "libdl.so"}
-	var dlHandle uintptr
-	for _, name := range libdlNames {
-		nameBytes := append([]byte(name), 0)
-		// Use SYS_OPENAT to open libdl... but this is a file open, not dlopen.
-		// Without CGO, we cannot call dlopen directly on Linux.
-		// The proper zero-CGO approach requires either:
-		//   1. Using Go's plugin package (limited)
-		//   2. Inline assembly for syscall to __libc_dlopen_mode
-		//   3. A helper binary
-		_ = nameBytes
+	candidates := []string{"libfreetype.so.6", "libfreetype.so"}
+	var h uintptr
+	for _, name := range candidates {
+		handle, err := purego.Dlopen(name, purego.RTLD_NOW|purego.RTLD_LOCAL)
+		if err == nil {
+			h = handle
+			break
+		}
 	}
-	_ = dlHandle
+	if h == 0 {
+		return nil, fmt.Errorf("freetype: libfreetype.so.6 not found — install libfreetype-dev")
+	}
 
-	return nil, fmt.Errorf("freetype: Linux dynamic loading requires CGO or purego; " +
-		"install purego and use the purego-based loader, or set CGO_ENABLED=1")
+	sym := func(name string) uintptr {
+		s, _ := purego.Dlsym(h, name)
+		return s
+	}
+
+	l := &loader{
+		handle:          h,
+		ftInitFreeType:  sym("FT_Init_FreeType"),
+		ftDoneFreeType:  sym("FT_Done_FreeType"),
+		ftNewFace:       sym("FT_New_Face"),
+		ftNewMemoryFace: sym("FT_New_Memory_Face"),
+		ftDoneFace:      sym("FT_Done_Face"),
+		ftSetPixelSizes: sym("FT_Set_Pixel_Sizes"),
+		ftLoadGlyph:     sym("FT_Load_Glyph"),
+		ftRenderGlyph:   sym("FT_Render_Glyph"),
+		ftGetCharIndex:  sym("FT_Get_Char_Index"),
+		ftGetKerning:    sym("FT_Get_Kerning"),
+	}
+	if l.ftInitFreeType == 0 {
+		return nil, fmt.Errorf("freetype: FT_Init_FreeType not found in library")
+	}
+	return l, nil
 }
 
 func (l *loader) close() {
-	if l.handle != 0 {
-		// dlclose would go here
-		l.handle = 0
-	}
+	l.handle = 0 // purego does not expose Dlclose
 }
 
 // ftCall calls a FreeType function and returns the FT_Error result.
+// FreeType functions return FT_Error (int32) in r1.
 func ftCall(fn uintptr, args ...uintptr) int32 {
-	ret, _, _ := syscall.SyscallN(fn, args...)
-	return int32(ret)
+	r1, _, _ := purego.SyscallN(fn, args...)
+	return int32(r1)
 }
 
-// syscallN wraps syscall.SyscallN.
+// syscallN wraps purego.SyscallN.
 func syscallN(fn uintptr, args ...uintptr) (r1 uintptr, r2 uintptr, err syscall.Errno) {
-	return syscall.SyscallN(fn, args...)
+	var e uintptr
+	r1, r2, e = purego.SyscallN(fn, args...)
+	err = syscall.Errno(e)
+	return
 }
 
 // readFile reads an entire file into memory.
 func readFile(path string) ([]byte, error) {
 	return os.ReadFile(path)
 }
-
-// Silence unused import warnings for the stub.
-var _ = unsafe.Pointer(nil)

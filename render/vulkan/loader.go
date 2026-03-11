@@ -31,10 +31,11 @@ type Loader struct {
 	vkDestroySurfaceKHR                    uintptr
 
 	// Platform surface creation (loaded per-platform)
-	vkCreateWin32SurfaceKHR   uintptr
-	vkCreateXlibSurfaceKHR    uintptr
-	vkCreateMetalSurfaceEXT   uintptr // macOS (MoltenVK 1.1+)
-	vkCreateMacOSSurfaceMVK   uintptr // macOS legacy MoltenVK
+	vkCreateWin32SurfaceKHR    uintptr
+	vkCreateXlibSurfaceKHR     uintptr
+	vkCreateAndroidSurfaceKHR  uintptr // Android VK_KHR_android_surface
+	vkCreateMetalSurfaceEXT    uintptr // macOS (MoltenVK 1.1+)
+	vkCreateMacOSSurfaceMVK    uintptr // macOS legacy MoltenVK
 
 	// Device functions (loaded after device creation)
 	vkDestroyDevice             uintptr
@@ -152,6 +153,7 @@ func (l *Loader) LoadInstanceFunctions(instance Instance) {
 	// Platform surface extensions
 	l.vkCreateWin32SurfaceKHR = l.getInstanceProcAddr(inst, "vkCreateWin32SurfaceKHR")
 	l.vkCreateXlibSurfaceKHR = l.getInstanceProcAddr(inst, "vkCreateXlibSurfaceKHR")
+	l.vkCreateAndroidSurfaceKHR = l.getInstanceProcAddr(inst, "vkCreateAndroidSurfaceKHR")
 	l.vkCreateMetalSurfaceEXT = l.getInstanceProcAddr(inst, "vkCreateMetalSurfaceEXT")
 	l.vkCreateMacOSSurfaceMVK = l.getInstanceProcAddr(inst, "vkCreateMacOSSurfaceMVK")
 }

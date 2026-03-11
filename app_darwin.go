@@ -11,6 +11,7 @@ import (
 	"github.com/kasuganosora/ui/platform"
 	"github.com/kasuganosora/ui/platform/darwin"
 	"github.com/kasuganosora/ui/render"
+	"github.com/kasuganosora/ui/render/metal"
 	"github.com/kasuganosora/ui/render/vulkan"
 )
 
@@ -25,23 +26,35 @@ func newPlatform() platform.Platform {
 }
 
 // platformCreateBackend creates a render.Backend for macOS.
-// Auto mode tries Vulkan (via MoltenVK) first.
-// TODO: add BackendMetal once a Metal backend is implemented.
+// Auto mode tries Metal first, then Vulkan (via MoltenVK) as fallback.
 func platformCreateBackend(bt BackendType, win platform.Window) (render.Backend, error) {
 	switch bt {
+	case BackendMetal:
+		b := metal.New()
+		if err := b.Init(win); err != nil {
+			return nil, fmt.Errorf("metal init: %w", err)
+		}
+		return b, nil
 	case BackendVulkan:
 		b := vulkan.New()
 		if err := b.Init(win); err != nil {
 			return nil, fmt.Errorf("vulkan init: %w", err)
 		}
 		return b, nil
-	default: // BackendAuto: try Vulkan (MoltenVK)
-		b := vulkan.New()
-		if err := b.Init(win); err != nil {
-			return nil, fmt.Errorf("no backend available on macOS (tried vulkan/MoltenVK): %w\n"+
-				"hint: install MoltenVK (brew install molten-vk) or implement a Metal backend", err)
+	default: // BackendAuto: try Metal first, then Vulkan/MoltenVK
+		b := metal.New()
+		if err := b.Init(win); err == nil {
+			return b, nil
 		}
-		return b, nil
+		v := vulkan.New()
+		if err := v.Init(win); err != nil {
+			return nil, fmt.Errorf(
+				"no backend available on macOS (tried metal, vulkan/MoltenVK): %w\n"+
+					"hint: update macOS (Metal requires 10.11+) or install MoltenVK (brew install molten-vk)",
+				err,
+			)
+		}
+		return v, nil
 	}
 }
 
@@ -59,9 +72,9 @@ func platformNewFontEngine() font.Engine {
 // PingFang SC is the system Chinese font shipped with macOS 10.11+.
 func platformDefaultFont() string {
 	paths := []string{
-		"/System/Library/Fonts/PingFang.ttc",      // macOS 10.11+ (PingFang SC)
-		"/Library/Fonts/Arial Unicode.ttf",         // older macOS fallback
-		"/System/Library/Fonts/STHeiti Light.ttc",  // Snow Leopard / early Lion
+		"/System/Library/Fonts/PingFang.ttc",     // macOS 10.11+ (PingFang SC)
+		"/Library/Fonts/Arial Unicode.ttf",        // older macOS fallback
+		"/System/Library/Fonts/STHeiti Light.ttc", // Snow Leopard / early Lion
 	}
 	for _, p := range paths {
 		if fileExists(p) {
