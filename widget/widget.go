@@ -112,6 +112,22 @@ func (b *Base) RemoveChild(child Widget) {
 	}
 }
 
+// BringChildToFront moves a child to the end of the children list,
+// so it draws last (on top of siblings). Used for drag-to-front in HUD panels.
+func (b *Base) BringChildToFront(child Widget) {
+	for i, c := range b.children {
+		if c.ElementID() == child.ElementID() {
+			// Move to end of slice
+			copy(b.children[i:], b.children[i+1:])
+			b.children[len(b.children)-1] = child
+			// Also reorder in element tree
+			b.tree.RemoveChild(b.id, child.ElementID())
+			b.tree.AppendChild(b.id, child.ElementID())
+			return
+		}
+	}
+}
+
 // DrawChildren draws child widgets, skipping those entirely outside the current clip rect.
 func (b *Base) DrawChildren(buf *render.CommandBuffer) {
 	clip := buf.CurrentClip()

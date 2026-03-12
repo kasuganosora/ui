@@ -196,21 +196,18 @@ func (e *Engine) layoutNode(nodeIdx int, availWidth, availHeight float32) {
 
 // layoutAbsolute positions an absolutely positioned element
 // relative to its containing block (parentWidth x parentHeight).
+//
+// Supports the full CSS absolute positioning model:
+//   - left/top for edge-anchored placement
+//   - right/bottom for opposite-edge anchored placement
+//   - left:50% + margin-left:-N for center-offset patterns
+//   - top:50% + margin-top:-N for vertical center-offset patterns
+//   - auto width from left+right, auto height from top+bottom
 func (e *Engine) layoutAbsolute(nodeIdx int, parentWidth, parentHeight float32) {
 	node := &e.nodes[nodeIdx]
 	style := &node.style
 
-	// Resolve position offsets
-	x := float32(0)
-	y := float32(0)
-	if v, ok := style.Left.Resolve(parentWidth); ok {
-		x = v
-	}
-	if v, ok := style.Top.Resolve(parentHeight); ok {
-		y = v
-	}
-
-	// Resolve width
+	// Resolve width first (needed for right-edge positioning)
 	w := float32(0)
 	if !style.Width.IsAuto() {
 		w, _ = style.Width.Resolve(parentWidth)
@@ -220,7 +217,7 @@ func (e *Engine) layoutAbsolute(nodeIdx int, parentWidth, parentHeight float32) 
 		w = parentWidth - l - r
 	}
 
-	// Resolve height
+	// Resolve height first (needed for bottom-edge positioning)
 	h := float32(0)
 	if !style.Height.IsAuto() {
 		h, _ = style.Height.Resolve(parentHeight)
@@ -232,6 +229,38 @@ func (e *Engine) layoutAbsolute(nodeIdx int, parentWidth, parentHeight float32) 
 
 	w = constrainSize(w, parentWidth, style.MinWidth, style.MaxWidth)
 	h = constrainSize(h, parentHeight, style.MinHeight, style.MaxHeight)
+
+	// Resolve horizontal position: left takes precedence; fall back to right
+	x := float32(0)
+	if !style.Left.IsAuto() {
+		x, _ = style.Left.Resolve(parentWidth)
+	} else if !style.Right.IsAuto() {
+		r, _ := style.Right.Resolve(parentWidth)
+		x = parentWidth - w - r
+	}
+
+	// Resolve vertical position: top takes precedence; fall back to bottom
+	y := float32(0)
+	if !style.Top.IsAuto() {
+		y, _ = style.Top.Resolve(parentHeight)
+	} else if !style.Bottom.IsAuto() {
+		b, _ := style.Bottom.Resolve(parentHeight)
+		y = parentHeight - h - b
+	}
+
+	// Apply margins (useful for center-offset patterns like left:50% + margin-left:-Npx)
+	if ml, ok := style.Margin.Left.Resolve(parentWidth); ok {
+		x += ml
+	}
+	if mr, ok := style.Margin.Right.Resolve(parentWidth); ok && style.Left.IsAuto() && !style.Right.IsAuto() {
+		x -= mr
+	}
+	if mt, ok := style.Margin.Top.Resolve(parentHeight); ok {
+		y += mt
+	}
+	if mb, ok := style.Margin.Bottom.Resolve(parentHeight); ok && style.Top.IsAuto() && !style.Bottom.IsAuto() {
+		y -= mb
+	}
 
 	node.result.X = x
 	node.result.Y = y

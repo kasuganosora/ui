@@ -324,10 +324,28 @@ func (p *htmlParser) parse() *widget.Div {
 	root := widget.NewDiv(p.tree, p.cfg)
 	p.parseChildren(root, nil)
 
-	// Apply CSS rules to all collected widgets
-	if p.sheet != nil && len(p.sheet.Rules) > 0 {
-		p.applyCSS()
+	// Apply CSS rules + inline styles to all collected widgets.
+	// Always run: even without <style> rules, inline style= attributes
+	// need the full CSS resolver for %, position, overflow, etc.
+	p.applyCSS()
+
+	// Re-apply data-if bindings (applyCSS may have overwritten display:none).
+	if p.doc != nil {
+		for _, b := range p.doc.bindings {
+			if b.kind == "if" {
+				var val interface{}
+				if p.doc.data != nil {
+					val = p.doc.data[b.key]
+				}
+				if !isTruthy(val) {
+					s := b.widget.Style()
+					s.Display = layout.DisplayNone
+					b.widget.SetStyle(s)
+				}
+			}
+		}
 	}
+
 	return root
 }
 
@@ -1415,10 +1433,7 @@ func (p *htmlParser) registerWidgetWithAttrs(w widget.Widget, tag, id string, cl
 	// instead of the internal element type.
 	p.tree.SetProperty(w.ElementID(), "html-tag", tag)
 
-	// Index for CSS matching
-	if p.sheet == nil {
-		return
-	}
+	// Index for CSS matching (including inline style= resolution)
 	info := widgetStyleInfo{
 		widget:    w,
 		tag:       tag,

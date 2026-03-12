@@ -45,7 +45,11 @@ type matchedRule struct {
 func ResolveStyle(sheet *Stylesheet, el *ElementInfo, ancestors []ElementInfo, inlineDecls []Declaration) ComputedStyle {
 	var matched []matchedRule
 
-	for _, rule := range sheet.Rules {
+	var sheetRules []Rule
+	if sheet != nil {
+		sheetRules = sheet.Rules
+	}
+	for _, rule := range sheetRules {
 		for _, sel := range rule.Selectors {
 			if matchSelector(&sel, el, ancestors) {
 				spec := SelectorSpecificity(&sel)
@@ -71,9 +75,14 @@ func ResolveStyle(sheet *Stylesheet, el *ElementInfo, ancestors []ElementInfo, i
 	props := make(map[string]string)
 	importantProps := make(map[string]string)
 
+	var vars map[string]string
+	if sheet != nil {
+		vars = sheet.Variables
+	}
+
 	for _, mr := range matched {
 		for _, decl := range mr.decls {
-			val := ResolveVar(decl.Value, sheet.Variables)
+			val := ResolveVar(decl.Value, vars)
 			if decl.Important {
 				importantProps[decl.Property] = val
 			} else {
@@ -84,7 +93,7 @@ func ResolveStyle(sheet *Stylesheet, el *ElementInfo, ancestors []ElementInfo, i
 
 	// Inline styles override normal rules (specificity 1,0,0,0)
 	for _, decl := range inlineDecls {
-		val := ResolveVar(decl.Value, sheet.Variables)
+		val := ResolveVar(decl.Value, vars)
 		if decl.Important {
 			importantProps[decl.Property] = val
 		} else {
