@@ -138,8 +138,12 @@ func (s *Session) handleDOM(req Request) {
 		_ = json.Unmarshal(req.Params, &p)
 
 		snap := s.srv.getSnapshot()
+		if snap == nil {
+			s.sendError(req.ID, -32000, "node not found")
+			return
+		}
 		node, ok := snap.Nodes[core.ElementID(p.NodeID)]
-		if snap == nil || !ok {
+		if !ok {
 			s.sendError(req.ID, -32000, "node not found")
 			return
 		}
@@ -178,8 +182,12 @@ func (s *Session) handleDOM(req Request) {
 		_ = json.Unmarshal(req.Params, &p)
 
 		snap := s.srv.getSnapshot()
+		if snap == nil {
+			s.sendError(req.ID, -32000, "node not found")
+			return
+		}
 		node, ok := snap.Nodes[core.ElementID(p.NodeID)]
-		if snap == nil || !ok {
+		if !ok {
 			s.sendError(req.ID, -32000, "node not found")
 			return
 		}
@@ -294,10 +302,11 @@ func (s *Session) handleDOM(req Request) {
 		}
 		_ = json.Unmarshal(req.Params, &p)
 		snap := s.srv.getSnapshot()
-		node, ok := snap.Nodes[core.ElementID(p.NodeID)]
 		attrs := []string{}
-		if snap != nil && ok {
-			attrs = buildAttributes(node)
+		if snap != nil {
+			if node, ok := snap.Nodes[core.ElementID(p.NodeID)]; ok {
+				attrs = buildAttributes(node)
+			}
 		}
 		s.sendResult(req.ID, map[string]any{"attributes": attrs})
 
@@ -468,6 +477,9 @@ func matchesSelector(node *NodeSnapshot, sel string) bool {
 	if sel == "*" {
 		return true
 	}
+	if strings.HasPrefix(sel, "#") {
+		return node.IDAttr == sel[1:]
+	}
 	if strings.HasPrefix(sel, ".") {
 		cls := sel[1:]
 		for _, c := range node.Classes {
@@ -566,5 +578,25 @@ func buildOuterHTML(snap *Snapshot, id core.ElementID, indent int) string {
 	sb.WriteString("</")
 	sb.WriteString(tag)
 	sb.WriteByte('>')
+	return sb.String()
+}
+
+// collectTextContent recursively gathers all text content from a node and its
+// descendants, matching the browser's Node.textContent semantics.
+func collectTextContent(snap *Snapshot, id core.ElementID) string {
+	node, ok := snap.Nodes[id]
+	if !ok {
+		return ""
+	}
+	if len(node.ChildIDs) == 0 {
+		return node.Text
+	}
+	var sb strings.Builder
+	if node.Text != "" {
+		sb.WriteString(node.Text)
+	}
+	for _, cid := range node.ChildIDs {
+		sb.WriteString(collectTextContent(snap, cid))
+	}
 	return sb.String()
 }

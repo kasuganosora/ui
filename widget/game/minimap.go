@@ -71,14 +71,14 @@ func (m *Minimap) Draw(buf *render.CommandBuffer) {
 	if m.circular {
 		corners = uimath.CornersAll(r)
 	}
-	buf.DrawOverlay(render.RectCmd{
+	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(bounds.X, bounds.Y, m.size, m.size),
 		FillColor: uimath.RGBA(0.1, 0.1, 0.1, 0.8),
 		Corners:   corners,
 	}, 20, 1)
 
 	// Border
-	buf.DrawOverlay(render.RectCmd{
+	buf.DrawRect(render.RectCmd{
 		Bounds:      uimath.NewRect(bounds.X, bounds.Y, m.size, m.size),
 		BorderColor: uimath.RGBA(0.6, 0.6, 0.6, 0.8),
 		BorderWidth: m.borderW,
@@ -89,7 +89,7 @@ func (m *Minimap) Draw(buf *render.CommandBuffer) {
 	cx := bounds.X + r
 	cy := bounds.Y + r
 	pSize := float32(6)
-	buf.DrawOverlay(render.RectCmd{
+	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(cx-pSize/2, cy-pSize/2, pSize, pSize),
 		FillColor: uimath.ColorHex("#00ff00"),
 		Corners:   uimath.CornersAll(pSize / 2),
@@ -109,7 +109,7 @@ func (m *Minimap) Draw(buf *render.CommandBuffer) {
 		if ms <= 0 {
 			ms = 4
 		}
-		buf.DrawOverlay(render.RectCmd{
+		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(mx-ms/2, my-ms/2, ms, ms),
 			FillColor: mk.Color,
 			Corners:   uimath.CornersAll(ms / 2),

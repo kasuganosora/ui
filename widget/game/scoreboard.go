@@ -73,56 +73,45 @@ func (sb *Scoreboard) Draw(buf *render.CommandBuffer) {
 		return
 	}
 	cfg := sb.Config()
-	totalH := sb.headerH + float32(len(sb.entries))*sb.rowH
-	x := float32(0)
-	y := float32(0)
-	bounds := sb.Bounds()
-	if !bounds.IsEmpty() {
-		x = bounds.X
-		y = bounds.Y
-	}
+	colHeaderH := float32(24)
+	contentH := colHeaderH + float32(len(sb.entries))*sb.rowH
 
-	// Background
-	buf.DrawOverlay(render.RectCmd{
-		Bounds:    uimath.NewRect(x, y, sb.width, totalH),
-		FillColor: uimath.RGBA(0, 0, 0, 0.85),
-		Corners:   uimath.CornersAll(cfg.BorderRadius),
-	}, 50, 1)
-
-	// Header
-	if cfg.TextRenderer != nil {
-		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, sb.title, x+cfg.SpaceSM, y+(sb.headerH-lh)/2, cfg.FontSize, sb.width-cfg.SpaceSM*2, uimath.ColorHex("#ffd700"), 1)
+	panel := Panel{
+		Title:   sb.title,
+		Width:   sb.width,
+		TitleH:  sb.headerH,
+		BgColor: uimath.RGBA(0, 0, 0, 0.85),
 	}
+	r := panel.Draw(buf, sb.Bounds(), cfg, contentH)
 
 	// Column headers
-	colW := sb.width / 4
+	colW := r.PanelW / 4
 	headers := [4]string{"Name", "Score", "K", "D"}
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-		hy := y + sb.headerH - lh - 2
+		hy := r.ContentY + (colHeaderH-lh)/2
 		for ci, h := range headers {
-			cfg.TextRenderer.DrawText(buf, h, x+float32(ci)*colW+cfg.SpaceXS, hy, cfg.FontSizeSm, colW, uimath.RGBA(0.6, 0.6, 0.6, 1), 1)
+			cfg.TextRenderer.DrawText(buf, h, r.PanelX+float32(ci)*colW+cfg.SpaceXS, hy, cfg.FontSizeSm, colW, uimath.RGBA(0.6, 0.6, 0.6, 1), 1)
 		}
 	}
 
 	// Rows
+	dataY := r.ContentY + colHeaderH
 	for i, e := range sb.entries {
-		ry := y + sb.headerH + float32(i)*sb.rowH
-		// Alternating row
+		ry := dataY + float32(i)*sb.rowH
 		if i%2 == 1 {
-			buf.DrawOverlay(render.RectCmd{
-				Bounds:    uimath.NewRect(x, ry, sb.width, sb.rowH),
+			buf.DrawRect(render.RectCmd{
+				Bounds:    uimath.NewRect(r.PanelX, ry, r.PanelW, sb.rowH),
 				FillColor: uimath.RGBA(1, 1, 1, 0.03),
-			}, 51, 1)
+			}, 3, 1)
 		}
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 			ty := ry + (sb.rowH-lh)/2
-			cfg.TextRenderer.DrawText(buf, e.Name, x+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorWhite, 1)
-			cfg.TextRenderer.DrawText(buf, itoa(e.Score), x+colW+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorWhite, 1)
-			cfg.TextRenderer.DrawText(buf, itoa(e.Kills), x+colW*2+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorHex("#52c41a"), 1)
-			cfg.TextRenderer.DrawText(buf, itoa(e.Deaths), x+colW*3+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorHex("#ff4d4f"), 1)
+			cfg.TextRenderer.DrawText(buf, e.Name, r.PanelX+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorWhite, 1)
+			cfg.TextRenderer.DrawText(buf, itoa(e.Score), r.PanelX+colW+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorWhite, 1)
+			cfg.TextRenderer.DrawText(buf, itoa(e.Kills), r.PanelX+colW*2+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorHex("#52c41a"), 1)
+			cfg.TextRenderer.DrawText(buf, itoa(e.Deaths), r.PanelX+colW*3+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorHex("#ff4d4f"), 1)
 		}
 	}
 }

@@ -107,7 +107,7 @@ func (np *Nameplate) Draw(buf *render.CommandBuffer) {
 
 	// HP bar background
 	bx := cx - np.barWidth/2
-	buf.DrawOverlay(render.RectCmd{
+	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(bx, nameY, np.barWidth, np.barHeight),
 		FillColor: uimath.RGBA(0, 0, 0, 0.6),
 		Corners:   uimath.CornersAll(np.barHeight / 2),
@@ -122,7 +122,7 @@ func (np *Nameplate) Draw(buf *render.CommandBuffer) {
 		} else if ratio < 0.6 {
 			hpColor = uimath.ColorHex("#faad14")
 		}
-		buf.DrawOverlay(render.RectCmd{
+		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(bx, nameY, np.barWidth*ratio, np.barHeight),
 			FillColor: hpColor,
 			Corners:   uimath.CornersAll(np.barHeight / 2),

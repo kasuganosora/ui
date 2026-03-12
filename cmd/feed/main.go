@@ -35,13 +35,14 @@ import (
 var tweetsJSON []byte
 
 type tweetData struct {
-	Name    string `json:"name"`
-	Handle  string `json:"handle"`
-	Text    string `json:"text"`
-	Fav     int    `json:"fav"`
-	RT      int    `json:"rt"`
-	Reply   int    `json:"reply"`
-	Created string `json:"created"`
+	Name      string `json:"name"`
+	Handle    string `json:"handle"`
+	Text      string `json:"text"`
+	Fav       int    `json:"fav"`
+	RT        int    `json:"rt"`
+	Reply     int    `json:"reply"`
+	Created   string `json:"created"`
+	AvatarURL string `json:"avatar_url,omitempty"`
 }
 
 var allTweets []tweetData
@@ -59,14 +60,6 @@ func avatarColor(name string) string {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(name))
 	return avatarPalette[int(h.Sum32())%len(avatarPalette)]
-}
-
-// firstRune returns the first Unicode character of s as a string.
-func firstRune(s string) string {
-	for _, r := range s {
-		return string(r)
-	}
-	return "?"
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -450,8 +443,6 @@ func tweetHTML(td *tweetData, timeStr, retweetedBy string) string {
 	name := htmlEsc(td.Name)
 	handle := htmlEsc(td.Handle)
 	text := htmlEsc(strings.ReplaceAll(td.Text, "\n", " "))
-	color := avatarColor(td.Name)
-	initial := firstRune(td.Name)
 
 	// Estimate view count as a multiple of fav (Twitter-style)
 	views := td.Fav * (7 + int(fnv.New32a().Sum32())%8)
@@ -468,10 +459,11 @@ func tweetHTML(td *tweetData, timeStr, retweetedBy string) string {
   </div>`, htmlEsc(retweetedBy))
 	}
 
+	// Avatar is an empty placeholder — the Avatar widget is inserted programmatically in makeTweet.
 	return fmt.Sprintf(`
 <div class="tweet">%s
   <div class="tweet-inner">
-    <div class="tweet-avatar" style="background:%s;"><span class="avatar-initial">%s</span></div>
+    <div class="tweet-avatar"></div>
     <div class="tweet-body">
       <div class="tweet-meta">
         <span class="tweet-name">%s</span>
@@ -493,7 +485,6 @@ func tweetHTML(td *tweetData, timeStr, retweetedBy string) string {
   </div>
 </div>`,
 		rtHeader,
-		color, initial,
 		name, handle, timeStr,
 		text,
 		formatCount(td.Reply), formatCount(td.RT), formatCount(td.Fav), formatCount(views),
@@ -535,9 +526,21 @@ func bindTweetActions(t *core.Tree, w widget.Widget, td *tweetData, depth int) {
 	}
 }
 
+// ── Feed item model ──────────────────────────────────────────────────────
+
+// feedItem stores the data for one tweet plus optional RT attribution.
+type feedItem struct {
+	data         *tweetData
+	timeOverride string
+	retweetedBy  string
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────
 
-const loadBatchSize = 5
+const (
+	loadBatchSize = 5
+	maxTweets     = 80 // max materialized widgets; older ones are pruned
+)
 
 // pendingTweetData carries tweet data from the goroutine to the main thread.
 var pendingTweetData = make(chan *tweetData, 32)
@@ -690,6 +693,7 @@ func main() {
 		widget.Widget
 		AppendChild(widget.Widget)
 		PrependChild(widget.Widget)
+		RemoveChild(widget.Widget)
 	}
 	container := timeline.(feedContainer)
 
@@ -706,9 +710,37 @@ func main() {
 		if len(root.Children()) > 0 {
 			tw = root.Children()[0]
 		}
+
+		// Insert Avatar widget into the .tweet-avatar placeholder div.
+		// Structure: .tweet > (.rt-header?) > .tweet-inner > [.tweet-avatar, .tweet-body]
+		// Must use widget-level AppendChild (not tree.AppendChild) to update both
+		// the widget tree (for layout + rendering) and the element tree.
+		tweetChildren := tw.Children()
+		if len(tweetChildren) > 0 {
+			tweetInner := tweetChildren[len(tweetChildren)-1] // last child = tweet-inner
+			if len(tweetInner.Children()) > 0 {
+				avatarDiv := tweetInner.Children()[0] // first child = tweet-avatar
+				av := widget.NewAvatar(tree, cfg)
+				av.SetCustomSize(40)
+				av.SetShape(widget.AvatarCircle)
+				av.SetBgColor(uimath.ColorHex(avatarColor(td.Name)))
+				av.SetContent(td.Name)
+				if td.AvatarURL != "" {
+					av.SetSrc(td.AvatarURL)
+				}
+				type appender interface{ AppendChild(widget.Widget) }
+				if ap, ok := avatarDiv.(appender); ok {
+					ap.AppendChild(av)
+				}
+			}
+		}
+
 		bindTweetActions(tree, tw, td, 0)
 		return tw
 	}
+
+	// Data model: all tweet entries (data only, widgets are materialized on demand).
+	feedItems := make([]feedItem, 0, 256)
 
 	// Seed initial tweets (first 15, every 5th shows RT attribution).
 	count := min(15, len(allTweets))
@@ -717,8 +749,44 @@ func main() {
 		if i > 0 && i%5 == 0 {
 			rtBy = allTweets[(i+1)%len(allTweets)].Name
 		}
+		feedItems = append(feedItems, feedItem{
+			data: &allTweets[i], retweetedBy: rtBy,
+		})
 		tw := makeTweet(&allTweets[i], "", rtBy)
 		container.AppendChild(tw)
+	}
+
+	// Layout cache: avoids expensive recomputation when only scroll offset changes.
+	layoutCache := ui.NewCSSLayoutCache()
+
+	// pruneOldTweets removes the oldest tweet widgets when count exceeds maxTweets.
+	// Adjusts scroll position to compensate, so the visible area stays stable.
+	// The data model (feedItems) is NOT pruned — only the materialized widgets.
+	pruneOldTweets := func() {
+		children := contentWidget.Children()
+		if len(children) <= maxTweets {
+			return
+		}
+		excess := len(children) - maxTweets
+		toRemove := make([]widget.Widget, excess)
+		copy(toRemove, children[:excess])
+
+		removedH := float32(0)
+		for _, w := range toRemove {
+			if elem := tree.Get(w.ElementID()); elem != nil {
+				removedH += elem.Layout().Bounds.Height
+			}
+			container.RemoveChild(w)
+			w.Destroy()
+		}
+
+		// Adjust scroll so visible content doesn't jump
+		if removedH > 0 {
+			contentWidget.ScrollBy(-removedH)
+		}
+		layoutCache.Invalidate()
+		fmt.Printf("[Feed] Pruned %d old tweets (removed %.0fpx), widgets: %d\n",
+			excess, removedH, len(contentWidget.Children()))
 	}
 
 	// Auto-load more tweets when scrolled near bottom.
@@ -730,11 +798,18 @@ func main() {
 		lastLoad = time.Now()
 		for range loadBatchSize {
 			td := &allTweets[rand.Intn(len(allTweets))]
+			feedItems = append(feedItems, feedItem{data: td})
 			tw := makeTweet(td, "", "")
 			container.AppendChild(tw)
 		}
+		layoutCache.Invalidate() // structural change → force full recompute
 		tree.MarkDirty(tree.Root())
-		fmt.Printf("[Feed] +%d tweets (total: %d)\n", loadBatchSize, len(contentWidget.Children()))
+
+		// Prune oldest widgets to keep memory bounded
+		pruneOldTweets()
+
+		fmt.Printf("[Feed] +%d tweets (data: %d, widgets: %d)\n",
+			loadBatchSize, len(feedItems), len(contentWidget.Children()))
 	}
 
 	// Goroutine: send new tweet data every 10 s.
@@ -746,20 +821,22 @@ func main() {
 		}
 	}()
 
-	// Layout callback: drain channel, then CSS layout.
+	// Layout callback: drain channel, then cached CSS layout.
 	app.SetOnLayout(func(tree *core.Tree, root widget.Widget, w, h float32) {
 		for {
 			select {
 			case td := <-pendingTweetData:
+				feedItems = append([]feedItem{{data: td, timeOverride: "刚刚"}}, feedItems...)
 				tw := makeTweet(td, "刚刚", "")
 				container.PrependChild(tw)
+				layoutCache.Invalidate() // structural change
 				fmt.Println("[Feed] New tweet prepended")
 			default:
 				goto done
 			}
 		}
 	done:
-		ui.CSSLayout(tree, root, w, h, cfg)
+		layoutCache.Layout(tree, root, w, h, cfg)
 
 		// Autosize compose textarea (must run after layout so bounds.Width is known).
 		if composeTA != nil {

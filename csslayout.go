@@ -56,6 +56,61 @@ func CSSLayout(tree *core.Tree, root widget.Widget, w, h float32, cfg ...*widget
 	applyLayoutResults(tree, engine, rootNode, widgetMap, nodeToChildren, 0, 0)
 }
 
+// CSSLayoutCache caches layout computation between frames.
+// When only scroll offsets change (no DirtyLayout), it skips the expensive
+// buildLayoutNode + engine.Compute steps and only re-applies positions.
+// This turns a ~10ms full layout into a <1ms scroll-offset update.
+type CSSLayoutCache struct {
+	engine         *layout.Engine
+	widgetMap      map[layout.NodeID]widget.Widget
+	nodeToChildren map[layout.NodeID][]layout.NodeID
+	rootNode       layout.NodeID
+	lastW, lastH   float32
+	valid          bool
+	measurer       *textMeasurerAdapter
+}
+
+// NewCSSLayoutCache creates a new layout cache.
+func NewCSSLayoutCache() *CSSLayoutCache {
+	return &CSSLayoutCache{}
+}
+
+// Invalidate forces full recomputation on next Layout call.
+func (lc *CSSLayoutCache) Invalidate() {
+	lc.valid = false
+}
+
+// Layout performs cached CSS layout. If tree structure hasn't changed (no DirtyLayout)
+// and viewport size is the same, it only re-applies scroll offsets (~100x faster).
+func (lc *CSSLayoutCache) Layout(tree *core.Tree, root widget.Widget, w, h float32, cfg ...*widget.Config) {
+	needsFull := !lc.valid || tree.NeedsLayout() || w != lc.lastW || h != lc.lastH
+
+	if needsFull {
+		lc.engine = layout.New()
+		lc.engine.Clear()
+
+		if len(cfg) > 0 && cfg[0] != nil && cfg[0].TextRenderer != nil {
+			if lc.measurer == nil {
+				lc.measurer = &textMeasurerAdapter{cfg[0].TextRenderer}
+			} else {
+				lc.measurer.drawer = cfg[0].TextRenderer
+			}
+			lc.engine.SetTextMeasurer(lc.measurer)
+		}
+
+		lc.widgetMap = make(map[layout.NodeID]widget.Widget)
+		lc.nodeToChildren = make(map[layout.NodeID][]layout.NodeID)
+		lc.rootNode = buildLayoutNode(lc.engine, root, lc.widgetMap, lc.nodeToChildren)
+		lc.engine.AddRoot(lc.rootNode)
+		lc.engine.Compute(w, h)
+		lc.lastW, lc.lastH = w, h
+		lc.valid = true
+	}
+
+	// Always re-apply positions (cheap) — updates scroll offsets.
+	applyLayoutResults(tree, lc.engine, lc.rootNode, lc.widgetMap, lc.nodeToChildren, 0, 0)
+}
+
 // buildLayoutNode recursively creates layout nodes from widgets.
 // Text widgets (widget.Text) are registered as text nodes so the layout engine
 // can measure their intrinsic size via the TextMeasurer.

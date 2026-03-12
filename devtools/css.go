@@ -37,8 +37,12 @@ func (s *Session) handleCSS(req Request) {
 		_ = json.Unmarshal(req.Params, &p)
 
 		snap := s.srv.getSnapshot()
+		if snap == nil {
+			s.sendResult(req.ID, map[string]any{"computedStyle": []cssProperty{}})
+			return
+		}
 		node, ok := snap.Nodes[core.ElementID(p.NodeID)]
-		if snap == nil || !ok {
+		if !ok {
 			s.sendResult(req.ID, map[string]any{"computedStyle": []cssProperty{}})
 			return
 		}
@@ -54,8 +58,12 @@ func (s *Session) handleCSS(req Request) {
 		_ = json.Unmarshal(req.Params, &p)
 
 		snap := s.srv.getSnapshot()
+		if snap == nil {
+			s.sendResult(req.ID, emptyMatchedStyles())
+			return
+		}
 		node, ok := snap.Nodes[core.ElementID(p.NodeID)]
-		if snap == nil || !ok {
+		if !ok {
 			s.sendResult(req.ID, emptyMatchedStyles())
 			return
 		}
@@ -77,8 +85,12 @@ func (s *Session) handleCSS(req Request) {
 		_ = json.Unmarshal(req.Params, &p)
 
 		snap := s.srv.getSnapshot()
+		if snap == nil {
+			s.sendResult(req.ID, map[string]any{"inlineStyle": nil, "attributesStyle": nil})
+			return
+		}
 		node, ok := snap.Nodes[core.ElementID(p.NodeID)]
-		if snap == nil || !ok {
+		if !ok {
 			s.sendResult(req.ID, map[string]any{"inlineStyle": nil, "attributesStyle": nil})
 			return
 		}

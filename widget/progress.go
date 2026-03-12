@@ -50,6 +50,8 @@ type Progress struct {
 	size        float32 // circle diameter (default 120)
 	color       string  // bar color override
 	trackColor  string  // track background color override
+	cachedLabel string  // cached label text to avoid per-frame allocs
+	cachedPct   float32 // percentage when cachedLabel was computed
 }
 
 // NewProgress creates a progress bar.
@@ -126,7 +128,11 @@ func (p *Progress) labelText() string {
 	if p.label != "" {
 		return p.label
 	}
-	return strconv.Itoa(int(p.percentage)) + "%"
+	if p.cachedLabel == "" || p.cachedPct != p.percentage {
+		p.cachedLabel = strconv.Itoa(int(p.percentage)) + "%"
+		p.cachedPct = p.percentage
+	}
+	return p.cachedLabel
 }
 
 func (p *Progress) Draw(buf *render.CommandBuffer) {

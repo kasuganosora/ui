@@ -92,41 +92,23 @@ func (lw *LootWindow) Draw(buf *render.CommandBuffer) {
 		return
 	}
 	cfg := lw.Config()
-	headerH := float32(32)
 	itemH := lw.slotSize + lw.gap
-	totalH := headerH + float32(len(lw.items))*itemH + cfg.SpaceSM
-	bounds := lw.Bounds()
-	x, y := bounds.X, bounds.Y
-	if bounds.IsEmpty() {
-		x, y = 0, 0
-	}
+	contentH := float32(len(lw.items))*itemH + cfg.SpaceSM
 
-	// Shadow + background
-	buf.DrawOverlay(render.RectCmd{
-		Bounds:    uimath.NewRect(x+2, y+2, lw.width, totalH),
-		FillColor: uimath.RGBA(0, 0, 0, 0.15),
-		Corners:   uimath.CornersAll(cfg.BorderRadius),
-	}, 40, 1)
-	buf.DrawOverlay(render.RectCmd{
-		Bounds:      uimath.NewRect(x, y, lw.width, totalH),
-		FillColor:   uimath.RGBA(0.08, 0.08, 0.12, 0.95),
-		BorderColor: uimath.RGBA(0.4, 0.4, 0.5, 0.8),
-		BorderWidth: 1,
-		Corners:     uimath.CornersAll(cfg.BorderRadius),
-	}, 41, 1)
-
-	// Title
-	if cfg.TextRenderer != nil {
-		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, lw.title, x+cfg.SpaceSM, y+(headerH-lh)/2, cfg.FontSize, lw.width-cfg.SpaceSM*2, uimath.ColorHex("#ffd700"), 1)
+	panel := Panel{
+		Title:   lw.title,
+		Width:   lw.width,
+		TitleH:  32,
+		BgColor: uimath.RGBA(0.08, 0.08, 0.12, 0.95),
+		Shadow:  true,
 	}
+	r := panel.Draw(buf, lw.Bounds(), cfg, contentH)
 
 	// Items
 	for i, li := range lw.items {
-		iy := y + headerH + float32(i)*itemH
+		iy := r.ContentY + float32(i)*itemH
 		s := lw.slotSize
 
-		// Slot background
 		bgColor := uimath.RGBA(0.15, 0.15, 0.15, 0.85)
 		if li.Claimed {
 			bgColor = uimath.RGBA(0.1, 0.1, 0.1, 0.5)
@@ -135,22 +117,21 @@ func (lw *LootWindow) Draw(buf *render.CommandBuffer) {
 		if li.Item != nil {
 			borderColor = rarityColor(li.Item.Rarity)
 		}
-		buf.DrawOverlay(render.RectCmd{
-			Bounds:      uimath.NewRect(x+cfg.SpaceSM, iy, s, s),
+		buf.DrawRect(render.RectCmd{
+			Bounds:      uimath.NewRect(r.ContentX, iy, s, s),
 			FillColor:   bgColor,
 			BorderColor: borderColor,
 			BorderWidth: 1,
 			Corners:     uimath.CornersAll(4),
-		}, 42, 1)
+		}, 4, 1)
 
-		// Item name
 		if li.Item != nil && cfg.TextRenderer != nil {
 			nameColor := rarityColor(li.Item.Rarity)
 			if li.Claimed {
 				nameColor = uimath.RGBA(0.4, 0.4, 0.4, 1)
 			}
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-			cfg.TextRenderer.DrawText(buf, li.Item.Name, x+cfg.SpaceSM+s+cfg.SpaceXS, iy+(s-lh)/2, cfg.FontSizeSm, lw.width-s-cfg.SpaceSM*2-cfg.SpaceXS, nameColor, 1)
+			cfg.TextRenderer.DrawText(buf, li.Item.Name, r.ContentX+s+cfg.SpaceXS, iy+(s-lh)/2, cfg.FontSizeSm, r.ContentW-s-cfg.SpaceXS, nameColor, 1)
 		}
 	}
 }

@@ -401,7 +401,13 @@ func (a *App) Run() error {
 			fpsStart = time.Now()
 		}
 
-		time.Sleep(time.Millisecond)
+		// Smart sleep: 1ms when active (animations/events), 16ms when idle.
+		// Reduces idle CPU from ~10% to <1%.
+		if needsRedraw {
+			time.Sleep(time.Millisecond)
+		} else {
+			time.Sleep(16 * time.Millisecond)
+		}
 	}
 
 	fmt.Println()
@@ -467,6 +473,13 @@ func (a *App) handleEvent(evt *event.Event) {
 		// Otherwise scroll content
 		if !handled && a.content != nil {
 			a.content.HandleWheel(evt.WheelDY)
+			handled = true
+		}
+		// Dispatch to widget tree so any widget can handle wheel events
+		if !handled {
+			evt.GlobalX = mx
+			evt.GlobalY = my
+			a.handleMouse(evt)
 		}
 	case event.MouseMove, event.MouseDown, event.MouseUp, event.MouseClick:
 		a.handleMouse(evt)

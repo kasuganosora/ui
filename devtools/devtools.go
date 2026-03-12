@@ -3,6 +3,7 @@ package devtools
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -185,9 +186,10 @@ func (s *Server) DrawOverlay(buf *render.CommandBuffer) {
 // DrawOverlayLabel draws a Chrome-style info tooltip near the highlighted element.
 // It shows the tag name with classes (e.g. "div.compose-avatar") and the element
 // dimensions (e.g. "40 × 40"). Call this after DrawOverlay in the render loop.
-// tr must be the app's text renderer; if nil the label is silently skipped.
-func (s *Server) DrawOverlayLabel(buf *render.CommandBuffer, tr *textrender.Renderer) {
-	if tr == nil {
+// tr must be the app's text renderer; fontID must be the primary font used by the app.
+// If tr is nil or fontID is invalid the label is silently skipped.
+func (s *Server) DrawOverlayLabel(buf *render.CommandBuffer, tr *textrender.Renderer, fontID font.ID) {
+	if tr == nil || fontID == font.InvalidFontID {
 		return
 	}
 	s.overlayMu.Lock()
@@ -201,7 +203,7 @@ func (s *Server) DrawOverlayLabel(buf *render.CommandBuffer, tr *textrender.Rend
 		return
 	}
 	node, ok := snap.Nodes[id]
-	if !ok || node.Bounds.Width <= 0 {
+	if !ok {
 		return
 	}
 
@@ -223,7 +225,7 @@ func (s *Server) DrawOverlayLabel(buf *render.CommandBuffer, tr *textrender.Rend
 		lineGap   = 3.0  // gap between the two text lines
 		cornerR   = 4.0
 	)
-	shapeOpts := font.ShapeOptions{FontSize: fontSize}
+	shapeOpts := font.ShapeOptions{FontID: fontID, FontSize: fontSize}
 	tm1 := tr.Measure(tagLine, shapeOpts)
 	tm2 := tr.Measure(dimsLine, shapeOpts)
 
@@ -289,14 +291,23 @@ func (s *Server) DrawOverlayLabel(buf *render.CommandBuffer, tr *textrender.Rend
 //	srv.Log("info",  "other", "layout complete")
 //	srv.Log("error", "other", "texture failed to load")
 func (s *Server) Log(level, source, text string) {
-	s.broadcast("Log.entryAdded", map[string]any{
+	entry := map[string]any{
 		"entry": LogEntry{
 			Source:    source,
 			Level:     level,
 			Text:      text,
 			Timestamp: float64(time.Now().UnixMilli()),
 		},
-	})
+	}
+	s.sessionsMu.Lock()
+	sessions := make([]*Session, len(s.sessions))
+	copy(sessions, s.sessions)
+	s.sessionsMu.Unlock()
+	for _, sess := range sessions {
+		if sess.logEnabled {
+			sess.sendEvent("Log.entryAdded", entry)
+		}
+	}
 }
 
 // ----- internal helpers -----
@@ -311,16 +322,19 @@ func (s *Server) setHighlight(id core.ElementID) {
 	s.overlayMu.Lock()
 	changed := s.highlightID != id
 	s.highlightID = id
+	dirty := s.markDirty
 	s.overlayMu.Unlock()
-	if changed && s.markDirty != nil {
-		s.markDirty()
+	if changed && dirty != nil {
+		dirty()
 	}
 }
 
 // Attach is called by App to give the server a way to trigger redraws.
 // It is called automatically when DevTools is set in AppOptions.
 func (s *Server) Attach(markDirty func()) {
+	s.overlayMu.Lock()
 	s.markDirty = markDirty
+	s.overlayMu.Unlock()
 }
 
 func (s *Server) broadcast(method string, params any) {
@@ -384,7 +398,7 @@ func (s *Server) setupRoutes() {
 func (s *Server) jsonList(c *gin.Context) {
 	host := c.Request.Host
 	if host == "" {
-		host = "localhost" + s.opts.Addr
+		host = s.localHostPort()
 	}
 	c.JSON(http.StatusOK, []map[string]any{
 		{
@@ -403,7 +417,7 @@ func (s *Server) jsonList(c *gin.Context) {
 func (s *Server) jsonVersion(c *gin.Context) {
 	host := c.Request.Host
 	if host == "" {
-		host = "localhost" + s.opts.Addr
+		host = s.localHostPort()
 	}
 	c.JSON(http.StatusOK, map[string]string{
 		"Browser":              "GoUI/1.0",
@@ -417,4 +431,13 @@ func (s *Server) jsonVersion(c *gin.Context) {
 
 func (s *Server) jsonProtocol(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]any{"domains": []any{}})
+}
+
+// localHostPort returns "localhost:<port>" derived from opts.Addr.
+// Used as a fallback when the HTTP Host header is absent (e.g. in tests).
+func (s *Server) localHostPort() string {
+	if _, port, err := net.SplitHostPort(s.opts.Addr); err == nil {
+		return "localhost:" + port
+	}
+	return "localhost:9222"
 }

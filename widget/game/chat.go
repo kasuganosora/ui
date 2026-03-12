@@ -24,6 +24,7 @@ type ChatBox struct {
 	width      float32
 	height     float32
 	inputText  string
+	inputH     float32 // height of the input area (default 28)
 	onSend     func(text string)
 }
 
@@ -37,6 +38,7 @@ func NewChatBox(tree *core.Tree, cfg *widget.Config) *ChatBox {
 		maxVisible: 10,
 		width:      350,
 		height:     250,
+		inputH:     28,
 	}
 }
 
@@ -45,6 +47,26 @@ func (cb *ChatBox) InputText() string          { return cb.inputText }
 func (cb *ChatBox) SetSize(w, h float32)       { cb.width = w; cb.height = h }
 func (cb *ChatBox) SetMaxVisible(n int)        { cb.maxVisible = n }
 func (cb *ChatBox) OnSend(fn func(string))     { cb.onSend = fn }
+func (cb *ChatBox) InputH() float32            { return cb.inputH }
+
+// InputBounds returns the bounding rectangle for the input area (for external Input widget placement).
+func (cb *ChatBox) InputBounds() uimath.Rect {
+	b := cb.Bounds()
+	if b.IsEmpty() {
+		b = uimath.NewRect(0, 0, cb.width, cb.height)
+	}
+	return uimath.NewRect(b.X, b.Y+b.Height-cb.inputH, b.Width, cb.inputH)
+}
+
+// MessageBounds returns the bounding rectangle for the message area (for external scrollable Div placement).
+func (cb *ChatBox) MessageBounds() uimath.Rect {
+	b := cb.Bounds()
+	if b.IsEmpty() {
+		b = uimath.NewRect(0, 0, cb.width, cb.height)
+	}
+	msgH := b.Height - cb.inputH
+	return uimath.NewRect(b.X, b.Y, b.Width, msgH)
+}
 
 func (cb *ChatBox) AddMessage(msg ChatMessage) {
 	cb.messages = append(cb.messages, msg)
@@ -75,6 +97,24 @@ func (cb *ChatBox) ScrollDown() {
 	}
 }
 
+// HandleWheel scrolls the message area. deltaY < 0 = scroll up, > 0 = scroll down.
+// Returns true if the event was consumed (mouse was within chat bounds).
+func (cb *ChatBox) HandleWheel(x, y, deltaY float32) bool {
+	b := cb.Bounds()
+	if b.IsEmpty() {
+		return false
+	}
+	if x < b.X || x >= b.X+b.Width || y < b.Y || y >= b.Y+b.Height {
+		return false
+	}
+	if deltaY < 0 {
+		cb.ScrollUp()
+	} else if deltaY > 0 {
+		cb.ScrollDown()
+	}
+	return true
+}
+
 func (cb *ChatBox) Draw(buf *render.CommandBuffer) {
 	bounds := cb.Bounds()
 	if bounds.IsEmpty() {
@@ -82,63 +122,18 @@ func (cb *ChatBox) Draw(buf *render.CommandBuffer) {
 	}
 
 	cfg := cb.Config()
-	inputH := float32(28)
-	msgAreaH := bounds.Height - inputH - 4
 
-	// Background
+	// Background (message area only, input area handled by external Input widget)
 	buf.DrawRect(render.RectCmd{
-		Bounds:    bounds,
+		Bounds:    uimath.NewRect(bounds.X, bounds.Y, bounds.Width, bounds.Height-cb.inputH),
 		FillColor: uimath.RGBA(0, 0, 0, 0.6),
-		Corners:   uimath.CornersAll(cfg.BorderRadius),
+		Corners: uimath.Corners{
+			TopLeft:  cfg.BorderRadius,
+			TopRight: cfg.BorderRadius,
+		},
 	}, 1, 1)
 
-	// Messages area
-	if cfg.TextRenderer != nil {
-		lineH := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-		y := bounds.Y + 4
-		start := cb.scrollY
-		end := start + cb.maxVisible
-		if end > len(cb.messages) {
-			end = len(cb.messages)
-		}
-
-		for i := start; i < end; i++ {
-			msg := cb.messages[i]
-			if y+lineH > bounds.Y+msgAreaH {
-				break
-			}
-			// Sender name
-			senderText := "[" + msg.Sender + "] "
-			senderW := cfg.TextRenderer.MeasureText(senderText, cfg.FontSizeSm)
-			senderColor := msg.Color
-			if senderColor == (uimath.Color{}) {
-				senderColor = uimath.ColorHex("#aaaaaa")
-			}
-			cfg.TextRenderer.DrawText(buf, senderText, bounds.X+4, y, cfg.FontSizeSm, senderW, senderColor, 1)
-			// Message text
-			textW := bounds.Width - 8 - senderW
-			cfg.TextRenderer.DrawText(buf, msg.Text, bounds.X+4+senderW, y, cfg.FontSizeSm, textW, uimath.ColorWhite, 0.9)
-			y += lineH + 2
-		}
-	}
-
-	// Input area
-	inputY := bounds.Y + bounds.Height - inputH
-	buf.DrawRect(render.RectCmd{
-		Bounds:      uimath.NewRect(bounds.X, inputY, bounds.Width, inputH),
-		FillColor:   uimath.RGBA(0.15, 0.15, 0.15, 0.9),
-		BorderColor: uimath.RGBA(0.3, 0.3, 0.3, 1),
-		BorderWidth: 1,
-		Corners: uimath.Corners{
-			BottomLeft:  cfg.BorderRadius,
-			BottomRight: cfg.BorderRadius,
-		},
-	}, 2, 1)
-
-	if cb.inputText != "" && cfg.TextRenderer != nil {
-		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, cb.inputText, bounds.X+4, inputY+(inputH-lh)/2, cfg.FontSizeSm, bounds.Width-8, uimath.ColorWhite, 1)
-	}
+	// Messages are rendered by an external scrollable Div — not drawn here.
 }
 
 // FloatingText displays temporary floating text (damage numbers, XP gains, etc.).
@@ -217,7 +212,7 @@ func (it *ItemTooltip) Draw(buf *render.CommandBuffer) {
 	h := lineH*3 + 8 // name + rarity + placeholder description
 
 	// Background
-	buf.DrawOverlay(render.RectCmd{
+	buf.DrawRect(render.RectCmd{
 		Bounds:      uimath.NewRect(it.x, it.y, it.width, h),
 		FillColor:   uimath.RGBA(0.05, 0.05, 0.05, 0.95),
 		BorderColor: rarityColor(it.item.Rarity),
@@ -294,14 +289,14 @@ func (nt *NotificationToast) Draw(buf *render.CommandBuffer) {
 	h := float32(40)
 
 	// Background
-	buf.DrawOverlay(render.RectCmd{
+	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(nt.x, nt.y, nt.width, h),
 		FillColor: uimath.RGBA(0.1, 0.1, 0.1, 0.9),
 		Corners:   uimath.CornersAll(cfg.BorderRadius),
 	}, 90, 1)
 
 	// Color bar
-	buf.DrawOverlay(render.RectCmd{
+	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(nt.x, nt.y, 4, h),
 		FillColor: nt.toastColor(),
 		Corners: uimath.Corners{

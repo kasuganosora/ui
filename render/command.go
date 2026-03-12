@@ -92,73 +92,99 @@ type ClipCmd struct {
 }
 
 // CommandBuffer collects render commands for a frame.
-// This is an aggregate root - external code must use its methods.
+// Uses arena-style allocation for command structs — zero GC pressure per frame.
 type CommandBuffer struct {
 	commands  []Command
 	overlays  []Command // rendered after all commands, without clip
 	clipStack []uimath.Rect
+
+	// Arena pools: grow as needed, reset index to 0 each frame (no allocs after warm-up).
+	rectArena   []RectCmd
+	rectIdx     int
+	textArena   []TextCmd
+	textIdx     int
+	imageArena  []ImageCmd
+	imageIdx    int
+	clipArena   []ClipCmd
+	clipIdx     int
+	shadowArena []ShadowCmd
+	shadowIdx   int
 }
 
 // NewCommandBuffer creates an empty command buffer.
 func NewCommandBuffer() *CommandBuffer {
 	return &CommandBuffer{
-		commands: make([]Command, 0, 256),
-		overlays: make([]Command, 0, 16),
+		commands:    make([]Command, 0, 256),
+		overlays:    make([]Command, 0, 16),
+		rectArena:   make([]RectCmd, 0, 128),
+		textArena:   make([]TextCmd, 0, 64),
+		imageArena:  make([]ImageCmd, 0, 32),
+		clipArena:   make([]ClipCmd, 0, 32),
+		shadowArena: make([]ShadowCmd, 0, 16),
 	}
 }
 
-// Reset releases all pooled command objects and clears the buffer for reuse.
+// Reset clears the buffer for reuse. Arena memory is retained for next frame.
 func (cb *CommandBuffer) Reset() {
-	cb.releaseAll()
 	cb.commands = cb.commands[:0]
 	cb.overlays = cb.overlays[:0]
 	cb.clipStack = cb.clipStack[:0]
+	cb.rectIdx = 0
+	cb.textIdx = 0
+	cb.imageIdx = 0
+	cb.clipIdx = 0
+	cb.shadowIdx = 0
 }
 
-// releaseAll returns all command structs to their pools.
-func (cb *CommandBuffer) releaseAll() {
-	for i := range cb.commands {
-		cb.releaseCommand(&cb.commands[i])
+// acquireRect returns a pointer to a RectCmd in the arena.
+func (cb *CommandBuffer) acquireRect() *RectCmd {
+	if cb.rectIdx >= len(cb.rectArena) {
+		cb.rectArena = append(cb.rectArena, RectCmd{})
 	}
-	for i := range cb.overlays {
-		cb.releaseCommand(&cb.overlays[i])
-	}
+	p := &cb.rectArena[cb.rectIdx]
+	cb.rectIdx++
+	return p
 }
 
-// releaseCommand returns a single command's struct to its pool.
-func (cb *CommandBuffer) releaseCommand(c *Command) {
-	switch c.Type {
-	case CmdRect:
-		if c.Rect != nil {
-			ReleaseRectCmd(c.Rect)
-			c.Rect = nil
-		}
-	case CmdText:
-		if c.Text != nil {
-			ReleaseTextCmd(c.Text)
-			c.Text = nil
-		}
-	case CmdImage:
-		if c.Image != nil {
-			ReleaseImageCmd(c.Image)
-			c.Image = nil
-		}
-	case CmdClip:
-		if c.Clip != nil {
-			ReleaseClipCmd(c.Clip)
-			c.Clip = nil
-		}
-	case CmdShadow:
-		if c.Shadow != nil {
-			ReleaseShadowCmd(c.Shadow)
-			c.Shadow = nil
-		}
+func (cb *CommandBuffer) acquireText() *TextCmd {
+	if cb.textIdx >= len(cb.textArena) {
+		cb.textArena = append(cb.textArena, TextCmd{})
 	}
+	p := &cb.textArena[cb.textIdx]
+	cb.textIdx++
+	return p
+}
+
+func (cb *CommandBuffer) acquireImage() *ImageCmd {
+	if cb.imageIdx >= len(cb.imageArena) {
+		cb.imageArena = append(cb.imageArena, ImageCmd{})
+	}
+	p := &cb.imageArena[cb.imageIdx]
+	cb.imageIdx++
+	return p
+}
+
+func (cb *CommandBuffer) acquireClip() *ClipCmd {
+	if cb.clipIdx >= len(cb.clipArena) {
+		cb.clipArena = append(cb.clipArena, ClipCmd{})
+	}
+	p := &cb.clipArena[cb.clipIdx]
+	cb.clipIdx++
+	return p
+}
+
+func (cb *CommandBuffer) acquireShadow() *ShadowCmd {
+	if cb.shadowIdx >= len(cb.shadowArena) {
+		cb.shadowArena = append(cb.shadowArena, ShadowCmd{})
+	}
+	p := &cb.shadowArena[cb.shadowIdx]
+	cb.shadowIdx++
+	return p
 }
 
 // DrawRect adds a rectangle draw command.
 func (cb *CommandBuffer) DrawRect(cmd RectCmd, zOrder int32, opacity float32) {
-	rc := AcquireRectCmd()
+	rc := cb.acquireRect()
 	*rc = cmd
 	cb.commands = append(cb.commands, Command{
 		Type:    CmdRect,
@@ -170,7 +196,7 @@ func (cb *CommandBuffer) DrawRect(cmd RectCmd, zOrder int32, opacity float32) {
 
 // DrawText adds a text draw command.
 func (cb *CommandBuffer) DrawText(cmd TextCmd, zOrder int32, opacity float32) {
-	tc := AcquireTextCmd()
+	tc := cb.acquireText()
 	*tc = cmd
 	cb.commands = append(cb.commands, Command{
 		Type:    CmdText,
@@ -182,7 +208,7 @@ func (cb *CommandBuffer) DrawText(cmd TextCmd, zOrder int32, opacity float32) {
 
 // DrawImage adds an image draw command.
 func (cb *CommandBuffer) DrawImage(cmd ImageCmd, zOrder int32, opacity float32) {
-	ic := AcquireImageCmd()
+	ic := cb.acquireImage()
 	*ic = cmd
 	cb.commands = append(cb.commands, Command{
 		Type:    CmdImage,
@@ -196,7 +222,7 @@ func (cb *CommandBuffer) DrawImage(cmd ImageCmd, zOrder int32, opacity float32) 
 // the element using SDF distance-field blur. Call before DrawRect for the
 // same element so the shadow appears beneath it.
 func (cb *CommandBuffer) DrawShadow(cmd ShadowCmd, zOrder int32, opacity float32) {
-	sc := AcquireShadowCmd()
+	sc := cb.acquireShadow()
 	*sc = cmd
 	cb.commands = append(cb.commands, Command{
 		Type:    CmdShadow,
@@ -206,13 +232,22 @@ func (cb *CommandBuffer) DrawShadow(cmd ShadowCmd, zOrder int32, opacity float32
 	})
 }
 
+// CurrentClip returns the current active clip rectangle.
+// Returns a very large rect if no clip is active (everything visible).
+func (cb *CommandBuffer) CurrentClip() uimath.Rect {
+	if len(cb.clipStack) > 0 {
+		return cb.clipStack[len(cb.clipStack)-1]
+	}
+	return uimath.NewRect(0, 0, 1e6, 1e6)
+}
+
 // PushClip pushes a scissor rectangle, intersecting with any active clip.
 func (cb *CommandBuffer) PushClip(bounds uimath.Rect) {
 	if len(cb.clipStack) > 0 {
 		bounds = cb.clipStack[len(cb.clipStack)-1].Intersection(bounds)
 	}
 	cb.clipStack = append(cb.clipStack, bounds)
-	cc := AcquireClipCmd()
+	cc := cb.acquireClip()
 	cc.Bounds = bounds
 	cb.commands = append(cb.commands, Command{
 		Type: CmdClip,
@@ -225,7 +260,7 @@ func (cb *CommandBuffer) PopClip() {
 	if len(cb.clipStack) > 0 {
 		cb.clipStack = cb.clipStack[:len(cb.clipStack)-1]
 	}
-	cc := AcquireClipCmd()
+	cc := cb.acquireClip()
 	if len(cb.clipStack) > 0 {
 		cc.Bounds = cb.clipStack[len(cb.clipStack)-1]
 	} else {
@@ -240,7 +275,7 @@ func (cb *CommandBuffer) PopClip() {
 // DrawOverlay adds a rect command to the overlay layer.
 // Overlays are rendered after all normal commands with no clip applied.
 func (cb *CommandBuffer) DrawOverlay(cmd RectCmd, zOrder int32, opacity float32) {
-	rc := AcquireRectCmd()
+	rc := cb.acquireRect()
 	*rc = cmd
 	cb.overlays = append(cb.overlays, Command{
 		Type:    CmdRect,
@@ -252,7 +287,7 @@ func (cb *CommandBuffer) DrawOverlay(cmd RectCmd, zOrder int32, opacity float32)
 
 // DrawOverlayTextCmd adds a text command to the overlay layer.
 func (cb *CommandBuffer) DrawOverlayTextCmd(cmd TextCmd, zOrder int32, opacity float32) {
-	tc := AcquireTextCmd()
+	tc := cb.acquireText()
 	*tc = cmd
 	cb.overlays = append(cb.overlays, Command{
 		Type:    CmdText,

@@ -126,7 +126,7 @@ func drawUnitFrame(buf *render.CommandBuffer, cfg *widget.Config, x, y, w, h flo
 	barH := float32(8)
 
 	// Background
-	buf.DrawOverlay(render.RectCmd{
+	buf.DrawRect(render.RectCmd{
 		Bounds:      uimath.NewRect(x, y, w, h),
 		FillColor:   uimath.RGBA(0.08, 0.08, 0.12, 0.9),
 		BorderColor: uimath.RGBA(0.3, 0.3, 0.4, 0.8),
@@ -158,7 +158,7 @@ func drawUnitFrame(buf *render.CommandBuffer, cfg *widget.Config, x, y, w, h flo
 
 func drawResourceBar(buf *render.CommandBuffer, x, y, w, h, current, max float32, color uimath.Color) {
 	// Background
-	buf.DrawOverlay(render.RectCmd{
+	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(x, y, w, h),
 		FillColor: uimath.RGBA(0, 0, 0, 0.5),
 		Corners:   uimath.CornersAll(h / 2),
@@ -170,7 +170,7 @@ func drawResourceBar(buf *render.CommandBuffer, x, y, w, h, current, max float32
 		if ratio > 1 {
 			ratio = 1
 		}
-		buf.DrawOverlay(render.RectCmd{
+		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(x, y, w*ratio, h),
 			FillColor: color,
 			Corners:   uimath.CornersAll(h / 2),

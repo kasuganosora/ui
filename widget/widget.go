@@ -112,9 +112,20 @@ func (b *Base) RemoveChild(child Widget) {
 	}
 }
 
-// DrawChildren draws all child widgets.
+// DrawChildren draws child widgets, skipping those entirely outside the current clip rect.
 func (b *Base) DrawChildren(buf *render.CommandBuffer) {
+	clip := buf.CurrentClip()
 	for _, c := range b.children {
+		// Viewport culling: skip children whose bounds are entirely outside the clip rect.
+		if elem := b.tree.Get(c.ElementID()); elem != nil {
+			cb := elem.Layout().Bounds
+			if cb.Width > 0 && cb.Height > 0 {
+				if cb.X >= clip.X+clip.Width || cb.X+cb.Width <= clip.X ||
+					cb.Y >= clip.Y+clip.Height || cb.Y+cb.Height <= clip.Y {
+					continue
+				}
+			}
+		}
 		c.Draw(buf)
 	}
 }

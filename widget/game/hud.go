@@ -14,17 +14,27 @@ import (
 
 // HUD is a head-up display overlay layer.
 // It manages multiple HUD elements positioned around the screen.
+// Supports dragging for elements marked as Draggable.
 type HUD struct {
 	widget.Base
 	elements []HUDElement
+
+	// Drag state
+	dragging   int     // index into elements, or -1
+	dragStartX float32 // mouse position at drag start
+	dragStartY float32
+	dragOrigOX float32 // original offset at drag start
+	dragOrigOY float32
 }
 
 // HUDElement is a positioned element within the HUD.
 type HUDElement struct {
-	Widget  widget.Widget
-	Anchor  HUDAnchor
-	OffsetX float32
-	OffsetY float32
+	Widget      widget.Widget
+	Anchor      HUDAnchor
+	OffsetX     float32
+	OffsetY     float32
+	Draggable   bool    // If true, this element can be dragged by the user.
+	DragHandleH float32 // If > 0, only the top DragHandleH pixels act as drag handle (title bar).
 }
 
 // HUDAnchor specifies where an element is anchored on screen.
@@ -48,7 +58,8 @@ func NewHUD(tree *core.Tree, cfg *widget.Config) *HUD {
 		cfg = widget.DefaultConfig()
 	}
 	h := &HUD{
-		Base: widget.NewBase(tree, core.TypeCustom, cfg),
+		Base:     widget.NewBase(tree, core.TypeCustom, cfg),
+		dragging: -1,
 	}
 	h.SetStyle(layout.Style{Display: layout.DisplayNone})
 	return h
@@ -101,6 +112,88 @@ func (h *HUD) LayoutElements(vpW, vpH float32) {
 			Bounds: uimath.NewRect(x, y, ew, eh),
 		})
 	}
+}
+
+// AddElementDraggable adds a draggable widget to the HUD at the specified anchor.
+// dragHandleH specifies the height of the title-bar drag handle (0 = entire element is draggable).
+func (h *HUD) AddElementDraggable(w widget.Widget, anchor HUDAnchor, offsetX, offsetY float32, dragHandleH ...float32) {
+	dh := float32(0)
+	if len(dragHandleH) > 0 {
+		dh = dragHandleH[0]
+	}
+	h.elements = append(h.elements, HUDElement{
+		Widget:      w,
+		Anchor:      anchor,
+		OffsetX:     offsetX,
+		OffsetY:     offsetY,
+		Draggable:   true,
+		DragHandleH: dh,
+	})
+}
+
+// HandleMouseDown starts dragging if a draggable element's drag handle is under (x, y).
+// The clicked element is brought to front (moved to the end of the draw order).
+// Returns true if drag started.
+func (h *HUD) HandleMouseDown(x, y float32) bool {
+	tree := h.Tree()
+	// Check in reverse order (top-most first)
+	for i := len(h.elements) - 1; i >= 0; i-- {
+		elem := h.elements[i]
+		if !elem.Draggable {
+			continue
+		}
+		if e := tree.Get(elem.Widget.ElementID()); e != nil {
+			b := e.Layout().Bounds
+			if x >= b.X && x < b.X+b.Width && y >= b.Y && y < b.Y+b.Height {
+				// If DragHandleH is set, only the title bar region initiates drag
+				if elem.DragHandleH > 0 && y > b.Y+elem.DragHandleH {
+					continue // Click is in content area, not title bar
+				}
+				// Bring to front: move element to end of slice
+				if i < len(h.elements)-1 {
+					el := h.elements[i]
+					copy(h.elements[i:], h.elements[i+1:])
+					h.elements[len(h.elements)-1] = el
+					i = len(h.elements) - 1
+				}
+				h.dragging = i
+				h.dragStartX = x
+				h.dragStartY = y
+				h.dragOrigOX = elem.OffsetX
+				h.dragOrigOY = elem.OffsetY
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// HandleMouseMove updates the dragged element's offset.
+// Returns true if a drag is active.
+func (h *HUD) HandleMouseMove(x, y float32) bool {
+	if h.dragging < 0 || h.dragging >= len(h.elements) {
+		return false
+	}
+	dx := x - h.dragStartX
+	dy := y - h.dragStartY
+	h.elements[h.dragging].OffsetX = h.dragOrigOX + dx
+	h.elements[h.dragging].OffsetY = h.dragOrigOY + dy
+	return true
+}
+
+// HandleMouseUp ends the current drag operation.
+// Returns true if a drag was active.
+func (h *HUD) HandleMouseUp() bool {
+	if h.dragging < 0 {
+		return false
+	}
+	h.dragging = -1
+	return true
+}
+
+// IsDragging returns true if a drag is in progress.
+func (h *HUD) IsDragging() bool {
+	return h.dragging >= 0
 }
 
 func (h *HUD) Draw(buf *render.CommandBuffer) {

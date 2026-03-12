@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/kasuganosora/ui/core"
+	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 	"github.com/kasuganosora/ui/widget"
 )
@@ -167,8 +168,8 @@ func TestItemTooltip(t *testing.T) {
 	// Overlay commands
 	if buf.Len() == 0 {
 		// Overlay commands go to overlays, not commands
-		if len(buf.Overlays()) == 0 {
-			t.Error("expected overlay commands")
+		if buf.Len() == 0 {
+			t.Error("expected render commands")
 		}
 	}
 }
@@ -186,8 +187,110 @@ func TestNotificationToast(t *testing.T) {
 
 	buf := render.NewCommandBuffer()
 	nt.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlay commands from toast")
+	if buf.Len() == 0 {
+		t.Error("expected render commands from toast")
+	}
+}
+
+func TestHUDDrag(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	hud := NewHUD(tree, cfg)
+
+	// Create a draggable panel
+	panel := NewInventory(tree, 2, 2, cfg)
+	tree.SetLayout(panel.ElementID(), core.LayoutResult{
+		Bounds: uimath.NewRect(0, 0, 100, 100),
+	})
+	hud.AddElementDraggable(panel, AnchorTopLeft, 50, 50)
+
+	// Layout at 800x600
+	hud.LayoutElements(800, 600)
+
+	// Panel should be at (50, 50) after layout
+	if e := tree.Get(panel.ElementID()); e != nil {
+		b := e.Layout().Bounds
+		if b.X != 50 || b.Y != 50 {
+			t.Errorf("panel at (%g,%g), expected (50,50)", b.X, b.Y)
+		}
+	}
+
+	// Non-draggable element should not start drag
+	bar := NewHealthBar(tree, cfg)
+	tree.SetLayout(bar.ElementID(), core.LayoutResult{
+		Bounds: uimath.NewRect(0, 0, 200, 20),
+	})
+	hud.AddElement(bar, AnchorTopLeft, 10, 10)
+	hud.LayoutElements(800, 600)
+
+	if hud.HandleMouseDown(15, 15) {
+		t.Error("should not drag non-draggable element")
+	}
+
+	// Click on draggable panel should start drag
+	if !hud.HandleMouseDown(60, 60) {
+		t.Fatal("expected drag to start on panel")
+	}
+	if !hud.IsDragging() {
+		t.Error("should be dragging")
+	}
+
+	// Drag 30px right, 20px down
+	hud.HandleMouseMove(90, 80)
+	hud.LayoutElements(800, 600)
+
+	if e := tree.Get(panel.ElementID()); e != nil {
+		b := e.Layout().Bounds
+		// Offset was 50+30=80, 50+20=70
+		if b.X != 80 || b.Y != 70 {
+			t.Errorf("panel at (%g,%g) after drag, expected (80,70)", b.X, b.Y)
+		}
+	}
+
+	// Release
+	if !hud.HandleMouseUp() {
+		t.Error("expected drag end")
+	}
+	if hud.IsDragging() {
+		t.Error("should not be dragging after release")
+	}
+
+	// MouseUp without drag should return false
+	if hud.HandleMouseUp() {
+		t.Error("expected false when not dragging")
+	}
+}
+
+func TestHUDBringToFront(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	hud := NewHUD(tree, cfg)
+
+	// Create two draggable panels: A at (50,50), B at (60,60) overlapping
+	panelA := NewInventory(tree, 2, 2, cfg)
+	tree.SetLayout(panelA.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 100, 100)})
+	hud.AddElementDraggable(panelA, AnchorTopLeft, 50, 50)
+
+	panelB := NewInventory(tree, 2, 2, cfg)
+	tree.SetLayout(panelB.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 100, 100)})
+	hud.AddElementDraggable(panelB, AnchorTopLeft, 60, 60)
+
+	hud.LayoutElements(800, 600)
+
+	// B is last in array → drawn on top. Click at (70,70) hits B (top-most).
+	buf := render.NewCommandBuffer()
+	hud.Draw(buf)
+
+	// Now click on A's unique region (55, 55) — only A is there
+	if !hud.HandleMouseDown(55, 55) {
+		t.Fatal("expected to start dragging A")
+	}
+	hud.HandleMouseUp()
+
+	// After clicking A, A should be the last element (brought to front)
+	lastElem := hud.elements[len(hud.elements)-1]
+	if lastElem.Widget.ElementID() != panelA.ElementID() {
+		t.Error("expected panel A to be brought to front (last in draw order)")
 	}
 }
 

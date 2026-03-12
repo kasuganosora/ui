@@ -44,6 +44,17 @@ type TexturedVertex struct {
 	ColorR, ColorG, ColorB, ColorA float32
 }
 
+// dx9Pipeline identifies the active rendering pipeline to avoid redundant state switches.
+type dx9Pipeline uint8
+
+const (
+	pipelineNone     dx9Pipeline = iota
+	pipelineRect                         // SDF rect shader
+	pipelineTextured                     // image shader (sRGB texture)
+	pipelineText                         // text shader (coverage atlas, no sRGB)
+	pipelineShadow                       // shadow shader
+)
+
 type textureEntry struct {
 	texture uintptr // IDirect3DTexture9*
 	width   int
@@ -245,6 +256,15 @@ type Backend struct {
 
 	// Present params (needed for Reset)
 	pp D3DPRESENT_PARAMETERS
+
+	// Pipeline state tracking (avoid redundant COM calls)
+	activePipeline dx9Pipeline
+	activeTexture  uintptr // currently bound IDirect3DTexture9*
+
+	// Staging buffers (reused across frames to avoid GC allocations)
+	rectStaging     []RectVertex
+	texturedStaging []TexturedVertex
+	shadowStaging   []ShadowVertex
 }
 
 // New creates a new DX9 backend.
@@ -800,6 +820,10 @@ func (b *Backend) compilePixelShader(code string) (uintptr, error) {
 
 // BeginFrame implements render.Backend.
 func (b *Backend) BeginFrame() {
+	// Reset pipeline state for new frame
+	b.activePipeline = pipelineNone
+	b.activeTexture = 0
+
 	dev := b.device
 
 	// Check for lost device
@@ -887,28 +911,75 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 }
 
 func (b *Backend) renderCommands(commands []render.Command) {
-	for _, c := range commands {
+	i := 0
+	n := len(commands)
+	for i < n {
+		c := commands[i]
 		switch c.Type {
 		case render.CmdClip:
 			if c.Clip != nil {
 				b.applyScissor(c.Clip)
 			}
+			i++
+
 		case render.CmdRect:
-			if c.Rect != nil {
-				b.renderRect(c)
+			if c.Rect == nil {
+				i++
+				continue
 			}
+			// Scan ahead: batch consecutive CmdRect commands into one draw call.
+			j := i + 1
+			for j < n && commands[j].Type == render.CmdRect && commands[j].Rect != nil {
+				j++
+			}
+			b.renderRectBatch(commands[i:j])
+			i = j
+
 		case render.CmdText:
-			if c.Text != nil {
-				b.renderText(c)
+			if c.Text == nil {
+				i++
+				continue
 			}
+			// Scan ahead: batch consecutive CmdText with the same atlas texture.
+			atlas := c.Text.Atlas
+			j := i + 1
+			for j < n && commands[j].Type == render.CmdText &&
+				commands[j].Text != nil && commands[j].Text.Atlas == atlas {
+				j++
+			}
+			b.renderTextBatch(commands[i:j])
+			i = j
+
 		case render.CmdImage:
-			if c.Image != nil {
-				b.renderImage(c)
+			if c.Image == nil {
+				i++
+				continue
 			}
+			// Scan ahead: batch consecutive CmdImage with the same texture.
+			tex := c.Image.Texture
+			j := i + 1
+			for j < n && commands[j].Type == render.CmdImage &&
+				commands[j].Image != nil && commands[j].Image.Texture == tex {
+				j++
+			}
+			b.renderImageBatch(commands[i:j])
+			i = j
+
 		case render.CmdShadow:
-			if c.Shadow != nil {
-				b.renderShadow(c)
+			if c.Shadow == nil {
+				i++
+				continue
 			}
+			// Scan ahead: batch consecutive CmdShadow commands.
+			j := i + 1
+			for j < n && commands[j].Type == render.CmdShadow && commands[j].Shadow != nil {
+				j++
+			}
+			b.renderShadowBatch(commands[i:j])
+			i = j
+
+		default:
+			i++
 		}
 	}
 }
@@ -949,35 +1020,40 @@ func (b *Backend) texelHalfPixelOffset() (float32, float32) {
 	return -1.0 / float32(b.width), 1.0 / float32(b.height)
 }
 
-func (b *Backend) renderRect(c render.Command) {
-	rect := c.Rect
-	opacity := c.Opacity
-
+// renderRectBatch draws multiple consecutive CmdRect commands in a single draw call.
+func (b *Backend) renderRectBatch(commands []render.Command) {
 	logW := float32(b.width) / b.dpiScale
 	logH := float32(b.height) / b.dpiScale
-	x, y, w, h := rect.Bounds.X, rect.Bounds.Y, rect.Bounds.Width, rect.Bounds.Height
-
-	pad := float32(1.0)
-	qx, qy := x-pad, y-pad
-	qw, qh := w+pad*2, h+pad*2
-
-	// No half-pixel offset for SDF rects (no texture sampling)
-	ndcX := (qx/logW)*2 - 1
-	ndcY := 1 - (qy/logH)*2
-	ndcW := (qw / logW) * 2
-	ndcH := (qh / logH) * 2
-
-	uvL := -pad / w
-	uvT := -pad / h
-	uvR := 1.0 + pad/w
-	uvB := 1.0 + pad/h
-
 	s := b.dpiScale
-	r, g, bl, a := rect.FillColor.R, rect.FillColor.G, rect.FillColor.B, rect.FillColor.A*opacity
 
-	makeVertex := func(px, py, u, v float32) RectVertex {
-		return RectVertex{
-			PosX: px, PosY: py, U: u, V: v,
+	// Reuse staging buffer
+	needed := len(commands) * 6
+	if cap(b.rectStaging) < needed {
+		b.rectStaging = make([]RectVertex, 0, needed*2)
+	}
+	b.rectStaging = b.rectStaging[:0]
+
+	for _, c := range commands {
+		rect := c.Rect
+		opacity := c.Opacity
+		x, y, w, h := rect.Bounds.X, rect.Bounds.Y, rect.Bounds.Width, rect.Bounds.Height
+
+		pad := float32(1.0)
+		qx, qy := x-pad, y-pad
+		qw, qh := w+pad*2, h+pad*2
+
+		ndcX := (qx/logW)*2 - 1
+		ndcY := 1 - (qy/logH)*2
+		ndcW := (qw / logW) * 2
+		ndcH := (qh / logH) * 2
+
+		uvL := -pad / w
+		uvT := -pad / h
+		uvR := 1.0 + pad/w
+		uvB := 1.0 + pad/h
+
+		r, g, bl, a := rect.FillColor.R, rect.FillColor.G, rect.FillColor.B, rect.FillColor.A*opacity
+		v := RectVertex{
 			ColorR: r, ColorG: g, ColorB: bl, ColorA: a,
 			RectW: w * s, RectH: h * s,
 			RadiusTL: rect.Corners.TopLeft * s, RadiusTR: rect.Corners.TopRight * s,
@@ -986,138 +1062,157 @@ func (b *Backend) renderRect(c render.Command) {
 			BorderR: rect.BorderColor.R, BorderG: rect.BorderColor.G,
 			BorderB: rect.BorderColor.B, BorderA: rect.BorderColor.A,
 		}
+
+		v0 := v
+		v0.PosX, v0.PosY, v0.U, v0.V = ndcX, ndcY, uvL, uvT
+		v1 := v
+		v1.PosX, v1.PosY, v1.U, v1.V = ndcX+ndcW, ndcY, uvR, uvT
+		v2 := v
+		v2.PosX, v2.PosY, v2.U, v2.V = ndcX+ndcW, ndcY-ndcH, uvR, uvB
+		v3 := v
+		v3.PosX, v3.PosY, v3.U, v3.V = ndcX, ndcY-ndcH, uvL, uvB
+
+		b.rectStaging = append(b.rectStaging, v0, v1, v2, v0, v2, v3)
 	}
 
-	vertices := [6]RectVertex{
-		makeVertex(ndcX, ndcY, uvL, uvT),
-		makeVertex(ndcX+ndcW, ndcY, uvR, uvT),
-		makeVertex(ndcX+ndcW, ndcY-ndcH, uvR, uvB),
-		makeVertex(ndcX, ndcY, uvL, uvT),
-		makeVertex(ndcX+ndcW, ndcY-ndcH, uvR, uvB),
-		makeVertex(ndcX, ndcY-ndcH, uvL, uvB),
+	if len(b.rectStaging) == 0 {
+		return
 	}
 
 	stride := uint32(unsafe.Sizeof(RectVertex{}))
-	dataSize := 6 * stride
-	b.uploadToVB(&b.rectVB, &b.rectVBSize, unsafe.Pointer(&vertices[0]), dataSize)
+	dataSize := uint32(len(b.rectStaging)) * stride
+	b.uploadToVB(&b.rectVB, &b.rectVBSize, unsafe.Pointer(&b.rectStaging[0]), dataSize)
 
-	dev := b.device
-	comCall(comVtbl(dev, devSetVertexDeclaration), dev, b.rectDecl)
-	comCall(comVtbl(dev, devSetVertexShader), dev, b.rectVS)
-	comCall(comVtbl(dev, devSetPixelShader), dev, b.rectPS)
-	comCall(comVtbl(dev, devSetTexture), dev, 0, 0) // no texture
-
-	offset := uint32(0)
-	comCall(comVtbl(dev, devSetStreamSource), dev, 0, b.rectVB, uintptr(offset), uintptr(stride))
-	comCall(comVtbl(dev, devDrawPrimitive), dev, D3DPT_TRIANGLELIST, 0, 2) // 2 triangles
+	b.setRectPipeline()
+	comCall(comVtbl(b.device, devSetStreamSource), b.device, 0, b.rectVB, 0, uintptr(stride))
+	comCall(comVtbl(b.device, devDrawPrimitive), b.device, D3DPT_TRIANGLELIST, 0, uintptr(len(b.rectStaging)/3))
 }
 
-func (b *Backend) renderText(c render.Command) {
-	tc := c.Text
-	entry, ok := b.textures[tc.Atlas]
+// renderTextBatch draws multiple consecutive same-atlas CmdText commands in a single draw call.
+// This is the most impactful optimization — text is the most frequent command in typical UIs.
+func (b *Backend) renderTextBatch(commands []render.Command) {
+	atlas := commands[0].Text.Atlas
+	entry, ok := b.textures[atlas]
+	if !ok {
+		return
+	}
+
+	// Count total glyphs for capacity hint
+	totalGlyphs := 0
+	for _, c := range commands {
+		totalGlyphs += len(c.Text.Glyphs)
+	}
+	if totalGlyphs == 0 {
+		return
+	}
+
+	logW := float32(b.width) / b.dpiScale
+	logH := float32(b.height) / b.dpiScale
+	hpX, hpY := b.texelHalfPixelOffset()
+
+	// Reuse staging buffer (grows but never shrinks)
+	needed := totalGlyphs * 6
+	if cap(b.texturedStaging) < needed {
+		b.texturedStaging = make([]TexturedVertex, 0, needed*2)
+	}
+	b.texturedStaging = b.texturedStaging[:0]
+
+	for _, c := range commands {
+		tc := c.Text
+		for _, g := range tc.Glyphs {
+			x0 := (g.X/logW)*2 - 1 + hpX
+			y0 := 1 - (g.Y/logH)*2 + hpY
+			x1 := ((g.X+g.Width)/logW)*2 - 1 + hpX
+			y1 := 1 - ((g.Y+g.Height)/logH)*2 + hpY
+
+			clr := TexturedVertex{
+				ColorR: tc.Color.R, ColorG: tc.Color.G,
+				ColorB: tc.Color.B, ColorA: tc.Color.A * c.Opacity,
+			}
+
+			v0 := clr
+			v0.PosX, v0.PosY, v0.U, v0.V = x0, y0, g.U0, g.V0
+			v1 := clr
+			v1.PosX, v1.PosY, v1.U, v1.V = x1, y0, g.U1, g.V0
+			v2 := clr
+			v2.PosX, v2.PosY, v2.U, v2.V = x1, y1, g.U1, g.V1
+			v3 := clr
+			v3.PosX, v3.PosY, v3.U, v3.V = x0, y1, g.U0, g.V1
+
+			b.texturedStaging = append(b.texturedStaging, v0, v1, v2, v0, v2, v3)
+		}
+	}
+
+	stride := uint32(unsafe.Sizeof(TexturedVertex{}))
+	dataSize := uint32(len(b.texturedStaging)) * stride
+	b.uploadToVB(&b.texturedVB, &b.texturedVBSize, unsafe.Pointer(&b.texturedStaging[0]), dataSize)
+
+	b.setTextPipeline(entry.texture)
+	comCall(comVtbl(b.device, devSetStreamSource), b.device, 0, b.texturedVB, 0, uintptr(stride))
+	comCall(comVtbl(b.device, devDrawPrimitive), b.device, D3DPT_TRIANGLELIST, 0, uintptr(len(b.texturedStaging)/3))
+}
+
+// renderImageBatch draws multiple consecutive same-texture CmdImage commands in a single draw call.
+func (b *Backend) renderImageBatch(commands []render.Command) {
+	tex := commands[0].Image.Texture
+	entry, ok := b.textures[tex]
 	if !ok {
 		return
 	}
 
 	logW := float32(b.width) / b.dpiScale
 	logH := float32(b.height) / b.dpiScale
-
-	glyphs := tc.Glyphs
-	if len(glyphs) == 0 {
-		return
-	}
-
 	hpX, hpY := b.texelHalfPixelOffset()
 
-	vertices := make([]TexturedVertex, 0, len(glyphs)*6)
-	for _, g := range glyphs {
-		x0 := (g.X/logW)*2 - 1 + hpX
-		y0 := 1 - (g.Y/logH)*2 + hpY
-		x1 := ((g.X+g.Width)/logW)*2 - 1 + hpX
-		y1 := 1 - ((g.Y+g.Height)/logH)*2 + hpY
+	// Reuse staging buffer (shared with text — safe because batches are sequential)
+	needed := len(commands) * 6
+	if cap(b.texturedStaging) < needed {
+		b.texturedStaging = make([]TexturedVertex, 0, needed*2)
+	}
+	b.texturedStaging = b.texturedStaging[:0]
 
-		clr := TexturedVertex{
-			ColorR: tc.Color.R, ColorG: tc.Color.G,
-			ColorB: tc.Color.B, ColorA: tc.Color.A * c.Opacity,
+	for _, c := range commands {
+		ic := c.Image
+		x0 := (ic.DstRect.X/logW)*2 - 1 + hpX
+		y0 := 1 - (ic.DstRect.Y/logH)*2 + hpY
+		x1 := ((ic.DstRect.X+ic.DstRect.Width)/logW)*2 - 1 + hpX
+		y1 := 1 - ((ic.DstRect.Y+ic.DstRect.Height)/logH)*2 + hpY
+
+		u0, v0 := ic.SrcRect.X, ic.SrcRect.Y
+		u1 := ic.SrcRect.X + ic.SrcRect.Width
+		v1 := ic.SrcRect.Y + ic.SrcRect.Height
+
+		tint := ic.Tint
+		if tint.A == 0 && tint.R == 0 && tint.G == 0 && tint.B == 0 {
+			tint = uimath.Color{R: 1, G: 1, B: 1, A: c.Opacity}
+		} else {
+			tint.A *= c.Opacity
 		}
 
-		v0 := clr
-		v0.PosX, v0.PosY, v0.U, v0.V = x0, y0, g.U0, g.V0
-		v1 := clr
-		v1.PosX, v1.PosY, v1.U, v1.V = x1, y0, g.U1, g.V0
-		v2 := clr
-		v2.PosX, v2.PosY, v2.U, v2.V = x1, y1, g.U1, g.V1
-		v3 := clr
-		v3.PosX, v3.PosY, v3.U, v3.V = x0, y1, g.U0, g.V1
+		clr := TexturedVertex{ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A}
+		tv0 := clr
+		tv0.PosX, tv0.PosY, tv0.U, tv0.V = x0, y0, u0, v0
+		tv1 := clr
+		tv1.PosX, tv1.PosY, tv1.U, tv1.V = x1, y0, u1, v0
+		tv2 := clr
+		tv2.PosX, tv2.PosY, tv2.U, tv2.V = x1, y1, u1, v1
+		tv3 := clr
+		tv3.PosX, tv3.PosY, tv3.U, tv3.V = x0, y1, u0, v1
 
-		vertices = append(vertices, v0, v1, v2, v0, v2, v3)
+		b.texturedStaging = append(b.texturedStaging, tv0, tv1, tv2, tv0, tv2, tv3)
 	}
 
-	stride := uint32(unsafe.Sizeof(TexturedVertex{}))
-	dataSize := uint32(len(vertices)) * stride
-	b.uploadToVB(&b.texturedVB, &b.texturedVBSize, unsafe.Pointer(&vertices[0]), dataSize)
-
-	dev := b.device
-	comCall(comVtbl(dev, devSetVertexDeclaration), dev, b.texturedDecl)
-	comCall(comVtbl(dev, devSetVertexShader), dev, b.texturedVS)
-	comCall(comVtbl(dev, devSetPixelShader), dev, b.textPS)
-	comCall(comVtbl(dev, devSetTexture), dev, 0, entry.texture)
-
-	// Font atlas is coverage data, not color — disable sRGB texture read
-	comCall(comVtbl(dev, devSetSamplerState), dev, 0, D3DSAMP_SRGBTEXTURE, 0)
-
-	comCall(comVtbl(dev, devSetStreamSource), dev, 0, b.texturedVB, 0, uintptr(stride))
-	comCall(comVtbl(dev, devDrawPrimitive), dev, D3DPT_TRIANGLELIST, 0, uintptr(len(vertices)/3))
-}
-
-func (b *Backend) renderImage(c render.Command) {
-	ic := c.Image
-	entry, ok := b.textures[ic.Texture]
-	if !ok {
+	if len(b.texturedStaging) == 0 {
 		return
 	}
 
-	logW := float32(b.width) / b.dpiScale
-	logH := float32(b.height) / b.dpiScale
-	hpX, hpY := b.texelHalfPixelOffset()
-
-	x0 := (ic.DstRect.X/logW)*2 - 1 + hpX
-	y0 := 1 - (ic.DstRect.Y/logH)*2 + hpY
-	x1 := ((ic.DstRect.X+ic.DstRect.Width)/logW)*2 - 1 + hpX
-	y1 := 1 - ((ic.DstRect.Y+ic.DstRect.Height)/logH)*2 + hpY
-
-	u0, v0 := ic.SrcRect.X, ic.SrcRect.Y
-	u1 := ic.SrcRect.X + ic.SrcRect.Width
-	v1 := ic.SrcRect.Y + ic.SrcRect.Height
-
-	tint := ic.Tint
-	if tint.A == 0 && tint.R == 0 && tint.G == 0 && tint.B == 0 {
-		tint = uimath.Color{R: 1, G: 1, B: 1, A: c.Opacity}
-	} else {
-		tint.A *= c.Opacity
-	}
-
-	vertices := [6]TexturedVertex{
-		{PosX: x0, PosY: y0, U: u0, V: v0, ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A},
-		{PosX: x1, PosY: y0, U: u1, V: v0, ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A},
-		{PosX: x1, PosY: y1, U: u1, V: v1, ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A},
-		{PosX: x0, PosY: y0, U: u0, V: v0, ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A},
-		{PosX: x1, PosY: y1, U: u1, V: v1, ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A},
-		{PosX: x0, PosY: y1, U: u0, V: v1, ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A},
-	}
-
 	stride := uint32(unsafe.Sizeof(TexturedVertex{}))
-	dataSize := 6 * stride
-	b.uploadToVB(&b.texturedVB, &b.texturedVBSize, unsafe.Pointer(&vertices[0]), dataSize)
+	dataSize := uint32(len(b.texturedStaging)) * stride
+	b.uploadToVB(&b.texturedVB, &b.texturedVBSize, unsafe.Pointer(&b.texturedStaging[0]), dataSize)
 
-	dev := b.device
-	comCall(comVtbl(dev, devSetVertexDeclaration), dev, b.texturedDecl)
-	comCall(comVtbl(dev, devSetVertexShader), dev, b.texturedVS)
-	comCall(comVtbl(dev, devSetPixelShader), dev, b.texturedPS)
-	comCall(comVtbl(dev, devSetTexture), dev, 0, entry.texture)
-
-	comCall(comVtbl(dev, devSetStreamSource), dev, 0, b.texturedVB, 0, uintptr(stride))
-	comCall(comVtbl(dev, devDrawPrimitive), dev, D3DPT_TRIANGLELIST, 0, 2)
+	b.setImagePipeline(entry.texture)
+	comCall(comVtbl(b.device, devSetStreamSource), b.device, 0, b.texturedVB, 0, uintptr(stride))
+	comCall(comVtbl(b.device, devDrawPrimitive), b.device, D3DPT_TRIANGLELIST, 0, uintptr(len(b.texturedStaging)/3))
 }
 
 func min32dx9(a, b float32) float32 {
@@ -1137,92 +1232,154 @@ func clamp32dx9(v, lo, hi float32) float32 {
 	return v
 }
 
-func (b *Backend) renderShadow(c render.Command) {
-	sc := c.Shadow
-	opacity := c.Opacity
-
+// renderShadowBatch draws multiple consecutive CmdShadow commands in a single draw call.
+func (b *Backend) renderShadowBatch(commands []render.Command) {
 	logW := float32(b.width) / b.dpiScale
 	logH := float32(b.height) / b.dpiScale
 	s := b.dpiScale
 
-	x, y, w, h := sc.Bounds.X, sc.Bounds.Y, sc.Bounds.Width, sc.Bounds.Height
-	spread := sc.SpreadRadius
-	blur := sc.BlurRadius
-	const pad = float32(1.0)
-
-	// Spread-adjusted element size in logical px. Clamp to 1 to avoid zero/negative.
-	elemWlog := w + 2*spread
-	elemHlog := h + 2*spread
-	if elemWlog < 1 {
-		elemWlog = 1
+	// Reuse staging buffer
+	needed := len(commands) * 6
+	if cap(b.shadowStaging) < needed {
+		b.shadowStaging = make([]ShadowVertex, 0, needed*2)
 	}
-	if elemHlog < 1 {
-		elemHlog = 1
-	}
+	b.shadowStaging = b.shadowStaging[:0]
 
-	// Quad expansion: must cover 3-sigma falloff region (sigma*3 = blur*1.5).
-	// Use blur*2+pad for a safe margin so the cutoff is well inside the quad.
-	expand := blur*2 + pad
-	qx := x + sc.OffsetX - spread - expand
-	qy := y + sc.OffsetY - spread - expand
-	qw := elemWlog + 2*expand
-	qh := elemHlog + 2*expand
+	for _, c := range commands {
+		sc := c.Shadow
+		opacity := c.Opacity
 
-	ndcX := (qx/logW)*2 - 1
-	ndcY := 1 - (qy/logH)*2
-	ndcW := (qw / logW) * 2
-	ndcH := (qh / logH) * 2
+		x, y, w, h := sc.Bounds.X, sc.Bounds.Y, sc.Bounds.Width, sc.Bounds.Height
+		spread := sc.SpreadRadius
+		blur := sc.BlurRadius
+		const pad = float32(1.0)
 
-	// UV: element occupies [0,1]; expansion region is outside that range
-	uvL := -expand / elemWlog
-	uvT := -expand / elemHlog
-	uvR := 1.0 + expand/elemWlog
-	uvB := 1.0 + expand/elemHlog
+		elemWlog := w + 2*spread
+		elemHlog := h + 2*spread
+		if elemWlog < 1 {
+			elemWlog = 1
+		}
+		if elemHlog < 1 {
+			elemHlog = 1
+		}
 
-	// Per-vertex element size and radii (physical px, spread-adjusted)
-	elemW := elemWlog * s
-	elemH := elemHlog * s
-	maxR := min32dx9(elemW, elemH) * 0.5
-	rTL := clamp32dx9(sc.Corners.TopLeft*s+spread*s, 0, maxR)
-	rTR := clamp32dx9(sc.Corners.TopRight*s+spread*s, 0, maxR)
-	rBR := clamp32dx9(sc.Corners.BottomRight*s+spread*s, 0, maxR)
-	rBL := clamp32dx9(sc.Corners.BottomLeft*s+spread*s, 0, maxR)
-	blurPx := blur * s
+		expand := blur*2 + pad
+		qx := x + sc.OffsetX - spread - expand
+		qy := y + sc.OffsetY - spread - expand
+		qw := elemWlog + 2*expand
+		qh := elemHlog + 2*expand
 
-	r, g, bl, a := sc.Color.R, sc.Color.G, sc.Color.B, sc.Color.A*opacity
+		ndcX := (qx/logW)*2 - 1
+		ndcY := 1 - (qy/logH)*2
+		ndcW := (qw / logW) * 2
+		ndcH := (qh / logH) * 2
 
-	makeVertex := func(px, py, u, v float32) ShadowVertex {
-		return ShadowVertex{
-			PosX: px, PosY: py, U: u, V: v,
+		uvL := -expand / elemWlog
+		uvT := -expand / elemHlog
+		uvR := 1.0 + expand/elemWlog
+		uvB := 1.0 + expand/elemHlog
+
+		elemW := elemWlog * s
+		elemH := elemHlog * s
+		maxR := min32dx9(elemW, elemH) * 0.5
+		rTL := clamp32dx9(sc.Corners.TopLeft*s+spread*s, 0, maxR)
+		rTR := clamp32dx9(sc.Corners.TopRight*s+spread*s, 0, maxR)
+		rBR := clamp32dx9(sc.Corners.BottomRight*s+spread*s, 0, maxR)
+		rBL := clamp32dx9(sc.Corners.BottomLeft*s+spread*s, 0, maxR)
+		blurPx := blur * s
+
+		r, g, bl, a := sc.Color.R, sc.Color.G, sc.Color.B, sc.Color.A*opacity
+		sv := ShadowVertex{
 			ColorR: r, ColorG: g, ColorB: bl, ColorA: a,
 			ElemW: elemW, ElemH: elemH,
 			RadiusTL: rTL, RadiusTR: rTR, RadiusBR: rBR, RadiusBL: rBL,
 			Blur: blurPx,
 		}
+
+		sv0 := sv
+		sv0.PosX, sv0.PosY, sv0.U, sv0.V = ndcX, ndcY, uvL, uvT
+		sv1 := sv
+		sv1.PosX, sv1.PosY, sv1.U, sv1.V = ndcX+ndcW, ndcY, uvR, uvT
+		sv2 := sv
+		sv2.PosX, sv2.PosY, sv2.U, sv2.V = ndcX+ndcW, ndcY-ndcH, uvR, uvB
+		sv3 := sv
+		sv3.PosX, sv3.PosY, sv3.U, sv3.V = ndcX, ndcY-ndcH, uvL, uvB
+
+		b.shadowStaging = append(b.shadowStaging, sv0, sv1, sv2, sv0, sv2, sv3)
 	}
 
-	vertices := [6]ShadowVertex{
-		makeVertex(ndcX, ndcY, uvL, uvT),
-		makeVertex(ndcX+ndcW, ndcY, uvR, uvT),
-		makeVertex(ndcX+ndcW, ndcY-ndcH, uvR, uvB),
-		makeVertex(ndcX, ndcY, uvL, uvT),
-		makeVertex(ndcX+ndcW, ndcY-ndcH, uvR, uvB),
-		makeVertex(ndcX, ndcY-ndcH, uvL, uvB),
+	if len(b.shadowStaging) == 0 {
+		return
 	}
 
 	stride := uint32(unsafe.Sizeof(ShadowVertex{}))
-	dataSize := 6 * stride
-	b.uploadToVB(&b.shadowVB, &b.shadowVBSize, unsafe.Pointer(&vertices[0]), dataSize)
+	dataSize := uint32(len(b.shadowStaging)) * stride
+	b.uploadToVB(&b.shadowVB, &b.shadowVBSize, unsafe.Pointer(&b.shadowStaging[0]), dataSize)
 
+	b.setShadowPipeline()
+	comCall(comVtbl(b.device, devSetStreamSource), b.device, 0, b.shadowVB, 0, uintptr(stride))
+	comCall(comVtbl(b.device, devDrawPrimitive), b.device, D3DPT_TRIANGLELIST, 0, uintptr(len(b.shadowStaging)/3))
+}
+
+// ---- Pipeline state management ----
+// These helpers track the active pipeline and skip redundant COM state changes.
+
+func (b *Backend) setRectPipeline() {
+	if b.activePipeline == pipelineRect {
+		return
+	}
+	dev := b.device
+	comCall(comVtbl(dev, devSetVertexDeclaration), dev, b.rectDecl)
+	comCall(comVtbl(dev, devSetVertexShader), dev, b.rectVS)
+	comCall(comVtbl(dev, devSetPixelShader), dev, b.rectPS)
+	comCall(comVtbl(dev, devSetTexture), dev, 0, 0)
+	b.activePipeline = pipelineRect
+	b.activeTexture = 0
+}
+
+func (b *Backend) setTextPipeline(texture uintptr) {
+	dev := b.device
+	if b.activePipeline != pipelineText {
+		comCall(comVtbl(dev, devSetVertexDeclaration), dev, b.texturedDecl)
+		comCall(comVtbl(dev, devSetVertexShader), dev, b.texturedVS)
+		comCall(comVtbl(dev, devSetPixelShader), dev, b.textPS)
+		// Font atlas is coverage data, not color — disable sRGB texture read
+		comCall(comVtbl(dev, devSetSamplerState), dev, 0, D3DSAMP_SRGBTEXTURE, 0)
+		b.activePipeline = pipelineText
+		b.activeTexture = 0 // force texture rebind below
+	}
+	if b.activeTexture != texture {
+		comCall(comVtbl(dev, devSetTexture), dev, 0, texture)
+		b.activeTexture = texture
+	}
+}
+
+func (b *Backend) setImagePipeline(texture uintptr) {
+	dev := b.device
+	if b.activePipeline != pipelineTextured {
+		comCall(comVtbl(dev, devSetVertexDeclaration), dev, b.texturedDecl)
+		comCall(comVtbl(dev, devSetVertexShader), dev, b.texturedVS)
+		comCall(comVtbl(dev, devSetPixelShader), dev, b.texturedPS)
+		b.activePipeline = pipelineTextured
+		b.activeTexture = 0 // force texture rebind below
+	}
+	if b.activeTexture != texture {
+		comCall(comVtbl(dev, devSetTexture), dev, 0, texture)
+		b.activeTexture = texture
+	}
+}
+
+func (b *Backend) setShadowPipeline() {
+	if b.activePipeline == pipelineShadow {
+		return
+	}
 	dev := b.device
 	comCall(comVtbl(dev, devSetVertexDeclaration), dev, b.shadowDecl)
 	comCall(comVtbl(dev, devSetVertexShader), dev, b.shadowVS)
 	comCall(comVtbl(dev, devSetPixelShader), dev, b.shadowPS)
-	comCall(comVtbl(dev, devSetTexture), dev, 0, 0) // no texture
-
-	offset := uint32(0)
-	comCall(comVtbl(dev, devSetStreamSource), dev, 0, b.shadowVB, uintptr(offset), uintptr(stride))
-	comCall(comVtbl(dev, devDrawPrimitive), dev, D3DPT_TRIANGLELIST, 0, 2)
+	comCall(comVtbl(dev, devSetTexture), dev, 0, 0)
+	b.activePipeline = pipelineShadow
+	b.activeTexture = 0
 }
 
 // uploadToVB locks and writes data to a dynamic vertex buffer, growing if needed.

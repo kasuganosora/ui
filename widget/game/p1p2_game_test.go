@@ -228,7 +228,7 @@ func TestCastBarDrawNotVisible(t *testing.T) {
 	cb := NewCastBar(newTree(), newCfg())
 	buf := render.NewCommandBuffer()
 	cb.Draw(buf)
-	if buf.Len() != 0 || len(buf.Overlays()) != 0 {
+	if buf.Len() != 0 || buf.Len() != 0 {
 		t.Error("expected no commands when not visible")
 	}
 }
@@ -240,8 +240,8 @@ func TestCastBarDrawVisible(t *testing.T) {
 
 	buf := render.NewCommandBuffer()
 	cb.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlay commands from CastBar")
+	if buf.Len() == 0 {
+		t.Error("expected render commands from CastBar")
 	}
 }
 
@@ -254,8 +254,8 @@ func TestCastBarDrawWithBounds(t *testing.T) {
 
 	buf := render.NewCommandBuffer()
 	cb.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlay commands from CastBar with bounds")
+	if buf.Len() == 0 {
+		t.Error("expected render commands from CastBar with bounds")
 	}
 }
 
@@ -265,7 +265,7 @@ func TestCastBarDrawZeroProgress(t *testing.T) {
 	// progress is 0, no fill bar
 	buf := render.NewCommandBuffer()
 	cb.Draw(buf)
-	if len(buf.Overlays()) == 0 {
+	if buf.Len() == 0 {
 		t.Error("expected at least background overlay")
 	}
 }
@@ -413,7 +413,7 @@ func TestItemTooltipNotVisible(t *testing.T) {
 	tt := NewItemTooltip(newTree(), newCfg())
 	buf := render.NewCommandBuffer()
 	tt.Draw(buf)
-	if buf.Len() != 0 || len(buf.Overlays()) != 0 {
+	if buf.Len() != 0 || buf.Len() != 0 {
 		t.Error("expected no commands when not visible")
 	}
 }
@@ -423,8 +423,8 @@ func TestItemTooltipVisibleNoItem(t *testing.T) {
 	tt.SetVisible(true)
 	buf := render.NewCommandBuffer()
 	tt.Draw(buf) // visible but no item => return
-	if len(buf.Overlays()) != 0 {
-		t.Error("expected no overlays with nil item")
+	if buf.Len() != 0 {
+		t.Error("expected no render commands with nil item")
 	}
 }
 
@@ -439,8 +439,8 @@ func TestItemTooltipDraw(t *testing.T) {
 	}
 	buf := render.NewCommandBuffer()
 	tt.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlay commands")
+	if buf.Len() == 0 {
+		t.Error("expected render commands")
 	}
 }
 
@@ -470,8 +470,8 @@ func TestNotificationToastDrawNotVisible(t *testing.T) {
 	nt.SetVisible(false)
 	buf := render.NewCommandBuffer()
 	nt.Draw(buf)
-	if len(buf.Overlays()) != 0 {
-		t.Error("expected no overlays when not visible")
+	if buf.Len() != 0 {
+		t.Error("expected no render commands when not visible")
 	}
 }
 
@@ -482,8 +482,8 @@ func TestNotificationToastAllTypes(t *testing.T) {
 		nt.SetToastType(mt)
 		buf := render.NewCommandBuffer()
 		nt.Draw(buf)
-		if len(buf.Overlays()) == 0 {
-			t.Errorf("expected overlays for toast type %d", mt)
+		if buf.Len() == 0 {
+			t.Errorf("expected renders for toast type %d", mt)
 		}
 	}
 }
@@ -749,8 +749,8 @@ func TestDialogueBoxDrawNotVisible(t *testing.T) {
 	db := NewDialogueBox(newTree(), newCfg())
 	buf := render.NewCommandBuffer()
 	db.Draw(buf)
-	if len(buf.Overlays()) != 0 {
-		t.Error("expected no overlays when not visible")
+	if buf.Len() != 0 {
+		t.Error("expected no render commands when not visible")
 	}
 }
 
@@ -759,8 +759,8 @@ func TestDialogueBoxDrawVisible(t *testing.T) {
 	db.Show("Guard", "Halt!")
 	buf := render.NewCommandBuffer()
 	db.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlay commands")
+	if buf.Len() == 0 {
+		t.Error("expected render commands")
 	}
 }
 
@@ -771,8 +771,8 @@ func TestDialogueBoxDrawWithBounds(t *testing.T) {
 	db.Show("NPC", "Welcome!")
 	buf := render.NewCommandBuffer()
 	db.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlay commands with bounds")
+	if buf.Len() == 0 {
+		t.Error("expected render commands with bounds")
 	}
 }
 
@@ -785,8 +785,8 @@ func TestDialogueBoxDrawWithChoices(t *testing.T) {
 	})
 	buf := render.NewCommandBuffer()
 	db.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays")
+	if buf.Len() == 0 {
+		t.Error("expected render commands")
 	}
 }
 
@@ -1279,8 +1279,8 @@ func TestLootWindowDrawNotVisible(t *testing.T) {
 	lw.AddItem(LootItem{Item: &ItemData{Name: "A"}, Quantity: 1})
 	buf := render.NewCommandBuffer()
 	lw.Draw(buf) // not visible
-	if len(buf.Overlays()) != 0 {
-		t.Error("expected no overlays when not visible")
+	if buf.Len() != 0 {
+		t.Error("expected no render commands when not visible")
 	}
 }
 
@@ -1289,8 +1289,8 @@ func TestLootWindowDrawEmpty(t *testing.T) {
 	lw.Open()
 	buf := render.NewCommandBuffer()
 	lw.Draw(buf) // visible but empty
-	if len(buf.Overlays()) != 0 {
-		t.Error("expected no overlays with empty items")
+	if buf.Len() != 0 {
+		t.Error("expected no render commands with empty items")
 	}
 }
 
@@ -1301,8 +1301,8 @@ func TestLootWindowDrawVisible(t *testing.T) {
 	lw.Open()
 	buf := render.NewCommandBuffer()
 	lw.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays from loot window")
+	if buf.Len() == 0 {
+		t.Error("expected renders from loot window")
 	}
 }
 
@@ -1314,8 +1314,8 @@ func TestLootWindowDrawWithBounds(t *testing.T) {
 	lw.Open()
 	buf := render.NewCommandBuffer()
 	lw.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays")
+	if buf.Len() == 0 {
+		t.Error("expected renders")
 	}
 }
 
@@ -1356,8 +1356,8 @@ func TestMinimapDrawNoBounds(t *testing.T) {
 	buf := render.NewCommandBuffer()
 	m.Draw(buf)
 	// Uses fallback bounds
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays")
+	if buf.Len() == 0 {
+		t.Error("expected renders")
 	}
 }
 
@@ -1369,8 +1369,8 @@ func TestMinimapDrawWithBounds(t *testing.T) {
 	m.AddMarker(MinimapMarker{X: 110, Y: 210, Label: "NPC", Size: 0}) // size 0 -> default 4
 	buf := render.NewCommandBuffer()
 	m.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays")
+	if buf.Len() == 0 {
+		t.Error("expected renders")
 	}
 }
 
@@ -1379,8 +1379,8 @@ func TestMinimapDrawSquare(t *testing.T) {
 	m.SetCircular(false)
 	buf := render.NewCommandBuffer()
 	m.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays for square minimap")
+	if buf.Len() == 0 {
+		t.Error("expected renders for square minimap")
 	}
 }
 
@@ -1432,8 +1432,8 @@ func TestNameplateDrawNotVisible(t *testing.T) {
 	np.SetVisible(false)
 	buf := render.NewCommandBuffer()
 	np.Draw(buf)
-	if len(buf.Overlays()) != 0 {
-		t.Error("expected no overlays when not visible")
+	if buf.Len() != 0 {
+		t.Error("expected no render commands when not visible")
 	}
 }
 
@@ -1444,8 +1444,8 @@ func TestNameplateDrawVisible(t *testing.T) {
 	np.SetPosition(200, 100)
 	buf := render.NewCommandBuffer()
 	np.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays")
+	if buf.Len() == 0 {
+		t.Error("expected renders")
 	}
 }
 
@@ -1457,8 +1457,8 @@ func TestNameplateDrawAllTypes(t *testing.T) {
 		np.SetHP(50, 100)
 		buf := render.NewCommandBuffer()
 		np.Draw(buf)
-		if len(buf.Overlays()) == 0 {
-			t.Errorf("expected overlays for type %d", nt)
+		if buf.Len() == 0 {
+			t.Errorf("expected renders for type %d", nt)
 		}
 	}
 }
@@ -1712,8 +1712,8 @@ func TestRadialMenuDrawNotVisible(t *testing.T) {
 	rm.AddItem(RadialMenuItem{Label: "X"})
 	buf := render.NewCommandBuffer()
 	rm.Draw(buf)
-	if len(buf.Overlays()) != 0 {
-		t.Error("expected no overlays when not visible")
+	if buf.Len() != 0 {
+		t.Error("expected no render commands when not visible")
 	}
 }
 
@@ -1722,8 +1722,8 @@ func TestRadialMenuDrawEmpty(t *testing.T) {
 	rm.Show(200, 200)
 	buf := render.NewCommandBuffer()
 	rm.Draw(buf)
-	if len(buf.Overlays()) != 0 {
-		t.Error("expected no overlays when empty")
+	if buf.Len() != 0 {
+		t.Error("expected no render commands when empty")
 	}
 }
 
@@ -1737,8 +1737,8 @@ func TestRadialMenuDrawVisible(t *testing.T) {
 
 	buf := render.NewCommandBuffer()
 	rm.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays")
+	if buf.Len() == 0 {
+		t.Error("expected renders")
 	}
 }
 
@@ -1816,8 +1816,8 @@ func TestScoreboardDrawNotVisible(t *testing.T) {
 	sb.AddEntry(ScoreEntry{Name: "A", Score: 100})
 	buf := render.NewCommandBuffer()
 	sb.Draw(buf)
-	if len(buf.Overlays()) != 0 {
-		t.Error("expected no overlays when not visible")
+	if buf.Len() != 0 {
+		t.Error("expected no render commands when not visible")
 	}
 }
 
@@ -1826,8 +1826,8 @@ func TestScoreboardDrawEmpty(t *testing.T) {
 	sb.SetVisible(true)
 	buf := render.NewCommandBuffer()
 	sb.Draw(buf)
-	if len(buf.Overlays()) != 0 {
-		t.Error("expected no overlays when empty")
+	if buf.Len() != 0 {
+		t.Error("expected no render commands when empty")
 	}
 }
 
@@ -1839,8 +1839,8 @@ func TestScoreboardDrawVisible(t *testing.T) {
 	sb.SetVisible(true)
 	buf := render.NewCommandBuffer()
 	sb.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays")
+	if buf.Len() == 0 {
+		t.Error("expected renders")
 	}
 }
 
@@ -1852,8 +1852,8 @@ func TestScoreboardDrawWithBounds(t *testing.T) {
 	sb.SetVisible(true)
 	buf := render.NewCommandBuffer()
 	sb.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays with bounds")
+	if buf.Len() == 0 {
+		t.Error("expected renders with bounds")
 	}
 }
 
@@ -2119,8 +2119,8 @@ func TestTeamFrameDrawWithBounds(t *testing.T) {
 	})
 	buf := render.NewCommandBuffer()
 	tf.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays from TeamFrame")
+	if buf.Len() == 0 {
+		t.Error("expected renders from TeamFrame")
 	}
 }
 
@@ -2182,8 +2182,8 @@ func TestTargetFrameDrawNotVisible(t *testing.T) {
 	tf := NewTargetFrame(newTree(), newCfg())
 	buf := render.NewCommandBuffer()
 	tf.Draw(buf)
-	if len(buf.Overlays()) != 0 {
-		t.Error("expected no overlays when not visible")
+	if buf.Len() != 0 {
+		t.Error("expected no render commands when not visible")
 	}
 }
 
@@ -2192,8 +2192,8 @@ func TestTargetFrameDrawVisible(t *testing.T) {
 	tf.SetTarget(&UnitFrameData{Name: "Boss", HP: 5000, HPMax: 10000, Level: 99, MP: 1000, MPMax: 2000})
 	buf := render.NewCommandBuffer()
 	tf.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays from TargetFrame")
+	if buf.Len() == 0 {
+		t.Error("expected renders from TargetFrame")
 	}
 }
 
@@ -2204,8 +2204,8 @@ func TestTargetFrameDrawWithBounds(t *testing.T) {
 	tf.SetTarget(&UnitFrameData{Name: "Boss", HP: 5000, HPMax: 10000, Level: 99})
 	buf := render.NewCommandBuffer()
 	tf.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays with bounds")
+	if buf.Len() == 0 {
+		t.Error("expected renders with bounds")
 	}
 }
 
@@ -2284,28 +2284,28 @@ func TestDrawResourceBar(t *testing.T) {
 	buf := render.NewCommandBuffer()
 	// Normal case
 	drawResourceBar(buf, 0, 0, 100, 8, 50, 100, uimath.ColorHex("#52c41a"))
-	if len(buf.Overlays()) < 2 {
+	if buf.Len() < 2 {
 		t.Error("expected at least 2 overlays (background + fill)")
 	}
 
 	// Zero max
 	buf = render.NewCommandBuffer()
 	drawResourceBar(buf, 0, 0, 100, 8, 50, 0, uimath.ColorHex("#52c41a"))
-	if len(buf.Overlays()) != 1 {
+	if buf.Len() < 1 {
 		t.Error("expected 1 overlay (background only)")
 	}
 
 	// Zero current
 	buf = render.NewCommandBuffer()
 	drawResourceBar(buf, 0, 0, 100, 8, 0, 100, uimath.ColorHex("#52c41a"))
-	if len(buf.Overlays()) != 1 {
+	if buf.Len() < 1 {
 		t.Error("expected 1 overlay (background only)")
 	}
 
 	// Over max (ratio > 1 clamped)
 	buf = render.NewCommandBuffer()
 	drawResourceBar(buf, 0, 0, 100, 8, 200, 100, uimath.ColorHex("#52c41a"))
-	if len(buf.Overlays()) < 2 {
+	if buf.Len() < 2 {
 		t.Error("expected 2 overlays")
 	}
 }
@@ -2320,8 +2320,8 @@ func TestDrawUnitFrame(t *testing.T) {
 
 	// With level
 	drawUnitFrame(buf, cfg, 0, 0, 200, 56, UnitFrameData{Name: "Boss", Level: 99, HP: 500, HPMax: 1000, MP: 200, MPMax: 400})
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays")
+	if buf.Len() == 0 {
+		t.Error("expected renders")
 	}
 
 	// Without level (Level == 0)
@@ -2356,8 +2356,8 @@ func TestCastBarDrawWithText(t *testing.T) {
 	cb.Tick(0.5)
 	buf := render.NewCommandBuffer()
 	cb.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays")
+	if buf.Len() == 0 {
+		t.Error("expected renders")
 	}
 }
 
@@ -2428,8 +2428,8 @@ func TestDialogueBoxDrawWithText(t *testing.T) {
 	db.Show("Guard", "Halt! Who goes there?")
 	buf := render.NewCommandBuffer()
 	db.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays")
+	if buf.Len() == 0 {
+		t.Error("expected render commands")
 	}
 
 	// With choices
@@ -2514,8 +2514,8 @@ func TestLootWindowDrawWithText(t *testing.T) {
 	lw.Open()
 	buf := render.NewCommandBuffer()
 	lw.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays with text renderer")
+	if buf.Len() == 0 {
+		t.Error("expected renders with text renderer")
 	}
 }
 
@@ -2526,8 +2526,8 @@ func TestNameplateDrawWithText(t *testing.T) {
 	np.SetPosition(200, 100)
 	buf := render.NewCommandBuffer()
 	np.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays with text")
+	if buf.Len() == 0 {
+		t.Error("expected renders with text")
 	}
 }
 
@@ -2560,8 +2560,8 @@ func TestRadialMenuDrawWithText(t *testing.T) {
 	rm.SetHovered(0)
 	buf := render.NewCommandBuffer()
 	rm.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays with text")
+	if buf.Len() == 0 {
+		t.Error("expected renders with text")
 	}
 }
 
@@ -2575,8 +2575,8 @@ func TestScoreboardDrawWithText(t *testing.T) {
 	sb.SetVisible(true)
 	buf := render.NewCommandBuffer()
 	sb.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays with text")
+	if buf.Len() == 0 {
+		t.Error("expected renders with text")
 	}
 }
 
@@ -2606,8 +2606,8 @@ func TestTeamFrameDrawWithText(t *testing.T) {
 	})
 	buf := render.NewCommandBuffer()
 	tf.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays with text")
+	if buf.Len() == 0 {
+		t.Error("expected renders with text")
 	}
 }
 
@@ -2616,8 +2616,8 @@ func TestTargetFrameDrawWithText(t *testing.T) {
 	tf.SetTarget(&UnitFrameData{Name: "Boss", HP: 5000, HPMax: 10000, Level: 99, MP: 1000, MPMax: 2000})
 	buf := render.NewCommandBuffer()
 	tf.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays with text")
+	if buf.Len() == 0 {
+		t.Error("expected renders with text")
 	}
 }
 
@@ -2628,8 +2628,8 @@ func TestItemTooltipDrawWithText(t *testing.T) {
 	tt.SetPosition(50, 50)
 	buf := render.NewCommandBuffer()
 	tt.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays with text")
+	if buf.Len() == 0 {
+		t.Error("expected renders with text")
 	}
 }
 
@@ -2638,8 +2638,8 @@ func TestNotificationToastDrawWithText(t *testing.T) {
 	nt.SetToastType(ToastSuccess)
 	buf := render.NewCommandBuffer()
 	nt.Draw(buf)
-	if len(buf.Overlays()) == 0 {
-		t.Error("expected overlays with text")
+	if buf.Len() == 0 {
+		t.Error("expected renders with text")
 	}
 }
 

@@ -157,6 +157,14 @@ func (t *Tree) NeedsRender() bool {
 	return root != nil && root.IsDirty(DirtyPaint|DirtyLayout)
 }
 
+// NeedsLayout returns true if any element has the DirtyLayout flag set,
+// meaning widget structure or sizing changed and full layout recomputation is needed.
+// Scroll-only changes (which only set DirtyPaint) don't require full layout.
+func (t *Tree) NeedsLayout() bool {
+	root := t.elements[t.root]
+	return root != nil && root.IsDirty(DirtyLayout)
+}
+
 // ClearAllDirty clears all dirty flags on all elements in the tree.
 func (t *Tree) ClearAllDirty() {
 	for _, elem := range t.elements {

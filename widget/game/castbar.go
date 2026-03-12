@@ -85,7 +85,7 @@ func (cb *CastBar) Draw(buf *render.CommandBuffer) {
 	r := cb.height / 2
 
 	// Background
-	buf.DrawOverlay(render.RectCmd{
+	buf.DrawRect(render.RectCmd{
 		Bounds:      uimath.NewRect(x, y, cb.width, cb.height),
 		FillColor:   uimath.RGBA(0, 0, 0, 0.7),
 		BorderColor: uimath.RGBA(0.4, 0.4, 0.4, 0.8),
@@ -96,7 +96,7 @@ func (cb *CastBar) Draw(buf *render.CommandBuffer) {
 	// Fill
 	if cb.progress > 0 {
 		fillW := cb.width * cb.progress
-		buf.DrawOverlay(render.RectCmd{
+		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(x, y, fillW, cb.height),
 			FillColor: cb.color,
 			Corners:   uimath.CornersAll(r),

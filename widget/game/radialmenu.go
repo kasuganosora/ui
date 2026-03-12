@@ -86,14 +86,14 @@ func (rm *RadialMenu) Draw(buf *render.CommandBuffer) {
 	n := len(rm.items)
 
 	// Outer circle background
-	buf.DrawOverlay(render.RectCmd{
+	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(rm.cx-rm.radius, rm.cy-rm.radius, rm.radius*2, rm.radius*2),
 		FillColor: uimath.RGBA(0.1, 0.1, 0.1, 0.85),
 		Corners:   uimath.CornersAll(rm.radius),
 	}, 70, 1)
 
 	// Inner circle
-	buf.DrawOverlay(render.RectCmd{
+	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(rm.cx-rm.innerR, rm.cy-rm.innerR, rm.innerR*2, rm.innerR*2),
 		FillColor: uimath.RGBA(0.2, 0.2, 0.2, 0.9),
 		Corners:   uimath.CornersAll(rm.innerR),
@@ -119,7 +119,7 @@ func (rm *RadialMenu) Draw(buf *render.CommandBuffer) {
 			color = uimath.ColorHex("#ffd700")
 		}
 
-		buf.DrawOverlay(render.RectCmd{
+		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(ix-dotSize/2, iy-dotSize/2, dotSize, dotSize),
 			FillColor: color,
 			Corners:   uimath.CornersAll(dotSize / 2),

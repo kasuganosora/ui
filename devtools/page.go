@@ -171,11 +171,7 @@ func (s *Session) handleRuntime(req Request) {
 					})
 					return
 				case snap != nil && strings.Contains(fn, "textContent"):
-					node := snap.Nodes[nodeID]
-					text := ""
-					if node != nil {
-						text = node.Text
-					}
+					text := collectTextContent(snap, nodeID)
 					s.sendResult(req.ID, map[string]any{
 						"result": map[string]any{"type": "string", "value": text},
 					})
