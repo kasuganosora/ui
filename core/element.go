@@ -25,6 +25,12 @@ const (
 	TypeCustom   ElementType = "custom"
 )
 
+// HitTestFunc tests whether a point (in local element coordinates) should
+// be considered "solid" for hit-testing purposes.  Return true if the point
+// is opaque / clickable, false if it should pass through to whatever is
+// underneath.  When nil, the default rectangular bounds check is used.
+type HitTestFunc func(localX, localY float32) bool
+
 // Element represents a single UI element in the tree.
 type Element struct {
 	id         ElementID
@@ -46,6 +52,9 @@ type Element struct {
 
 	// Event handlers
 	handlers   map[event.Type][]EventHandler
+
+	// Optional per-pixel hit test (for shaped / transparent regions).
+	hitTestFn  HitTestFunc
 }
 
 // EventHandler is a function that handles an event.
@@ -274,6 +283,25 @@ func (t *Tree) SetProperty(id ElementID, key string, value any) {
 	}
 }
 
+// SetHitTestFunc sets a custom hit-test function for an element.
+// When set, after the rectangular bounds check passes the function is called
+// with local coordinates (relative to element top-left).  If it returns false
+// the element is treated as transparent at that point and the hit test
+// continues to elements underneath.
+func (t *Tree) SetHitTestFunc(id ElementID, fn HitTestFunc) {
+	if elem := t.elements[id]; elem != nil {
+		elem.hitTestFn = fn
+	}
+}
+
+// HitTestFunc returns the custom hit-test function for an element (may be nil).
+func (t *Tree) HitTestFunc(id ElementID) HitTestFunc {
+	if elem := t.elements[id]; elem != nil {
+		return elem.hitTestFn
+	}
+	return nil
+}
+
 // SetClasses sets the CSS classes on an element.
 func (t *Tree) SetClasses(id ElementID, classes []string) {
 	if elem := t.elements[id]; elem != nil {
@@ -411,7 +439,12 @@ func (t *Tree) hitTestRecursive(id ElementID, x, y float32) ElementID {
 	if elem == nil || !elem.visible {
 		return InvalidElementID
 	}
-	if !elem.layout.Bounds.Contains(uimath.Vec2{X: x, Y: y}) {
+	b := elem.layout.Bounds
+	if !b.Contains(uimath.Vec2{X: x, Y: y}) {
+		return InvalidElementID
+	}
+	// Custom per-pixel hit test (shaped / transparent regions).
+	if elem.hitTestFn != nil && !elem.hitTestFn(x-b.X, y-b.Y) {
 		return InvalidElementID
 	}
 	// Check children in reverse order (last drawn = on top)

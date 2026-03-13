@@ -720,3 +720,416 @@ func TestSkillTreeDrawOffscreen(t *testing.T) {
 	st.Draw(buf)
 	// The node should be culled (off-screen), so fewer draw calls
 }
+
+// ── Window tests ─────────────────────────────────────────────────────────
+
+func TestWindowNew(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	w := NewWindow(tree, "Test", cfg)
+	if w.Title() != "Test" {
+		t.Fatalf("title = %q, want Test", w.Title())
+	}
+	if !w.Visible() {
+		t.Fatal("window should be visible by default")
+	}
+	if !w.ShowClose() {
+		t.Fatal("close button should be visible by default")
+	}
+	if w.TitleH() != 28 {
+		t.Fatalf("titleH = %g, want 28", w.TitleH())
+	}
+}
+
+func TestWindowSetters(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	w := NewWindow(tree, "Win", cfg)
+	w.SetTitle("New")
+	w.SetTitleH(32)
+	w.SetVisible(false)
+	w.SetShowClose(false)
+	w.SetShadow(false)
+	w.SetSize(200, 150)
+	w.SetBgColor(uimath.ColorHex("#112233"))
+	w.SetBorderColor(uimath.ColorHex("#445566"))
+	w.SetBorderWidth(2)
+	w.SetTitleColor(uimath.ColorHex("#ff0000"))
+	w.SetTitleBg(uimath.ColorHex("#00ff00"))
+	if w.Title() != "New" {
+		t.Error("SetTitle failed")
+	}
+	if w.TitleH() != 32 {
+		t.Error("SetTitleH failed")
+	}
+	if w.Visible() {
+		t.Error("SetVisible failed")
+	}
+	if w.ShowClose() {
+		t.Error("SetShowClose failed")
+	}
+}
+
+func TestWindowDrawVisible(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	w := NewWindow(tree, "Draw", cfg)
+	tree.SetLayout(w.ElementID(), core.LayoutResult{
+		Bounds: uimath.NewRect(10, 10, 300, 250),
+	})
+	buf := render.NewCommandBuffer()
+	w.Draw(buf)
+	if buf.Len() == 0 {
+		t.Error("expected draw commands for visible window")
+	}
+}
+
+func TestWindowDrawHidden(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	w := NewWindow(tree, "Hidden", cfg)
+	w.SetVisible(false)
+	buf := render.NewCommandBuffer()
+	w.Draw(buf)
+	if buf.Len() != 0 {
+		t.Error("hidden window should not draw")
+	}
+}
+
+func TestWindowDrawNoClose(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	w := NewWindow(tree, "NoClose", cfg)
+	w.SetShowClose(false)
+	tree.SetLayout(w.ElementID(), core.LayoutResult{
+		Bounds: uimath.NewRect(0, 0, 200, 200),
+	})
+	buf := render.NewCommandBuffer()
+	w.Draw(buf)
+	if buf.Len() == 0 {
+		t.Error("expected draw commands")
+	}
+}
+
+func TestWindowDrawFallbackBounds(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	w := NewWindow(tree, "Fallback", cfg)
+	w.SetSize(200, 150)
+	// No SetLayout — should use fallback bounds
+	buf := render.NewCommandBuffer()
+	w.Draw(buf)
+	if buf.Len() == 0 {
+		t.Error("expected draw commands with fallback bounds")
+	}
+}
+
+func TestWindowCloseDefault(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	root := widget.NewDiv(tree, cfg)
+	tree.SetLayout(root.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 800, 600)})
+
+	w := NewWindow(tree, "Close", cfg)
+	wm := NewWindowManager(tree, root)
+	wm.Add(w, 0, 0, 200, 200)
+
+	// Click close button area (right side of title bar)
+	titleH := w.TitleH()
+	btnSize := titleH * 0.6
+	cx := 200 - titleH*0.2 - btnSize/2
+	cy := titleH / 2
+	wm.HandleMouseDown(cx, cy)
+	if w.Visible() {
+		t.Error("window should be hidden after close click")
+	}
+}
+
+func TestWindowCloseCallback(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	root := widget.NewDiv(tree, cfg)
+	tree.SetLayout(root.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 800, 600)})
+
+	w := NewWindow(tree, "CB", cfg)
+	wm := NewWindowManager(tree, root)
+	wm.Add(w, 0, 0, 200, 200)
+
+	closed := false
+	w.OnClose(func() { closed = true })
+	titleH := w.TitleH()
+	btnSize := titleH * 0.6
+	cx := 200 - titleH*0.2 - btnSize/2
+	cy := titleH / 2
+	wm.HandleMouseDown(cx, cy)
+	if !closed {
+		t.Error("OnClose callback should have been called")
+	}
+	if !w.Visible() {
+		t.Error("OnClose callback set — window should remain visible")
+	}
+}
+
+func TestWindowDrag(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	root := widget.NewDiv(tree, cfg)
+	tree.SetLayout(root.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 800, 600)})
+
+	w := NewWindow(tree, "Drag", cfg)
+	wm := NewWindowManager(tree, root)
+	wm.SetSnapEnabled(false)
+	wm.Add(w, 100, 100, 200, 200)
+	// Set initial layout so moveElement has something to work with
+	tree.SetLayout(w.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(100, 100, 200, 200)})
+
+	// Mouse down on title bar (not on close button)
+	wm.HandleMouseDown(120, 110)
+	if !wm.IsDragging() {
+		t.Fatal("should be dragging after title bar mouse down")
+	}
+
+	// Mouse move
+	wm.HandleMouseMove(170, 160)
+	// PostLayout applies the position
+	wm.PostLayout()
+	b := w.Bounds()
+	if b.X != 150 || b.Y != 150 {
+		t.Errorf("bounds after drag move = (%g,%g), want (150,150)", b.X, b.Y)
+	}
+
+	// Mouse up
+	wm.HandleMouseUp()
+	if wm.IsDragging() {
+		t.Error("should not be dragging after mouse up")
+	}
+
+	// After CSSLayout resets, PostLayout re-applies WM position
+	tree.SetLayout(w.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 200, 200)})
+	wm.PostLayout()
+	b = w.Bounds()
+	if b.X != 150 || b.Y != 150 {
+		t.Errorf("persistent position after CSSLayout reset = (%g,%g), want (150,150)", b.X, b.Y)
+	}
+}
+
+func TestWindowPostLayout(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	root := widget.NewDiv(tree, cfg)
+	tree.SetLayout(root.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 800, 600)})
+
+	w := NewWindow(tree, "PL", cfg)
+	wm := NewWindowManager(tree, root)
+	wm.Add(w, 50, 50, 200, 200)
+	tree.SetLayout(w.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(50, 50, 200, 200)})
+
+	// No drag — PostLayout should keep position at (50,50)
+	wm.PostLayout()
+	b := w.Bounds()
+	if b.X != 50 || b.Y != 50 {
+		t.Errorf("PostLayout bounds = (%g,%g), want (50,50)", b.X, b.Y)
+	}
+
+	// Drag: down at (60,55), move to (110,105) → new position = (100,100)
+	wm.SetSnapEnabled(false)
+	wm.HandleMouseDown(60, 55)
+	wm.HandleMouseMove(110, 105)
+	wm.HandleMouseUp()
+
+	// Simulate CSSLayout overwriting
+	tree.SetLayout(w.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 200, 200)})
+	// PostLayout should re-apply WM position
+	wm.PostLayout()
+	b = w.Bounds()
+	if b.X != 100 || b.Y != 100 {
+		t.Errorf("PostLayout bounds = (%g,%g), want (100,100)", b.X, b.Y)
+	}
+}
+
+func TestWindowAutoHeightDrag(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	root := widget.NewDiv(tree, cfg)
+	tree.SetLayout(root.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 800, 600)})
+
+	w := NewWindow(tree, "Auto", cfg)
+	wm := NewWindowManager(tree, root)
+	wm.Add(w, 100, 100, 200, 0) // h=0 = auto-height
+
+	// Simulate CSS layout computing height = 150
+	tree.SetLayout(w.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(100, 100, 200, 150)})
+
+	// Click on title bar should start drag
+	consumed := wm.HandleMouseDown(150, 110)
+	if !consumed {
+		t.Error("title bar click should be consumed")
+	}
+	if !wm.IsDragging() {
+		t.Error("should be dragging after title bar click on auto-height window")
+	}
+	wm.HandleMouseUp()
+
+	// Click in content area (y=200, within 100+150=250)
+	consumed = wm.HandleMouseDown(150, 200)
+	if !consumed {
+		t.Error("content click should be consumed by auto-height window")
+	}
+	if wm.IsDragging() {
+		t.Error("content click should not start drag")
+	}
+
+	// Click outside (y=260, beyond 100+150=250)
+	wm.HandleMouseUp()
+	consumed = wm.HandleMouseDown(150, 260)
+	if consumed {
+		t.Error("click outside auto-height window should not be consumed")
+	}
+}
+
+func TestWindowSnapToViewportEdges(t *testing.T) {
+	setup := func() (*core.Tree, *widget.Config, *widget.Div, *WindowManager) {
+		tree := core.NewTree()
+		cfg := widget.DefaultConfig()
+		root := widget.NewDiv(tree, cfg)
+		tree.SetLayout(root.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 800, 600)})
+		wm := NewWindowManager(tree, root)
+		return tree, cfg, root, wm
+	}
+
+	t.Run("default_enabled", func(t *testing.T) {
+		_, _, _, wm := setup()
+		if !wm.SnapEnabled() {
+			t.Fatal("snap should be on by default")
+		}
+	})
+
+	t.Run("left_edge", func(t *testing.T) {
+		tree, cfg, _, wm := setup()
+		w := NewWindow(tree, "L", cfg)
+		wm.Add(w, 100, 100, 200, 200)
+		tree.SetLayout(w.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(100, 100, 200, 200)})
+		// offset = (200-100, 114-100) = (100, 14)
+		wm.HandleMouseDown(200, 114)
+		wm.HandleMouseMove(105, 114) // newX = 5, within snap → 0
+		wm.HandleMouseUp()
+		wm.PostLayout()
+		if b := w.Bounds(); b.X != 0 {
+			t.Errorf("expected snap to left edge, got X=%g", b.X)
+		}
+	})
+
+	t.Run("top_edge", func(t *testing.T) {
+		tree, cfg, _, wm := setup()
+		w := NewWindow(tree, "T", cfg)
+		wm.Add(w, 100, 100, 200, 200)
+		tree.SetLayout(w.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(100, 100, 200, 200)})
+		// offset = (100, 14)
+		wm.HandleMouseDown(200, 114)
+		wm.HandleMouseMove(200, 19) // newY = 19-14 = 5 → snap to 0
+		wm.HandleMouseUp()
+		wm.PostLayout()
+		if b := w.Bounds(); b.Y != 0 {
+			t.Errorf("expected snap to top edge, got Y=%g", b.Y)
+		}
+	})
+
+	t.Run("right_edge", func(t *testing.T) {
+		tree, cfg, _, wm := setup()
+		w := NewWindow(tree, "R", cfg)
+		wm.Add(w, 300, 100, 200, 200)
+		tree.SetLayout(w.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(300, 100, 200, 200)})
+		// offset = (400-300, 114-100) = (100, 14)
+		wm.HandleMouseDown(400, 114)
+		wm.HandleMouseMove(705, 114) // newX = 705-100 = 605, gap = 800-605-200 = -5 → snap to 600
+		wm.HandleMouseUp()
+		wm.PostLayout()
+		if b := w.Bounds(); b.X != 600 {
+			t.Errorf("expected snap to right edge (X=600), got X=%g", b.X)
+		}
+	})
+
+	t.Run("bottom_edge", func(t *testing.T) {
+		tree, cfg, _, wm := setup()
+		w := NewWindow(tree, "B", cfg)
+		wm.Add(w, 100, 200, 200, 200)
+		tree.SetLayout(w.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(100, 200, 200, 200)})
+		// offset = (200-100, 214-200) = (100, 14)
+		wm.HandleMouseDown(200, 214)
+		wm.HandleMouseMove(200, 409) // newY = 409-14 = 395, gap = 600-395-200 = 5 → snap to 400
+		wm.HandleMouseUp()
+		wm.PostLayout()
+		if b := w.Bounds(); b.Y != 400 {
+			t.Errorf("expected snap to bottom edge (Y=400), got Y=%g", b.Y)
+		}
+	})
+}
+
+func TestWindowSnapDisabled(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	root := widget.NewDiv(tree, cfg)
+	tree.SetLayout(root.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 800, 600)})
+
+	w := NewWindow(tree, "NoSnap", cfg)
+	wm := NewWindowManager(tree, root)
+	wm.SetSnapEnabled(false)
+	wm.Add(w, 100, 100, 200, 200)
+	tree.SetLayout(w.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(100, 100, 200, 200)})
+
+	// Drag near left edge - should NOT snap
+	wm.HandleMouseDown(200, 114) // offset = (100, 14)
+	wm.HandleMouseMove(105, 114) // newX = 5
+	wm.HandleMouseUp()
+	wm.PostLayout()
+	b := w.Bounds()
+	if b.X != 5 {
+		t.Errorf("expected X=5 (no snap), got X=%g", b.X)
+	}
+}
+
+func TestWindowSnapToOtherWindows(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	root := widget.NewDiv(tree, cfg)
+	tree.SetLayout(root.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 800, 600)})
+
+	w1 := NewWindow(tree, "A", cfg)
+	w2 := NewWindow(tree, "B", cfg)
+	wm := NewWindowManager(tree, root)
+	wm.Add(w1, 100, 100, 200, 200)
+	wm.Add(w2, 400, 100, 200, 200)
+	tree.SetLayout(w1.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(100, 100, 200, 200)})
+	tree.SetLayout(w2.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(400, 100, 200, 200)})
+
+	// Drag w2's left edge near w1's right edge (w1 right = 100+200 = 300)
+	// w2 at x=400, drag to x=305 → left edge gap to w1 right = 300-305 = -5 (within snap)
+	wm.HandleMouseDown(500, 114) // offset = (100, 14)
+	wm.HandleMouseMove(405, 114) // newX = 405-100 = 305, gap = 300-305 = -5 (within snap)
+	wm.HandleMouseUp()
+	wm.PostLayout()
+	b := w2.Bounds()
+	if b.X != 300 {
+		t.Errorf("expected w2 to snap to w1's right edge (X=300), got X=%g", b.X)
+	}
+}
+
+func TestWindowContentClickNoDrag(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	root := widget.NewDiv(tree, cfg)
+	tree.SetLayout(root.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 800, 600)})
+
+	w := NewWindow(tree, "NoDrag", cfg)
+	wm := NewWindowManager(tree, root)
+	wm.Add(w, 0, 0, 200, 200)
+
+	// Click below title bar — should NOT start drag
+	consumed := wm.HandleMouseDown(100, 100)
+	if !consumed {
+		t.Error("content area click should be consumed by window")
+	}
+	if wm.IsDragging() {
+		t.Error("clicking content area should not start drag")
+	}
+}

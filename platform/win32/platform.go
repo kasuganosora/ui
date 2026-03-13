@@ -87,6 +87,12 @@ func (p *Platform) Init() error {
 		p.classAtom = uint16(atom)
 	}
 
+	// Request 1ms timer resolution for smooth animations and drag.
+	// Without this, time.Sleep(1ms) actually sleeps ~15ms on Windows.
+	if procTimeBeginPeriod.Find() == nil {
+		procTimeBeginPeriod.Call(1)
+	}
+
 	p.inited = true
 	return nil
 }

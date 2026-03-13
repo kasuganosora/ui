@@ -23,6 +23,7 @@ type LootWindow struct {
 	width    float32
 	slotSize float32
 	gap      float32
+	embedded bool // if true, skip Panel chrome (used inside Window)
 	onLoot   func(index int)
 	onClose  func()
 }
@@ -47,6 +48,7 @@ func (lw *LootWindow) SetTitle(t string)       { lw.title = t }
 func (lw *LootWindow) SetWidth(w float32)      { lw.width = w }
 func (lw *LootWindow) OnLoot(fn func(int))     { lw.onLoot = fn }
 func (lw *LootWindow) OnClose(fn func())       { lw.onClose = fn }
+func (lw *LootWindow) SetEmbedded(v bool)      { lw.embedded = v }
 
 func (lw *LootWindow) AddItem(item LootItem) {
 	lw.items = append(lw.items, item)
@@ -92,21 +94,35 @@ func (lw *LootWindow) Draw(buf *render.CommandBuffer) {
 		return
 	}
 	cfg := lw.Config()
+	bounds := lw.Bounds()
 	itemH := lw.slotSize + lw.gap
 	contentH := float32(len(lw.items))*itemH + cfg.SpaceSM
 
-	panel := Panel{
-		Title:   lw.title,
-		Width:   lw.width,
-		TitleH:  32,
-		BgColor: uimath.RGBA(0.08, 0.08, 0.12, 0.95),
-		Shadow:  true,
+	var contentX, contentY, contentW float32
+
+	if lw.embedded {
+		pad := float32(8)
+		contentX = bounds.X + pad
+		contentY = bounds.Y + pad
+		contentW = bounds.Width - pad*2
+		if contentW <= 0 {
+			contentW = lw.width - pad*2
+		}
+	} else {
+		panel := Panel{
+			Title:   lw.title,
+			Width:   lw.width,
+			TitleH:  32,
+			BgColor: uimath.RGBA(0.08, 0.08, 0.12, 0.95),
+			Shadow:  true,
+		}
+		r := panel.Draw(buf, bounds, cfg, contentH)
+		contentX, contentY, contentW = r.ContentX, r.ContentY, r.ContentW
 	}
-	r := panel.Draw(buf, lw.Bounds(), cfg, contentH)
 
 	// Items
 	for i, li := range lw.items {
-		iy := r.ContentY + float32(i)*itemH
+		iy := contentY + float32(i)*itemH
 		s := lw.slotSize
 
 		bgColor := uimath.RGBA(0.15, 0.15, 0.15, 0.85)
@@ -118,7 +134,7 @@ func (lw *LootWindow) Draw(buf *render.CommandBuffer) {
 			borderColor = rarityColor(li.Item.Rarity)
 		}
 		buf.DrawRect(render.RectCmd{
-			Bounds:      uimath.NewRect(r.ContentX, iy, s, s),
+			Bounds:      uimath.NewRect(contentX, iy, s, s),
 			FillColor:   bgColor,
 			BorderColor: borderColor,
 			BorderWidth: 1,
@@ -131,7 +147,7 @@ func (lw *LootWindow) Draw(buf *render.CommandBuffer) {
 				nameColor = uimath.RGBA(0.4, 0.4, 0.4, 1)
 			}
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-			cfg.TextRenderer.DrawText(buf, li.Item.Name, r.ContentX+s+cfg.SpaceXS, iy+(s-lh)/2, cfg.FontSizeSm, r.ContentW-s-cfg.SpaceXS, nameColor, 1)
+			cfg.TextRenderer.DrawText(buf, li.Item.Name, contentX+s+cfg.SpaceXS, iy+(s-lh)/2, cfg.FontSizeSm, contentW-s-cfg.SpaceXS, nameColor, 1)
 		}
 	}
 }

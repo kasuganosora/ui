@@ -326,6 +326,38 @@ func TestDivDrawScrollable(t *testing.T) {
 	}
 }
 
+func TestDivScrollOffsetChildren(t *testing.T) {
+	tree := newTestTree()
+	parent := NewDiv(tree, nil)
+	parent.SetBgColor(uimath.ColorWhite)
+	parent.SetScrollable(true)
+	parent.SetContentHeight(300)
+	tree.SetLayout(parent.ElementID(), core.LayoutResult{
+		Bounds: uimath.NewRect(0, 0, 200, 100),
+	})
+
+	// Add a child at y=50
+	child := NewDiv(tree, nil)
+	child.SetBgColor(uimath.ColorWhite)
+	tree.SetLayout(child.ElementID(), core.LayoutResult{
+		Bounds: uimath.NewRect(10, 50, 180, 30),
+	})
+	parent.AppendChild(child)
+	tree.AppendChild(parent.ElementID(), child.ElementID())
+
+	// Scroll down by 40px
+	parent.ScrollTo(0, 40)
+
+	buf := render.NewCommandBuffer()
+	parent.Draw(buf)
+
+	// After drawing, child position should be restored to original
+	childBounds := tree.Get(child.ElementID()).Layout().Bounds
+	if childBounds.Y != 50 {
+		t.Errorf("child Y should be restored to 50 after draw, got %f", childBounds.Y)
+	}
+}
+
 func TestDivDrawEmpty(t *testing.T) {
 	tree := newTestTree()
 	d := NewDiv(tree, nil)

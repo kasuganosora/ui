@@ -13,6 +13,8 @@ import (
 	"github.com/kasuganosora/ui/font"
 	"github.com/kasuganosora/ui/font/atlas"
 	"github.com/kasuganosora/ui/font/textrender"
+	"github.com/kasuganosora/ui/icon/material"
+	"github.com/kasuganosora/ui/layout"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/platform"
 	"github.com/kasuganosora/ui/render"
@@ -70,6 +72,7 @@ func newGameTestEnv(t *testing.T, w, h int) *gameTestEnv {
 	tr := textrender.New(textrender.Options{Manager: mgr, Atlas: ga})
 	cfg := widget.DefaultConfig()
 	cfg.TextRenderer = ui.NewTextDrawer(tr, fid, fe)
+	cfg.IconRegistry = material.NewRegistry(backend)
 
 	return &gameTestEnv{
 		plat: plat, win: win, backend: backend,
@@ -387,6 +390,136 @@ func TestVisualGameHUD_WithCSSLayout(t *testing.T) {
 	})
 
 	t.Logf("command buffer: %d commands, %d overlays", env.buf.Len(), len(env.buf.Overlays()))
+}
+
+// TestVisualGameWindows tests the WindowManager layout: windows should have
+// title bars, content should be contained within window bounds, no overflow.
+func TestVisualGameWindows(t *testing.T) {
+	env := newGameTestEnv(t, 1280, 800)
+	defer env.close()
+
+	tree := env.tree
+	cfg := env.cfg
+	cfg.BgColor = uimath.ColorHex("#0a0e17")
+	cfg.TextColor = uimath.ColorHex("#c8ccd0")
+
+	doc := ui.LoadHTMLDocument(tree, cfg, `<div style="position:relative; width:100%; height:100%; background:#0a0e17;"></div>`, "")
+	rootDiv := doc.Root.Children()[0].(*widget.Div)
+	tree.AppendChild(tree.Root(), rootDiv.ElementID())
+
+	wm := game.NewWindowManager(tree, rootDiv)
+
+	// ── Chat Window ──
+	chatWin := game.NewWindow(tree, "聊天", cfg)
+	chatWin.SetTitleH(24)
+	chatContent := widget.NewDiv(tree, cfg)
+	chatContent.SetBgColor(uimath.RGBA(0.1, 0.1, 0.15, 1))
+	chatContent.SetStyle(layout.Style{Width: layout.Px(340), Height: layout.Px(172)})
+	chatWin.AppendChild(chatContent)
+	wm.Add(chatWin, 10, 520, 340, 228)
+
+	// ── Inventory Window ──
+	inv := game.NewInventory(tree, 3, 4, cfg)
+	inv.SetSlotSize(44)
+	inv.SetGap(3)
+	inv.SetEmbedded(true)
+	invW := float32(4*(44+3)) + 20
+	invH := float32(3*(44+3)) + 12
+	invWin := game.NewWindow(tree, "背包", cfg)
+	inv.SetStyle(layout.Style{Width: layout.Px(invW), Height: layout.Px(invH)})
+	invWin.AppendChild(inv)
+	wm.Add(invWin, 980, 250, invW, invH+28)
+
+	// ── Dialogue Window ──
+	dialogue := game.NewDialogueBox(tree, cfg)
+	dialogue.SetSize(480, 130)
+	dialogue.SetEmbedded(true)
+	dialogue.Show("旅行商人", "你好，旅人。")
+	dialogueWin := game.NewWindow(tree, "对话", cfg)
+	dialogue.SetStyle(layout.Style{Width: layout.Px(480), Height: layout.Px(130)})
+	dialogueWin.AppendChild(dialogue)
+	wm.Add(dialogueWin, 400, 352, 480, 158)
+
+	// ── Score Window ──
+	scoreboard := game.NewScoreboard(tree, cfg)
+	scoreboard.SetTitle("")
+	scoreboard.SetEmbedded(true)
+	scoreboard.SetWidth(360)
+	scoreboard.AddEntry(game.ScoreEntry{Name: "Player1", Score: 100, Team: 1})
+	scoreboard.SetVisible(true)
+	scoreWin := game.NewWindow(tree, "统计", cfg)
+	scoreboard.SetStyle(layout.Style{Width: layout.Px(360), Height: layout.Px(220)})
+	scoreWin.AppendChild(scoreboard)
+	wm.Add(scoreWin, 270, 216, 360, 248)
+
+	layoutCache := ui.NewCSSLayoutCache()
+	onLayout := func(w, h float32) {
+		layoutCache.Layout(tree, rootDiv, w, h, cfg)
+		wm.PostLayout()
+	}
+
+	for i := 0; i < 3; i++ {
+		env.renderFrame(rootDiv, onLayout)
+	}
+
+	img := env.screenshot(t, "game_windows")
+	verifyNotUniform(t, img)
+
+	dpi := env.win.DPIScale()
+
+	// Verify each window's content is within its bounds.
+	// Check that pixels OUTSIDE window bounds (but near them) are dark background.
+	type windowCheck struct {
+		name       string
+		x, y, w, h float32
+	}
+	checks := []windowCheck{
+		{"chat", 10, 520, 340, 228},
+		{"inv", 980, 250, invW, invH + 28},
+		{"dialogue", 400, 352, 480, 158},
+		{"score", 270, 216, 360, 248},
+	}
+
+	for _, wc := range checks {
+		// Check inside window has some content (not uniform background)
+		px := int((wc.x + 10) * dpi)
+		py := int((wc.y + wc.h/2) * dpi)
+		pw := int((wc.w - 20) * dpi)
+		ph := int(40 * dpi)
+		if px < 0 || py < 0 || px+pw > img.Bounds().Dx() || py+ph > img.Bounds().Dy() {
+			continue
+		}
+		inner := countDistinctColors(img, px, py, pw, ph)
+		t.Logf("window %q inner colors: %d (region %d,%d %dx%d)", wc.name, inner, px, py, pw, ph)
+
+		// Check just below the window: should be dark background
+		belowY := int((wc.y + wc.h + 5) * dpi)
+		if belowY+10 < img.Bounds().Dy() {
+			belowColors := countDistinctColors(img, int(wc.x*dpi), belowY, int(wc.w*dpi), 10)
+			t.Logf("window %q below colors: %d", wc.name, belowColors)
+			if belowColors > 5 {
+				t.Errorf("window %q content leaks below bounds (%d colors below)", wc.name, belowColors)
+			}
+		}
+	}
+
+	// Dump tree for debugging
+	tree.Walk(tree.Root(), func(id core.ElementID, depth int) bool {
+		elem := tree.Get(id)
+		if elem == nil {
+			return false
+		}
+		indent := ""
+		for i := 0; i < depth; i++ {
+			indent += "  "
+		}
+		b := elem.Layout().Bounds
+		t.Logf("%s[%d] %s (%.0f,%.0f %.0fx%.0f) children=%d",
+			indent, id, elem.Type(), b.X, b.Y, b.Width, b.Height, len(elem.ChildIDs()))
+		return true
+	})
+
+	t.Logf("commands: %d", env.buf.Len())
 }
 
 // Suppress unused import warnings

@@ -73,6 +73,14 @@ func (b *Base) Bounds() uimath.Rect {
 	return uimath.Rect{}
 }
 
+// SetHitTestFunc sets a custom hit-test function for this widget.
+// When set, clicks on transparent (fn returns false) regions pass through
+// to whatever is underneath.  Useful for shaped windows with PNG backgrounds.
+// Pass nil to restore default rectangular hit-testing.
+func (b *Base) SetHitTestFunc(fn core.HitTestFunc) {
+	b.tree.SetHitTestFunc(b.id, fn)
+}
+
 func (b *Base) Destroy() {
 	for _, c := range b.children {
 		c.Destroy()

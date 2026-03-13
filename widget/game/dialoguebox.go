@@ -25,6 +25,7 @@ type DialogueBox struct {
 	width      float32
 	height     float32
 	onAdvance  func()
+	embedded   bool // if true, skip Panel chrome (used inside Window)
 }
 
 func NewDialogueBox(tree *core.Tree, cfg *widget.Config) *DialogueBox {
@@ -53,6 +54,7 @@ func (db *DialogueBox) SetText(t string)             { db.text = t }
 func (db *DialogueBox) SetPortrait(t render.TextureHandle) { db.portrait = t }
 func (db *DialogueBox) SetSize(w, h float32)         { db.width = w; db.height = h }
 func (db *DialogueBox) OnAdvance(fn func())          { db.onAdvance = fn }
+func (db *DialogueBox) SetEmbedded(v bool)           { db.embedded = v }
 
 func (db *DialogueBox) SetChoices(choices []DialogueChoice) {
 	db.choices = make([]DialogueChoice, len(choices))
@@ -78,40 +80,72 @@ func (db *DialogueBox) Draw(buf *render.CommandBuffer) {
 		return
 	}
 	cfg := db.Config()
-
-	// Measure content height for auto-sizing
-	contentH := float32(0)
-	if cfg.TextRenderer != nil && db.speaker != "" {
-		contentH += cfg.TextRenderer.LineHeight(cfg.FontSize) + 4
-	}
-	if cfg.TextRenderer != nil && db.text != "" {
-		contentH += cfg.TextRenderer.LineHeight(cfg.FontSize) + 8
-	}
+	bounds := db.Bounds()
 	choiceH := float32(24)
-	if len(db.choices) > 0 {
-		contentH += float32(len(db.choices))*(choiceH+4) + 4
-	}
-	contentH += cfg.SpaceSM
 
-	panel := Panel{
-		Title:       db.speaker,
-		Width:       db.width,
-		Height:      db.height,
-		TitleH:      30,
-		BgColor:     uimath.RGBA(0.05, 0.05, 0.1, 0.92),
-		BorderWidth: 2,
-	}
-	if db.speaker == "" {
-		panel.TitleH = -1
-	}
-	r := panel.Draw(buf, db.Bounds(), cfg, contentH)
+	var cx, cy, cw, px, py, pw, ph float32
 
-	textY := r.ContentY + 4
+	if db.embedded {
+		// Embedded mode: no Panel chrome, use bounds directly
+		pad := float32(8)
+		cx = bounds.X + pad
+		cy = bounds.Y + pad
+		cw = bounds.Width - pad*2
+		if cw <= 0 {
+			cw = db.width - pad*2
+		}
+		px, py = bounds.X, bounds.Y
+		pw = bounds.Width
+		if pw == 0 {
+			pw = db.width
+		}
+		ph = bounds.Height
+		if ph == 0 {
+			ph = db.height
+		}
+	} else {
+		// Standalone mode: draw Panel chrome
+		contentH := float32(0)
+		if cfg.TextRenderer != nil && db.speaker != "" {
+			contentH += cfg.TextRenderer.LineHeight(cfg.FontSize) + 4
+		}
+		if cfg.TextRenderer != nil && db.text != "" {
+			contentH += cfg.TextRenderer.LineHeight(cfg.FontSize) + 8
+		}
+		if len(db.choices) > 0 {
+			contentH += float32(len(db.choices))*(choiceH+4) + 4
+		}
+		contentH += cfg.SpaceSM
+
+		panel := Panel{
+			Title:       db.speaker,
+			Width:       db.width,
+			Height:      db.height,
+			TitleH:      30,
+			BgColor:     uimath.RGBA(0.05, 0.05, 0.1, 0.92),
+			BorderWidth: 2,
+		}
+		if db.speaker == "" {
+			panel.TitleH = -1
+		}
+		r := panel.Draw(buf, bounds, cfg, contentH)
+		cx, cy, cw = r.ContentX, r.ContentY, r.ContentW
+		px, py, pw, ph = r.PanelX, r.PanelY, r.PanelW, r.PanelH
+	}
+
+	textY := cy + 4
+
+	// Speaker name (in embedded mode, drawn as content text)
+	if db.embedded && db.speaker != "" && cfg.TextRenderer != nil {
+		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
+		cfg.TextRenderer.DrawText(buf, db.speaker, cx, textY, cfg.FontSize, cw, uimath.ColorHex("#ffd700"), 1)
+		textY += lh + 4
+	}
 
 	// Dialogue text
 	if cfg.TextRenderer != nil && db.text != "" {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, db.text, r.ContentX, textY, cfg.FontSize, r.ContentW, uimath.RGBA(0.9, 0.9, 0.9, 1), 1)
+		cfg.TextRenderer.DrawText(buf, db.text, cx, textY, cfg.FontSize, cw, uimath.RGBA(0.9, 0.9, 0.9, 1), 1)
 		textY += lh + 8
 	}
 
@@ -121,7 +155,7 @@ func (db *DialogueBox) Draw(buf *render.CommandBuffer) {
 		if cfg.TextRenderer != nil {
 			label := itoa(i+1) + ". " + choice.Text
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-			cfg.TextRenderer.DrawText(buf, label, r.ContentX+cfg.SpaceSM, cy+(choiceH-lh)/2, cfg.FontSizeSm, r.ContentW-cfg.SpaceSM, uimath.ColorHex("#88bbff"), 1)
+			cfg.TextRenderer.DrawText(buf, label, cx+cfg.SpaceSM, cy+(choiceH-lh)/2, cfg.FontSizeSm, cw-cfg.SpaceSM, uimath.ColorHex("#88bbff"), 1)
 		}
 	}
 
@@ -129,6 +163,6 @@ func (db *DialogueBox) Draw(buf *render.CommandBuffer) {
 	if len(db.choices) == 0 && cfg.TextRenderer != nil {
 		hint := "▼"
 		tw := cfg.TextRenderer.MeasureText(hint, cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, hint, r.PanelX+r.PanelW-tw-cfg.SpaceMD, r.PanelY+r.PanelH-cfg.TextRenderer.LineHeight(cfg.FontSizeSm)-cfg.SpaceSM, cfg.FontSizeSm, tw+4, uimath.RGBA(0.6, 0.6, 0.6, 0.8), 1)
+		cfg.TextRenderer.DrawText(buf, hint, px+pw-tw-cfg.SpaceMD, py+ph-cfg.TextRenderer.LineHeight(cfg.FontSizeSm)-cfg.SpaceSM, cfg.FontSizeSm, tw+4, uimath.RGBA(0.6, 0.6, 0.6, 0.8), 1)
 	}
 }

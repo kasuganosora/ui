@@ -19,6 +19,7 @@ var (
 	shcore   = syscall.NewLazyDLL("shcore.dll")
 	imm32    = syscall.NewLazyDLL("imm32.dll")
 	ole32    = syscall.NewLazyDLL("ole32.dll")
+	winmm    = syscall.NewLazyDLL("winmm.dll")
 )
 
 // user32 functions
@@ -103,6 +104,11 @@ var (
 var (
 	procSetProcessDpiAwareness = shcore.NewProc("SetProcessDpiAwareness")
 	procGetDpiForMonitor       = shcore.NewProc("GetDpiForMonitor")
+)
+
+// winmm functions (multimedia timer)
+var (
+	procTimeBeginPeriod = winmm.NewProc("timeBeginPeriod")
 )
 
 // imm32 functions (IME)

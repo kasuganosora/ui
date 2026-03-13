@@ -120,14 +120,27 @@ func (d *Div) Draw(buf *render.CommandBuffer) {
 		buf.PushClip(bounds)
 	}
 
+	// Apply scroll offset: temporarily move all descendant elements
+	if d.scrollX != 0 || d.scrollY != 0 {
+		d.offsetDescendants(-d.scrollX, -d.scrollY)
+	}
+
 	d.DrawChildren(buf)
+
+	// Restore scroll offset
+	if d.scrollX != 0 || d.scrollY != 0 {
+		d.offsetDescendants(d.scrollX, d.scrollY)
+	}
 
 	if needsClip {
 		buf.PopClip()
 	}
 
 	// Draw scrollbar if content overflows
-	if d.scrollable && d.contentHeight > bounds.Height {
+	hasScroll := d.scrollable ||
+		d.style.Overflow == layout.OverflowScroll ||
+		d.style.Overflow == layout.OverflowAuto
+	if hasScroll && d.contentHeight > bounds.Height {
 		const barW = 4
 		trackX := bounds.X + bounds.Width - barW - 1
 		ratio := bounds.Height / d.contentHeight
@@ -145,5 +158,27 @@ func (d *Div) Draw(buf *render.CommandBuffer) {
 			FillColor: uimath.ColorHex("#ffffff40"),
 			Corners:   uimath.CornersAll(barW / 2),
 		}, 0, 1)
+	}
+}
+
+// offsetDescendants moves all descendant element layout bounds by (dx, dy).
+// Used to apply/restore scroll offset during drawing.
+func (d *Div) offsetDescendants(dx, dy float32) {
+	for _, child := range d.children {
+		d.offsetElement(child.ElementID(), dx, dy)
+	}
+}
+
+func (d *Div) offsetElement(id core.ElementID, dx, dy float32) {
+	elem := d.tree.Get(id)
+	if elem == nil {
+		return
+	}
+	b := elem.Layout().Bounds
+	d.tree.SetLayout(id, core.LayoutResult{
+		Bounds: uimath.NewRect(b.X+dx, b.Y+dy, b.Width, b.Height),
+	})
+	for _, child := range elem.ChildIDs() {
+		d.offsetElement(child, dx, dy)
 	}
 }

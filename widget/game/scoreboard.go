@@ -25,6 +25,7 @@ type Scoreboard struct {
 	width    float32
 	rowH     float32
 	headerH  float32
+	embedded bool // if true, skip Panel chrome (used inside Window)
 }
 
 func NewScoreboard(tree *core.Tree, cfg *widget.Config) *Scoreboard {
@@ -46,6 +47,7 @@ func (sb *Scoreboard) IsVisible() bool         { return sb.visible }
 func (sb *Scoreboard) SetVisible(v bool)       { sb.visible = v }
 func (sb *Scoreboard) SetTitle(t string)       { sb.title = t }
 func (sb *Scoreboard) SetWidth(w float32)      { sb.width = w }
+func (sb *Scoreboard) SetEmbedded(v bool)      { sb.embedded = v }
 
 func (sb *Scoreboard) AddEntry(e ScoreEntry) {
 	sb.entries = append(sb.entries, e)
@@ -73,45 +75,59 @@ func (sb *Scoreboard) Draw(buf *render.CommandBuffer) {
 		return
 	}
 	cfg := sb.Config()
+	bounds := sb.Bounds()
 	colHeaderH := float32(24)
 	contentH := colHeaderH + float32(len(sb.entries))*sb.rowH
 
-	panel := Panel{
-		Title:   sb.title,
-		Width:   sb.width,
-		TitleH:  sb.headerH,
-		BgColor: uimath.RGBA(0, 0, 0, 0.85),
+	var panelX, panelW, contentY float32
+
+	if sb.embedded {
+		pad := float32(4)
+		panelX = bounds.X + pad
+		panelW = bounds.Width - pad*2
+		if panelW <= 0 {
+			panelW = sb.width
+		}
+		contentY = bounds.Y + pad
+	} else {
+		panel := Panel{
+			Title:   sb.title,
+			Width:   sb.width,
+			TitleH:  sb.headerH,
+			BgColor: uimath.RGBA(0, 0, 0, 0.85),
+		}
+		r := panel.Draw(buf, bounds, cfg, contentH)
+		panelX, panelW, contentY = r.PanelX, r.PanelW, r.ContentY
 	}
-	r := panel.Draw(buf, sb.Bounds(), cfg, contentH)
 
 	// Column headers
-	colW := r.PanelW / 4
+	colW := panelW / 4
 	headers := [4]string{"Name", "Score", "K", "D"}
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-		hy := r.ContentY + (colHeaderH-lh)/2
+		hy := contentY + (colHeaderH-lh)/2
 		for ci, h := range headers {
-			cfg.TextRenderer.DrawText(buf, h, r.PanelX+float32(ci)*colW+cfg.SpaceXS, hy, cfg.FontSizeSm, colW, uimath.RGBA(0.6, 0.6, 0.6, 1), 1)
+			cfg.TextRenderer.DrawText(buf, h, panelX+float32(ci)*colW+cfg.SpaceXS, hy, cfg.FontSizeSm, colW, uimath.RGBA(0.6, 0.6, 0.6, 1), 1)
 		}
 	}
 
 	// Rows
-	dataY := r.ContentY + colHeaderH
+	dataY := contentY + colHeaderH
 	for i, e := range sb.entries {
 		ry := dataY + float32(i)*sb.rowH
 		if i%2 == 1 {
 			buf.DrawRect(render.RectCmd{
-				Bounds:    uimath.NewRect(r.PanelX, ry, r.PanelW, sb.rowH),
+				Bounds:    uimath.NewRect(panelX, ry, panelW, sb.rowH),
 				FillColor: uimath.RGBA(1, 1, 1, 0.03),
 			}, 3, 1)
 		}
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 			ty := ry + (sb.rowH-lh)/2
-			cfg.TextRenderer.DrawText(buf, e.Name, r.PanelX+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorWhite, 1)
-			cfg.TextRenderer.DrawText(buf, itoa(e.Score), r.PanelX+colW+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorWhite, 1)
-			cfg.TextRenderer.DrawText(buf, itoa(e.Kills), r.PanelX+colW*2+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorHex("#52c41a"), 1)
-			cfg.TextRenderer.DrawText(buf, itoa(e.Deaths), r.PanelX+colW*3+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorHex("#ff4d4f"), 1)
+			cfg.TextRenderer.DrawText(buf, e.Name, panelX+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorWhite, 1)
+			cfg.TextRenderer.DrawText(buf, itoa(e.Score), panelX+colW+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorWhite, 1)
+			cfg.TextRenderer.DrawText(buf, itoa(e.Kills), panelX+colW*2+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorHex("#52c41a"), 1)
+			cfg.TextRenderer.DrawText(buf, itoa(e.Deaths), panelX+colW*3+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorHex("#ff4d4f"), 1)
 		}
 	}
 }

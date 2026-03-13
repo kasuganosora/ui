@@ -36,6 +36,7 @@ type Inventory struct {
 	gap      float32
 	items    map[int]*ItemData // slot index -> item
 	title    string
+	embedded bool // if true, skip Panel chrome (used inside Window)
 	onDrop   func(slotIndex int, data any)
 	onSelect func(slotIndex int, item *ItemData)
 
@@ -67,6 +68,7 @@ func (inv *Inventory) Rows() int                  { return inv.rows }
 func (inv *Inventory) Cols() int                   { return inv.cols }
 func (inv *Inventory) Title() string               { return inv.title }
 func (inv *Inventory) SetTitle(t string)            { inv.title = t }
+func (inv *Inventory) SetEmbedded(v bool)           { inv.embedded = v }
 func (inv *Inventory) SetSlotSize(s float32)        { inv.slotSize = s }
 func (inv *Inventory) SetGap(g float32)             { inv.gap = g }
 func (inv *Inventory) OnDrop(fn func(int, any))     { inv.onDrop = fn }
@@ -202,26 +204,41 @@ func (inv *Inventory) Draw(buf *render.CommandBuffer) {
 	gridW := float32(inv.cols)*s + float32(inv.cols-1)*inv.gap
 	gridH := float32(inv.rows)*s + float32(inv.rows-1)*inv.gap
 
-	titleH := float32(-1) // no title bar
-	if inv.title != "" {
-		titleH = 28
+	var contentX, contentY, contentW float32
+
+	if inv.embedded {
+		// Embedded mode: no Panel chrome
+		pad := float32(8)
+		contentX = bounds.X + pad
+		contentY = bounds.Y + pad
+		contentW = bounds.Width - pad*2
+		if contentW <= 0 {
+			contentW = gridW
+		}
+	} else {
+		titleH := float32(-1) // no title bar
+		if inv.title != "" {
+			titleH = 28
+		}
+		panel := Panel{
+			Title:       inv.title,
+			Width:       gridW + 16,
+			TitleH:      titleH,
+			BgColor:     uimath.RGBA(0.1, 0.1, 0.1, 0.9),
+			BorderColor: uimath.RGBA(0.3, 0.3, 0.3, 1),
+			TitleColor:  uimath.ColorWhite,
+		}
+		r := panel.Draw(buf, bounds, cfg, gridH+8)
+		contentX, contentY, contentW = r.ContentX, r.ContentY, r.ContentW
 	}
-	panel := Panel{
-		Title:       inv.title,
-		Width:       gridW + 16,
-		TitleH:      titleH,
-		BgColor:     uimath.RGBA(0.1, 0.1, 0.1, 0.9),
-		BorderColor: uimath.RGBA(0.3, 0.3, 0.3, 1),
-		TitleColor:  uimath.ColorWhite,
-	}
-	r := panel.Draw(buf, bounds, cfg, gridH+8)
+	_ = contentW // used for future layout
 
 	// Slots
 	for row := 0; row < inv.rows; row++ {
 		for c := 0; c < inv.cols; c++ {
 			idx := row*inv.cols + c
-			sx := r.ContentX + float32(c)*(s+inv.gap)
-			sy := r.ContentY + float32(row)*(s+inv.gap)
+			sx := contentX + float32(c)*(s+inv.gap)
+			sy := contentY + float32(row)*(s+inv.gap)
 
 			// Slot background
 			bgColor := uimath.RGBA(0.2, 0.2, 0.2, 0.8)
