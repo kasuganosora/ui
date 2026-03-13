@@ -109,15 +109,15 @@
 
 ### 里程碑: 能在 Windows 上用 Vulkan 渲染一个包含文本、按钮、输入框的简单界面 ✅
 
-## 阶段 2: 核心完善（第 9-16 周）
+## 阶段 2: 核心完善（第 9-16 周） ✅
 
 ### 平台
 
 - [x] Windows IME 完善支持（IMM32 组合/候选、CFS_EXCLUDE 精准定位、WM_IME_STARTCOMPOSITION 时机）
 - [x] Windows 原生右键菜单（TrackPopupMenu、ClientToScreen）
 - [x] Windows IME 完整支持（TSF）
-- [ ] Linux 平台层（X11）
-- [ ] Linux 输入和基础 IME
+- [x] Linux 平台层（X11）— purego 零 CGO，完整窗口管理、键鼠事件、光标支持
+- [x] Linux 输入（键盘/鼠标完整）— IME（XIM/Fcitx/IBus）待完善
 
 ### 渲染
 
@@ -191,7 +191,7 @@
 - [x] 数据绑定系统（State[T] 响应式容器、Watch/Bind/Computed、ListState）
 - [x] 主题系统（token 化设计、Light/Dark 预设、Theme → Config 桥接）
 
-### 里程碑: 完整的表单应用 demo，跨 Windows/Linux，支持中文输入
+### 里程碑: 完整的表单应用 demo，跨 Windows/Linux，支持中文输入 ✅
 
 ## 阶段 3: 游戏集成 + P0 游戏组件（第 17-24 周） ✅
 
@@ -237,9 +237,9 @@
 
 - [x] macOS 平台层（Cocoa via purego）
 - [x] macOS IME 支持
-- [ ] Linux Wayland 支持
-- [ ] Linux Fcitx/IBus IME
-- [ ] Android 基础支持
+- [x] Linux Wayland 支持 — XDG shell、键鼠输入、零 CGO（XKB keymap 解析/IME 待完善）
+- [ ] Linux Fcitx/IBus IME（XIM + D-Bus 集成）
+- [x] Android 基础支持（接口骨架 + JNI 桥接钩子，真机需 NDK + CGO）
 - [ ] iOS 基础支持
 - [x] DirectX 11 后端（Windows）
 
@@ -369,12 +369,12 @@
 
 ## 阶段 6: 生态与打磨（第 45 周+）
 
-- [ ] 完整文档和示例
+- [x] 完整文档和示例（15 篇设计文档：架构、API、组件、字体、布局、渲染、游戏集成等）
 - [ ] 可视化 UI 编辑器（可选）
-- [ ] 更多内置主题
+- [x] 更多内置主题（8 个：Light/Dark/Blue/Green/Purple/Warm/GameDark/Compact）
 - [x] 内置图标集（Material Design Icons 2100+，SVG path go:embed，按需光栅化+纹理缓存）
 - [x] 无障碍（Accessibility）基础支持
-- [ ] 性能基准测试
+- [x] 性能基准测试（54 个 benchmark：widget 创建/绘制、布局引擎、视口裁剪、游戏组件）
 - [ ] 稳定 API，发布 v1.0
 
 ## 项目目录结构（规划）

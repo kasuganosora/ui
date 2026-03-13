@@ -213,6 +213,119 @@ func Dark() *Theme {
 	}
 }
 
+// Blue returns a soft blue theme suited for dashboards and admin panels.
+func Blue() *Theme {
+	t := Light()
+	t.Name = "blue"
+	t.Primary = uimath.ColorHex("#1677ff")
+	t.PrimaryHover = uimath.ColorHex("#4096ff")
+	t.PrimaryActive = uimath.ColorHex("#0958d9")
+	t.Success = uimath.ColorHex("#52c41a")
+	t.Warning = uimath.ColorHex("#faad14")
+	t.Error = uimath.ColorHex("#ff4d4f")
+	t.Info = uimath.ColorHex("#1677ff")
+	t.BorderFocus = uimath.ColorHex("#1677ff")
+	t.BorderHover = uimath.ColorHex("#4096ff")
+	return t
+}
+
+// Green returns a nature/eco green theme.
+func Green() *Theme {
+	t := Light()
+	t.Name = "green"
+	t.Primary = uimath.ColorHex("#389e0d")
+	t.PrimaryHover = uimath.ColorHex("#52c41a")
+	t.PrimaryActive = uimath.ColorHex("#237804")
+	t.Success = uimath.ColorHex("#389e0d")
+	t.Warning = uimath.ColorHex("#d48806")
+	t.Error = uimath.ColorHex("#cf1322")
+	t.Info = uimath.ColorHex("#389e0d")
+	t.BorderFocus = uimath.ColorHex("#389e0d")
+	t.BorderHover = uimath.ColorHex("#52c41a")
+	return t
+}
+
+// Purple returns a creative/design purple theme.
+func Purple() *Theme {
+	t := Light()
+	t.Name = "purple"
+	t.Primary = uimath.ColorHex("#722ed1")
+	t.PrimaryHover = uimath.ColorHex("#9254de")
+	t.PrimaryActive = uimath.ColorHex("#531dab")
+	t.Success = uimath.ColorHex("#52c41a")
+	t.Warning = uimath.ColorHex("#faad14")
+	t.Error = uimath.ColorHex("#f5222d")
+	t.Info = uimath.ColorHex("#722ed1")
+	t.BorderFocus = uimath.ColorHex("#722ed1")
+	t.BorderHover = uimath.ColorHex("#9254de")
+	return t
+}
+
+// Warm returns a warm-toned theme with orange accents.
+func Warm() *Theme {
+	t := Light()
+	t.Name = "warm"
+	t.Primary = uimath.ColorHex("#d4380d")
+	t.PrimaryHover = uimath.ColorHex("#ff7a45")
+	t.PrimaryActive = uimath.ColorHex("#ad2102")
+	t.Success = uimath.ColorHex("#7cb305")
+	t.Warning = uimath.ColorHex("#d48806")
+	t.Error = uimath.ColorHex("#cf1322")
+	t.Info = uimath.ColorHex("#d4380d")
+	t.BgPrimary = uimath.ColorHex("#fffbf0")
+	t.BgSecondary = uimath.ColorHex("#fff1e6")
+	t.BorderFocus = uimath.ColorHex("#d4380d")
+	t.BorderHover = uimath.ColorHex("#ff7a45")
+	return t
+}
+
+// GameDark returns a dark theme optimized for game UIs with high contrast.
+func GameDark() *Theme {
+	t := Dark()
+	t.Name = "game-dark"
+	t.Primary = uimath.ColorHex("#f0b400")
+	t.PrimaryHover = uimath.ColorHex("#ffd040")
+	t.PrimaryActive = uimath.ColorHex("#c89600")
+	t.Success = uimath.ColorHex("#73d13d")
+	t.Warning = uimath.ColorHex("#ffa940")
+	t.Error = uimath.ColorHex("#ff4d4f")
+	t.Info = uimath.ColorHex("#40a9ff")
+	t.BgPrimary = uimath.ColorHex("#1a1a2e")
+	t.BgSecondary = uimath.ColorHex("#16213e")
+	t.BgElevated = uimath.ColorHex("#0f3460")
+	t.Border = uimath.ColorHex("#2a2a4a")
+	t.BorderFocus = uimath.ColorHex("#f0b400")
+	t.BorderHover = uimath.ColorHex("#ffd040")
+	t.Divider = uimath.RGBA(1, 1, 1, 0.08)
+	return t
+}
+
+// Compact returns a compact theme with smaller spacing and fonts, suitable for dense UIs.
+func Compact() *Theme {
+	t := Light()
+	t.Name = "compact"
+	t.FontSizeXS = 10
+	t.FontSizeSM = 11
+	t.FontSizeMD = 12
+	t.FontSizeLG = 14
+	t.FontSizeXL = 16
+	t.FontSizeXXL = 20
+	t.SpaceXXS = 1
+	t.SpaceXS = 2
+	t.SpaceSM = 4
+	t.SpaceMD = 8
+	t.SpaceLG = 12
+	t.SpaceXL = 16
+	t.SpaceXXL = 24
+	t.RadiusSM = 2
+	t.RadiusMD = 4
+	t.RadiusLG = 6
+	t.HeightSM = 20
+	t.HeightMD = 28
+	t.HeightLG = 36
+	return t
+}
+
 // ToConfig converts a Theme to the widget.Config format for backward compatibility.
 // This allows gradual migration from Config to Theme.
 func (t *Theme) ToConfig() ConfigValues {

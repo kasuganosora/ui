@@ -50,6 +50,57 @@ func TestToConfig(t *testing.T) {
 	}
 }
 
+func TestAllThemes(t *testing.T) {
+	themes := []*Theme{Light(), Dark(), Blue(), Green(), Purple(), Warm(), GameDark(), Compact()}
+	names := map[string]bool{}
+	for _, th := range themes {
+		if th.Name == "" {
+			t.Error("theme has empty name")
+		}
+		if names[th.Name] {
+			t.Errorf("duplicate theme name: %s", th.Name)
+		}
+		names[th.Name] = true
+		if th.Primary == (uimath.Color{}) {
+			t.Errorf("theme %s: primary color is zero", th.Name)
+		}
+		if th.FontSizeMD <= 0 {
+			t.Errorf("theme %s: invalid font size", th.Name)
+		}
+		// Verify ToConfig doesn't panic
+		cfg := th.ToConfig()
+		if cfg.FontSize <= 0 {
+			t.Errorf("theme %s: ToConfig font size invalid", th.Name)
+		}
+		// Verify ToCSSVariables doesn't panic and produces output
+		vars := th.ToCSSVariables()
+		if len(vars) == 0 {
+			t.Errorf("theme %s: ToCSSVariables returned empty", th.Name)
+		}
+	}
+}
+
+func TestCompactSmaller(t *testing.T) {
+	light := Light()
+	compact := Compact()
+	if compact.FontSizeMD >= light.FontSizeMD {
+		t.Error("compact font should be smaller than light")
+	}
+	if compact.SpaceMD >= light.SpaceMD {
+		t.Error("compact spacing should be smaller than light")
+	}
+	if compact.HeightMD >= light.HeightMD {
+		t.Error("compact height should be smaller than light")
+	}
+}
+
+func TestGameDarkIsDark(t *testing.T) {
+	gd := GameDark()
+	if gd.BgPrimary.R > 0.2 {
+		t.Errorf("game-dark bg should be dark, R=%g", gd.BgPrimary.R)
+	}
+}
+
 func TestLightDarkDiffer(t *testing.T) {
 	l := Light()
 	d := Dark()
