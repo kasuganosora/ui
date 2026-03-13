@@ -1088,7 +1088,8 @@ func TestWindowSnapDisabled(t *testing.T) {
 	}
 }
 
-func TestWindowSnapToOtherWindows(t *testing.T) {
+func TestWindowSnapViewportOnly(t *testing.T) {
+	// Window-to-window snap is disabled; only viewport edges snap.
 	tree := core.NewTree()
 	cfg := widget.DefaultConfig()
 	root := widget.NewDiv(tree, cfg)
@@ -1102,15 +1103,14 @@ func TestWindowSnapToOtherWindows(t *testing.T) {
 	tree.SetLayout(w1.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(100, 100, 200, 200)})
 	tree.SetLayout(w2.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(400, 100, 200, 200)})
 
-	// Drag w2's left edge near w1's right edge (w1 right = 100+200 = 300)
-	// w2 at x=400, drag to x=305 → left edge gap to w1 right = 300-305 = -5 (within snap)
+	// Drag w2 near w1's right edge — should NOT snap (no window-to-window snap)
 	wm.HandleMouseDown(500, 114) // offset = (100, 14)
-	wm.HandleMouseMove(405, 114) // newX = 405-100 = 305, gap = 300-305 = -5 (within snap)
+	wm.HandleMouseMove(405, 114) // newX = 405-100 = 305
 	wm.HandleMouseUp()
 	wm.PostLayout()
 	b := w2.Bounds()
-	if b.X != 300 {
-		t.Errorf("expected w2 to snap to w1's right edge (X=300), got X=%g", b.X)
+	if b.X != 305 {
+		t.Errorf("expected no window-to-window snap (X=305), got X=%g", b.X)
 	}
 }
 

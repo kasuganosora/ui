@@ -292,11 +292,21 @@ func (wm *WindowManager) HandleMouseDown(x, y float32) bool {
 		wm.bringToFront(i)
 		e = wm.windows[len(wm.windows)-1] // re-fetch after reorder
 
+		// Use actual rendered position for drag offset so it matches
+		// what the user sees, even if e.x/e.y drifts from CSS layout.
+		visualX, visualY := e.x, e.y
+		if elem := wm.tree.Get(e.win.ElementID()); elem != nil {
+			b := elem.Layout().Bounds
+			if b.Width > 0 {
+				visualX, visualY = b.X, b.Y
+			}
+		}
+
 		// Chromeless: entire area is drag zone
 		if e.win.chromeless {
 			wm.dragging = e
-			wm.dragOX = x - e.x
-			wm.dragOY = y - e.y
+			wm.dragOX = x - visualX
+			wm.dragOY = y - visualY
 			return true
 		}
 
@@ -319,8 +329,8 @@ func (wm *WindowManager) HandleMouseDown(x, y float32) bool {
 			}
 			// Start drag
 			wm.dragging = e
-			wm.dragOX = x - e.x
-			wm.dragOY = y - e.y
+			wm.dragOX = x - visualX
+			wm.dragOY = y - visualY
 			return true
 		}
 		// Click is in window content area — consume so it doesn't pass through
@@ -373,32 +383,9 @@ func (wm *WindowManager) HandleMouseMove(x, y float32) {
 				newY = vpH - winH
 			}
 
-			// Also snap to other windows' edges (use cachedH to avoid tree.Get per window)
-			for _, other := range wm.windows {
-				if other == e || !other.win.visible {
-					continue
-				}
-				otherH := other.cachedH
-				if otherH <= 0 {
-					otherH = wm.actualHeight(other)
-				}
-				// Snap our left to other's right
-				if gap := other.x + other.w - newX; gap >= -d && gap <= d {
-					newX = other.x + other.w
-				}
-				// Snap our right to other's left
-				if gap := other.x - (newX + winW); gap >= -d && gap <= d {
-					newX = other.x - winW
-				}
-				// Snap our top to other's bottom
-				if gap := other.y + otherH - newY; gap >= -d && gap <= d {
-					newY = other.y + otherH
-				}
-				// Snap our bottom to other's top
-				if gap := other.y - (newY + winH); gap >= -d && gap <= d {
-					newY = other.y - winH
-				}
-			}
+			// (Window-to-window snapping intentionally omitted:
+			//  with many HUD panels, inter-window snap causes jitter.
+			//  Only viewport edge snap is active.)
 		}
 	}
 
