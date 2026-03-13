@@ -559,6 +559,21 @@ func (w *Window) ClientToScreen(x, y int) (int, int) {
 	return int(pt.X), int(pt.Y)
 }
 
+// CursorClientPos returns the current cursor position in logical client coordinates.
+// Uses GetCursorPos + ScreenToClient so it reflects the true pointer position
+// even when no WM_MOUSEMOVE has been dispatched yet (e.g. during fast drag).
+// The result is divided by dpiScale to convert physical pixels → logical pixels.
+func (w *Window) CursorClientPos() (float32, float32) {
+	var pt POINT
+	procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
+	procScreenToClient.Call(w.hwnd, uintptr(unsafe.Pointer(&pt)))
+	scale := w.dpiScale
+	if scale <= 0 {
+		scale = 1
+	}
+	return float32(pt.X) / scale, float32(pt.Y) / scale
+}
+
 func (w *Window) ShowContextMenu(clientX, clientY int, items []platform.ContextMenuItem) int {
 	hMenu, _, _ := procCreatePopupMenu.Call()
 	if hMenu == 0 {

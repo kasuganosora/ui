@@ -530,9 +530,23 @@ func main() {
 
 	// ── Layout + animation ───────────────────────────────────────────
 
+	// cursorPoser is satisfied by win32.Window (and any platform that exposes
+	// raw cursor position). Used for smooth drag without WM_MOUSEMOVE coalescing lag.
+	type cursorPoser interface{ CursorClientPos() (float32, float32) }
+
 	layoutCache := ui.NewCSSLayoutCache()
 	frameN := 0
 	app.SetOnLayout(func(tree *core.Tree, root widget.Widget, w, h float32) {
+		// During drag: sample the raw hardware cursor position every frame so the
+		// window follows the pointer even when WM_MOUSEMOVE hasn't arrived yet.
+		// This eliminates the 1–2 frame lag that WM_MOUSEMOVE coalescing causes.
+		if wm.IsDragging() {
+			if cp, ok := app.Window().(cursorPoser); ok {
+				cx, cy := cp.CursorClientPos()
+				wm.HandleMouseMove(cx, cy)
+			}
+		}
+
 		layoutCache.Layout(tree, root, w, h, cfg)
 
 		// Reapply window positions after CSSLayout.

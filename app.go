@@ -532,15 +532,15 @@ func (a *App) handleMouse(evt *event.Event) {
 
 	// Hover + cursor
 	if evt.Type == event.MouseMove {
-		a.tree.Walk(a.tree.Root(), func(id core.ElementID, _ int) bool {
-			a.tree.SetHovered(id, id == target)
-			return true
-		})
+		// Only update the two elements that actually changed hover state.
+		// Previously walked the entire tree on every MouseMove (O(n) × depth markDirty calls).
 		if target != a.lastHoverTarget {
 			if a.lastHoverTarget != core.InvalidElementID {
+				a.tree.SetHovered(a.lastHoverTarget, false)
 				a.dispatch.Dispatch(a.lastHoverTarget, &event.Event{Type: event.MouseLeave})
 			}
 			if target != core.InvalidElementID {
+				a.tree.SetHovered(target, true)
 				a.dispatch.Dispatch(target, &event.Event{Type: event.MouseEnter})
 			}
 			a.lastHoverTarget = target

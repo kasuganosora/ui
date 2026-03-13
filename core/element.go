@@ -356,8 +356,13 @@ func (t *Tree) ClearFocus() {
 }
 
 // SetHovered sets the hovered state.
+// Only marks the element dirty when the state actually changes to avoid
+// spurious dirty propagation on every MouseMove event.
 func (t *Tree) SetHovered(id ElementID, hovered bool) {
 	if elem := t.elements[id]; elem != nil {
+		if elem.hovered == hovered {
+			return
+		}
 		elem.hovered = hovered
 		t.markDirty(id, DirtyPaint)
 	}

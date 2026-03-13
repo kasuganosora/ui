@@ -191,6 +191,7 @@ func (w *Window) Draw(buf *render.CommandBuffer) {
 type windowEntry struct {
 	win        *Window
 	x, y, w, h float32
+	cachedH    float32 // last computed actual height (updated each PostLayout)
 }
 
 // WindowManager handles window positioning, drag, z-order, and close.
@@ -279,8 +280,11 @@ func (wm *WindowManager) HandleMouseDown(x, y float32) bool {
 		if !e.win.visible {
 			continue
 		}
-		// Check if point is inside window bounds
-		eh := wm.actualHeight(e)
+		// Check if point is inside window bounds (use cachedH from last PostLayout)
+		eh := e.cachedH
+		if eh <= 0 {
+			eh = wm.actualHeight(e)
+		}
 		if x < e.x || x >= e.x+e.w || y < e.y || y >= e.y+eh {
 			continue
 		}
@@ -345,7 +349,11 @@ func (wm *WindowManager) HandleMouseMove(x, y float32) {
 		}
 		if vpW > 0 && vpH > 0 {
 			winW := e.w
-			winH := wm.actualHeight(e)
+			// Use cachedH (updated in PostLayout) to avoid tree.Get in hot path
+			winH := e.cachedH
+			if winH <= 0 {
+				winH = wm.actualHeight(e)
+			}
 			d := wm.snapDistance
 
 			// Snap left edge
@@ -365,12 +373,15 @@ func (wm *WindowManager) HandleMouseMove(x, y float32) {
 				newY = vpH - winH
 			}
 
-			// Also snap to other windows' edges
+			// Also snap to other windows' edges (use cachedH to avoid tree.Get per window)
 			for _, other := range wm.windows {
 				if other == e || !other.win.visible {
 					continue
 				}
-				otherH := wm.actualHeight(other)
+				otherH := other.cachedH
+				if otherH <= 0 {
+					otherH = wm.actualHeight(other)
+				}
 				// Snap our left to other's right
 				if gap := other.x + other.w - newX; gap >= -d && gap <= d {
 					newX = other.x + other.w
@@ -427,7 +438,9 @@ func (wm *WindowManager) PostLayout() {
 		if !e.win.visible {
 			continue
 		}
-		wm.setElementBounds(e.win.ElementID(), e.x, e.y, e.w, wm.actualHeight(e))
+		h := wm.actualHeight(e)
+		e.cachedH = h // keep cached height fresh for snap calculations
+		wm.setElementBounds(e.win.ElementID(), e.x, e.y, e.w, h)
 	}
 }
 
