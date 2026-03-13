@@ -58,7 +58,8 @@ type Window struct {
 
 	// Per-pixel hit test callback for transparent windows.
 	// Returns true if the window handles input at (x,y), false to pass through.
-	hitTestFunc func(x, y int) bool
+	hitTestFunc  func(x, y int) bool
+	customIBeam  uintptr // custom cursor handle that needs DestroyCursor
 
 	// Accessibility: UI Automation provider
 	uiaProvider *UIAProvider
@@ -170,6 +171,7 @@ func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 	// and white outline, avoiding the XOR-inversion visibility problem.
 	if h := createCustomIBeamCursor(w.hinstance); h != 0 {
 		w.cursorHandles[platform.CursorIBeam] = h
+		w.customIBeam = h
 	}
 	w.currentCursor = w.cursorHandles[platform.CursorArrow]
 
@@ -643,6 +645,11 @@ func (w *Window) Destroy() {
 	if w.tsfMgr != nil {
 		w.tsfMgr.Release()
 		w.tsfMgr = nil
+	}
+	// Destroy custom IBeam cursor (system cursors from LoadCursorW don't need destruction)
+	if w.customIBeam != 0 {
+		procDestroyCursor.Call(w.customIBeam)
+		w.customIBeam = 0
 	}
 	if w.hwnd != 0 {
 		procDestroyWindow.Call(w.hwnd)

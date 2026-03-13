@@ -1178,9 +1178,9 @@ func (b *Backend) DPIScale() float32 {
 	return b.dpiScale
 }
 
-// ReadPixels implements render.Backend. Returns nil (not implemented).
+// ReadPixels implements render.Backend. Not yet implemented for Metal.
 func (b *Backend) ReadPixels() (*image.RGBA, error) {
-	return nil, nil
+	return nil, fmt.Errorf("metal: ReadPixels not implemented")
 }
 
 // Destroy implements render.Backend.

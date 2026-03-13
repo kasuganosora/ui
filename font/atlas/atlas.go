@@ -186,19 +186,44 @@ func (a *Atlas) blitBitmap(region Region, bitmap font.GlyphBitmap) {
 		if srcOffset >= len(bitmap.Data) {
 			break
 		}
-		rowBytes := bitmap.Width * bpp
-		srcEnd := srcOffset + rowBytes
+		srcRowBytes := bitmap.Width * srcBPP
+		srcEnd := srcOffset + srcRowBytes
 		if srcEnd > len(bitmap.Data) {
 			srcEnd = len(bitmap.Data)
 		}
-		copyLen := srcEnd - srcOffset
 		dstOffset := ((region.Y+y)*a.width + region.X) * bpp
-		dstEnd := dstOffset + copyLen
-		if dstEnd > len(a.pixels) {
-			dstEnd = len(a.pixels)
-		}
-		if dstOffset < dstEnd {
-			copy(a.pixels[dstOffset:dstEnd], bitmap.Data[srcOffset:srcEnd])
+
+		if srcBPP == bpp {
+			// Same format: direct copy
+			copyLen := srcEnd - srcOffset
+			dstEnd := dstOffset + copyLen
+			if dstEnd > len(a.pixels) {
+				dstEnd = len(a.pixels)
+			}
+			if dstOffset < dstEnd {
+				copy(a.pixels[dstOffset:dstEnd], bitmap.Data[srcOffset:srcEnd])
+			}
+		} else if srcBPP == 1 && bpp == 4 {
+			// R8 → RGBA: expand each byte to (255, 255, 255, alpha)
+			for x := 0; x < bitmap.Width && srcOffset+x < srcEnd; x++ {
+				di := dstOffset + x*4
+				if di+3 >= len(a.pixels) {
+					break
+				}
+				a.pixels[di+0] = 255
+				a.pixels[di+1] = 255
+				a.pixels[di+2] = 255
+				a.pixels[di+3] = bitmap.Data[srcOffset+x]
+			}
+		} else if srcBPP == 4 && bpp == 1 {
+			// RGBA → R8: extract alpha channel
+			for x := 0; x < bitmap.Width && srcOffset+x*4+3 < srcEnd; x++ {
+				di := dstOffset + x
+				if di >= len(a.pixels) {
+					break
+				}
+				a.pixels[di] = bitmap.Data[srcOffset+x*4+3]
+			}
 		}
 	}
 

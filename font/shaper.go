@@ -69,6 +69,7 @@ func (s *basicShaper) Shape(text string, opts ShapeOptions) []GlyphRun {
 	lastBreakIdx := -1 // Index in currentGlyphs where last word break was
 	runeIdx := 0       // Current rune index in the full text (excluding \r)
 	var prevGlyph GlyphID
+	var prevGlyphFontID ID
 
 	// resolveGlyph finds the best (fontID, glyphID) for rune r.
 	// Tries the primary font first, then each fallback in order.
@@ -173,10 +174,10 @@ func (s *basicShaper) Shape(text string, opts ShapeOptions) []GlyphRun {
 		glyphFontID, glyphID := resolveGlyph(r)
 		gm := s.engine.GlyphMetrics(glyphFontID, glyphID, opts.FontSize)
 
-		// Apply kerning (only within same font)
+		// Apply kerning (only within same font — cross-font kerning is meaningless)
 		kern := float32(0)
-		if prevGlyph != 0 {
-			kern = s.engine.Kerning(opts.FontID, prevGlyph, glyphID, opts.FontSize)
+		if prevGlyph != 0 && prevGlyphFontID == glyphFontID {
+			kern = s.engine.Kerning(glyphFontID, prevGlyph, glyphID, opts.FontSize)
 		}
 		cursorX += kern
 
@@ -240,6 +241,7 @@ func (s *basicShaper) Shape(text string, opts ShapeOptions) []GlyphRun {
 				}
 				lastBreakIdx = -1
 				prevGlyph = 0
+				prevGlyphFontID = 0
 			} else {
 				// No break point found — force break here
 				flushLine(i)
@@ -264,6 +266,7 @@ func (s *basicShaper) Shape(text string, opts ShapeOptions) []GlyphRun {
 
 		cursorX += gm.Advance
 		prevGlyph = glyphID
+		prevGlyphFontID = glyphFontID
 		i += size
 		runeIdx++
 	}
@@ -400,6 +403,7 @@ func (s *basicShaper) Measure(text string, opts ShapeOptions) TextMetrics {
 	lastBreakByte := 0
 	lastBreakX := float32(0)
 	var prevGlyph GlyphID
+	var prevGlyphFontID ID
 
 	flushMeasureLine := func(endByte int) {
 		if cursorX > maxWidth {
@@ -417,6 +421,7 @@ func (s *basicShaper) Measure(text string, opts ShapeOptions) TextMetrics {
 		lastBreakByte = endByte
 		lastBreakX = 0
 		prevGlyph = 0
+		prevGlyphFontID = 0
 	}
 
 	i := 0
@@ -451,8 +456,8 @@ func (s *basicShaper) Measure(text string, opts ShapeOptions) TextMetrics {
 		gm := s.engine.GlyphMetrics(glyphFontID, glyphID, opts.FontSize)
 
 		kern := float32(0)
-		if prevGlyph != 0 {
-			kern = s.engine.Kerning(opts.FontID, prevGlyph, glyphID, opts.FontSize)
+		if prevGlyph != 0 && prevGlyphFontID == glyphFontID {
+			kern = s.engine.Kerning(glyphFontID, prevGlyph, glyphID, opts.FontSize)
 		}
 		cursorX += kern
 
@@ -478,6 +483,7 @@ func (s *basicShaper) Measure(text string, opts ShapeOptions) TextMetrics {
 				cursorX = cursorX - lastBreakX
 				lastBreakX = 0
 				prevGlyph = 0
+				prevGlyphFontID = 0
 			} else {
 				flushMeasureLine(i)
 			}
@@ -485,6 +491,7 @@ func (s *basicShaper) Measure(text string, opts ShapeOptions) TextMetrics {
 
 		cursorX += gm.Advance
 		prevGlyph = glyphID
+		prevGlyphFontID = glyphFontID
 		i += size
 	}
 

@@ -405,10 +405,13 @@ func (b *Backend) applyScissor(cmd CommandBuffer, clip *render.ClipCmd) {
 
 // mapVertexBuffer maps the current frame's vertex buffer for the entire frame.
 func (b *Backend) mapVertexBuffer() {
-	syscallN(b.loader.vkMapMemory,
+	ret, _, _ := syscallN(b.loader.vkMapMemory,
 		uintptr(b.device), uintptr(b.vertexMemory[b.currentFrame]),
 		0, uintptr(b.vertexSizes[b.currentFrame]), 0, uintptr(unsafe.Pointer(&b.mappedVertexPtr)),
 	)
+	if ret != 0 {
+		b.mappedVertexPtr = nil
+	}
 }
 
 // unmapVertexBuffer unmaps the current frame's vertex buffer.
@@ -442,14 +445,20 @@ func (b *Backend) writeVertexData(data []byte) {
 
 		newSize := required * 2
 		b.vertexSizes[b.currentFrame] = newSize
-		b.vertexBuffers[b.currentFrame], b.vertexMemory[b.currentFrame], _ = b.createBuffer(
+		var err error
+		b.vertexBuffers[b.currentFrame], b.vertexMemory[b.currentFrame], err = b.createBuffer(
 			newSize, BufferUsageVertexBufferBit,
 			MemoryPropertyHostVisibleBit|MemoryPropertyHostCoherentBit,
 		)
+		if err != nil {
+			// Buffer creation failed; reset sizes so we don't use stale handles
+			b.vertexSizes[b.currentFrame] = 0
+			return
+		}
 		b.mapVertexBuffer()
 
 		// Restore old data so previously written vertices are in the new buffer
-		if len(oldData) > 0 {
+		if len(oldData) > 0 && b.mappedVertexPtr != nil {
 			copy(unsafe.Slice((*byte)(b.mappedVertexPtr), oldSize), oldData)
 		}
 	}
