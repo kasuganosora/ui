@@ -166,15 +166,15 @@ func applyProperty(cs *ComputedStyle, prop, val string) {
 
 	// Padding
 	case "padding":
-		cs.Layout.Padding = ParseEdgeValues(val)
+		cs.Layout.Padding = ParseNonNegativeEdgeValues(val)
 	case "padding-top":
-		cs.Layout.Padding.Top = ParseValue(val)
+		cs.Layout.Padding.Top = ParseNonNegativeValue(val)
 	case "padding-right":
-		cs.Layout.Padding.Right = ParseValue(val)
+		cs.Layout.Padding.Right = ParseNonNegativeValue(val)
 	case "padding-bottom":
-		cs.Layout.Padding.Bottom = ParseValue(val)
+		cs.Layout.Padding.Bottom = ParseNonNegativeValue(val)
 	case "padding-left":
-		cs.Layout.Padding.Left = ParseValue(val)
+		cs.Layout.Padding.Left = ParseNonNegativeValue(val)
 
 	// Border (width)
 	case "border-width":
@@ -291,6 +291,12 @@ func applyProperty(cs *ComputedStyle, prop, val string) {
 		cs.ZIndex = val
 	case "box-sizing":
 		cs.BoxSizing = val
+		switch val {
+		case "border-box":
+			cs.Layout.BoxSizing = layout.BoxSizingBorderBox
+		default:
+			cs.Layout.BoxSizing = layout.BoxSizingContentBox
+		}
 	case "box-shadow":
 		cs.BoxShadow = val
 	case "white-space":

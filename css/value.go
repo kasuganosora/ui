@@ -121,6 +121,31 @@ func ParseEdgeShorthand(val string) (layout.Value, layout.Value, layout.Value, l
 	}
 }
 
+// ParseNonNegativeValue parses a CSS value and clamps negative values to 0.
+// Used for padding and border-width per W3C CSS Box Model Level 3 §6.3/§6.4.
+func ParseNonNegativeValue(val string) layout.Value {
+	v := ParseValue(val)
+	if (v.Unit == layout.UnitPx || v.Unit == layout.UnitPercent) && v.Amount < 0 {
+		return layout.Zero
+	}
+	return v
+}
+
+// ParseNonNegativeEdgeValues parses a shorthand into EdgeValues, clamping negatives.
+func ParseNonNegativeEdgeValues(val string) layout.EdgeValues {
+	ev := ParseEdgeValues(val)
+	clamp := func(v *layout.Value) {
+		if (v.Unit == layout.UnitPx || v.Unit == layout.UnitPercent) && v.Amount < 0 {
+			*v = layout.Zero
+		}
+	}
+	clamp(&ev.Top)
+	clamp(&ev.Right)
+	clamp(&ev.Bottom)
+	clamp(&ev.Left)
+	return ev
+}
+
 // ParseEdgeValues parses a shorthand into EdgeValues.
 func ParseEdgeValues(val string) layout.EdgeValues {
 	t, r, b, l := ParseEdgeShorthand(val)

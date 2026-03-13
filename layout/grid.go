@@ -75,7 +75,7 @@ func (e *Engine) layoutGrid(nodeIdx int, availWidth, availHeight float32) {
 		colSpan, rowSpan int
 	}
 	placements := make([]gridPlacement, len(children))
-	occupied := make(map[[2]int]bool) // [row, col] -> occupied
+	occupied := make([]bool, numRows*numCols) // flat array indexed by row*numCols+col
 
 	// First pass: place explicitly positioned items
 	for i, childIdx := range children {
@@ -100,7 +100,9 @@ func (e *Engine) layoutGrid(nodeIdx int, availWidth, availHeight float32) {
 			placements[i] = gridPlacement{col, row, colSpan, rowSpan}
 			for r := row; r < row+rowSpan; r++ {
 				for c := col; c < col+colSpan; c++ {
-					occupied[[2]int{r, c}] = true
+					if idx := r*numCols + c; idx < len(occupied) {
+						occupied[idx] = true
+					}
 				}
 			}
 		} else {
@@ -120,19 +122,22 @@ func (e *Engine) layoutGrid(nodeIdx int, availWidth, availHeight float32) {
 				// Need more rows
 				numRows++
 				rowHeights = append(rowHeights, 0) // auto height
+				occupied = append(occupied, make([]bool, numCols)...)
 			}
 			if autoCol >= numCols {
 				autoCol = 0
 				autoRow++
 				continue
 			}
-			if !occupied[[2]int{autoRow, autoCol}] {
+			if autoRow*numCols+autoCol < len(occupied) && !occupied[autoRow*numCols+autoCol] {
 				break
 			}
 			autoCol++
 		}
 		placements[i] = gridPlacement{autoCol, autoRow, 1, 1}
-		occupied[[2]int{autoRow, autoCol}] = true
+		if idx := autoRow*numCols + autoCol; idx < len(occupied) {
+			occupied[idx] = true
+		}
 		autoCol++
 	}
 
@@ -181,18 +186,21 @@ func (e *Engine) layoutGrid(nodeIdx int, availWidth, availHeight float32) {
 			}
 		}
 
-		// Resolve child size within cell
+		// Resolve child size within cell (adjusted for border-box)
 		cs := &child.style
+		cPadH, cPadV := resolveEdgesTotal(cs.Padding, cellW)
+		cBdrH, cBdrV := resolveEdgesTotal(cs.Border, cellW)
+
 		w := cellW
 		if !cs.Width.IsAuto() {
 			if v, ok := cs.Width.Resolve(cellW); ok {
-				w = v
+				w = AdjustBoxSizing(v, cs.BoxSizing, cPadH, cBdrH)
 			}
 		}
 		h := cellH
 		if !cs.Height.IsAuto() {
 			if v, ok := cs.Height.Resolve(cellH); ok {
-				h = v
+				h = AdjustBoxSizing(v, cs.BoxSizing, cPadV, cBdrV)
 			}
 		}
 

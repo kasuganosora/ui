@@ -164,11 +164,20 @@ type EdgeValues struct {
 
 // Style contains all layout-relevant CSS properties for an element.
 // Value object — created by the style resolver for each element.
+// BoxSizing determines how Width/Height are calculated.
+type BoxSizing uint8
+
+const (
+	BoxSizingContentBox BoxSizing = iota // Width/Height = content only (default)
+	BoxSizingBorderBox                   // Width/Height = content + padding + border
+)
+
 type Style struct {
 	// Box model
-	Display  Display
-	Position Position
-	Overflow Overflow
+	Display   Display
+	Position  Position
+	Overflow  Overflow
+	BoxSizing BoxSizing
 
 	// Dimensions
 	Width    Value
@@ -222,6 +231,19 @@ type Style struct {
 	// Text wrapping and overflow
 	WhiteSpace   WhiteSpace   // white-space property
 	TextOverflow TextOverflow // text-overflow property
+}
+
+// AdjustBoxSizing adjusts a resolved dimension for box-sizing.
+// When border-box, the declared width/height includes padding+border,
+// so we subtract them to get the content-box dimension used internally.
+func AdjustBoxSizing(resolved float32, bs BoxSizing, padTotal, bdrTotal float32) float32 {
+	if bs == BoxSizingBorderBox {
+		resolved -= padTotal + bdrTotal
+		if resolved < 0 {
+			resolved = 0
+		}
+	}
+	return resolved
 }
 
 // TrackSize defines the size of a grid track (row or column).

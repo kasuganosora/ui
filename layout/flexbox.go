@@ -105,19 +105,21 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 		child := &e.nodes[childIdx]
 		cs := &child.style
 
+		// Child padding+border contribution (resolve before basis for border-box)
+		cPadH, cPadV := resolveEdgesTotal(cs.Padding, containerW)
+		cBdrH, cBdrV := resolveEdgesTotal(cs.Border, containerW)
+
 		// Resolve flex basis
 		var basis float32
 		if !cs.FlexBasis.IsAuto() {
 			basis, _ = cs.FlexBasis.Resolve(mainSize)
 		} else if isRow && !cs.Width.IsAuto() {
 			basis, _ = cs.Width.Resolve(mainSize)
+			basis = AdjustBoxSizing(basis, cs.BoxSizing, cPadH, cBdrH)
 		} else if !isRow && !cs.Height.IsAuto() {
 			basis, _ = cs.Height.Resolve(crossSize)
+			basis = AdjustBoxSizing(basis, cs.BoxSizing, cPadV, cBdrV)
 		}
-
-		// Child padding+border contribution
-		cPadH, cPadV := resolveEdgesTotal(cs.Padding, containerW)
-		cBdrH, cBdrV := resolveEdgesTotal(cs.Border, containerW)
 		childBoxH := cPadH + cBdrH
 		childBoxV := cPadV + cBdrV
 
@@ -166,11 +168,13 @@ func (e *Engine) layoutFlex(nodeIdx int, availWidth, availHeight float32) {
 			maxMain:          maxMain,
 		}
 
-		// Cross hint
+		// Cross hint (adjusted for border-box)
 		if isRow && !cs.Height.IsAuto() {
 			items[i].crossHint, _ = cs.Height.Resolve(crossSize)
+			items[i].crossHint = AdjustBoxSizing(items[i].crossHint, cs.BoxSizing, cPadV, cBdrV)
 		} else if !isRow && !cs.Width.IsAuto() {
 			items[i].crossHint, _ = cs.Width.Resolve(crossSize)
+			items[i].crossHint = AdjustBoxSizing(items[i].crossHint, cs.BoxSizing, cPadH, cBdrH)
 		}
 	}
 

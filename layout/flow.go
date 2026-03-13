@@ -73,9 +73,13 @@ func (e *Engine) layoutBlock(nodeIdx int, availWidth, availHeight float32) {
 			mRight = v
 		}
 		childW -= mRight
+		// Child padding+border for border-box adjustment
+		cPadH, cPadV := resolveEdgesTotal(cs.Padding, contentW)
+		cBdrH, cBdrV := resolveEdgesTotal(cs.Border, contentW)
+
 		if !cs.Width.IsAuto() {
 			if w, ok := cs.Width.Resolve(contentW); ok {
-				childW = w
+				childW = AdjustBoxSizing(w, cs.BoxSizing, cPadH, cBdrH)
 			}
 		}
 		childW = constrainSize(childW, contentW, cs.MinWidth, cs.MaxWidth)
@@ -88,7 +92,7 @@ func (e *Engine) layoutBlock(nodeIdx int, availWidth, availHeight float32) {
 		// Resolve child height (may be auto)
 		if !cs.Height.IsAuto() {
 			if h, ok := cs.Height.Resolve(availHeight); ok {
-				child.result.Height = h
+				child.result.Height = AdjustBoxSizing(h, cs.BoxSizing, cPadV, cBdrV)
 			}
 		}
 		child.result.Height = constrainSize(child.result.Height, availHeight, cs.MinHeight, cs.MaxHeight)

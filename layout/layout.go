@@ -1,6 +1,10 @@
 package layout
 
-import uimath "github.com/kasuganosora/ui/math"
+import (
+	"unsafe"
+
+	uimath "github.com/kasuganosora/ui/math"
+)
 
 // TextMeasurer provides text measurement for layout.
 // Implemented by the font system.
@@ -207,10 +211,15 @@ func (e *Engine) layoutAbsolute(nodeIdx int, parentWidth, parentHeight float32) 
 	node := &e.nodes[nodeIdx]
 	style := &node.style
 
+	// Padding+border for border-box adjustment
+	absPadH, absPadV := resolveEdgesTotal(style.Padding, parentWidth)
+	absBdrH, absBdrV := resolveEdgesTotal(style.Border, parentWidth)
+
 	// Resolve width first (needed for right-edge positioning)
 	w := float32(0)
 	if !style.Width.IsAuto() {
 		w, _ = style.Width.Resolve(parentWidth)
+		w = AdjustBoxSizing(w, style.BoxSizing, absPadH, absBdrH)
 	} else if !style.Left.IsAuto() && !style.Right.IsAuto() {
 		l, _ := style.Left.Resolve(parentWidth)
 		r, _ := style.Right.Resolve(parentWidth)
@@ -221,6 +230,7 @@ func (e *Engine) layoutAbsolute(nodeIdx int, parentWidth, parentHeight float32) 
 	h := float32(0)
 	if !style.Height.IsAuto() {
 		h, _ = style.Height.Resolve(parentHeight)
+		h = AdjustBoxSizing(h, style.BoxSizing, absPadV, absBdrV)
 	} else if !style.Top.IsAuto() && !style.Bottom.IsAuto() {
 		t, _ := style.Top.Resolve(parentHeight)
 		b, _ := style.Bottom.Resolve(parentHeight)
@@ -292,11 +302,8 @@ func (e *Engine) applyRelativeOffset(nodeIdx int, parentWidth, parentHeight floa
 }
 
 // childrenOf returns the child indices for a node.
+// Returns the internal slice directly (zero allocation) — callers must not modify.
 func (e *Engine) childrenOf(nodeIdx int) []int {
 	node := &e.nodes[nodeIdx]
-	result := make([]int, 0, len(node.children))
-	for _, c := range node.children {
-		result = append(result, int(c))
-	}
-	return result
+	return *(*[]int)(unsafe.Pointer(&node.children))
 }
