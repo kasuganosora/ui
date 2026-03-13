@@ -452,6 +452,9 @@ func (w *Window) ShowContextMenu(clientX, clientY int, items []platform.ContextM
 	return -1
 }
 
+func (w *Window) IsTransparent() bool { return false }
+func (w *Window) SetTopMost(topmost bool) {}
+
 func (w *Window) Destroy() {
 	if w.trackingArea != 0 {
 		msgSend(w.nsview, selRemoveTrackingArea, uintptr(w.trackingArea))

@@ -85,8 +85,24 @@ const (
 
 // DXGI swap effect
 const (
-	DXGI_SWAP_EFFECT_DISCARD      = 0
-	DXGI_SWAP_EFFECT_FLIP_DISCARD = 4
+	DXGI_SWAP_EFFECT_DISCARD        = 0
+	DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL = 3
+	DXGI_SWAP_EFFECT_FLIP_DISCARD   = 4
+)
+
+// DXGI alpha mode (for DXGI_SWAP_CHAIN_DESC1)
+const (
+	DXGI_ALPHA_MODE_UNSPECIFIED   = 0
+	DXGI_ALPHA_MODE_PREMULTIPLIED = 1
+	DXGI_ALPHA_MODE_STRAIGHT      = 2
+	DXGI_ALPHA_MODE_IGNORE        = 3
+)
+
+// DXGI scaling
+const (
+	DXGI_SCALING_STRETCH              = 0
+	DXGI_SCALING_NONE                 = 1
+	DXGI_SCALING_ASPECT_RATIO_STRETCH = 2
 )
 
 // D3D11 blend
@@ -301,6 +317,22 @@ type D3D11_INPUT_ELEMENT_DESC struct {
 type D3D11_BOX struct {
 	Left, Top, Front    uint32
 	Right, Bottom, Back uint32
+}
+
+// DXGI_SWAP_CHAIN_DESC1 describes a swap chain (DXGI 1.2+).
+// Used with IDXGIFactory2::CreateSwapChainForComposition.
+type DXGI_SWAP_CHAIN_DESC1 struct {
+	Width       uint32
+	Height      uint32
+	Format      uint32
+	Stereo      int32
+	SampleDesc  DXGI_SAMPLE_DESC
+	BufferUsage uint32
+	BufferCount uint32
+	Scaling     uint32
+	SwapEffect  uint32
+	AlphaMode   uint32
+	Flags       uint32
 }
 
 // D3D11_RENDER_TARGET_VIEW_DESC describes a render target view.

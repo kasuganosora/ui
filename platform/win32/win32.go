@@ -196,8 +196,13 @@ const (
 	WS_CLIPCHILDREN     = 0x02000000
 	WS_CLIPSIBLINGS     = 0x04000000
 
-	WS_EX_APPWINDOW  = 0x00040000
-	WS_EX_WINDOWEDGE = 0x00000100
+	WS_EX_APPWINDOW   = 0x00040000
+	WS_EX_WINDOWEDGE  = 0x00000100
+	WS_EX_TOPMOST     = 0x00000008
+	WS_EX_TOOLWINDOW  = 0x00000080
+	WS_EX_LAYERED     = 0x00080000
+	WS_EX_TRANSPARENT = 0x00000020
+	WS_EX_NOREDIRECTIONBITMAP = 0x00200000
 )
 
 // Show window commands
@@ -210,10 +215,17 @@ const (
 
 // Window position flags
 const (
-	SWP_NOMOVE     = 0x0002
-	SWP_NOSIZE     = 0x0001
-	SWP_NOZORDER   = 0x0004
+	SWP_NOMOVE       = 0x0002
+	SWP_NOSIZE       = 0x0001
+	SWP_NOZORDER     = 0x0004
 	SWP_FRAMECHANGED = 0x0020
+	SWP_NOACTIVATE   = 0x0010
+)
+
+// SetWindowPos insertion targets
+const (
+	HWND_TOPMOST    = ^uintptr(0)    // (HWND)-1
+	HWND_NOTOPMOST  = ^uintptr(1)    // (HWND)-2
 )
 
 // PeekMessage flags

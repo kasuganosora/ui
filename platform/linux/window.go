@@ -314,6 +314,9 @@ func (w *Window) ClientToScreen(x, y int) (int, int) {
 	return destX, destY
 }
 
+func (w *Window) IsTransparent() bool { return false }
+func (w *Window) SetTopMost(topmost bool) {}
+
 func (w *Window) Destroy() {
 	// Free pre-created cursors
 	for i, c := range w.cursors {

@@ -85,6 +85,7 @@ type Backend struct {
 	// State
 	width, height int
 	dpiScale      float32
+	transparent   bool
 
 	// Textures
 	texMu     sync.RWMutex
@@ -115,6 +116,8 @@ func (b *Backend) Init(win platform.Window) error {
 	if b.device == 0 {
 		return fmt.Errorf("metal: MTLCreateSystemDefaultDevice returned nil — Metal not supported on this device")
 	}
+
+	b.transparent = win.IsTransparent()
 
 	// Framebuffer size (physical pixels)
 	fbW, fbH := win.FramebufferSize()
@@ -160,6 +163,11 @@ func (b *Backend) Init(win platform.Window) error {
 
 	// [metalLayer setContentsScale:dpiScale]
 	msgSendCGFloat(b.metalLayer, selSetContentsScale, float64(b.dpiScale))
+
+	// For transparent windows, make the layer non-opaque
+	if b.transparent {
+		msgSend(b.metalLayer, selSetOpaque, 0) // [metalLayer setOpaque:NO]
+	}
 
 	// Create command queue
 	b.cmdQueue = msgSend(b.device, selNewCommandQueueSel)
@@ -604,8 +612,12 @@ func (b *Backend) BeginFrame() {
 	msgSend(att0, selSetTexture, drawableTex)
 	msgSend(att0, selSetLoadAction, uintptr(MTLLoadActionClear))
 	msgSend(att0, selSetStoreAction, uintptr(MTLStoreActionStore))
-	// Clear color: opaque white background (1,1,1,1)
-	msgSendClearColor(att0, selSetClearColor, 1.0, 1.0, 1.0, 1.0)
+	// Clear color
+	if b.transparent {
+		msgSendClearColor(att0, selSetClearColor, 0.0, 0.0, 0.0, 0.0)
+	} else {
+		msgSendClearColor(att0, selSetClearColor, 1.0, 1.0, 1.0, 1.0)
+	}
 
 	// Create render encoder
 	b.encoder = msgSend(b.cmdBuffer, selRenderCommandEncoderWithDescriptor, rpd)

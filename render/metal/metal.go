@@ -205,6 +205,7 @@ var (
 	selSetDrawableSize           uintptr
 	selSetContentsScale          uintptr
 	selSetFramebufferOnly        uintptr
+	selSetOpaque                 uintptr
 
 	// NSView
 	selSetWantsLayer             uintptr
@@ -346,6 +347,7 @@ func init() {
 	selSetDrawableSize = sel("setDrawableSize:")
 	selSetContentsScale = sel("setContentsScale:")
 	selSetFramebufferOnly = sel("setFramebufferOnly:")
+	selSetOpaque = sel("setOpaque:")
 
 	// NSView
 	selSetWantsLayer = sel("setWantsLayer:")

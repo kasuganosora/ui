@@ -143,6 +143,12 @@ type Backend struct {
 	width, height int
 	dpiScale      float32
 	hwnd          uintptr
+	transparent   bool // Per-pixel alpha (DirectComposition)
+
+	// DirectComposition objects (transparent mode only)
+	dcompDevice uintptr // IDCompositionDevice*
+	dcompTarget uintptr // IDCompositionTarget*
+	dcompVisual uintptr // IDCompositionVisual*
 
 	// Texture management
 	texMu         sync.RWMutex
@@ -174,24 +180,8 @@ func (b *Backend) Init(window platform.Window) error {
 		b.dpiScale = 1.0
 	}
 
-	// Create device and swap chain
-	sd := DXGI_SWAP_CHAIN_DESC{
-		BufferDesc: DXGI_MODE_DESC{
-			Width:  uint32(b.width),
-			Height: uint32(b.height),
-			Format: DXGI_FORMAT_R8G8B8A8_UNORM,
-			RefreshRate: DXGI_RATIONAL{
-				Numerator:   60,
-				Denominator: 1,
-			},
-		},
-		SampleDesc:   DXGI_SAMPLE_DESC{Count: 1},
-		BufferUsage:  DXGI_USAGE_RENDER_TARGET_OUTPUT,
-		BufferCount:  2,
-		OutputWindow: b.hwnd,
-		Windowed:     1,
-		SwapEffect:   DXGI_SWAP_EFFECT_FLIP_DISCARD,
-	}
+	// Check if window requests transparency
+	b.transparent = window.IsTransparent()
 
 	featureLevel := uint32(0)
 	featureLevels := [3]uint32{
@@ -200,22 +190,48 @@ func (b *Backend) Init(window platform.Window) error {
 		D3D_FEATURE_LEVEL_10_0,
 	}
 
-	hr, _, _ := b.loader.d3d11CreateDeviceAndSwapChain.Call(
-		0, // pAdapter
-		D3D_DRIVER_TYPE_HARDWARE,
-		0, // Software
-		0, // Flags (no debug)
-		uintptr(unsafe.Pointer(&featureLevels[0])),
-		uintptr(len(featureLevels)),
-		D3D11_SDK_VERSION,
-		uintptr(unsafe.Pointer(&sd)),
-		uintptr(unsafe.Pointer(&b.swapChain)),
-		uintptr(unsafe.Pointer(&b.device)),
-		uintptr(unsafe.Pointer(&featureLevel)),
-		uintptr(unsafe.Pointer(&b.context)),
-	)
-	if hr != S_OK {
-		return fmt.Errorf("dx11: D3D11CreateDeviceAndSwapChain failed: 0x%x", hr)
+	if b.transparent {
+		// Transparent mode: create device separately, then composition swap chain
+		if err := b.initTransparent(featureLevels[:], &featureLevel); err != nil {
+			return err
+		}
+	} else {
+		// Normal mode: create device + swap chain together
+		sd := DXGI_SWAP_CHAIN_DESC{
+			BufferDesc: DXGI_MODE_DESC{
+				Width:  uint32(b.width),
+				Height: uint32(b.height),
+				Format: DXGI_FORMAT_R8G8B8A8_UNORM,
+				RefreshRate: DXGI_RATIONAL{
+					Numerator:   60,
+					Denominator: 1,
+				},
+			},
+			SampleDesc:   DXGI_SAMPLE_DESC{Count: 1},
+			BufferUsage:  DXGI_USAGE_RENDER_TARGET_OUTPUT,
+			BufferCount:  2,
+			OutputWindow: b.hwnd,
+			Windowed:     1,
+			SwapEffect:   DXGI_SWAP_EFFECT_FLIP_DISCARD,
+		}
+
+		hr, _, _ := b.loader.d3d11CreateDeviceAndSwapChain.Call(
+			0, // pAdapter
+			D3D_DRIVER_TYPE_HARDWARE,
+			0, // Software
+			0, // Flags (no debug)
+			uintptr(unsafe.Pointer(&featureLevels[0])),
+			uintptr(len(featureLevels)),
+			D3D11_SDK_VERSION,
+			uintptr(unsafe.Pointer(&sd)),
+			uintptr(unsafe.Pointer(&b.swapChain)),
+			uintptr(unsafe.Pointer(&b.device)),
+			uintptr(unsafe.Pointer(&featureLevel)),
+			uintptr(unsafe.Pointer(&b.context)),
+		)
+		if hr != S_OK {
+			return fmt.Errorf("dx11: D3D11CreateDeviceAndSwapChain failed: 0x%x", hr)
+		}
 	}
 
 	// Create render target from back buffer
@@ -267,6 +283,165 @@ func (b *Backend) createRenderTarget() error {
 		uintptr(unsafe.Pointer(&b.renderTarget)))
 	if hr != S_OK {
 		return fmt.Errorf("dx11: CreateRenderTargetView failed: 0x%x", hr)
+	}
+
+	return nil
+}
+
+// initTransparent creates the D3D11 device, a composition swap chain with
+// premultiplied alpha, and sets up DirectComposition to present it.
+// This is the code path for transparent/shaped windows (desktop pet mode).
+func (b *Backend) initTransparent(featureLevels []uint32, outLevel *uint32) (retErr error) {
+	// On failure, clean up any partially created resources.
+	defer func() {
+		if retErr != nil {
+			if b.dcompVisual != 0 { comRelease(b.dcompVisual); b.dcompVisual = 0 }
+			if b.dcompTarget != 0 { comRelease(b.dcompTarget); b.dcompTarget = 0 }
+			if b.dcompDevice != 0 { comRelease(b.dcompDevice); b.dcompDevice = 0 }
+			if b.swapChain != 0   { comRelease(b.swapChain);   b.swapChain = 0 }
+			if b.context != 0     { comRelease(b.context);     b.context = 0 }
+			if b.device != 0      { comRelease(b.device);      b.device = 0 }
+		}
+	}()
+
+	// 1) Create D3D11 device (no swap chain yet)
+	hr, _, _ := b.loader.d3d11CreateDevice.Call(
+		0, // pAdapter
+		D3D_DRIVER_TYPE_HARDWARE,
+		0, // Software
+		0, // Flags
+		uintptr(unsafe.Pointer(&featureLevels[0])),
+		uintptr(len(featureLevels)),
+		D3D11_SDK_VERSION,
+		uintptr(unsafe.Pointer(&b.device)),
+		uintptr(unsafe.Pointer(outLevel)),
+		uintptr(unsafe.Pointer(&b.context)),
+	)
+	if hr != S_OK {
+		return fmt.Errorf("dx11: D3D11CreateDevice failed: 0x%x", hr)
+	}
+
+	// 2) QI device → IDXGIDevice (vtable index 0 = QueryInterface)
+	iidDXGIDevice := GUID{
+		0x54ec77fa, 0x1377, 0x44e6,
+		[8]byte{0x8c, 0x32, 0x88, 0xfd, 0x5f, 0x44, 0xc8, 0x4c},
+	}
+	var dxgiDevice uintptr
+	hr = comCall(comVtbl(b.device, 0), b.device,
+		uintptr(unsafe.Pointer(&iidDXGIDevice)),
+		uintptr(unsafe.Pointer(&dxgiDevice)))
+	if hr != S_OK {
+		return fmt.Errorf("dx11: QueryInterface IDXGIDevice failed: 0x%x", hr)
+	}
+	defer comRelease(dxgiDevice)
+
+	// 3) IDXGIDevice::GetAdapter (vtable: IUnknown=3, GetAdapter=7 → index 7)
+	var dxgiAdapter uintptr
+	hr = comCall(comVtbl(dxgiDevice, 7), dxgiDevice,
+		uintptr(unsafe.Pointer(&dxgiAdapter)))
+	if hr != S_OK {
+		return fmt.Errorf("dx11: IDXGIDevice::GetAdapter failed: 0x%x", hr)
+	}
+	defer comRelease(dxgiAdapter)
+
+	// 4) IDXGIAdapter::GetParent → IDXGIFactory2 (vtable: IUnknown=3, GetParent=6)
+	iidFactory2 := GUID{
+		0x50c83a1c, 0xe072, 0x4c48,
+		[8]byte{0x87, 0xb0, 0x36, 0x30, 0xfa, 0x36, 0xa6, 0xd0},
+	}
+	var factory2 uintptr
+	hr = comCall(comVtbl(dxgiAdapter, 6), dxgiAdapter,
+		uintptr(unsafe.Pointer(&iidFactory2)),
+		uintptr(unsafe.Pointer(&factory2)))
+	if hr != S_OK {
+		return fmt.Errorf("dx11: IDXGIAdapter::GetParent(IDXGIFactory2) failed: 0x%x", hr)
+	}
+	defer comRelease(factory2)
+
+	// 5) IDXGIFactory2::CreateSwapChainForComposition
+	// IDXGIFactory2 vtable: IUnknown(3) + IDXGIObject(4) + IDXGIFactory(10) + IDXGIFactory1(2) + IDXGIFactory2 methods
+	// CreateSwapChainForHwnd=15, CreateSwapChainForCoreWindow=16, ..., CreateSwapChainForComposition=24
+	const factory2CreateSwapChainForComposition = 24
+	desc1 := DXGI_SWAP_CHAIN_DESC1{
+		Width:       uint32(b.width),
+		Height:      uint32(b.height),
+		Format:      DXGI_FORMAT_R8G8B8A8_UNORM,
+		SampleDesc:  DXGI_SAMPLE_DESC{Count: 1},
+		BufferUsage: DXGI_USAGE_RENDER_TARGET_OUTPUT,
+		BufferCount: 2,
+		Scaling:     DXGI_SCALING_STRETCH,
+		SwapEffect:  DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL,
+		AlphaMode:   DXGI_ALPHA_MODE_PREMULTIPLIED,
+	}
+	hr = comCall(comVtbl(factory2, factory2CreateSwapChainForComposition),
+		factory2,
+		b.device,                          // pDevice
+		uintptr(unsafe.Pointer(&desc1)),   // pDesc
+		0,                                 // pRestrictToOutput (NULL)
+		uintptr(unsafe.Pointer(&b.swapChain)))
+	if hr != S_OK {
+		return fmt.Errorf("dx11: CreateSwapChainForComposition failed: 0x%x", hr)
+	}
+
+	// 6) Create DirectComposition device, target, and visual
+	// DCompositionCreateDevice2(renderingDevice, IID_IDCompositionDevice, &dcompDevice)
+	iidDCompDevice := GUID{
+		0xc37ea93a, 0xe7aa, 0x450d,
+		[8]byte{0xb1, 0x6f, 0x97, 0x46, 0xcb, 0x04, 0x07, 0xf3},
+	}
+	hr2, _, _ := b.loader.dcompCreateDevice.Call(
+		dxgiDevice,
+		uintptr(unsafe.Pointer(&iidDCompDevice)),
+		uintptr(unsafe.Pointer(&b.dcompDevice)))
+	if hr2 != S_OK {
+		return fmt.Errorf("dx11: DCompositionCreateDevice2 failed: 0x%x", hr2)
+	}
+
+	// IDCompositionDevice::CreateTargetForHwnd (vtable index 3: IUnknown=3, CreateTargetForHwnd=3)
+	// IDCompositionDevice vtable: QI(0), AddRef(1), Release(2), Commit(3), WaitForCommitCompletion(4),
+	// GetFrameStatistics(5), CreateTargetForHwnd(6), CreateVisual(7), ...
+	const dcompCreateTargetForHwnd = 6
+	const dcompCreateVisual = 7
+	const dcompCommit = 3
+
+	hr = comCall(comVtbl(b.dcompDevice, dcompCreateTargetForHwnd),
+		b.dcompDevice, b.hwnd, 1, // topmost=TRUE
+		uintptr(unsafe.Pointer(&b.dcompTarget)))
+	if hr != S_OK {
+		return fmt.Errorf("dx11: IDCompositionDevice::CreateTargetForHwnd failed: 0x%x", hr)
+	}
+
+	hr = comCall(comVtbl(b.dcompDevice, dcompCreateVisual),
+		b.dcompDevice,
+		uintptr(unsafe.Pointer(&b.dcompVisual)))
+	if hr != S_OK {
+		return fmt.Errorf("dx11: IDCompositionDevice::CreateVisual failed: 0x%x", hr)
+	}
+
+	// IDCompositionVisual::SetContent(swapChain)
+	// IDCompositionVisual vtable: IUnknown(3), SetOffsetX(3,4), SetOffsetY(5,6),
+	// SetTransform(7,8), SetTransformParent(9), SetEffect(10), SetBitmapInterpolationMode(11),
+	// SetBorderMode(12), SetClip(13,14), SetContent(15), ...
+	const visualSetContent = 15
+	hr = comCall(comVtbl(b.dcompVisual, visualSetContent),
+		b.dcompVisual, b.swapChain)
+	if hr != S_OK {
+		return fmt.Errorf("dx11: IDCompositionVisual::SetContent failed: 0x%x", hr)
+	}
+
+	// IDCompositionTarget::SetRoot(visual)
+	// IDCompositionTarget vtable: IUnknown(3), SetRoot(3)
+	const targetSetRoot = 3
+	hr = comCall(comVtbl(b.dcompTarget, targetSetRoot),
+		b.dcompTarget, b.dcompVisual)
+	if hr != S_OK {
+		return fmt.Errorf("dx11: IDCompositionTarget::SetRoot failed: 0x%x", hr)
+	}
+
+	// Commit
+	hr = comCall(comVtbl(b.dcompDevice, dcompCommit), b.dcompDevice)
+	if hr != S_OK {
+		return fmt.Errorf("dx11: IDCompositionDevice::Commit failed: 0x%x", hr)
 	}
 
 	return nil
@@ -801,8 +976,11 @@ func (b *Backend) BeginFrame() {
 	syscall.SyscallN(comVtbl(b.context, ctxIASetPrimitiveTopology),
 		b.context, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST)
 
-	// Clear render target
+	// Clear render target (transparent: alpha=0 for see-through)
 	clearColor := [4]float32{0, 0, 0, 1}
+	if b.transparent {
+		clearColor[3] = 0
+	}
 	syscall.SyscallN(comVtbl(b.context, ctxClearRenderTargetView),
 		b.context, b.renderTarget,
 		uintptr(unsafe.Pointer(&clearColor[0])))
@@ -1496,6 +1674,16 @@ func (b *Backend) Destroy() {
 	}
 	if b.renderTarget != 0 {
 		comRelease(b.renderTarget)
+	}
+	// DirectComposition cleanup (before swap chain)
+	if b.dcompVisual != 0 {
+		comRelease(b.dcompVisual)
+	}
+	if b.dcompTarget != 0 {
+		comRelease(b.dcompTarget)
+	}
+	if b.dcompDevice != 0 {
+		comRelease(b.dcompDevice)
 	}
 	if b.swapChain != 0 {
 		comRelease(b.swapChain)

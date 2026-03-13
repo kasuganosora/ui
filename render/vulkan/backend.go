@@ -66,6 +66,7 @@ type Backend struct {
 	width, height    int
 	dpiScale         float32 // DPI scale factor (1.0 = 96 DPI); coordinates are logical pixels
 	vsync            bool
+	transparent      bool    // Per-pixel alpha transparency (shaped window)
 	resizePending    bool   // Set by Resize; cleared after swapchain recreation in Submit
 	lastImageIndex   uint32 // Last rendered swapchain image (for ReadPixels)
 	lastFrameValid   bool   // Whether lastImageIndex is valid
@@ -114,6 +115,8 @@ func (b *Backend) Init(window platform.Window) error {
 
 	// Load instance functions
 	b.loader.LoadInstanceFunctions(b.instance)
+
+	b.transparent = window.IsTransparent()
 
 	// Create surface from native window handle
 	b.surface, err = b.createSurface(window)
@@ -283,6 +286,7 @@ func (b *Backend) createSwapchain() error {
 		b.device, b.surface, caps, surfaceFormat, presentMode,
 		uint32(b.width), uint32(b.height),
 		b.queueIndices, oldSwapchain,
+		b.transparent,
 	)
 	if err != nil {
 		return err
@@ -619,7 +623,11 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 	syscallN(b.loader.vkBeginCommandBuffer, uintptr(cmd), uintptr(unsafe.Pointer(&beginInfo)))
 
 	// Begin render pass
-	clearColor := ClearValue{Color: [4]float32{0.0, 0.0, 0.0, 1.0}}
+	clearAlpha := float32(1.0)
+	if b.transparent {
+		clearAlpha = 0.0
+	}
+	clearColor := ClearValue{Color: [4]float32{0.0, 0.0, 0.0, clearAlpha}}
 	rpBeginInfo := renderPassBeginInfo{
 		SType:       StructureTypeRenderPassBeginInfo,
 		RenderPass:  b.renderPass,
@@ -809,7 +817,11 @@ func (b *Backend) submitEmpty() {
 	syscallN(b.loader.vkResetCommandBuffer, uintptr(cmd), 0)
 	syscallN(b.loader.vkBeginCommandBuffer, uintptr(cmd), uintptr(unsafe.Pointer(&beginInfo)))
 
-	clearColor := ClearValue{Color: [4]float32{0, 0, 0, 1}}
+	clearAlpha2 := float32(1.0)
+	if b.transparent {
+		clearAlpha2 = 0.0
+	}
+	clearColor := ClearValue{Color: [4]float32{0, 0, 0, clearAlpha2}}
 	rpBeginInfo := renderPassBeginInfo{
 		SType:           StructureTypeRenderPassBeginInfo,
 		RenderPass:      b.renderPass,

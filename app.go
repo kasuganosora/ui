@@ -53,6 +53,14 @@ type AppOptions struct {
 	Font    string      // Path to font file (e.g. "C:\\Windows\\Fonts\\msyh.ttc")
 	Backend BackendType // Rendering backend (default: auto)
 
+	// Transparent enables per-pixel alpha transparency (shaped window).
+	// The window will be borderless with no decorations. Pixels with alpha=0
+	// are fully transparent to the desktop. Used for desktop pets, overlays, etc.
+	Transparent bool
+
+	// TopMost keeps the window always on top of other windows.
+	TopMost bool
+
 	// OnLayout is an optional custom layout callback.
 	// If nil, the App uses a basic auto-layout.
 	OnLayout func(tree *core.Tree, root widget.Widget, w, h float32)
@@ -131,12 +139,14 @@ func NewApp(opts AppOptions) (*App, error) {
 
 	var err error
 	a.win, err = a.plat.CreateWindow(platform.WindowOptions{
-		Title:     opts.Title,
-		Width:     opts.Width,
-		Height:    opts.Height,
-		Resizable: true,
-		Visible:   true,
-		Decorated: true,
+		Title:       opts.Title,
+		Width:       opts.Width,
+		Height:      opts.Height,
+		Resizable:   !opts.Transparent,
+		Visible:     true,
+		Decorated:   !opts.Transparent,
+		Transparent: opts.Transparent,
+		TopMost:     opts.TopMost,
 	})
 	if err != nil {
 		a.plat.Terminate()

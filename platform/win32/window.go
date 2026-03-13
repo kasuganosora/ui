@@ -23,6 +23,7 @@ type Window struct {
 	fullscreen      bool
 	decorated       bool
 	resizable       bool
+	transparent     bool
 	visible         bool
 	deferredVisible bool // true if ShowWindow is deferred until first PollEvents
 	shouldClose     bool
@@ -75,11 +76,20 @@ func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 		maxHeight: opts.MaxHeight,
 	}
 
+	w.transparent = opts.Transparent
+
 	// Build window style
 	style := uint32(WS_CLIPCHILDREN | WS_CLIPSIBLINGS)
 	exStyle := uint32(WS_EX_APPWINDOW)
 
-	if opts.Decorated {
+	if opts.Transparent {
+		// Transparent window: borderless popup, no redirection bitmap (for DirectComposition)
+		style |= WS_POPUP
+		exStyle |= WS_EX_NOREDIRECTIONBITMAP
+		if opts.TopMost {
+			exStyle |= WS_EX_TOPMOST
+		}
+	} else if opts.Decorated {
 		style |= WS_OVERLAPPEDWINDOW
 		if !opts.Resizable {
 			style &^= WS_THICKFRAME | WS_MAXIMIZEBOX
@@ -177,6 +187,12 @@ func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 
 	if opts.Fullscreen {
 		w.SetFullscreen(true)
+	}
+
+	if opts.TopMost && !opts.Transparent {
+		// For transparent windows, WS_EX_TOPMOST is set in the exStyle above.
+		// For normal windows, apply it after creation.
+		w.SetTopMost(true)
 	}
 
 	return w, nil
@@ -603,6 +619,16 @@ func (w *Window) ShowContextMenu(clientX, clientY int, items []platform.ContextM
 // TSF returns the TSF manager for this window, or nil if unavailable.
 func (w *Window) TSF() *TSFManager {
 	return w.tsfMgr
+}
+
+func (w *Window) IsTransparent() bool { return w.transparent }
+
+func (w *Window) SetTopMost(topmost bool) {
+	insertAfter := HWND_NOTOPMOST
+	if topmost {
+		insertAfter = HWND_TOPMOST
+	}
+	procSetWindowPos.Call(w.hwnd, insertAfter, 0, 0, 0, 0, SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE)
 }
 
 func (w *Window) Destroy() {

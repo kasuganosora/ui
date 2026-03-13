@@ -104,6 +104,12 @@ type Window interface {
 	// ClientToScreen converts client-area coordinates to screen coordinates.
 	ClientToScreen(x, y int) (screenX, screenY int)
 
+	// IsTransparent returns whether this window has per-pixel alpha enabled.
+	IsTransparent() bool
+
+	// SetTopMost sets or clears always-on-top.
+	SetTopMost(topmost bool)
+
 	// Destroy destroys the window.
 	Destroy()
 }
@@ -117,11 +123,13 @@ type WindowOptions struct {
 	MinHeight  int
 	MaxWidth   int
 	MaxHeight  int
-	Resizable  bool
-	Visible    bool
-	Decorated  bool // Window decorations (title bar, borders)
-	Fullscreen bool
-	VSync      bool
+	Resizable   bool
+	Visible     bool
+	Decorated   bool // Window decorations (title bar, borders)
+	Fullscreen  bool
+	VSync       bool
+	Transparent bool // Per-pixel alpha transparency (shaped window / desktop pet mode)
+	TopMost     bool // Always on top of other windows
 }
 
 // DefaultWindowOptions returns sensible default window options.

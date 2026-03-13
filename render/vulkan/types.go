@@ -128,7 +128,10 @@ const (
 type CompositeAlphaFlagBitsKHR uint32
 
 const (
-	CompositeAlphaOpaqueBitKHR CompositeAlphaFlagBitsKHR = 0x00000001
+	CompositeAlphaOpaqueBitKHR         CompositeAlphaFlagBitsKHR = 0x00000001
+	CompositeAlphaPreMultipliedBitKHR  CompositeAlphaFlagBitsKHR = 0x00000002
+	CompositeAlphaPostMultipliedBitKHR CompositeAlphaFlagBitsKHR = 0x00000004
+	CompositeAlphaInheritBitKHR        CompositeAlphaFlagBitsKHR = 0x00000008
 )
 
 // Surface transform

@@ -48,6 +48,7 @@ func (l *Loader) CreateSwapchain(
 	width, height uint32,
 	indices QueueFamilyIndices,
 	oldSwapchain SwapchainKHR,
+	transparent bool,
 ) (*Swapchain, error) {
 	// Determine image count
 	imageCount := caps.MinImageCount + 1
@@ -84,7 +85,7 @@ func (l *Loader) CreateSwapchain(
 		ImageArrayLayers: 1,
 		ImageUsage:       ImageUsageColorAttachmentBit | ImageUsageTransferSrcBit,
 		PreTransform:     caps.CurrentTransform,
-		CompositeAlpha:   CompositeAlphaOpaqueBitKHR,
+		CompositeAlpha:   l.chooseCompositeAlpha(caps, transparent),
 		PresentMode:      presentMode,
 		Clipped:          1, // VK_TRUE
 		OldSwapchain:     oldSwapchain,
@@ -127,6 +128,24 @@ func (l *Loader) CreateSwapchain(
 		extent:     extent,
 		imageCount: count,
 	}, nil
+}
+
+// chooseCompositeAlpha selects the best composite alpha mode.
+// For transparent windows, prefer pre-multiplied alpha; fall back to opaque.
+func (l *Loader) chooseCompositeAlpha(caps SurfaceCapabilitiesKHR, transparent bool) CompositeAlphaFlagBitsKHR {
+	if transparent {
+		// Try pre-multiplied first, then post-multiplied, then inherit
+		for _, mode := range []CompositeAlphaFlagBitsKHR{
+			CompositeAlphaPreMultipliedBitKHR,
+			CompositeAlphaPostMultipliedBitKHR,
+			CompositeAlphaInheritBitKHR,
+		} {
+			if caps.SupportedCompositeAlpha&uint32(mode) != 0 {
+				return mode
+			}
+		}
+	}
+	return CompositeAlphaOpaqueBitKHR
 }
 
 // imageViewCreateInfo for vkCreateImageView.

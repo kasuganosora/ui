@@ -277,6 +277,9 @@ func (w *Window) ClientToScreen(x, y int) (int, int) {
 	return x, y
 }
 
+func (w *Window) IsTransparent() bool { return false }
+func (w *Window) SetTopMost(topmost bool) {}
+
 func (w *Window) Destroy() {
 	if w.xdgToplevel != 0 {
 		wlProxyDestroy(w.xdgToplevel)
