@@ -940,10 +940,15 @@ func (b *Backend) drawImage(img *render.ImageCmd, opacity float32) {
 	x1 := ((img.DstRect.X + img.DstRect.Width) / logW) * 2 - 1
 	y1 := 1 - ((img.DstRect.Y+img.DstRect.Height)/logH)*2
 
-	u0 := img.SrcRect.X
-	v0 := img.SrcRect.Y
-	u1 := img.SrcRect.X + img.SrcRect.Width
-	v1 := img.SrcRect.Y + img.SrcRect.Height
+	// Default SrcRect to full texture when empty
+	srcRect := img.SrcRect
+	if srcRect.Width == 0 || srcRect.Height == 0 {
+		srcRect.X, srcRect.Y, srcRect.Width, srcRect.Height = 0, 0, 1, 1
+	}
+	u0 := srcRect.X
+	v0 := srcRect.Y
+	u1 := srcRect.X + srcRect.Width
+	v1 := srcRect.Y + srcRect.Height
 
 	r, g, bl, a := img.Tint.R, img.Tint.G, img.Tint.B, img.Tint.A*opacity
 

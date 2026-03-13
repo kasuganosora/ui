@@ -25,12 +25,12 @@ func (b *Backend) buildGlyphVertices(tc *render.TextCmd, opacity float32) []Text
 		y1 := ((glyph.Y + glyph.Height) / logH) * 2 - 1
 
 		vertices = append(vertices,
-			TexturedVertex{x0, y0, glyph.U0, glyph.V0, r, g, bl, a},
-			TexturedVertex{x1, y0, glyph.U1, glyph.V0, r, g, bl, a},
-			TexturedVertex{x1, y1, glyph.U1, glyph.V1, r, g, bl, a},
-			TexturedVertex{x0, y0, glyph.U0, glyph.V0, r, g, bl, a},
-			TexturedVertex{x1, y1, glyph.U1, glyph.V1, r, g, bl, a},
-			TexturedVertex{x0, y1, glyph.U0, glyph.V1, r, g, bl, a},
+			TexturedVertex{PosX: x0, PosY: y0, U: glyph.U0, V: glyph.V0, ColorR: r, ColorG: g, ColorB: bl, ColorA: a},
+			TexturedVertex{PosX: x1, PosY: y0, U: glyph.U1, V: glyph.V0, ColorR: r, ColorG: g, ColorB: bl, ColorA: a},
+			TexturedVertex{PosX: x1, PosY: y1, U: glyph.U1, V: glyph.V1, ColorR: r, ColorG: g, ColorB: bl, ColorA: a},
+			TexturedVertex{PosX: x0, PosY: y0, U: glyph.U0, V: glyph.V0, ColorR: r, ColorG: g, ColorB: bl, ColorA: a},
+			TexturedVertex{PosX: x1, PosY: y1, U: glyph.U1, V: glyph.V1, ColorR: r, ColorG: g, ColorB: bl, ColorA: a},
+			TexturedVertex{PosX: x0, PosY: y1, U: glyph.U0, V: glyph.V1, ColorR: r, ColorG: g, ColorB: bl, ColorA: a},
 		)
 	}
 
@@ -46,19 +46,37 @@ func (b *Backend) buildImageVertices(ic *render.ImageCmd, opacity float32) []Tex
 	x1 := ((ic.DstRect.X + ic.DstRect.Width) / logW) * 2 - 1
 	y1 := ((ic.DstRect.Y + ic.DstRect.Height) / logH) * 2 - 1
 
-	u0, v0 := ic.SrcRect.X, ic.SrcRect.Y
-	u1 := ic.SrcRect.X + ic.SrcRect.Width
-	v1 := ic.SrcRect.Y + ic.SrcRect.Height
+	// Default SrcRect to full texture when empty
+	srcRect := ic.SrcRect
+	if srcRect.Width == 0 || srcRect.Height == 0 {
+		srcRect.X, srcRect.Y, srcRect.Width, srcRect.Height = 0, 0, 1, 1
+	}
+	u0, v0 := srcRect.X, srcRect.Y
+	u1 := srcRect.X + srcRect.Width
+	v1 := srcRect.Y + srcRect.Height
 
 	r, g, bl, a := ic.Tint.R, ic.Tint.G, ic.Tint.B, ic.Tint.A*opacity
 
+	// SDF rounded corner data (physical pixels)
+	s := b.dpiScale
+	rw := ic.DstRect.Width * s
+	rh := ic.DstRect.Height * s
+	rtl := ic.Corners.TopLeft * s
+	rtr := ic.Corners.TopRight * s
+	rbr := ic.Corners.BottomRight * s
+	rbl := ic.Corners.BottomLeft * s
+
+	v := func(px, py, u, v float32) TexturedVertex {
+		return TexturedVertex{px, py, u, v, r, g, bl, a, rw, rh, rtl, rtr, rbr, rbl}
+	}
+
 	return []TexturedVertex{
-		{x0, y0, u0, v0, r, g, bl, a},
-		{x1, y0, u1, v0, r, g, bl, a},
-		{x1, y1, u1, v1, r, g, bl, a},
-		{x0, y0, u0, v0, r, g, bl, a},
-		{x1, y1, u1, v1, r, g, bl, a},
-		{x0, y1, u0, v1, r, g, bl, a},
+		v(x0, y0, u0, v0),
+		v(x1, y0, u1, v0),
+		v(x1, y1, u1, v1),
+		v(x0, y0, u0, v0),
+		v(x1, y1, u1, v1),
+		v(x0, y1, u0, v1),
 	}
 }
 

@@ -487,15 +487,15 @@ func TestTexturedShaderBytecodeEmbedded(t *testing.T) {
 
 func TestTexturedVertexSize(t *testing.T) {
 	size := unsafe.Sizeof(TexturedVertex{})
-	if size != 32 {
-		t.Errorf("TexturedVertex should be 32 bytes, got %d", size)
+	if size != 56 {
+		t.Errorf("TexturedVertex should be 56 bytes, got %d", size)
 	}
 }
 
 func TestTexturedVertexAttributeDescriptions(t *testing.T) {
 	attrs := texturedVertexAttributeDescriptions()
-	if len(attrs) != 3 {
-		t.Fatalf("expected 3 attributes, got %d", len(attrs))
+	if len(attrs) != 5 {
+		t.Fatalf("expected 5 attributes, got %d", len(attrs))
 	}
 	// location 0: vec2 pos at offset 0
 	if attrs[0].Location != 0 || attrs[0].Offset != 0 || attrs[0].Format != FormatR32G32Sfloat {
@@ -508,6 +508,14 @@ func TestTexturedVertexAttributeDescriptions(t *testing.T) {
 	// location 2: vec4 color at offset 16
 	if attrs[2].Location != 2 || attrs[2].Offset != 16 || attrs[2].Format != FormatR32G32B32A32Sfloat {
 		t.Error("attribute 2 (color) incorrect")
+	}
+	// location 3: vec2 rectSize at offset 32
+	if attrs[3].Location != 3 || attrs[3].Offset != 32 || attrs[3].Format != FormatR32G32Sfloat {
+		t.Error("attribute 3 (rectSize) incorrect")
+	}
+	// location 4: vec4 radius at offset 40
+	if attrs[4].Location != 4 || attrs[4].Offset != 40 || attrs[4].Format != FormatR32G32B32A32Sfloat {
+		t.Error("attribute 4 (radius) incorrect")
 	}
 }
 
@@ -596,8 +604,8 @@ func TestMultipleRectsProduceDistinctOffsets(t *testing.T) {
 
 func TestTexturedVertexBindingDescription(t *testing.T) {
 	binding := texturedVertexBindingDescription()
-	if binding.Stride != 32 {
-		t.Errorf("expected stride 32, got %d", binding.Stride)
+	if binding.Stride != 56 {
+		t.Errorf("expected stride 56, got %d", binding.Stride)
 	}
 	if binding.InputRate != VertexInputRateVertex {
 		t.Error("expected per-vertex input rate")

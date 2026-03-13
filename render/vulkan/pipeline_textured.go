@@ -5,12 +5,15 @@ import (
 	"unsafe"
 )
 
-// TexturedVertex for textured quad rendering — 8 float32 fields, 32 bytes.
+// TexturedVertex for textured quad rendering — 14 float32 fields, 56 bytes.
+// Text leaves RectW..RadiusBL as zero; images populate them for SDF rounded corners.
 type TexturedVertex struct {
-	PosX, PosY     float32 // NDC position
-	U, V           float32 // Texture UV
-	ColorR, ColorG float32 // Tint color
-	ColorB, ColorA float32
+	PosX, PosY                             float32 // NDC position
+	U, V                                   float32 // Texture UV
+	ColorR, ColorG                         float32 // Tint color
+	ColorB, ColorA                         float32
+	RectW, RectH                           float32 // Rect size in physical pixels (0 = no SDF)
+	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32
 }
 
 // texturedVertexBindingDescription returns the vertex binding for TexturedVertex.
@@ -23,14 +26,18 @@ func texturedVertexBindingDescription() vertexInputBindingDescription {
 }
 
 // texturedVertexAttributeDescriptions returns the per-attribute layout for TexturedVertex.
-func texturedVertexAttributeDescriptions() [3]vertexInputAttributeDescription {
-	return [3]vertexInputAttributeDescription{
+func texturedVertexAttributeDescriptions() [5]vertexInputAttributeDescription {
+	return [5]vertexInputAttributeDescription{
 		// location 0: vec2 inPos
 		{Location: 0, Binding: 0, Format: FormatR32G32Sfloat, Offset: 0},
 		// location 1: vec2 inUV
 		{Location: 1, Binding: 0, Format: FormatR32G32Sfloat, Offset: 8},
 		// location 2: vec4 inColor
 		{Location: 2, Binding: 0, Format: FormatR32G32B32A32Sfloat, Offset: 16},
+		// location 3: vec2 inRectSize (physical pixels, 0 = no SDF clipping)
+		{Location: 3, Binding: 0, Format: FormatR32G32Sfloat, Offset: 32},
+		// location 4: vec4 inRadius (TL, TR, BR, BL)
+		{Location: 4, Binding: 0, Format: FormatR32G32B32A32Sfloat, Offset: 40},
 	}
 }
 

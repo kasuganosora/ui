@@ -35,9 +35,9 @@ func TestRectVertexSize(t *testing.T) {
 }
 
 func TestTexturedVertexSize(t *testing.T) {
-	// TexturedVertex: 8 float32 fields = 32 bytes
-	if s := unsafe.Sizeof(TexturedVertex{}); s != 32 {
-		t.Errorf("TexturedVertex size = %d, want 32", s)
+	// TexturedVertex: 14 float32 fields = 56 bytes (pos + uv + color + rectSize + radius)
+	if s := unsafe.Sizeof(TexturedVertex{}); s != 56 {
+		t.Errorf("TexturedVertex size = %d, want 56", s)
 	}
 }
 
@@ -119,11 +119,19 @@ func TestTexturedInputElements(t *testing.T) {
 	semanticNames = map[string]*byte{}
 
 	elems := texturedInputElements()
-	if len(elems) != 3 {
-		t.Fatalf("texturedInputElements count = %d, want 3", len(elems))
+	if len(elems) != 5 {
+		t.Fatalf("texturedInputElements count = %d, want 5", len(elems))
 	}
 	// COLOR at offset 16.
 	if elems[2].AlignedByteOffset != 16 {
 		t.Errorf("color element offset = %d, want 16", elems[2].AlignedByteOffset)
+	}
+	// rectSize (TEXCOORD1) at offset 32.
+	if elems[3].AlignedByteOffset != 32 {
+		t.Errorf("rectSize element offset = %d, want 32", elems[3].AlignedByteOffset)
+	}
+	// radius (TEXCOORD2) at offset 40.
+	if elems[4].AlignedByteOffset != 40 {
+		t.Errorf("radius element offset = %d, want 40", elems[4].AlignedByteOffset)
 	}
 }

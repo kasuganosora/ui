@@ -35,10 +35,13 @@ type ShadowVertex struct {
 }
 
 // TexturedVertex for text and image rendering.
+// Text leaves RectW..RadiusBL as zero; images populate them for SDF rounded corners.
 type TexturedVertex struct {
-	PosX, PosY                     float32
-	U, V                           float32
-	ColorR, ColorG, ColorB, ColorA float32
+	PosX, PosY                             float32
+	U, V                                   float32
+	ColorR, ColorG, ColorB, ColorA         float32
+	RectW, RectH                           float32 // Rect size in physical pixels (0 = no SDF clipping)
+	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32
 }
 
 type textureEntry struct {
@@ -517,11 +520,15 @@ struct VS_INPUT {
     float2 pos : POSITION;
     float2 uv : TEXCOORD0;
     float4 color : COLOR0;
+    float2 rectSize : TEXCOORD1;
+    float4 radius : TEXCOORD2;
 };
 struct PS_INPUT {
     float4 pos : SV_POSITION;
     float2 uv : TEXCOORD0;
     float4 color : COLOR0;
+    float2 rectSize : TEXCOORD1;
+    float4 radius : TEXCOORD2;
 };
 float3 srgbToLinear(float3 c) {
     return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4);
@@ -531,6 +538,8 @@ PS_INPUT main(VS_INPUT input) {
     output.pos = float4(input.pos, 0.0, 1.0);
     output.uv = input.uv;
     output.color = float4(srgbToLinear(input.color.rgb), input.color.a);
+    output.rectSize = input.rectSize;
+    output.radius = input.radius;
     return output;
 }`
 
@@ -541,10 +550,25 @@ struct PS_INPUT {
     float4 pos : SV_POSITION;
     float2 uv : TEXCOORD0;
     float4 color : COLOR0;
+    float2 rectSize : TEXCOORD1;
+    float4 radius : TEXCOORD2;
 };
+float roundedBoxSDF(float2 p, float2 b, float4 r) {
+    float rad = (p.x > 0.0) ? ((p.y > 0.0) ? r.z : r.y) : ((p.y > 0.0) ? r.w : r.x);
+    float2 q = abs(p) - b + float2(rad, rad);
+    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - rad;
+}
 float4 main(PS_INPUT input) : SV_TARGET {
     float4 texColor = tex.Sample(samp, input.uv);
-    return texColor * input.color;
+    float4 result = texColor * input.color;
+    if (input.rectSize.x > 0.0) {
+        float2 p = (input.uv - 0.5) * input.rectSize;
+        float2 b = input.rectSize * 0.5;
+        float dist = roundedBoxSDF(p, b, input.radius);
+        float aa = fwidth(dist);
+        result.a *= 1.0 - smoothstep(0.0, aa, dist);
+    }
+    return result;
 }`
 
 	// ---- Text shader (SDF alpha) ----
@@ -622,6 +646,8 @@ func texturedInputElements() []D3D11_INPUT_ELEMENT_DESC {
 		{semanticName("POSITION"), 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, 0, 0},
 		{semanticName("TEXCOORD"), 0, DXGI_FORMAT_R32G32_FLOAT, 0, 8, 0, 0},
 		{semanticName("COLOR"), 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, 0, 0},
+		{semanticName("TEXCOORD"), 1, DXGI_FORMAT_R32G32_FLOAT, 0, 32, 0, 0},           // rectSize
+		{semanticName("TEXCOORD"), 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 40, 0, 0},     // radius (TL,TR,BR,BL)
 	}
 }
 
@@ -1088,10 +1114,14 @@ func (b *Backend) renderImage(c render.Command) {
 	x1 := ((ic.DstRect.X + ic.DstRect.Width) / logW) * 2 - 1
 	y1 := 1 - ((ic.DstRect.Y+ic.DstRect.Height)/logH)*2 // flip Y
 
-	// UV from source rect
-	u0, v0 := ic.SrcRect.X, ic.SrcRect.Y
-	u1 := ic.SrcRect.X + ic.SrcRect.Width
-	v1 := ic.SrcRect.Y + ic.SrcRect.Height
+	// UV from source rect; default to full texture when empty
+	srcRect := ic.SrcRect
+	if srcRect.Width == 0 || srcRect.Height == 0 {
+		srcRect = uimath.NewRect(0, 0, 1, 1)
+	}
+	u0, v0 := srcRect.X, srcRect.Y
+	u1 := srcRect.X + srcRect.Width
+	v1 := srcRect.Y + srcRect.Height
 
 	tint := ic.Tint
 	if tint.A == 0 && tint.R == 0 && tint.G == 0 && tint.B == 0 {
@@ -1100,13 +1130,31 @@ func (b *Backend) renderImage(c render.Command) {
 		tint.A *= c.Opacity
 	}
 
+	// SDF rounded corner data (physical pixels)
+	s := b.dpiScale
+	rw := ic.DstRect.Width * s
+	rh := ic.DstRect.Height * s
+	rtl := ic.Corners.TopLeft * s
+	rtr := ic.Corners.TopRight * s
+	rbr := ic.Corners.BottomRight * s
+	rbl := ic.Corners.BottomLeft * s
+
+	makeVertex := func(px, py, u, v float32) TexturedVertex {
+		return TexturedVertex{
+			PosX: px, PosY: py, U: u, V: v,
+			ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A,
+			RectW: rw, RectH: rh,
+			RadiusTL: rtl, RadiusTR: rtr, RadiusBR: rbr, RadiusBL: rbl,
+		}
+	}
+
 	vertices := [6]TexturedVertex{
-		{PosX: x0, PosY: y0, U: u0, V: v0, ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A},
-		{PosX: x1, PosY: y0, U: u1, V: v0, ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A},
-		{PosX: x1, PosY: y1, U: u1, V: v1, ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A},
-		{PosX: x0, PosY: y0, U: u0, V: v0, ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A},
-		{PosX: x1, PosY: y1, U: u1, V: v1, ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A},
-		{PosX: x0, PosY: y1, U: u0, V: v1, ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A},
+		makeVertex(x0, y0, u0, v0),
+		makeVertex(x1, y0, u1, v0),
+		makeVertex(x1, y1, u1, v1),
+		makeVertex(x0, y0, u0, v0),
+		makeVertex(x1, y1, u1, v1),
+		makeVertex(x0, y1, u0, v1),
 	}
 
 	stride := uint32(unsafe.Sizeof(TexturedVertex{}))

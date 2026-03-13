@@ -38,10 +38,13 @@ type ShadowVertex struct {
 }
 
 // TexturedVertex for text and image rendering.
+// Text leaves RectW..RadiusBL as zero; images populate them for SDF rounded corners.
 type TexturedVertex struct {
-	PosX, PosY                     float32
-	U, V                           float32
-	ColorR, ColorG, ColorB, ColorA float32
+	PosX, PosY                             float32
+	U, V                                   float32
+	ColorR, ColorG, ColorB, ColorA         float32
+	RectW, RectH                           float32 // Rect size in physical pixels (0 = no SDF clipping)
+	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32
 }
 
 // dx9Pipeline identifies the active rendering pipeline to avoid redundant state switches.
@@ -484,11 +487,15 @@ struct VS_INPUT {
     float2 pos : POSITION;
     float2 uv : TEXCOORD0;
     float4 color : COLOR0;
+    float2 rectSize : TEXCOORD1;
+    float4 radius : TEXCOORD2;
 };
 struct PS_INPUT {
     float4 pos : POSITION;
     float2 uv : TEXCOORD0;
     float4 color : COLOR1;
+    float2 rectSize : TEXCOORD1;
+    float4 radius : TEXCOORD2;
 };
 float3 srgbToLinear(float3 c) {
     return pow(max(c, 0.0), 2.2);
@@ -498,19 +505,35 @@ PS_INPUT main(VS_INPUT input) {
     output.pos = float4(input.pos, 0.0, 1.0);
     output.uv = input.uv;
     output.color = float4(srgbToLinear(input.color.rgb), input.color.a);
+    output.rectSize = input.rectSize;
+    output.radius = input.radius;
     return output;
 }`
 
 	texturedPSCode := `
 sampler2D tex : register(s0);
 struct PS_INPUT {
-    float4 pos : POSITION;
     float2 uv : TEXCOORD0;
     float4 color : COLOR1;
+    float2 rectSize : TEXCOORD1;
+    float4 radius : TEXCOORD2;
 };
+float roundedBoxSDF(float2 p, float2 b, float4 r) {
+    float rad = (p.x > 0.0) ? ((p.y > 0.0) ? r.z : r.y) : ((p.y > 0.0) ? r.w : r.x);
+    float2 q = abs(p) - b + float2(rad, rad);
+    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - rad;
+}
 float4 main(PS_INPUT input) : COLOR0 {
     float4 texColor = tex2D(tex, input.uv);
-    return texColor * input.color;
+    float4 result = texColor * input.color;
+    if (input.rectSize.x > 0.0) {
+        float2 p = (input.uv - 0.5) * input.rectSize;
+        float2 b = input.rectSize * 0.5;
+        float dist = roundedBoxSDF(p, b, input.radius);
+        float aa = max(fwidth(dist), 0.5);
+        result.a *= 1.0 - smoothstep(0.0, aa, dist);
+    }
+    return result;
 }`
 
 	// ---- Text pixel shader (coverage from R channel) ----
@@ -665,6 +688,8 @@ func (b *Backend) createVertexDeclarations() error {
 		{0, 0, D3DDECLTYPE_FLOAT2, 0, D3DDECLUSAGE_POSITION, 0},
 		{0, 8, D3DDECLTYPE_FLOAT2, 0, D3DDECLUSAGE_TEXCOORD, 0},
 		{0, 16, D3DDECLTYPE_FLOAT4, 0, D3DDECLUSAGE_COLOR, 0},
+		{0, 32, D3DDECLTYPE_FLOAT2, 0, D3DDECLUSAGE_TEXCOORD, 1}, // rectSize
+		{0, 40, D3DDECLTYPE_FLOAT4, 0, D3DDECLUSAGE_TEXCOORD, 2}, // radius (TL,TR,BR,BL)
 		D3DVERTEXELEMENT9_END,
 	}
 
@@ -1171,6 +1196,7 @@ func (b *Backend) renderImageBatch(commands []render.Command) {
 	}
 	b.texturedStaging = b.texturedStaging[:0]
 
+	s := b.dpiScale
 	for _, c := range commands {
 		ic := c.Image
 		x0 := (ic.DstRect.X/logW)*2 - 1 + hpX
@@ -1178,9 +1204,14 @@ func (b *Backend) renderImageBatch(commands []render.Command) {
 		x1 := ((ic.DstRect.X+ic.DstRect.Width)/logW)*2 - 1 + hpX
 		y1 := 1 - ((ic.DstRect.Y+ic.DstRect.Height)/logH)*2 + hpY
 
-		u0, v0 := ic.SrcRect.X, ic.SrcRect.Y
-		u1 := ic.SrcRect.X + ic.SrcRect.Width
-		v1 := ic.SrcRect.Y + ic.SrcRect.Height
+		// Default SrcRect to full texture when empty
+		srcRect := ic.SrcRect
+		if srcRect.Width == 0 || srcRect.Height == 0 {
+			srcRect = uimath.NewRect(0, 0, 1, 1)
+		}
+		u0, v0 := srcRect.X, srcRect.Y
+		u1 := srcRect.X + srcRect.Width
+		v1 := srcRect.Y + srcRect.Height
 
 		tint := ic.Tint
 		if tint.A == 0 && tint.R == 0 && tint.G == 0 && tint.B == 0 {
@@ -1189,7 +1220,19 @@ func (b *Backend) renderImageBatch(commands []render.Command) {
 			tint.A *= c.Opacity
 		}
 
-		clr := TexturedVertex{ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A}
+		// SDF rounded corner data (physical pixels)
+		rw := ic.DstRect.Width * s
+		rh := ic.DstRect.Height * s
+		rtl := ic.Corners.TopLeft * s
+		rtr := ic.Corners.TopRight * s
+		rbr := ic.Corners.BottomRight * s
+		rbl := ic.Corners.BottomLeft * s
+
+		clr := TexturedVertex{
+			ColorR: tint.R, ColorG: tint.G, ColorB: tint.B, ColorA: tint.A,
+			RectW: rw, RectH: rh,
+			RadiusTL: rtl, RadiusTR: rtr, RadiusBR: rbr, RadiusBL: rbl,
+		}
 		tv0 := clr
 		tv0.PosX, tv0.PosY, tv0.U, tv0.V = x0, y0, u0, v0
 		tv1 := clr

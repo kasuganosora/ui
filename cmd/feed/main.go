@@ -26,6 +26,7 @@ import (
 	"github.com/kasuganosora/ui/devtools"
 	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
+	"github.com/kasuganosora/ui/net"
 	"github.com/kasuganosora/ui/widget"
 )
 
@@ -580,6 +581,7 @@ func main() {
 	cfg.PrimaryColor = uimath.ColorHex("#1D9BF0")
 	cfg.FocusBorderColor = uimath.ColorHex("#1D9BF0")
 	cfg.DisabledColor = uimath.ColorHex("#536471") // placeholder color
+	cfg.NetClient = net.Default                     // enable remote avatar loading
 
 	doc := app.LoadHTML(feedHTML + "<style>" + feedCSS + "</style>")
 	tree := app.Tree()

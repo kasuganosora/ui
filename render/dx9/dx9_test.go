@@ -37,9 +37,9 @@ func TestRectVertexSize(t *testing.T) {
 }
 
 func TestTexturedVertexSize(t *testing.T) {
-	// 8 float32s = 32 bytes
-	if got := unsafe.Sizeof(TexturedVertex{}); got != 32 {
-		t.Errorf("TexturedVertex size = %d, want 32", got)
+	// 14 float32s = 56 bytes (pos + uv + color + rectSize + radius)
+	if got := unsafe.Sizeof(TexturedVertex{}); got != 56 {
+		t.Errorf("TexturedVertex size = %d, want 56", got)
 	}
 }
 
