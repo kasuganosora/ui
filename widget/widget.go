@@ -122,15 +122,19 @@ func (b *Base) RemoveChild(child Widget) {
 
 // BringChildToFront moves a child to the end of the children list,
 // so it draws last (on top of siblings). Used for drag-to-front in HUD panels.
+// Uses tree.BringChildToFront which marks only DirtyPaint (not DirtyLayout),
+// so z-order reordering does NOT trigger a full CSS re-layout.
 func (b *Base) BringChildToFront(child Widget) {
 	for i, c := range b.children {
 		if c.ElementID() == child.ElementID() {
-			// Move to end of slice
+			if i == len(b.children)-1 {
+				return // already at front
+			}
+			// Move to end of widget slice
 			copy(b.children[i:], b.children[i+1:])
 			b.children[len(b.children)-1] = child
-			// Also reorder in element tree
-			b.tree.RemoveChild(b.id, child.ElementID())
-			b.tree.AppendChild(b.id, child.ElementID())
+			// Reorder in element tree — DirtyPaint only, no full re-layout
+			b.tree.BringChildToFront(b.id, child.ElementID())
 			return
 		}
 	}

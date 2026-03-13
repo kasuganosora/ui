@@ -232,6 +232,29 @@ func (t *Tree) InsertBefore(parentID, childID, beforeID ElementID) bool {
 	return true
 }
 
+// BringChildToFront moves a child to the end of the parent's child list so it
+// draws on top of siblings. This ONLY marks DirtyPaint (not DirtyLayout) because
+// z-order reordering does not affect any element's size or position.
+// Use this instead of RemoveChild+AppendChild to avoid triggering a full CSS re-layout.
+func (t *Tree) BringChildToFront(parentID, childID ElementID) bool {
+	parent := t.elements[parentID]
+	if parent == nil {
+		return false
+	}
+	for i, id := range parent.children {
+		if id == childID {
+			if i == len(parent.children)-1 {
+				return true // already at front
+			}
+			parent.children = append(parent.children[:i], parent.children[i+1:]...)
+			parent.children = append(parent.children, childID)
+			t.markDirty(parentID, DirtyPaint) // z-order only — layout unchanged
+			return true
+		}
+	}
+	return false
+}
+
 // RemoveChild removes a child from a parent.
 func (t *Tree) RemoveChild(parentID, childID ElementID) bool {
 	parent := t.elements[parentID]

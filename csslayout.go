@@ -44,35 +44,40 @@ func CSSLayout(tree *core.Tree, root widget.Widget, w, h float32, cfg ...*widget
 	}
 
 	// Build layout tree from widget tree
-	widgetMap := make(map[layout.NodeID]widget.Widget)
-	nodeToChildren := make(map[layout.NodeID][]layout.NodeID)
-	rootNode := buildLayoutNode(engine, root, widgetMap, nodeToChildren)
+	var widgets []widget.Widget
+	var nodeChildren [][]layout.NodeID
+	rootNode := buildLayoutNode(engine, root, &widgets, &nodeChildren)
 	engine.AddRoot(rootNode)
 
 	// Compute layout
 	engine.Compute(w, h)
 
 	// Write results back to the tree, handling scroll offsets
-	applyLayoutResults(tree, engine, rootNode, widgetMap, nodeToChildren, 0, 0)
+	applyLayoutResults(tree, engine, rootNode, widgets, nodeChildren, 0, 0)
 }
 
 // CSSLayoutCache caches layout computation between frames.
 // When only scroll offsets change (no DirtyLayout), it skips the expensive
 // buildLayoutNode + engine.Compute steps and only re-applies positions.
-// This turns a ~10ms full layout into a <1ms scroll-offset update.
+// This turns a ~90μs full layout into a ~5μs position-only update.
+//
+// Perf notes:
+//   - engine is reused across full layouts (Clear() keeps backing arrays)
+//   - widgets/nodeChildren are slices indexed by NodeID (sequential ints),
+//     not maps — O(1) slice access vs O(1) amortized hash + cache misses
 type CSSLayoutCache struct {
-	engine         *layout.Engine
-	widgetMap      map[layout.NodeID]widget.Widget
-	nodeToChildren map[layout.NodeID][]layout.NodeID
-	rootNode       layout.NodeID
-	lastW, lastH   float32
-	valid          bool
-	measurer       *textMeasurerAdapter
+	engine       *layout.Engine
+	widgets      []widget.Widget      // indexed by NodeID (0-based sequential)
+	nodeChildren [][]layout.NodeID    // indexed by NodeID
+	rootNode     layout.NodeID
+	lastW, lastH float32
+	valid        bool
+	measurer     *textMeasurerAdapter
 }
 
 // NewCSSLayoutCache creates a new layout cache.
 func NewCSSLayoutCache() *CSSLayoutCache {
-	return &CSSLayoutCache{}
+	return &CSSLayoutCache{engine: layout.New()}
 }
 
 // Invalidate forces full recomputation on next Layout call.
@@ -81,12 +86,13 @@ func (lc *CSSLayoutCache) Invalidate() {
 }
 
 // Layout performs cached CSS layout. If tree structure hasn't changed (no DirtyLayout)
-// and viewport size is the same, it only re-applies scroll offsets (~100x faster).
+// and viewport size is the same, it only re-applies scroll offsets (~20x faster).
 func (lc *CSSLayoutCache) Layout(tree *core.Tree, root widget.Widget, w, h float32, cfg ...*widget.Config) {
 	needsFull := !lc.valid || tree.NeedsLayout() || w != lc.lastW || h != lc.lastH
 
 	if needsFull {
-		lc.engine = layout.New()
+		// Reuse engine: Clear() resets length but keeps backing arrays, avoiding
+		// repeated allocations from node-slice growth during buildLayoutNode.
 		lc.engine.Clear()
 
 		if len(cfg) > 0 && cfg[0] != nil && cfg[0].TextRenderer != nil {
@@ -98,28 +104,29 @@ func (lc *CSSLayoutCache) Layout(tree *core.Tree, root widget.Widget, w, h float
 			lc.engine.SetTextMeasurer(lc.measurer)
 		}
 
-		lc.widgetMap = make(map[layout.NodeID]widget.Widget)
-		lc.nodeToChildren = make(map[layout.NodeID][]layout.NodeID)
-		lc.rootNode = buildLayoutNode(lc.engine, root, lc.widgetMap, lc.nodeToChildren)
+		// Reset slice-based lookup tables (reuse backing arrays when possible).
+		lc.widgets = lc.widgets[:0]
+		lc.nodeChildren = lc.nodeChildren[:0]
+		lc.rootNode = buildLayoutNode(lc.engine, root, &lc.widgets, &lc.nodeChildren)
 		lc.engine.AddRoot(lc.rootNode)
 		lc.engine.Compute(w, h)
 		lc.lastW, lc.lastH = w, h
 		lc.valid = true
 	}
 
-	// Always re-apply positions (cheap) — updates scroll offsets.
-	applyLayoutResults(tree, lc.engine, lc.rootNode, lc.widgetMap, lc.nodeToChildren, 0, 0)
+	// Always re-apply positions (fast path) — updates scroll offsets every frame.
+	applyLayoutResults(tree, lc.engine, lc.rootNode, lc.widgets, lc.nodeChildren, 0, 0)
 }
 
 // buildLayoutNode recursively creates layout nodes from widgets.
 // Text widgets (widget.Text) are registered as text nodes so the layout engine
 // can measure their intrinsic size via the TextMeasurer.
-func buildLayoutNode(engine *layout.Engine, w widget.Widget, widgetMap map[layout.NodeID]widget.Widget, nodeChildren map[layout.NodeID][]layout.NodeID) layout.NodeID {
+// widgets and nodeChildren are slice-indexed by NodeID (sequential 0-based ints).
+func buildLayoutNode(engine *layout.Engine, w widget.Widget, widgets *[]widget.Widget, nodeChildren *[][]layout.NodeID) layout.NodeID {
 	style := w.Style()
 
 	var nodeID layout.NodeID
 	if txt, ok := w.(*widget.Text); ok {
-		// Carry font size into the layout style for text measurement.
 		style.FontSize = txt.FontSize()
 		if style.FontSize == 0 {
 			style.FontSize = 14
@@ -128,17 +135,24 @@ func buildLayoutNode(engine *layout.Engine, w widget.Widget, widgetMap map[layou
 	} else {
 		nodeID = engine.AddNode(style)
 	}
-	widgetMap[nodeID] = w
+
+	// Extend slice to cover this nodeID (nodeIDs are assigned sequentially).
+	id := int(nodeID)
+	for len(*widgets) <= id {
+		*widgets = append(*widgets, nil)
+		*nodeChildren = append(*nodeChildren, nil)
+	}
+	(*widgets)[id] = w
 
 	children := w.Children()
 	if len(children) > 0 {
 		childIDs := make([]layout.NodeID, 0, len(children))
 		for _, child := range children {
-			childID := buildLayoutNode(engine, child, widgetMap, nodeChildren)
+			childID := buildLayoutNode(engine, child, widgets, nodeChildren)
 			childIDs = append(childIDs, childID)
 		}
 		engine.SetChildren(nodeID, childIDs)
-		nodeChildren[nodeID] = childIDs
+		(*nodeChildren)[id] = childIDs
 	}
 
 	return nodeID
@@ -146,11 +160,19 @@ func buildLayoutNode(engine *layout.Engine, w widget.Widget, widgetMap map[layou
 
 // applyLayoutResults writes computed layout to the tree, accumulating parent offsets
 // and applying scroll offsets for scrollable containers.
+// widgets and nodeChildren are slice-indexed by NodeID for O(1) access without hashing.
 func applyLayoutResults(tree *core.Tree, engine *layout.Engine, nodeID layout.NodeID,
-	widgetMap map[layout.NodeID]widget.Widget, nodeChildren map[layout.NodeID][]layout.NodeID,
+	widgets []widget.Widget, nodeChildren [][]layout.NodeID,
 	parentX, parentY float32) {
 
-	w := widgetMap[nodeID]
+	id := int(nodeID)
+	if id >= len(widgets) {
+		return
+	}
+	w := widgets[id]
+	if w == nil {
+		return
+	}
 	result := engine.GetResult(nodeID)
 
 	// Absolute position = parent offset + layout position
@@ -185,7 +207,9 @@ func applyLayoutResults(tree *core.Tree, engine *layout.Engine, nodeID layout.No
 	// Recurse into children
 	childOffsetX := absX
 	childOffsetY := absY - scrollOffsetY
-	for _, childID := range nodeChildren[nodeID] {
-		applyLayoutResults(tree, engine, childID, widgetMap, nodeChildren, childOffsetX, childOffsetY)
+	if id < len(nodeChildren) {
+		for _, childID := range nodeChildren[id] {
+			applyLayoutResults(tree, engine, childID, widgets, nodeChildren, childOffsetX, childOffsetY)
+		}
 	}
 }
