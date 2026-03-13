@@ -66,6 +66,12 @@ type Avatar struct {
 	naturalW   int
 	naturalH   int
 
+	// Pending texture data from background goroutine (decoded on bg thread,
+	// GPU upload deferred to main thread via Draw).
+	pendingPixels []byte
+	pendingW      int
+	pendingH      int
+
 	// GIF animation
 	frames     []gifFrame
 	frameIdx   int
@@ -269,7 +275,12 @@ func (a *Avatar) loadFromBytes(data []byte, hint string) {
 	draw.Draw(rgba, bounds, decoded, bounds.Min, draw.Src)
 	a.naturalW = bounds.Dx()
 	a.naturalH = bounds.Dy()
-	a.createSrcTexture(rgba.Pix, a.naturalW, a.naturalH)
+	// Defer GPU texture creation to the main thread (Draw).
+	// Vulkan command submission is not thread-safe.
+	a.pendingPixels = rgba.Pix
+	a.pendingW = a.naturalW
+	a.pendingH = a.naturalH
+	a.loadState = AvatarLoading
 }
 
 func (a *Avatar) loadGIFFromReader(r io.Reader) {
@@ -333,7 +344,12 @@ func (a *Avatar) loadGIFFromReader(r io.Reader) {
 		}
 	}
 
-	a.createSrcTexture(a.frames[0].pixels, canvasW, canvasH)
+	// Defer GPU texture creation to the main thread (Draw).
+	// Vulkan command submission is not thread-safe.
+	a.pendingPixels = a.frames[0].pixels
+	a.pendingW = canvasW
+	a.pendingH = canvasH
+	a.loadState = AvatarLoading
 	if len(a.frames) > 1 {
 		a.playing = true
 		a.lastUpdate = time.Now()
@@ -404,6 +420,12 @@ func firstNonSymbolRune(s string) string {
 }
 
 func (a *Avatar) Draw(buf *render.CommandBuffer) {
+	// Flush pending texture from background goroutine (GPU ops must run on main thread)
+	if a.pendingPixels != nil {
+		a.createSrcTexture(a.pendingPixels, a.pendingW, a.pendingH)
+		a.pendingPixels = nil
+	}
+
 	px := a.AvatarSize()
 	bounds := a.Bounds()
 	if bounds.IsEmpty() {

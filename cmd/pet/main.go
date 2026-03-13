@@ -93,22 +93,24 @@ func main() {
 	// Create rendering backend (DX11 on Windows for DirectComposition transparency)
 	backend, err := ui.CreateBackend(ui.BackendDX11, win)
 	if err != nil {
-		// Fallback to auto
+		fmt.Printf("[pet] DX11 failed: %v, trying auto...\n", err)
 		backend, err = ui.CreateBackend(ui.BackendAuto, win)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "backend init: %v\n", err)
 			os.Exit(1)
 		}
+		fmt.Println("[pet] using auto backend")
+	} else {
+		fmt.Println("[pet] using DX11 backend (DirectComposition)")
 	}
 	defer backend.Destroy()
 
 	fw, fh := win.FramebufferSize()
 	backend.Resize(fw, fh)
 
-	// Load textures for all frames
+	// Load textures for all frames + keep alpha data for hit testing
 	textures := make([]render.TextureHandle, len(frames))
-	texW := make([]int, len(frames))
-	texH := make([]int, len(frames))
+	frameImages := make([]*image.RGBA, len(frames)) // CPU-side for hit test
 	for i, frame := range frames {
 		img, w, h := loadPNG(frame.path)
 		if img == nil {
@@ -126,14 +128,30 @@ func main() {
 		}
 		backend.UpdateTexture(tex, uimath.NewRect(0, 0, float32(w), float32(h)), img.Pix)
 		textures[i] = tex
-		texW[i] = w
-		texH[i] = h
+		frameImages[i] = img
 		fmt.Printf("  frame %d: %dx%d, %v\n", frame.index, w, h, frame.duration)
 	}
 
 	// Animation state
 	currentFrame := 0
 	lastSwitch := time.Now()
+
+	// Per-pixel hit test: transparent pixels pass through to windows below.
+	// ScreenToClient returns physical pixel coords for a borderless WS_POPUP window;
+	// these map 1:1 to image pixels since the window was created at image dimensions.
+	// Per-pixel hit test: transparent pixels pass through to windows below.
+	win.SetHitTestFunc(func(x, y int) bool {
+		img := frameImages[currentFrame]
+		if img == nil {
+			return true
+		}
+		b := img.Bounds()
+		if x < 0 || x >= b.Dx() || y < 0 || y >= b.Dy() {
+			return false
+		}
+		_, _, _, a := img.At(b.Min.X+x, b.Min.Y+y).RGBA()
+		return a > 0x0A00
+	})
 
 	// Drag state
 	dragging := false
@@ -188,11 +206,8 @@ func main() {
 		buf.Reset()
 
 		if textures[currentFrame] != 0 {
-			w := float32(texW[currentFrame])
-			h := float32(texH[currentFrame])
 			buf.DrawImage(render.ImageCmd{
 				Texture: textures[currentFrame],
-				SrcRect: uimath.NewRect(0, 0, w, h),
 				DstRect: uimath.NewRect(0, 0, float32(spriteW), float32(spriteH)),
 				Tint:    uimath.Color{R: 1, G: 1, B: 1, A: 1},
 			}, 0, 1.0)

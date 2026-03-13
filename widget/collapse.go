@@ -182,39 +182,63 @@ func (c *Collapse) Draw(buf *render.CommandBuffer) {
 			FillColor: uimath.RGBA(0, 0, 0, 0.06),
 		}, 1, 1)
 
-		// Chevron arrow: ▸ (right) when collapsed, ▾ (down) when expanded
+		// Chevron icon: chevron_right when collapsed, expand_more when expanded
+		iconSize := cfg.IconSize
+		if iconSize <= 0 {
+			iconSize = 16
+		}
 		arrowX := bounds.X + cfg.SpaceMD
-		arrowY := y + headerH/2
-		arrowStr := "\u25B8" // ▸
-		if active {
-			arrowStr = "\u25BE" // ▾
-		}
+		arrowY := y + (headerH-iconSize)/2
 
-		textOpacity := float32(1)
+		iconOpacity := float32(1)
 		if disabled {
-			textOpacity = 0.35
+			iconOpacity = 0.35
 		}
 
-		if cfg.TextRenderer != nil {
-			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-			cfg.TextRenderer.DrawText(buf, arrowStr, arrowX, arrowY-lh/2, cfg.FontSize, 16, cfg.TextColor, textOpacity)
-		} else {
+		iconName := "chevron_right"
+		if active {
+			iconName = "expand_more"
+		}
+
+		iconDrawn := false
+		if cfg.IconRegistry != nil {
+			pixelSize := int(iconSize)
+			if pixelSize < 1 {
+				pixelSize = 1
+			}
+			if tex, ok := cfg.IconRegistry.Get(iconName, pixelSize); ok {
+				iconClr := cfg.TextColor
+				if disabled {
+					iconClr = cfg.DisabledColor
+				}
+				buf.DrawImage(render.ImageCmd{
+					Texture: tex,
+					SrcRect: uimath.NewRect(0, 0, 1, 1),
+					DstRect: uimath.NewRect(arrowX, arrowY, iconSize, iconSize),
+					Tint:    iconClr,
+				}, 2, iconOpacity)
+				iconDrawn = true
+			}
+		}
+
+		if !iconDrawn {
+			// Fallback: draw simple geometric arrow
 			arrowSize := float32(4)
 			arrowClr := cfg.TextColor
 			if disabled {
 				arrowClr = cfg.DisabledColor
 			}
+			cx := arrowX + iconSize/2
+			cy := y + headerH/2
 			if active {
-				// Down arrow: wider than tall
 				buf.DrawRect(render.RectCmd{
-					Bounds:    uimath.NewRect(arrowX-arrowSize, arrowY-arrowSize/2, arrowSize*2, arrowSize),
+					Bounds:    uimath.NewRect(cx-arrowSize, cy-arrowSize/2, arrowSize*2, arrowSize),
 					FillColor: arrowClr,
 					Corners:   uimath.CornersAll(1),
 				}, 2, 1)
 			} else {
-				// Right arrow: taller than wide
 				buf.DrawRect(render.RectCmd{
-					Bounds:    uimath.NewRect(arrowX-arrowSize/2, arrowY-arrowSize, arrowSize, arrowSize*2),
+					Bounds:    uimath.NewRect(cx-arrowSize/2, cy-arrowSize, arrowSize, arrowSize*2),
 					FillColor: arrowClr,
 					Corners:   uimath.CornersAll(1),
 				}, 2, 1)
@@ -229,7 +253,7 @@ func (c *Collapse) Draw(buf *render.CommandBuffer) {
 		}
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-			cfg.TextRenderer.DrawText(buf, panel.Header, textX, y+(headerH-lh)/2, cfg.FontSize, bounds.Width-textX+bounds.X-cfg.SpaceMD, titleClr, textOpacity)
+			cfg.TextRenderer.DrawText(buf, panel.Header, textX, y+(headerH-lh)/2, cfg.FontSize, bounds.Width-textX+bounds.X-cfg.SpaceMD, titleClr, iconOpacity)
 		} else {
 			tw := float32(len(panel.Header)) * cfg.FontSize * 0.55
 			th := cfg.FontSize * 1.2

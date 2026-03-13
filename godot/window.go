@@ -63,4 +63,5 @@ func (w *HeadlessWindow) ShowContextMenu(int, int, []platform.ContextMenuItem) i
 func (w *HeadlessWindow) ClientToScreen(x, y int) (int, int) { return x, y }
 func (w *HeadlessWindow) IsTransparent() bool                { return false }
 func (w *HeadlessWindow) SetTopMost(topmost bool)            {}
+func (w *HeadlessWindow) SetHitTestFunc(func(int, int) bool) {}
 func (w *HeadlessWindow) Destroy()                           {}

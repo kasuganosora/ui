@@ -110,6 +110,12 @@ type Window interface {
 	// SetTopMost sets or clears always-on-top.
 	SetTopMost(topmost bool)
 
+	// SetHitTestFunc sets a callback for per-pixel hit testing on transparent windows.
+	// The function receives client-area coordinates (logical pixels) and returns true
+	// if the window should handle input at that point, or false to pass it through
+	// to the window below. When nil (default), all points are handled.
+	SetHitTestFunc(fn func(x, y int) bool)
+
 	// Destroy destroys the window.
 	Destroy()
 }

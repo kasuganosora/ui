@@ -77,6 +77,8 @@ var (
 	procDestroyMenu                   = user32.NewProc("DestroyMenu")
 	procAppendMenuW                   = user32.NewProc("AppendMenuW")
 	procTrackPopupMenu                = user32.NewProc("TrackPopupMenu")
+	procWindowFromPoint               = user32.NewProc("WindowFromPoint")
+	procSendMessageW                  = user32.NewProc("SendMessageW")
 )
 
 // kernel32 functions
@@ -161,6 +163,7 @@ const (
 	WM_SYSKEYUP        = 0x0105
 	WM_TIMER           = 0x0113
 	WM_DPICHANGED      = 0x02E0
+	WM_NCHITTEST       = 0x0084
 	WM_ENTERSIZEMOVE   = 0x0231
 	WM_EXITSIZEMOVE    = 0x0232
 
@@ -226,6 +229,11 @@ const (
 const (
 	HWND_TOPMOST    = ^uintptr(0)    // (HWND)-1
 	HWND_NOTOPMOST  = ^uintptr(1)    // (HWND)-2
+)
+
+// WM_NCHITTEST return values
+const (
+	HTTRANSPARENT = ^uintptr(0) // (LRESULT)-1: pass through to window below
 )
 
 // PeekMessage flags

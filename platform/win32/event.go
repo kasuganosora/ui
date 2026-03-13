@@ -101,6 +101,18 @@ func wndProc(hwnd, msg, wParam, lParam uintptr) uintptr {
 		}
 		return 0
 
+	case WM_NCHITTEST:
+		if w.hitTestFunc != nil {
+			// lParam contains screen coordinates: LOWORD=x, HIWORD=y
+			pt := POINT{X: int32(loword(lParam)), Y: int32(hiword(lParam))}
+			procScreenToClient.Call(hwnd, uintptr(unsafe.Pointer(&pt)))
+			if !w.hitTestFunc(int(pt.X), int(pt.Y)) {
+				return HTTRANSPARENT
+			}
+		}
+		ret, _, _ := procDefWindowProcW.Call(hwnd, msg, wParam, lParam)
+		return ret
+
 	// ---- Mouse events ----
 
 	case WM_MOUSEMOVE:
@@ -161,6 +173,9 @@ func wndProc(hwnd, msg, wParam, lParam uintptr) uintptr {
 		return 0
 
 	case WM_MOUSEWHEEL:
+		if w.forwardToWindowBelow(hwnd, msg, wParam, lParam) {
+			return 0
+		}
 		w.p.pushEvent(event.Event{
 			Type:      event.MouseWheel,
 			Timestamp: queryTimeMicroseconds(),
@@ -170,6 +185,9 @@ func wndProc(hwnd, msg, wParam, lParam uintptr) uintptr {
 		return 0
 
 	case WM_MOUSEHWHEEL:
+		if w.forwardToWindowBelow(hwnd, msg, wParam, lParam) {
+			return 0
+		}
 		w.p.pushEvent(event.Event{
 			Type:      event.MouseWheel,
 			Timestamp: queryTimeMicroseconds(),
@@ -294,6 +312,33 @@ func wndProc(hwnd, msg, wParam, lParam uintptr) uintptr {
 
 	ret, _, _ := procDefWindowProcW.Call(hwnd, msg, wParam, lParam)
 	return ret
+}
+
+// forwardToWindowBelow checks the hit test at the cursor position and, if
+// transparent, forwards the message to the window underneath. Returns true
+// if the message was forwarded.
+func (w *Window) forwardToWindowBelow(hwnd, msg, wParam, lParam uintptr) bool {
+	if w.hitTestFunc == nil {
+		return false
+	}
+	// WM_MOUSEWHEEL lParam contains screen coordinates
+	pt := POINT{X: int32(loword(lParam)), Y: int32(hiword(lParam))}
+	clientPt := pt
+	procScreenToClient.Call(hwnd, uintptr(unsafe.Pointer(&clientPt)))
+	if w.hitTestFunc(int(clientPt.X), int(clientPt.Y)) {
+		return false // opaque pixel — handle normally
+	}
+	// Temporarily set WS_EX_TRANSPARENT so WindowFromPoint skips us
+	exStyle, _, _ := procGetWindowLongPtrW.Call(hwnd, uintptr(uint32ToUintptr(GWLP_EXSTYLE)))
+	procSetWindowLongPtrW.Call(hwnd, uintptr(uint32ToUintptr(GWLP_EXSTYLE)), exStyle|WS_EX_TRANSPARENT)
+	// WindowFromPoint takes POINT by value — pack two int32 into one uintptr on x64
+	packed := uintptr(uint32(pt.X)) | (uintptr(uint32(pt.Y)) << 32)
+	target, _, _ := procWindowFromPoint.Call(packed)
+	procSetWindowLongPtrW.Call(hwnd, uintptr(uint32ToUintptr(GWLP_EXSTYLE)), exStyle)
+	if target != 0 && target != hwnd {
+		procSendMessageW.Call(target, msg, wParam, lParam)
+	}
+	return true
 }
 
 // mouseButtonEvent creates a MouseDown/MouseUp event.

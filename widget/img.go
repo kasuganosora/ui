@@ -63,6 +63,12 @@ type Img struct {
 	naturalH int // original image height
 	texture  render.TextureHandle
 
+	// Pending texture data from background goroutine (decoded on bg thread,
+	// GPU upload deferred to main thread via Draw).
+	pendingPixels []byte
+	pendingW      int
+	pendingH      int
+
 	// Animated GIF
 	frames     []gifFrame
 	frameIdx   int
@@ -181,7 +187,12 @@ func (img *Img) load() {
 
 	img.naturalW = bounds.Dx()
 	img.naturalH = bounds.Dy()
-	img.createTexture(rgba.Pix, img.naturalW, img.naturalH)
+	// Defer GPU texture creation to the main thread (Draw).
+	// Vulkan command submission is not thread-safe.
+	img.pendingPixels = rgba.Pix
+	img.pendingW = img.naturalW
+	img.pendingH = img.naturalH
+	img.state = ImgStateLoading
 }
 
 func (img *Img) loadGIF(f *os.File) {
@@ -259,8 +270,12 @@ func (img *Img) loadGIFFromReader(r io.Reader) {
 		}
 	}
 
-	// Create texture from first frame
-	img.createTexture(img.frames[0].pixels, canvasW, canvasH)
+	// Defer GPU texture creation to the main thread (Draw).
+	// Vulkan command submission is not thread-safe.
+	img.pendingPixels = img.frames[0].pixels
+	img.pendingW = canvasW
+	img.pendingH = canvasH
+	img.state = ImgStateLoading
 
 	// Auto-play animated GIFs
 	if len(img.frames) > 1 {
@@ -307,7 +322,12 @@ func (img *Img) loadFromBytes(data []byte, hint string) {
 	draw.Draw(rgba, bounds, decoded, bounds.Min, draw.Src)
 	img.naturalW = bounds.Dx()
 	img.naturalH = bounds.Dy()
-	img.createTexture(rgba.Pix, img.naturalW, img.naturalH)
+	// Defer GPU texture creation to the main thread (Draw).
+	// Vulkan command submission is not thread-safe.
+	img.pendingPixels = rgba.Pix
+	img.pendingW = img.naturalW
+	img.pendingH = img.naturalH
+	img.state = ImgStateLoading
 }
 
 func isRemoteURL(src string) bool {
@@ -384,6 +404,12 @@ func (img *Img) Destroy() {
 
 // Draw renders the image.
 func (img *Img) Draw(buf *render.CommandBuffer) {
+	// Flush pending texture from background goroutine (GPU ops must run on main thread)
+	if img.pendingPixels != nil {
+		img.createTexture(img.pendingPixels, img.pendingW, img.pendingH)
+		img.pendingPixels = nil
+	}
+
 	bounds := img.Bounds()
 	if bounds.IsEmpty() {
 		return

@@ -452,8 +452,9 @@ func (w *Window) ShowContextMenu(clientX, clientY int, items []platform.ContextM
 	return -1
 }
 
-func (w *Window) IsTransparent() bool { return false }
-func (w *Window) SetTopMost(topmost bool) {}
+func (w *Window) IsTransparent() bool              { return false }
+func (w *Window) SetTopMost(topmost bool)           {}
+func (w *Window) SetHitTestFunc(func(int, int) bool) {}
 
 func (w *Window) Destroy() {
 	if w.trackingArea != 0 {

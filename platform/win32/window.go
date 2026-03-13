@@ -56,6 +56,10 @@ type Window struct {
 	inSizeMove     bool
 	onResizeFunc   func()
 
+	// Per-pixel hit test callback for transparent windows.
+	// Returns true if the window handles input at (x,y), false to pass through.
+	hitTestFunc func(x, y int) bool
+
 	// Accessibility: UI Automation provider
 	uiaProvider *UIAProvider
 }
@@ -629,6 +633,10 @@ func (w *Window) SetTopMost(topmost bool) {
 		insertAfter = HWND_TOPMOST
 	}
 	procSetWindowPos.Call(w.hwnd, insertAfter, 0, 0, 0, 0, SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE)
+}
+
+func (w *Window) SetHitTestFunc(fn func(x, y int) bool) {
+	w.hitTestFunc = fn
 }
 
 func (w *Window) Destroy() {

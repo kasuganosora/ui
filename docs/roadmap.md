@@ -340,6 +340,33 @@
 
 ### 里程碑: 动画、SVG 路径、富文本、停靠系统、手柄导航全部完成，P2 组件齐备 ✅
 
+## 阶段 5.5: 跨平台透明窗口 + 线程安全 ✅
+
+### 透明异形窗口（Desktop Pet / Shaped Window）
+
+- [x] 平台接口扩展（WindowOptions: Transparent, TopMost; Window: IsTransparent, SetTopMost, SetHitTestFunc）
+- [x] Win32 透明窗口（WS_POPUP + WS_EX_NOREDIRECTIONBITMAP，无边框、无重定向位图）
+- [x] DX11 DirectComposition 透明渲染（IDCompositionDevice/Target/Visual，DXGI_ALPHA_MODE_PREMULTIPLIED，FLIP_SEQUENTIAL 合成交换链）
+- [x] Vulkan 透明窗口支持（CompositeAlpha PreMultiplied/PostMultiplied/Inherit 选择）
+- [x] Metal 透明窗口支持（CAMetalLayer setOpaque:NO，清除色 alpha=0）
+- [x] 跨平台 per-pixel 命中测试（SetHitTestFunc 回调，Win32 WM_NCHITTEST → HTTRANSPARENT）
+- [x] 滚轮事件穿透（WM_MOUSEWHEEL 转发到下层窗口，WindowFromPoint + WS_EX_TRANSPARENT 临时切换）
+- [x] 全平台 stub（Linux/Darwin/Android/Wayland/Godot）
+
+### 桌面宠物示例程序 ✅
+
+- [x] cmd/pet — 独立桌面宠物应用
+  - VPet 动画帧下载与缓存（GitHub raw 资源）
+  - DX11 DirectComposition 透明渲染
+  - Per-pixel alpha 命中测试（透明区域点击穿透）
+  - 拖拽移动、右键退出
+
+### GPU 线程安全修复 ✅
+
+- [x] Avatar 组件线程安全（FetchAsync goroutine 解码 → pendingPixels → Draw 主线程创建纹理）
+- [x] Img 组件线程安全（同 Avatar 模式，FetchAsync + GIF 解码均延迟到 Draw）
+- [x] 根因：Vulkan vkQueueSubmit/vkFreeCommandBuffers 不可跨线程与渲染循环竞争
+
 ## 阶段 6: 生态与打磨（第 45 周+）
 
 - [ ] 完整文档和示例

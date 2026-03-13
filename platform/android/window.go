@@ -134,8 +134,9 @@ func (w *Window) ClientToScreen(x, y int) (int, int) {
 	return x, y
 }
 
-func (w *Window) IsTransparent() bool { return false }
-func (w *Window) SetTopMost(topmost bool) {}
+func (w *Window) IsTransparent() bool              { return false }
+func (w *Window) SetTopMost(topmost bool)           {}
+func (w *Window) SetHitTestFunc(func(int, int) bool) {}
 
 func (w *Window) Destroy() {
 	w.handle = 0
