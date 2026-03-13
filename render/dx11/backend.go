@@ -5,6 +5,7 @@ package dx11
 import (
 	"fmt"
 	"image"
+	"sync"
 	"syscall"
 	"unsafe"
 
@@ -144,6 +145,7 @@ type Backend struct {
 	hwnd          uintptr
 
 	// Texture management
+	texMu         sync.RWMutex
 	nextTextureID render.TextureHandle
 	textures      map[render.TextureHandle]*textureEntry
 }
@@ -1045,7 +1047,9 @@ func clamp32dx(v, lo, hi float32) float32 {
 
 func (b *Backend) renderText(c render.Command) {
 	tc := c.Text
+	b.texMu.RLock()
 	entry, ok := b.textures[tc.Atlas]
+	b.texMu.RUnlock()
 	if !ok {
 		return
 	}
@@ -1101,7 +1105,9 @@ func (b *Backend) renderText(c render.Command) {
 
 func (b *Backend) renderImage(c render.Command) {
 	ic := c.Image
+	b.texMu.RLock()
 	entry, ok := b.textures[ic.Texture]
+	b.texMu.RUnlock()
 	if !ok {
 		return
 	}
@@ -1283,6 +1289,7 @@ func (b *Backend) CreateTexture(desc render.TextureDesc) (render.TextureHandle, 
 		return render.InvalidTexture, fmt.Errorf("dx11: CreateShaderResourceView failed: 0x%x", hr)
 	}
 
+	b.texMu.Lock()
 	handle := b.nextTextureID
 	b.nextTextureID++
 	b.textures[handle] = &textureEntry{
@@ -1292,13 +1299,16 @@ func (b *Backend) CreateTexture(desc render.TextureDesc) (render.TextureHandle, 
 		height:  desc.Height,
 		format:  desc.Format,
 	}
+	b.texMu.Unlock()
 
 	return handle, nil
 }
 
 // UpdateTexture implements render.Backend.
 func (b *Backend) UpdateTexture(handle render.TextureHandle, region uimath.Rect, data []byte) error {
+	b.texMu.RLock()
 	entry, ok := b.textures[handle]
+	b.texMu.RUnlock()
 	if !ok {
 		return fmt.Errorf("dx11: texture %d not found", handle)
 	}
@@ -1331,7 +1341,12 @@ func (b *Backend) UpdateTexture(handle render.TextureHandle, region uimath.Rect,
 
 // DestroyTexture implements render.Backend.
 func (b *Backend) DestroyTexture(handle render.TextureHandle) {
+	b.texMu.Lock()
 	entry, ok := b.textures[handle]
+	if ok {
+		delete(b.textures, handle)
+	}
+	b.texMu.Unlock()
 	if !ok {
 		return
 	}
@@ -1341,7 +1356,6 @@ func (b *Backend) DestroyTexture(handle render.TextureHandle) {
 	if entry.texture != 0 {
 		comRelease(entry.texture)
 	}
-	delete(b.textures, handle)
 }
 
 // MaxTextureSize implements render.Backend.
@@ -1428,8 +1442,14 @@ func (b *Backend) ReadPixels() (*image.RGBA, error) {
 
 // Destroy implements render.Backend.
 func (b *Backend) Destroy() {
-	for handle := range b.textures {
-		b.DestroyTexture(handle)
+	b.texMu.Lock()
+	texIDs := make([]render.TextureHandle, 0, len(b.textures))
+	for id := range b.textures {
+		texIDs = append(texIDs, id)
+	}
+	b.texMu.Unlock()
+	for _, id := range texIDs {
+		b.DestroyTexture(id)
 	}
 
 	if b.vertexBuffer != 0 {

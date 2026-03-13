@@ -186,6 +186,7 @@ func NewApp(opts AppOptions) (*App, error) {
 		Atlas:     a.glyphAtlas,
 		DPIScale:  dpi,
 		KeepAlive: a.plat.ProcessMessages,
+		Backend:   a.backend,
 	})
 
 	// --- Widget Tree ---
@@ -1212,3 +1213,4 @@ func (e *mockEngine) HasGlyph(_ font.ID, r rune) bool {
 	_, ok := e.glyphs[r]
 	return ok
 }
+func (e *mockEngine) HasColorGlyphs(font.ID) bool { return false }

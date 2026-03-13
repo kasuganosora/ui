@@ -6,6 +6,7 @@ package freetype
 // Same layout as Linux LP64.
 
 const (
+	offFaceFlags      = 8 // face->face_flags (matches Windows LLP64 layout)
 	offFaceUnitsPerEM = 104
 	offFaceGlyph      = 120
 	offFaceSize       = 128

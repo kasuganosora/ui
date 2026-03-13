@@ -543,6 +543,7 @@ func (e *coverageFontEngine) HasGlyph(_ font.ID, r rune) bool {
 	_, ok := e.glyphs[r]
 	return ok
 }
+func (e *coverageFontEngine) HasColorGlyphs(font.ID) bool { return false }
 
 func newTestRenderer(t *testing.T) (*textrender.Renderer, font.ID) {
 	t.Helper()

@@ -163,6 +163,13 @@ func (s *basicShaper) Shape(text string, opts ShapeOptions) []GlyphRun {
 			continue
 		}
 
+		// Skip invisible emoji modifiers (variation selectors, ZWJ, etc.)
+		if isInvisibleModifier(r) {
+			i += size
+			runeIdx++
+			continue
+		}
+
 		glyphFontID, glyphID := resolveGlyph(r)
 		gm := s.engine.GlyphMetrics(glyphFontID, glyphID, opts.FontSize)
 
@@ -427,6 +434,11 @@ func (s *basicShaper) Measure(text string, opts ShapeOptions) TextMetrics {
 			continue
 		}
 
+		if isInvisibleModifier(r) {
+			i += size
+			continue
+		}
+
 		glyphFontID, glyphID := opts.FontID, s.engine.GlyphIndex(opts.FontID, r)
 		if glyphID == 0 {
 			for _, fb := range opts.FallbackFontIDs {
@@ -547,6 +559,35 @@ func isBreakOpportunity(r rune) bool {
 		return true
 	}
 
+	return false
+}
+
+// isInvisibleModifier returns true for characters that should not produce
+// visible glyphs: variation selectors, zero-width joiners, combining marks
+// used in emoji sequences, etc.
+func isInvisibleModifier(r rune) bool {
+	switch {
+	case r == 0xFE0E || r == 0xFE0F: // Variation Selector-15 (text), -16 (emoji)
+		return true
+	case r == 0x200D: // Zero Width Joiner (ZWJ)
+		return true
+	case r == 0x200B: // Zero Width Space
+		return true
+	case r == 0x200C: // Zero Width Non-Joiner
+		return true
+	case r == 0x2060: // Word Joiner
+		return true
+	case r == 0xFEFF: // BOM / Zero Width No-Break Space
+		return true
+	case r == 0x20E3: // Combining Enclosing Keycap
+		return true
+	case r >= 0x1F3FB && r <= 0x1F3FF: // Skin tone modifiers (Fitzpatrick)
+		return true
+	case r >= 0xE0020 && r <= 0xE007F: // Tag characters (used in flag sequences like 🏴󠁧󠁢)
+		return true
+	case r == 0xE0001: // Language Tag (deprecated)
+		return true
+	}
 	return false
 }
 

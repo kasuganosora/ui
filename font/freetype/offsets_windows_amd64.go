@@ -10,6 +10,9 @@ package freetype
 
 // FT_FaceRec offsets (from freetype/freetype.h)
 const (
+	// face->face_flags (FT_Long at offset 8 — LLP64: long = 4 bytes)
+	offFaceFlags = 8
+
 	// face->units_per_EM (FT_UShort at offset 104 in FT_FaceRec)
 	offFaceUnitsPerEM = 104
 

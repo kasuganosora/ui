@@ -53,6 +53,7 @@ var nav = []struct{ value, section string }{
 	{"panel", "sec-panel"},
 	{"tooltip", "sec-tooltip"},
 	{"texttest", "sec-texttest"},
+	{"emoji", "sec-emoji"},
 }
 
 func main() {
@@ -533,6 +534,7 @@ const demoHTML = `
 				<list-item value="tooltip" group="布局">Tooltip 提示</list-item>
 
 				<list-item value="texttest" group="测试">Text 渲染测试</list-item>
+				<list-item value="emoji" group="测试">Emoji 表情</list-item>
 			</list>
 		</aside>
 
@@ -923,6 +925,53 @@ const demoHTML = `
 					<span style="font-size: 14px; color: rgba(0,0,0,0.6)">中国智造Abc 按钮用于开启一个闭环的操作任务</span>
 					<span style="font-size: 72px; color: #1677ff">中国智造Abc</span>
 					<span style="font-size: 72px; color: #e34d59">中国智造Abc</span>
+				</div>
+			</div>
+
+			<!-- ===== Emoji ===== -->
+			<div id="sec-emoji">
+				<h2 class="section-title">Emoji 表情渲染</h2>
+				<span class="section-desc">验证彩色 Emoji 渲染能力，包括表情、手势、动物、食物、旗帜等类别。</span>
+				<div class="demo-card">
+					<span class="demo-label">表情 Smileys</span>
+					<span style="font-size: 24px; color: rgba(0,0,0,0.9)">😀 😃 😄 😁 😆 🥹 😅 😂 🤣 🥲 😊 😇 🙂 🙃 😉 😌</span>
+
+					<span class="demo-label">手势 Gestures</span>
+					<span style="font-size: 24px; color: rgba(0,0,0,0.9)">👍 👎 👋 🤝 👏 🙏 ✌️ 🤞 🫶 👊 ✊ 🤚 🖐️ ✋ 🤙</span>
+
+					<span class="demo-label">动物 Animals</span>
+					<span style="font-size: 24px; color: rgba(0,0,0,0.9)">🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵</span>
+
+					<span class="demo-label">食物 Food</span>
+					<span style="font-size: 24px; color: rgba(0,0,0,0.9)">🍎 🍊 🍋 🍇 🍉 🍓 🫐 🍑 🍒 🍌 🥝 🍕 🍔 🌮 🍜</span>
+
+					<span class="demo-label">旅行 Travel</span>
+					<span style="font-size: 24px; color: rgba(0,0,0,0.9)">🚗 🚕 🚌 🚎 🏎️ 🚑 🚒 🚐 🛻 🚚 ✈️ 🚀 🛸 🚁 ⛵</span>
+
+					<span class="demo-label">物品 Objects</span>
+					<span style="font-size: 24px; color: rgba(0,0,0,0.9)">⌚ 📱 💻 ⌨️ 🖥️ 🖨️ 🎮 🕹️ 📷 📹 🔑 💡 🔔 📦 💎</span>
+
+					<span class="demo-label">符号 Symbols</span>
+					<span style="font-size: 24px; color: rgba(0,0,0,0.9)">❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗</span>
+
+					<span class="demo-label">旗帜与符号 Flags &amp; Misc</span>
+					<span style="font-size: 24px; color: rgba(0,0,0,0.9)">🏁 🚩 🎌 🏴 🏳️ ⚽ ⭐ 🌟 💫 ☀️ 🌈 ⚡ 🔥 💧 🌊</span>
+				</div>
+
+				<div class="demo-card">
+					<span class="demo-label">中英文混排 Mixed Text</span>
+					<span style="font-size: 16px; color: rgba(0,0,0,0.9)">Hello 你好 🌍 World 世界 🎉 欢迎使用 GoUI！</span>
+					<span style="font-size: 16px; color: rgba(0,0,0,0.9)">这是一段包含 emoji 的正常文本 🔥，看看排版效果怎么样 👀</span>
+					<span style="font-size: 16px; color: rgba(0,0,0,0.9)">连续 emoji：🔥🔥🔥💯💯💯✨✨✨🎊🎊🎊</span>
+
+					<span class="demo-label">不同字号 Font Sizes</span>
+					<span style="font-size: 12px; color: rgba(0,0,0,0.6)">12px: 你好 🌍 Hello 🎉 World</span>
+					<span style="font-size: 14px; color: rgba(0,0,0,0.6)">14px: 你好 🌍 Hello 🎉 World</span>
+					<span style="font-size: 16px; color: rgba(0,0,0,0.9)">16px: 你好 🌍 Hello 🎉 World</span>
+					<span style="font-size: 20px; color: rgba(0,0,0,0.9)">20px: 你好 🌍 Hello 🎉 World</span>
+					<span style="font-size: 28px; color: rgba(0,0,0,0.9)">28px: 你好 🌍 Hello 🎉 World</span>
+					<span style="font-size: 36px; color: rgba(0,0,0,0.9)">36px: 你好 🌍 Hello 🎉 World</span>
+					<span style="font-size: 48px; color: rgba(0,0,0,0.9)">48px: 🎮 🎲 🎯 🏆 🥇</span>
 				</div>
 			</div>
 

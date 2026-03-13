@@ -87,6 +87,8 @@ func platformDefaultFont() string {
 // platformFallbackFonts returns additional fallback font paths for symbol glyphs.
 func platformFallbackFonts() []string {
 	candidates := []string{
+		// Apple Color Emoji — must come before monochrome symbols
+		"/System/Library/Fonts/Apple Color Emoji.ttc",
 		"/System/Library/Fonts/Apple Symbols.ttf",
 		"/System/Library/Fonts/Symbol.ttf",
 	}

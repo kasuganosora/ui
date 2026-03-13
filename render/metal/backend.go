@@ -5,6 +5,7 @@ package metal
 import (
 	"fmt"
 	"image"
+	"sync"
 	"unsafe"
 
 	uimath "github.com/kasuganosora/ui/math"
@@ -86,6 +87,7 @@ type Backend struct {
 	dpiScale      float32
 
 	// Textures
+	texMu     sync.RWMutex
 	nextTexID render.TextureHandle
 	textures  map[render.TextureHandle]*metalTexture
 }
@@ -879,7 +881,9 @@ func (b *Backend) drawText(t *render.TextCmd, opacity float32) {
 		return
 	}
 
+	b.texMu.RLock()
 	mt, ok := b.textures[t.Atlas]
+	b.texMu.RUnlock()
 	if !ok || mt == nil {
 		return
 	}
@@ -926,7 +930,9 @@ func (b *Backend) drawText(t *render.TextCmd, opacity float32) {
 
 // drawImage renders a textured image command.
 func (b *Backend) drawImage(img *render.ImageCmd, opacity float32) {
+	b.texMu.RLock()
 	mt, ok := b.textures[img.Texture]
+	b.texMu.RUnlock()
 	if !ok || mt == nil {
 		return
 	}
@@ -1086,9 +1092,9 @@ func (b *Backend) CreateTexture(desc render.TextureDesc) (render.TextureHandle, 
 		)
 	}
 
+	b.texMu.Lock()
 	handle := b.nextTexID
 	b.nextTexID++
-
 	b.textures[handle] = &metalTexture{
 		tex:    tex,
 		width:  desc.Width,
@@ -1096,13 +1102,16 @@ func (b *Backend) CreateTexture(desc render.TextureDesc) (render.TextureHandle, 
 		format: desc.Format,
 		filter: desc.Filter,
 	}
+	b.texMu.Unlock()
 
 	return handle, nil
 }
 
 // UpdateTexture implements render.Backend.
 func (b *Backend) UpdateTexture(handle render.TextureHandle, region uimath.Rect, data []byte) error {
+	b.texMu.RLock()
 	mt, ok := b.textures[handle]
+	b.texMu.RUnlock()
 	if !ok || mt == nil {
 		return fmt.Errorf("metal: invalid texture handle %d", handle)
 	}
@@ -1133,14 +1142,18 @@ func (b *Backend) UpdateTexture(handle render.TextureHandle, region uimath.Rect,
 
 // DestroyTexture implements render.Backend.
 func (b *Backend) DestroyTexture(handle render.TextureHandle) {
+	b.texMu.Lock()
 	mt, ok := b.textures[handle]
+	if ok {
+		delete(b.textures, handle)
+	}
+	b.texMu.Unlock()
 	if !ok || mt == nil {
 		return
 	}
 	if mt.tex != 0 {
 		msgSend(mt.tex, selReleaseMetal)
 	}
-	delete(b.textures, handle)
 }
 
 // MaxTextureSize implements render.Backend.
@@ -1161,12 +1174,14 @@ func (b *Backend) ReadPixels() (*image.RGBA, error) {
 // Destroy implements render.Backend.
 func (b *Backend) Destroy() {
 	// Release all textures
+	b.texMu.Lock()
 	for handle, mt := range b.textures {
 		if mt != nil && mt.tex != 0 {
 			msgSend(mt.tex, selReleaseMetal)
 		}
 		delete(b.textures, handle)
 	}
+	b.texMu.Unlock()
 
 	// Release samplers
 	if b.linearSampler != 0 {

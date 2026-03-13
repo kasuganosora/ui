@@ -82,10 +82,9 @@ func platformDefaultFont() string {
 }
 
 // platformFallbackFonts returns additional fallback font paths for symbol glyphs.
-// NOTE: seguiemj.ttf (colored emoji) is intentionally excluded — colored CBDT/CBLC
-// glyphs cannot be rendered correctly through the SDF text pipeline.
 func platformFallbackFonts() []string {
 	return []string{
+		`C:\Windows\Fonts\seguiemj.ttf`, // Segoe UI Emoji: color emoji (COLR/CPAL)
 		`C:\Windows\Fonts\seguisym.ttf`, // Segoe UI Symbol: arrows, hearts, misc Unicode
 	}
 }

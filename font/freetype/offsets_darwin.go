@@ -7,6 +7,7 @@ package freetype
 // Key difference from 32-bit: FT_Pos = long = 8 bytes (not 4).
 
 const (
+	offFaceFlags      = 16 // face->face_flags (FT_Long — LP64: long = 8 bytes)
 	offFaceUnitsPerEM = 136
 	offFaceGlyph      = 152
 	offFaceSize       = 160

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"sync"
 	"unsafe"
 
 	uimath "github.com/kasuganosora/ui/math"
@@ -71,6 +72,7 @@ type Backend struct {
 	deviceLost       bool   // Set when VK_ERROR_DEVICE_LOST is detected; rendering becomes no-op
 
 	// Texture management
+	texMu         sync.RWMutex
 	nextTextureID render.TextureHandle
 	textures      map[render.TextureHandle]*textureEntry
 }
@@ -893,6 +895,7 @@ func (b *Backend) CreateTexture(desc render.TextureDesc) (render.TextureHandle, 
 		return render.InvalidTexture, err
 	}
 
+	b.texMu.Lock()
 	id := b.nextTextureID
 	b.nextTextureID++
 	entry := &textureEntry{
@@ -905,6 +908,7 @@ func (b *Backend) CreateTexture(desc render.TextureDesc) (render.TextureHandle, 
 		format:  desc.Format,
 	}
 	b.textures[id] = entry
+	b.texMu.Unlock()
 
 	// Upload initial data if provided
 	if len(desc.Data) > 0 {
@@ -938,7 +942,9 @@ func (b *Backend) CreateTexture(desc render.TextureDesc) (render.TextureHandle, 
 
 // UpdateTexture implements render.Backend.
 func (b *Backend) UpdateTexture(handle render.TextureHandle, region uimath.Rect, data []byte) error {
+	b.texMu.RLock()
 	entry, ok := b.textures[handle]
+	b.texMu.RUnlock()
 	if !ok {
 		return fmt.Errorf("vulkan: texture %d not found", handle)
 	}
@@ -949,20 +955,26 @@ func (b *Backend) UpdateTexture(handle render.TextureHandle, region uimath.Rect,
 
 // DestroyTexture implements render.Backend.
 func (b *Backend) DestroyTexture(handle render.TextureHandle) {
-	if entry, ok := b.textures[handle]; ok {
-		if entry.sampler != 0 {
-			syscallN(b.loader.vkDestroySampler, uintptr(b.device), uintptr(entry.sampler), 0)
-		}
-		if entry.view != 0 {
-			syscallN(b.loader.vkDestroyImageView, uintptr(b.device), uintptr(entry.view), 0)
-		}
-		if entry.image != 0 {
-			syscallN(b.loader.vkDestroyImage, uintptr(b.device), uintptr(entry.image), 0)
-		}
-		if entry.memory != 0 {
-			syscallN(b.loader.vkFreeMemory, uintptr(b.device), uintptr(entry.memory), 0)
-		}
+	b.texMu.Lock()
+	entry, ok := b.textures[handle]
+	if ok {
 		delete(b.textures, handle)
+	}
+	b.texMu.Unlock()
+	if !ok {
+		return
+	}
+	if entry.sampler != 0 {
+		syscallN(b.loader.vkDestroySampler, uintptr(b.device), uintptr(entry.sampler), 0)
+	}
+	if entry.view != 0 {
+		syscallN(b.loader.vkDestroyImageView, uintptr(b.device), uintptr(entry.view), 0)
+	}
+	if entry.image != 0 {
+		syscallN(b.loader.vkDestroyImage, uintptr(b.device), uintptr(entry.image), 0)
+	}
+	if entry.memory != 0 {
+		syscallN(b.loader.vkFreeMemory, uintptr(b.device), uintptr(entry.memory), 0)
 	}
 }
 
@@ -1079,7 +1091,13 @@ func (b *Backend) Destroy() {
 	b.loader.DeviceWaitIdle(b.device)
 
 	// Destroy textures
+	b.texMu.Lock()
+	texIDs := make([]render.TextureHandle, 0, len(b.textures))
 	for id := range b.textures {
+		texIDs = append(texIDs, id)
+	}
+	b.texMu.Unlock()
+	for _, id := range texIDs {
 		b.DestroyTexture(id)
 	}
 

@@ -103,5 +103,6 @@ func (e *mockEngine) HasGlyph(id ID, r rune) bool {
 	return ok
 }
 
-func (e *mockEngine) SetDPIScale(float32) {}
-func (e *mockEngine) Destroy() {}
+func (e *mockEngine) HasColorGlyphs(ID) bool { return false }
+func (e *mockEngine) SetDPIScale(float32)          {}
+func (e *mockEngine) Destroy()                     {}

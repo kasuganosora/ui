@@ -19,6 +19,7 @@ const (
 	ftLoadRender        = 4
 	ftLoadNoBitmap      = 8
 	ftLoadForceAutohint = 0x20
+	ftLoadColor         = 0x100000 // FT_LOAD_COLOR — request color bitmap/COLR rendering
 
 	ftRenderModeNormal = 0
 	ftRenderModeLight  = 1
@@ -27,7 +28,10 @@ const (
 	ftKerningDefault = 0
 
 	ftPixelModeGray = 2
+	ftPixelModeBGRA = 7 // FT_PIXEL_MODE_BGRA — pre-multiplied BGRA color bitmap
 	ftPixelModeSDF  = 8
+
+	ftFaceFlagColor = 0x4000 // FT_FACE_FLAG_COLOR — face has color glyphs (COLR/CBDT/sbix)
 )
 
 // glyphMetricsKey caches glyph metrics to avoid redundant FT_Load_Glyph calls.
@@ -258,7 +262,15 @@ func (e *Engine) RasterizeGlyph(id font.ID, glyph font.GlyphID, size float32, sd
 
 	e.setPixelSize(entry.face, size)
 
+	// For color fonts when not SDF: use FT_LOAD_COLOR to get BGRA bitmap
 	loadFlags := uintptr(ftLoadDefault)
+	if !sdf {
+		flags := readLong(uintptr(entry.face), offFaceFlags)
+		if flags&ftFaceFlagColor != 0 {
+			loadFlags = uintptr(ftLoadColor)
+		}
+	}
+
 	ret := ftCall(e.ldr.ftLoadGlyph,
 		uintptr(entry.face),
 		uintptr(glyph),
@@ -291,13 +303,39 @@ func (e *Engine) RasterizeGlyph(id font.ID, glyph font.GlyphID, size float32, sd
 		return font.GlyphBitmap{Width: 0, Height: 0, SDF: sdf}, nil
 	}
 
-	// Copy bitmap data
-	data := make([]byte, width*rows)
-	absPitch := pitch
-	if absPitch < 0 {
-		absPitch = -absPitch
+	// BGRA color bitmap (color emoji) — convert to RGBA, un-premultiply alpha
+	if pixelMode == ftPixelModeBGRA {
+		data := make([]byte, width*rows*4)
+		for y := 0; y < rows; y++ {
+			src := bufPtr + uintptr(y*pitch)
+			dst := y * width * 4
+			for x := 0; x < width; x++ {
+				b := *(*byte)(unsafe.Pointer(src + uintptr(x*4+0)))
+				g := *(*byte)(unsafe.Pointer(src + uintptr(x*4+1)))
+				r := *(*byte)(unsafe.Pointer(src + uintptr(x*4+2)))
+				a := *(*byte)(unsafe.Pointer(src + uintptr(x*4+3)))
+				// Un-premultiply: FreeType BGRA is pre-multiplied
+				if a > 0 && a < 255 {
+					r = uint8(uint16(r) * 255 / uint16(a))
+					g = uint8(uint16(g) * 255 / uint16(a))
+					b = uint8(uint16(b) * 255 / uint16(a))
+				}
+				data[dst+x*4+0] = r
+				data[dst+x*4+1] = g
+				data[dst+x*4+2] = b
+				data[dst+x*4+3] = a
+			}
+		}
+		return font.GlyphBitmap{
+			Width:  width,
+			Height: rows,
+			Data:   data,
+			Color:  true,
+		}, nil
 	}
 
+	// Grayscale / SDF bitmap — copy single-channel data
+	data := make([]byte, width*rows)
 	for y := 0; y < rows; y++ {
 		src := bufPtr + uintptr(y*pitch)
 		dst := y * width
@@ -342,6 +380,18 @@ func (e *Engine) Kerning(id font.ID, left, right font.GlyphID, size float32) flo
 
 func (e *Engine) HasGlyph(id font.ID, r rune) bool {
 	return e.GlyphIndex(id, r) != 0
+}
+
+func (e *Engine) HasColorGlyphs(id font.ID) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	entry := e.faces[id]
+	if entry == nil {
+		return false
+	}
+	flags := readLong(uintptr(entry.face), offFaceFlags)
+	return flags&ftFaceFlagColor != 0
 }
 
 func (e *Engine) Destroy() {

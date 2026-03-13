@@ -61,8 +61,9 @@ type GlyphMetrics struct {
 type GlyphBitmap struct {
 	Width  int
 	Height int
-	Data   []byte // Pixel data (R8 for SDF, RGBA8 for color)
+	Data   []byte // Pixel data (R8 for SDF/gray, RGBA8 for color emoji)
 	SDF    bool   // True if this is an SDF bitmap
+	Color  bool   // True if this is an RGBA color bitmap (e.g., color emoji)
 }
 
 // TextMetrics describes measured text dimensions. Value object.
@@ -127,6 +128,10 @@ type Engine interface {
 
 	// HasGlyph returns true if the font contains a glyph for the given rune.
 	HasGlyph(id ID, r rune) bool
+
+	// HasColorGlyphs returns true if the font contains color glyph data
+	// (e.g., COLR/CPAL, CBDT/CBLC, or sbix tables for color emoji).
+	HasColorGlyphs(id ID) bool
 
 	// SetDPIScale sets the display DPI scale factor (1.0 = 96 DPI).
 	// Font sizes passed to other methods are treated as points and

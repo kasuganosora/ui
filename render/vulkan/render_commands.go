@@ -49,7 +49,9 @@ func (b *Backend) renderAllCommands(cmd CommandBuffer, commands []render.Command
 			if c.Text == nil {
 				continue
 			}
+			b.texMu.RLock()
 			entry, ok := b.textures[c.Text.Atlas]
+			b.texMu.RUnlock()
 			if !ok || entry.descriptorSet == 0 {
 				continue
 			}
@@ -68,7 +70,9 @@ func (b *Backend) renderAllCommands(cmd CommandBuffer, commands []render.Command
 			if c.Image == nil {
 				continue
 			}
+			b.texMu.RLock()
 			entry, ok := b.textures[c.Image.Texture]
+			b.texMu.RUnlock()
 			if !ok || entry.descriptorSet == 0 {
 				continue
 			}
@@ -329,7 +333,9 @@ func (b *Backend) writeTextVertices(c render.Command) int {
 	if !vkDebugTextOnce && len(c.Text.Glyphs) > 0 {
 		vkDebugTextOnce = true
 		g := c.Text.Glyphs[0]
+		b.texMu.RLock()
 		texEntry := b.textures[c.Text.Atlas]
+		b.texMu.RUnlock()
 		tw, th := 0, 0
 		if texEntry != nil {
 			tw, th = texEntry.width, texEntry.height

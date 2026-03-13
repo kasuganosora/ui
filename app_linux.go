@@ -78,6 +78,11 @@ func platformDefaultFont() string {
 // platformFallbackFonts returns additional font paths for symbol/emoji glyphs.
 func platformFallbackFonts() []string {
 	candidates := []string{
+		// Color emoji (Noto Color Emoji) — must come before monochrome symbols
+		"/usr/share/fonts/noto-color-emoji/NotoColorEmoji.ttf",
+		"/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+		"/usr/share/fonts/google-noto-emoji/NotoColorEmoji.ttf",
+		// Monochrome symbols
 		"/usr/share/fonts/noto/NotoSansSymbols-Regular.ttf",
 		"/usr/share/fonts/truetype/noto/NotoSansSymbols-Regular.ttf",
 		"/usr/share/fonts/noto/NotoSansSymbols2-Regular.ttf",

@@ -7,6 +7,7 @@ package freetype
 // Key: FT_Pos = long = 8 bytes on 64-bit, verified via CGO offsetof().
 
 const (
+	offFaceFlags      = 16 // face->face_flags (FT_Long — LP64: long = 8 bytes)
 	offFaceUnitsPerEM = 136
 	offFaceGlyph      = 152
 	offFaceSize       = 160

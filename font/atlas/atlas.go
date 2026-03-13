@@ -44,6 +44,7 @@ type Atlas struct {
 	// Pixel data buffer (CPU side, for batching uploads)
 	pixels []byte
 	dirty  bool // True if pixels have been modified since last upload
+	bpp    int  // Bytes per pixel: 1 for R8 (SDF/gray), 4 for RGBA8 (color emoji)
 
 	// Dirty region tracking for partial uploads
 	dirtyMinX, dirtyMinY int
@@ -56,7 +57,8 @@ type Atlas struct {
 	maxSize int
 
 	// SDF mode
-	sdf bool
+	sdf   bool
+	color bool // True if this is an RGBA color atlas
 }
 
 // Options for creating an atlas.
@@ -65,6 +67,7 @@ type Options struct {
 	Height  int
 	MaxSize int  // Maximum atlas dimension (0 = 4096)
 	SDF     bool // Use SDF rendering
+	Color   bool // True for RGBA color glyph atlas (e.g., color emoji)
 	Backend render.Backend
 }
 
@@ -81,15 +84,22 @@ func New(opts Options) *Atlas {
 		maxSize = 4096
 	}
 
+	bpp := 1
+	if opts.Color {
+		bpp = 4
+	}
+
 	return &Atlas{
 		width:     opts.Width,
 		height:    opts.Height,
 		packer:    newShelfPacker(opts.Width, opts.Height),
 		glyphs:    make(map[GlyphKey]*GlyphEntry),
-		pixels:    make([]byte, opts.Width*opts.Height),
+		pixels:    make([]byte, opts.Width*opts.Height*bpp),
+		bpp:       bpp,
 		backend:   opts.Backend,
 		maxSize:   maxSize,
 		sdf:       opts.SDF,
+		color:     opts.Color,
 		dirtyMinX: opts.Width,
 		dirtyMinY: opts.Height,
 	}
@@ -166,17 +176,23 @@ func (a *Atlas) Insert(key GlyphKey, bitmap font.GlyphBitmap, metrics font.Glyph
 
 // blitBitmap copies glyph bitmap data into the atlas pixel buffer.
 func (a *Atlas) blitBitmap(region Region, bitmap font.GlyphBitmap) {
+	bpp := a.bpp
+	srcBPP := 1
+	if bitmap.Color {
+		srcBPP = 4
+	}
 	for y := 0; y < bitmap.Height && y < region.Height; y++ {
-		srcOffset := y * bitmap.Width
+		srcOffset := y * bitmap.Width * srcBPP
 		if srcOffset >= len(bitmap.Data) {
 			break
 		}
-		srcEnd := srcOffset + bitmap.Width
+		rowBytes := bitmap.Width * bpp
+		srcEnd := srcOffset + rowBytes
 		if srcEnd > len(bitmap.Data) {
 			srcEnd = len(bitmap.Data)
 		}
 		copyLen := srcEnd - srcOffset
-		dstOffset := (region.Y+y)*a.width + region.X
+		dstOffset := ((region.Y+y)*a.width + region.X) * bpp
 		dstEnd := dstOffset + copyLen
 		if dstEnd > len(a.pixels) {
 			dstEnd = len(a.pixels)
@@ -214,13 +230,18 @@ func (a *Atlas) Upload() error {
 		return nil
 	}
 
+	format := render.TextureFormatR8
+	if a.color {
+		format = render.TextureFormatRGBA8
+	}
+
 	// Create texture on first upload
 	if a.texture == render.InvalidTexture && a.backend != nil {
 		var err error
 		a.texture, err = a.backend.CreateTexture(render.TextureDesc{
 			Width:  a.width,
 			Height: a.height,
-			Format: render.TextureFormatR8,
+			Format: format,
 			Filter: render.TextureFilterLinear,
 			Data:   a.pixels,
 		})
@@ -247,10 +268,11 @@ func (a *Atlas) Upload() error {
 	}
 
 	// Extract the dirty sub-rectangle
-	subData := make([]byte, dw*dh)
+	bpp := a.bpp
+	subData := make([]byte, dw*dh*bpp)
 	for y := 0; y < dh; y++ {
-		srcStart := (dy+y)*a.width + dx
-		copy(subData[y*dw:(y+1)*dw], a.pixels[srcStart:srcStart+dw])
+		srcStart := ((dy+y)*a.width + dx) * bpp
+		copy(subData[y*dw*bpp:(y+1)*dw*bpp], a.pixels[srcStart:srcStart+dw*bpp])
 	}
 
 	uiRect := uimathRect(float32(dx), float32(dy), float32(dw), float32(dh))
@@ -280,11 +302,15 @@ func (a *Atlas) EnsureTexture() error {
 		return nil
 	}
 
+	format := render.TextureFormatR8
+	if a.color {
+		format = render.TextureFormatRGBA8
+	}
 	var err error
 	a.texture, err = a.backend.CreateTexture(render.TextureDesc{
 		Width:  a.width,
 		Height: a.height,
-		Format: render.TextureFormatR8,
+		Format: format,
 		Filter: render.TextureFilterLinear,
 		Data:   a.pixels,
 	})
@@ -365,11 +391,12 @@ func (a *Atlas) grow() bool {
 	}
 
 	// Allocate new pixel buffer and copy old data row by row
-	newPixels := make([]byte, newW*newH)
+	bpp := a.bpp
+	newPixels := make([]byte, newW*newH*bpp)
 	for y := 0; y < a.height; y++ {
-		srcOff := y * a.width
-		dstOff := y * newW
-		copy(newPixels[dstOff:dstOff+a.width], a.pixels[srcOff:srcOff+a.width])
+		srcOff := y * a.width * bpp
+		dstOff := y * newW * bpp
+		copy(newPixels[dstOff:dstOff+a.width*bpp], a.pixels[srcOff:srcOff+a.width*bpp])
 	}
 
 	// Update packer dimensions
@@ -410,6 +437,9 @@ func (a *Atlas) Destroy() {
 		a.texture = render.InvalidTexture
 	}
 }
+
+// IsColor returns true if this is an RGBA color atlas.
+func (a *Atlas) IsColor() bool { return a.color }
 
 // Width returns the atlas width in pixels.
 func (a *Atlas) Width() int { return a.width }
