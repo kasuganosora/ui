@@ -1,0 +1,9 @@
+[configuration]
+entry_symbol = "goui_init"
+compatibility_minimum = 4.2
+
+[libraries]
+windows.x86_64 = "res://bin/goui.dll"
+linux.x86_64 = "res://bin/goui.so"
+macos.arm64 = "res://bin/goui.dylib"
+macos.x86_64 = "res://bin/goui.dylib"
