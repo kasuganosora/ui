@@ -195,7 +195,7 @@ func TestHTTP_JsonList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /json/list: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("want 200, got %d", resp.StatusCode)
 	}
@@ -227,7 +227,7 @@ func TestHTTP_JsonVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /json/version: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("want 200, got %d", resp.StatusCode)
 	}
@@ -250,7 +250,7 @@ func TestHTTP_JsonProtocol(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /json/protocol: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("want 200, got %d", resp.StatusCode)
 	}
@@ -265,7 +265,7 @@ func TestHTTP_JsonAlias(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /json: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("want 200, got %d", resp.StatusCode)
 	}
@@ -281,19 +281,19 @@ func TestHTTP_WebSocket_Session(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial WS: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	req := map[string]any{"id": 1, "method": "DOM.enable"}
 	data, _ := json.Marshal(req)
-	conn.WriteMessage(websocket.TextMessage, data)
+	_ = conn.WriteMessage(websocket.TextMessage, data)
 
-	conn.SetReadDeadline(time.Now().Add(time.Second))
+	_ = conn.SetReadDeadline(time.Now().Add(time.Second))
 	_, resp, err := conn.ReadMessage()
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
 	var m map[string]any
-	json.Unmarshal(resp, &m)
+	_ = json.Unmarshal(resp, &m)
 	if _, ok := m["result"]; !ok {
 		t.Errorf("expected result, got %v", m)
 	}
@@ -310,7 +310,7 @@ func TestRun_ClosesOnDisconnect(t *testing.T) {
 		t.Fatalf("dial: %v", err)
 	}
 	// Close immediately — session.run() should exit cleanly
-	conn.Close()
+	_ = conn.Close()
 	time.Sleep(50 * time.Millisecond) // allow goroutine to finish
 }
 
@@ -373,10 +373,10 @@ func TestDrawOverlay_WithNonZeroBounds(t *testing.T) {
 func TestDeclaredStyleProps_PerSideMargin(t *testing.T) {
 	st := layout.Style{
 		Margin: layout.EdgeValues{
-			Top:   pxVal(1),
-			Right: pxVal(2),
+			Top:    pxVal(1),
+			Right:  pxVal(2),
 			Bottom: pxVal(3),
-			Left:  pxVal(4),
+			Left:   pxVal(4),
 		},
 	}
 	props := declaredStyleProps(st)

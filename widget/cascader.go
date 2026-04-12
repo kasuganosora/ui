@@ -36,11 +36,11 @@ func NewCascader(tree *core.Tree, cfg *Config) *Cascader {
 	return c
 }
 
-func (c *Cascader) Options() []*CascaderOption  { return c.options }
-func (c *Cascader) Selected() []string           { return c.selected }
-func (c *Cascader) IsOpen() bool                 { return c.open }
-func (c *Cascader) SetOpen(o bool)               { c.open = o }
-func (c *Cascader) OnChange(fn func([]string))   { c.onChange = fn }
+func (c *Cascader) Options() []*CascaderOption { return c.options }
+func (c *Cascader) Selected() []string         { return c.selected }
+func (c *Cascader) IsOpen() bool               { return c.open }
+func (c *Cascader) SetOpen(o bool)             { c.open = o }
+func (c *Cascader) OnChange(fn func([]string)) { c.onChange = fn }
 
 func (c *Cascader) SetOptions(opts []*CascaderOption) {
 	c.options = opts

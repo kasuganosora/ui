@@ -91,22 +91,22 @@ func (b *Backend) drawTexturedVertices(cmd CommandBuffer, pipeline Pipeline, pip
 	bindOffset := b.frameVertexOffset
 	b.writeVertexData(vertexData)
 
-	syscallN(b.loader.vkCmdBindPipeline,
+	_, _, _ = syscallN(b.loader.vkCmdBindPipeline,
 		uintptr(cmd), uintptr(PipelineBindPointGraphics), uintptr(pipeline),
 	)
 
-	syscallN(b.loader.vkCmdBindDescriptorSets,
+	_, _, _ = syscallN(b.loader.vkCmdBindDescriptorSets,
 		uintptr(cmd), uintptr(PipelineBindPointGraphics), uintptr(pipelineLayout),
 		0, 1, uintptr(unsafe.Pointer(&descSet)),
 		0, 0,
 	)
 
 	vb := b.vertexBuffers[b.currentFrame]
-	syscallN(b.loader.vkCmdBindVertexBuffers,
+	_, _, _ = syscallN(b.loader.vkCmdBindVertexBuffers,
 		uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&vb)), uintptr(unsafe.Pointer(&bindOffset)),
 	)
 
-	syscallN(b.loader.vkCmdDraw,
+	_, _, _ = syscallN(b.loader.vkCmdDraw,
 		uintptr(cmd), uintptr(len(vertices)), 1, 0, 0,
 	)
 }

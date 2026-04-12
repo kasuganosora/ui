@@ -6,7 +6,7 @@ package accessibility
 type Role uint8
 
 const (
-	RoleNone        Role = iota
+	RoleNone Role = iota
 	RoleWindow
 	RoleButton
 	RoleCheckBox
@@ -116,8 +116,8 @@ func (r Role) String() string {
 type State uint16
 
 const (
-	StateNone      State = 0
-	StateFocused   State = 1 << iota
+	StateNone    State = 0
+	StateFocused State = 1 << iota
 	StateSelected
 	StateChecked
 	StateDisabled

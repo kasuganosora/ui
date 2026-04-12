@@ -39,7 +39,7 @@ const (
 type NavDirection uint8
 
 const (
-	NavUp    NavDirection = iota
+	NavUp NavDirection = iota
 	NavDown
 	NavLeft
 	NavRight
@@ -58,13 +58,13 @@ type GamepadNavigator struct {
 	widgets     []Navigable
 	focusIndex  int
 	enabled     bool
-	deadzone    float32  // axis deadzone threshold
-	repeatDelay float32  // seconds before repeat starts
-	repeatRate  float32  // seconds between repeats
-	axisAccum   float32  // accumulated axis time for repeat
+	deadzone    float32 // axis deadzone threshold
+	repeatDelay float32 // seconds before repeat starts
+	repeatRate  float32 // seconds between repeats
+	axisAccum   float32 // accumulated axis time for repeat
 	lastDir     NavDirection
-	moved       bool     // has axis triggered a move this press
-	showFocus   bool     // whether to show focus indicator
+	moved       bool // has axis triggered a move this press
+	showFocus   bool // whether to show focus indicator
 	onNavigate  func(widget Navigable)
 	onActivate  func(widget Navigable)
 	onCancel    func()
@@ -92,11 +92,11 @@ func NewGamepadNavigator(tree *core.Tree, cfg *Config) *GamepadNavigator {
 }
 
 // SetEnabled enables or disables gamepad navigation.
-func (gn *GamepadNavigator) SetEnabled(e bool)           { gn.enabled = e }
-func (gn *GamepadNavigator) IsEnabled() bool              { return gn.enabled }
-func (gn *GamepadNavigator) SetDeadzone(d float32)        { gn.deadzone = d }
-func (gn *GamepadNavigator) SetRepeatDelay(d float32)     { gn.repeatDelay = d }
-func (gn *GamepadNavigator) SetRepeatRate(r float32)      { gn.repeatRate = r }
+func (gn *GamepadNavigator) SetEnabled(e bool)             { gn.enabled = e }
+func (gn *GamepadNavigator) IsEnabled() bool               { return gn.enabled }
+func (gn *GamepadNavigator) SetDeadzone(d float32)         { gn.deadzone = d }
+func (gn *GamepadNavigator) SetRepeatDelay(d float32)      { gn.repeatDelay = d }
+func (gn *GamepadNavigator) SetRepeatRate(r float32)       { gn.repeatRate = r }
 func (gn *GamepadNavigator) ShowFocus() bool               { return gn.showFocus }
 func (gn *GamepadNavigator) SetShowFocus(s bool)           { gn.showFocus = s }
 func (gn *GamepadNavigator) FocusIndex() int               { return gn.focusIndex }

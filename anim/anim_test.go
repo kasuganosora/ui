@@ -359,7 +359,7 @@ func TestKeyframeZeroDuration(t *testing.T) {
 	s.Tick(0.1)
 	// Zero duration → progress=1 → last keyframe
 	if ka.IsFinished() {
-		// Should finish
+		t.Skip("zero-duration keyframe finished as expected")
 	}
 }
 

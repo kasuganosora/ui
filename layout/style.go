@@ -4,11 +4,11 @@ package layout
 type Display uint8
 
 const (
-	DisplayBlock   Display = iota // Default (zero value)
-	DisplayFlex                   // Flexbox container
-	DisplayInline                 // Inline flow
-	DisplayNone                   // Hidden, removed from layout
-	DisplayGrid                   // CSS Grid container
+	DisplayBlock  Display = iota // Default (zero value)
+	DisplayFlex                  // Flexbox container
+	DisplayInline                // Inline flow
+	DisplayNone                  // Hidden, removed from layout
+	DisplayGrid                  // CSS Grid container
 )
 
 // Position determines positioning behavior.
@@ -43,7 +43,7 @@ const (
 type JustifyContent uint8
 
 const (
-	JustifyFlexStart    JustifyContent = iota
+	JustifyFlexStart JustifyContent = iota
 	JustifyFlexEnd
 	JustifyCenter
 	JustifySpaceBetween
@@ -55,7 +55,7 @@ const (
 type AlignItems uint8
 
 const (
-	AlignStretch  AlignItems = iota
+	AlignStretch AlignItems = iota
 	AlignFlexStart
 	AlignFlexEnd
 	AlignCenter
@@ -78,7 +78,7 @@ const (
 type AlignContent uint8
 
 const (
-	AlignContentStretch    AlignContent = iota
+	AlignContentStretch AlignContent = iota
 	AlignContentFlexStart
 	AlignContentFlexEnd
 	AlignContentCenter
@@ -131,8 +131,8 @@ const (
 
 // Predefined values.
 var (
-	Auto    = Value{Unit: UnitUndefined}
-	Zero    = Value{Amount: 0, Unit: UnitPx}
+	Auto = Value{Unit: UnitUndefined}
+	Zero = Value{Amount: 0, Unit: UnitPx}
 )
 
 // Px creates a pixel value.
@@ -180,8 +180,8 @@ type Style struct {
 	BoxSizing BoxSizing
 
 	// Dimensions
-	Width    Value
-	Height   Value
+	Width     Value
+	Height    Value
 	MinWidth  Value
 	MinHeight Value
 	MaxWidth  Value

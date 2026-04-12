@@ -14,7 +14,7 @@ import (
 type MessageTheme uint8
 
 const (
-	MessageThemeInfo    MessageTheme = iota
+	MessageThemeInfo MessageTheme = iota
 	MessageThemeSuccess
 	MessageThemeWarning
 	MessageThemeError
@@ -74,9 +74,9 @@ func NewMessage(tree *core.Tree, content string, cfg *Config) *Message {
 	return m
 }
 
-func (m *Message) Content() string       { return m.content }
-func (m *Message) Theme() MessageTheme   { return m.theme }
-func (m *Message) IsVisible() bool       { return m.visible }
+func (m *Message) Content() string     { return m.content }
+func (m *Message) Theme() MessageTheme { return m.theme }
+func (m *Message) IsVisible() bool     { return m.visible }
 
 func (m *Message) SetContent(content string) { m.content = content }
 func (m *Message) SetTheme(t MessageTheme)   { m.theme = t }

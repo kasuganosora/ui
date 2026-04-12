@@ -17,15 +17,15 @@ type DialogueChoice struct {
 // DialogueBox is an NPC dialogue window with speaker name, text, and choices.
 type DialogueBox struct {
 	widget.Base
-	speaker    string
-	text       string
-	portrait   render.TextureHandle
-	choices    []DialogueChoice
-	visible    bool
-	width      float32
-	height     float32
-	onAdvance  func()
-	embedded   bool // if true, skip Panel chrome (used inside Window)
+	speaker   string
+	text      string
+	portrait  render.TextureHandle
+	choices   []DialogueChoice
+	visible   bool
+	width     float32
+	height    float32
+	onAdvance func()
+	embedded  bool // if true, skip Panel chrome (used inside Window)
 }
 
 func NewDialogueBox(tree *core.Tree, cfg *widget.Config) *DialogueBox {
@@ -45,16 +45,16 @@ func NewDialogueBox(tree *core.Tree, cfg *widget.Config) *DialogueBox {
 	return db
 }
 
-func (db *DialogueBox) Speaker() string              { return db.speaker }
-func (db *DialogueBox) Text() string                 { return db.text }
-func (db *DialogueBox) Choices() []DialogueChoice    { return db.choices }
-func (db *DialogueBox) IsVisible() bool              { return db.visible }
-func (db *DialogueBox) SetSpeaker(s string)          { db.speaker = s }
-func (db *DialogueBox) SetText(t string)             { db.text = t }
+func (db *DialogueBox) Speaker() string                    { return db.speaker }
+func (db *DialogueBox) Text() string                       { return db.text }
+func (db *DialogueBox) Choices() []DialogueChoice          { return db.choices }
+func (db *DialogueBox) IsVisible() bool                    { return db.visible }
+func (db *DialogueBox) SetSpeaker(s string)                { db.speaker = s }
+func (db *DialogueBox) SetText(t string)                   { db.text = t }
 func (db *DialogueBox) SetPortrait(t render.TextureHandle) { db.portrait = t }
-func (db *DialogueBox) SetSize(w, h float32)         { db.width = w; db.height = h }
-func (db *DialogueBox) OnAdvance(fn func())          { db.onAdvance = fn }
-func (db *DialogueBox) SetEmbedded(v bool)           { db.embedded = v }
+func (db *DialogueBox) SetSize(w, h float32)               { db.width = w; db.height = h }
+func (db *DialogueBox) OnAdvance(fn func())                { db.onAdvance = fn }
+func (db *DialogueBox) SetEmbedded(v bool)                 { db.embedded = v }
 
 func (db *DialogueBox) SetChoices(choices []DialogueChoice) {
 	db.choices = make([]DialogueChoice, len(choices))

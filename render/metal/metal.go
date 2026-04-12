@@ -42,9 +42,9 @@ type MTLScissorRect struct {
 
 // ---- Library handles ----
 var (
-	objc_msgSend              uintptr
-	objc_getClass             uintptr
-	sel_registerName          uintptr
+	objc_msgSend                 uintptr
+	objc_getClass                uintptr
+	sel_registerName             uintptr
 	MTLCreateSystemDefaultDevice uintptr
 )
 
@@ -89,9 +89,9 @@ const (
 	MTLLoadActionLoad     = 1
 	MTLLoadActionClear    = 2
 
-	MTLStoreActionDontCare            = 0
-	MTLStoreActionStore               = 1
-	MTLStoreActionMultisampleResolve  = 2
+	MTLStoreActionDontCare           = 0
+	MTLStoreActionStore              = 1
+	MTLStoreActionMultisampleResolve = 2
 )
 
 // ---- Metal primitive type constants ----
@@ -105,9 +105,9 @@ const (
 
 // ---- Metal buffer options ----
 const (
-	MTLResourceStorageModeShared  = 0 << 4
-	MTLResourceStorageModeManaged = 1 << 4
-	MTLResourceStorageModePrivate = 2 << 4
+	MTLResourceStorageModeShared        = 0 << 4
+	MTLResourceStorageModeManaged       = 1 << 4
+	MTLResourceStorageModePrivate       = 2 << 4
 	MTLResourceCPUCacheModeDefaultCache = 0
 )
 
@@ -118,16 +118,16 @@ const (
 
 // ---- Metal texture usage ----
 const (
-	MTLTextureUsageShaderRead  = 1
-	MTLTextureUsageShaderWrite = 2
+	MTLTextureUsageShaderRead   = 1
+	MTLTextureUsageShaderWrite  = 2
 	MTLTextureUsageRenderTarget = 4
 )
 
 // ---- Metal sampler address mode ----
 const (
-	MTLSamplerAddressModeClampToEdge  = 0
-	MTLSamplerAddressModeRepeat       = 2
-	MTLSamplerAddressModeClampToZero  = 3
+	MTLSamplerAddressModeClampToEdge = 0
+	MTLSamplerAddressModeRepeat      = 2
+	MTLSamplerAddressModeClampToZero = 3
 )
 
 // ---- Metal sampler min/mag filter ----
@@ -138,15 +138,15 @@ const (
 
 // ---- Metal blend factors ----
 const (
-	MTLBlendFactorZero                  = 0
-	MTLBlendFactorOne                   = 1
-	MTLBlendFactorSourceColor           = 2
-	MTLBlendFactorOneMinusSourceColor   = 3
-	MTLBlendFactorSourceAlpha           = 4
-	MTLBlendFactorOneMinusSourceAlpha   = 5
-	MTLBlendFactorDestinationColor      = 6
+	MTLBlendFactorZero                     = 0
+	MTLBlendFactorOne                      = 1
+	MTLBlendFactorSourceColor              = 2
+	MTLBlendFactorOneMinusSourceColor      = 3
+	MTLBlendFactorSourceAlpha              = 4
+	MTLBlendFactorOneMinusSourceAlpha      = 5
+	MTLBlendFactorDestinationColor         = 6
 	MTLBlendFactorOneMinusDestinationColor = 7
-	MTLBlendFactorDestinationAlpha      = 8
+	MTLBlendFactorDestinationAlpha         = 8
 	MTLBlendFactorOneMinusDestinationAlpha = 9
 )
 
@@ -171,107 +171,107 @@ const (
 
 // ---- Selectors (filled in init) ----
 var (
-	selNextDrawable               uintptr
-	selCurrentRenderPassDescriptor uintptr
-	selCommandBuffer              uintptr
+	selNextDrawable                       uintptr
+	selCurrentRenderPassDescriptor        uintptr
+	selCommandBuffer                      uintptr
 	selRenderCommandEncoderWithDescriptor uintptr
-	selSetRenderPipelineState     uintptr
-	selSetVertexBuffer            uintptr
-	selDrawPrimitives             uintptr
-	selEndEncoding                uintptr
-	selPresentDrawable            uintptr
-	selCommit                     uintptr
-	selTexture                    uintptr
-	selSetFragmentTexture         uintptr
-	selSetFragmentSamplerState    uintptr
-	selSetScissorRect             uintptr
-	selSetViewport                uintptr
+	selSetRenderPipelineState             uintptr
+	selSetVertexBuffer                    uintptr
+	selDrawPrimitives                     uintptr
+	selEndEncoding                        uintptr
+	selPresentDrawable                    uintptr
+	selCommit                             uintptr
+	selTexture                            uintptr
+	selSetFragmentTexture                 uintptr
+	selSetFragmentSamplerState            uintptr
+	selSetScissorRect                     uintptr
+	selSetViewport                        uintptr
 
 	// device
-	selNewCommandQueueSel              uintptr
-	selNewBufferWithLength             uintptr
-	selContents                        uintptr
-	selNewTextureWithDescriptor        uintptr
-	selReplaceRegion                   uintptr
-	selNewDefaultLibraryWithSource     uintptr
-	selNewFunctionWithName             uintptr
+	selNewCommandQueueSel                   uintptr
+	selNewBufferWithLength                  uintptr
+	selContents                             uintptr
+	selNewTextureWithDescriptor             uintptr
+	selReplaceRegion                        uintptr
+	selNewDefaultLibraryWithSource          uintptr
+	selNewFunctionWithName                  uintptr
 	selNewRenderPipelineStateWithDescriptor uintptr
-	selNewSamplerStateWithDescriptor   uintptr
+	selNewSamplerStateWithDescriptor        uintptr
 
 	// CAMetalLayer
-	selLayer                     uintptr
-	selSetDevice                 uintptr
-	selSetPixelFormat            uintptr
-	selSetDrawableSize           uintptr
-	selSetContentsScale          uintptr
-	selSetFramebufferOnly        uintptr
-	selSetOpaque                 uintptr
+	selLayer              uintptr
+	selSetDevice          uintptr
+	selSetPixelFormat     uintptr
+	selSetDrawableSize    uintptr
+	selSetContentsScale   uintptr
+	selSetFramebufferOnly uintptr
+	selSetOpaque          uintptr
 
 	// NSView
-	selSetWantsLayer             uintptr
-	selSetLayerSel               uintptr
+	selSetWantsLayer uintptr
+	selSetLayerSel   uintptr
 
 	// MTLRenderPassDescriptor
-	selRenderPassDescriptor      uintptr
-	selColorAttachments          uintptr
-	selObjectAtIndexedSubscript  uintptr
-	selSetTexture                uintptr
-	selSetLoadAction             uintptr
-	selSetStoreAction            uintptr
-	selSetClearColor             uintptr
+	selRenderPassDescriptor     uintptr
+	selColorAttachments         uintptr
+	selObjectAtIndexedSubscript uintptr
+	selSetTexture               uintptr
+	selSetLoadAction            uintptr
+	selSetStoreAction           uintptr
+	selSetClearColor            uintptr
 
 	// MTLRenderPipelineDescriptor
-	selNewRenderPipelineDescriptor uintptr
-	selSetVertexFunction           uintptr
-	selSetFragmentFunction         uintptr
-	selColorAttachmentsDescriptor  uintptr // returns array
-	selSetPixelFormatPipeline      uintptr
-	selSetBlendingEnabled          uintptr
-	selSetSourceRGBBlendFactor     uintptr
-	selSetDestinationRGBBlendFactor uintptr
-	selSetRGBBlendOperation        uintptr
-	selSetSourceAlphaBlendFactor   uintptr
+	selNewRenderPipelineDescriptor    uintptr
+	selSetVertexFunction              uintptr
+	selSetFragmentFunction            uintptr
+	selColorAttachmentsDescriptor     uintptr // returns array
+	selSetPixelFormatPipeline         uintptr
+	selSetBlendingEnabled             uintptr
+	selSetSourceRGBBlendFactor        uintptr
+	selSetDestinationRGBBlendFactor   uintptr
+	selSetRGBBlendOperation           uintptr
+	selSetSourceAlphaBlendFactor      uintptr
 	selSetDestinationAlphaBlendFactor uintptr
-	selSetAlphaBlendOperation      uintptr
-	selSetWriteMask                uintptr
+	selSetAlphaBlendOperation         uintptr
+	selSetWriteMask                   uintptr
 
 	// MTLVertexDescriptor
-	selVertexDescriptor          uintptr
-	selAttributes                uintptr
-	selLayouts                   uintptr
-	selSetFormat                 uintptr
-	selSetOffset                 uintptr
-	selSetBufferIndex            uintptr
-	selSetStride                 uintptr
-	selSetStepFunction           uintptr
-	selSetStepRate               uintptr
-	selSetVertexDescriptor       uintptr
+	selVertexDescriptor    uintptr
+	selAttributes          uintptr
+	selLayouts             uintptr
+	selSetFormat           uintptr
+	selSetOffset           uintptr
+	selSetBufferIndex      uintptr
+	selSetStride           uintptr
+	selSetStepFunction     uintptr
+	selSetStepRate         uintptr
+	selSetVertexDescriptor uintptr
 
 	// MTLTextureDescriptor
 	selTexture2DDescriptorWithPixelFormat uintptr
-	selSetUsage                  uintptr
-	selSetStorageMode            uintptr
+	selSetUsage                           uintptr
+	selSetStorageMode                     uintptr
 
 	// MTLSamplerDescriptor
-	selNewSamplerDescriptor      uintptr
-	selSetMinFilter              uintptr
-	selSetMagFilter              uintptr
-	selSetSAddressMode           uintptr
-	selSetTAddressMode           uintptr
+	selNewSamplerDescriptor uintptr
+	selSetMinFilter         uintptr
+	selSetMagFilter         uintptr
+	selSetSAddressMode      uintptr
+	selSetTAddressMode      uintptr
 
 	// NSError
-	selLocalizedDescription      uintptr
-	selUTF8String                uintptr
+	selLocalizedDescription uintptr
+	selUTF8String           uintptr
 
 	// NSString
 	selStringWithUTF8StringMetal uintptr
 
 	// release
-	selReleaseMetal              uintptr
+	selReleaseMetal uintptr
 
 	// alloc / init
-	selAllocMetal                uintptr
-	selInitMetal                 uintptr
+	selAllocMetal uintptr
+	selInitMetal  uintptr
 )
 
 // helper: call sel_registerName to register a selector string

@@ -37,12 +37,12 @@ func NewGuide(tree *core.Tree, cfg *Config) *Guide {
 	}
 }
 
-func (g *Guide) Steps() []GuideStep    { return g.steps }
-func (g *Guide) Current() int          { return g.current }
-func (g *Guide) IsVisible() bool       { return g.visible }
+func (g *Guide) Steps() []GuideStep          { return g.steps }
+func (g *Guide) Current() int                { return g.current }
+func (g *Guide) IsVisible() bool             { return g.visible }
 func (g *Guide) SetMaskColor(c uimath.Color) { g.maskColor = c }
-func (g *Guide) OnFinish(fn func())    { g.onFinish = fn }
-func (g *Guide) OnChange(fn func(int)) { g.onChange = fn }
+func (g *Guide) OnFinish(fn func())          { g.onFinish = fn }
+func (g *Guide) OnChange(fn func(int))       { g.onChange = fn }
 
 func (g *Guide) SetSteps(steps []GuideStep) {
 	g.steps = make([]GuideStep, len(steps))

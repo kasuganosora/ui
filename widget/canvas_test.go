@@ -17,22 +17,22 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockBackend struct {
-	created   int
-	updated   int
-	destroyed int
+	created    int
+	updated    int
+	destroyed  int
 	failCreate bool
 }
 
-func (m *mockBackend) Init(_ platform.Window) error                    { return nil }
-func (m *mockBackend) BeginFrame()                                    {}
-func (m *mockBackend) EndFrame()                                      {}
-func (m *mockBackend) Resize(_, _ int)                                {}
-func (m *mockBackend) Submit(_ *render.CommandBuffer)                 {}
-func (m *mockBackend) MaxTextureSize() int                            { return 4096 }
-func (m *mockBackend) DPIScale() float32                              { return 1 }
-func (m *mockBackend) ReadPixels() (*image.RGBA, error)               { return nil, nil }
-func (m *mockBackend) Destroy()                                       {}
-func (m *mockBackend) DestroyTexture(_ render.TextureHandle)          { m.destroyed++ }
+func (m *mockBackend) Init(_ platform.Window) error          { return nil }
+func (m *mockBackend) BeginFrame()                           {}
+func (m *mockBackend) EndFrame()                             {}
+func (m *mockBackend) Resize(_, _ int)                       {}
+func (m *mockBackend) Submit(_ *render.CommandBuffer)        {}
+func (m *mockBackend) MaxTextureSize() int                   { return 4096 }
+func (m *mockBackend) DPIScale() float32                     { return 1 }
+func (m *mockBackend) ReadPixels() (*image.RGBA, error)      { return nil, nil }
+func (m *mockBackend) Destroy()                              {}
+func (m *mockBackend) DestroyTexture(_ render.TextureHandle) { m.destroyed++ }
 func (m *mockBackend) UpdateTexture(_ render.TextureHandle, _ uimath.Rect, _ []byte) error {
 	m.updated++
 	return nil

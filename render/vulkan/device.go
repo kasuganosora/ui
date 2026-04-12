@@ -104,14 +104,14 @@ func (l *Loader) CreateDevice(physDevice PhysicalDevice, indices QueueFamilyIndi
 // DestroyDevice destroys a logical device.
 func (l *Loader) DestroyDevice(device Device) {
 	if l.vkDestroyDevice != 0 {
-		syscallN(l.vkDestroyDevice, uintptr(device), 0)
+		_, _, _ = syscallN(l.vkDestroyDevice, uintptr(device), 0)
 	}
 }
 
 // GetDeviceQueue retrieves a queue handle.
 func (l *Loader) GetDeviceQueue(device Device, familyIndex, queueIndex uint32) Queue {
 	var queue Queue
-	syscallN(l.vkGetDeviceQueue,
+	_, _, _ = syscallN(l.vkGetDeviceQueue,
 		uintptr(device),
 		uintptr(familyIndex),
 		uintptr(queueIndex),
@@ -122,7 +122,7 @@ func (l *Loader) GetDeviceQueue(device Device, familyIndex, queueIndex uint32) Q
 
 // DeviceWaitIdle waits for the device to finish all work.
 func (l *Loader) DeviceWaitIdle(device Device) {
-	syscallN(l.vkDeviceWaitIdle, uintptr(device))
+	_, _, _ = syscallN(l.vkDeviceWaitIdle, uintptr(device))
 }
 
 // FindMemoryType finds a suitable memory type index.

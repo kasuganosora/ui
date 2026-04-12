@@ -46,13 +46,13 @@ func NewDivider(tree *core.Tree, cfg *Config) *Divider {
 	}
 }
 
-func (d *Divider) SetLayout(dir DividerLayout)  { d.layout = dir }
-func (d *Divider) SetColor(c uimath.Color)      { d.color = c }
-func (d *Divider) SetThickness(t float32)        { d.thickness = t }
-func (d *Divider) SetContent(t string)           { d.content = t }
-func (d *Divider) SetDashed(dashed bool)         { d.dashed = dashed }
-func (d *Divider) SetAlign(align DividerAlign)   { d.align = align }
-func (d *Divider) SetSize(s float32)             { d.size = s }
+func (d *Divider) SetLayout(dir DividerLayout) { d.layout = dir }
+func (d *Divider) SetColor(c uimath.Color)     { d.color = c }
+func (d *Divider) SetThickness(t float32)      { d.thickness = t }
+func (d *Divider) SetContent(t string)         { d.content = t }
+func (d *Divider) SetDashed(dashed bool)       { d.dashed = dashed }
+func (d *Divider) SetAlign(align DividerAlign) { d.align = align }
+func (d *Divider) SetSize(s float32)           { d.size = s }
 
 // drawDashedLineH draws a horizontal dashed line as repeated 6px segments with 4px gaps.
 func (d *Divider) drawDashedLineH(buf *render.CommandBuffer, x, y, width, thickness float32, color uimath.Color, zIndex int32) {

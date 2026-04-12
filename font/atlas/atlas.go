@@ -9,14 +9,14 @@ import (
 
 // GlyphKey uniquely identifies a glyph in the atlas.
 type GlyphKey struct {
-	FontID   font.ID
-	GlyphID  font.GlyphID
-	Size     uint16 // Font size in half-pixels (size*2) for sub-pixel precision
+	FontID  font.ID
+	GlyphID font.GlyphID
+	Size    uint16 // Font size in half-pixels (size*2) for sub-pixel precision
 }
 
 // GlyphEntry contains the atlas location and metrics of a cached glyph.
 type GlyphEntry struct {
-	Region  Region  // Location in atlas texture
+	Region  Region // Location in atlas texture
 	Metrics font.GlyphMetrics
 
 	// UV coordinates (computed from region and atlas size)

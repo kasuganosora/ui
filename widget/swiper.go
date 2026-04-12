@@ -9,11 +9,11 @@ import (
 // Swiper is a carousel/slider that cycles through content panels.
 type Swiper struct {
 	Base
-	panels     []Widget
-	current    int
-	autoplay   bool
-	showDots   bool
-	onChange   func(int)
+	panels   []Widget
+	current  int
+	autoplay bool
+	showDots bool
+	onChange func(int)
 }
 
 func NewSwiper(tree *core.Tree, cfg *Config) *Swiper {
@@ -26,12 +26,12 @@ func NewSwiper(tree *core.Tree, cfg *Config) *Swiper {
 	}
 }
 
-func (s *Swiper) Current() int           { return s.current }
-func (s *Swiper) PanelCount() int        { return len(s.panels) }
-func (s *Swiper) SetCurrent(c int)       { s.current = c }
-func (s *Swiper) SetAutoplay(a bool)     { s.autoplay = a }
-func (s *Swiper) SetShowDots(d bool)     { s.showDots = d }
-func (s *Swiper) OnChange(fn func(int))  { s.onChange = fn }
+func (s *Swiper) Current() int          { return s.current }
+func (s *Swiper) PanelCount() int       { return len(s.panels) }
+func (s *Swiper) SetCurrent(c int)      { s.current = c }
+func (s *Swiper) SetAutoplay(a bool)    { s.autoplay = a }
+func (s *Swiper) SetShowDots(d bool)    { s.showDots = d }
+func (s *Swiper) OnChange(fn func(int)) { s.onChange = fn }
 
 func (s *Swiper) AddPanel(w Widget) {
 	s.panels = append(s.panels, w)

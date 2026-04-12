@@ -18,14 +18,14 @@ const (
 // Splitter divides space into two resizable panels.
 type Splitter struct {
 	Base
-	direction  SplitterDirection
-	ratio      float32 // 0-1 split position
-	minRatio   float32
-	maxRatio   float32
-	barSize    float32
-	dragging   bool
-	first      Widget
-	second     Widget
+	direction SplitterDirection
+	ratio     float32 // 0-1 split position
+	minRatio  float32
+	maxRatio  float32
+	barSize   float32
+	dragging  bool
+	first     Widget
+	second    Widget
 }
 
 func NewSplitter(tree *core.Tree, cfg *Config) *Splitter {

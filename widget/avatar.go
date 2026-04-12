@@ -46,7 +46,7 @@ type Avatar struct {
 	Base
 	content          string
 	alt              string
-	src              string               // remote image URL
+	src              string // remote image URL
 	icon             render.TextureHandle
 	image            render.TextureHandle // directly-set image texture (caller owns)
 	imagePath        string               // image URL/path (for reference)
@@ -121,17 +121,17 @@ func (a *Avatar) SetAlt(alt string) {
 	a.alt = alt
 	a.displayChar = "" // invalidate cache
 }
-func (a *Avatar) SetIcon(h render.TextureHandle) { a.icon = h }
+func (a *Avatar) SetIcon(h render.TextureHandle)         { a.icon = h }
 func (a *Avatar) SetImageTexture(h render.TextureHandle) { a.image = h }
-func (a *Avatar) SetImagePath(path string)       { a.imagePath = path }
-func (a *Avatar) SetBgColor(c uimath.Color)      { a.bgColor = c }
-func (a *Avatar) SetHideOnLoadFailed(v bool)     { a.hideOnLoadFailed = v }
-func (a *Avatar) OnError(fn func())              { a.onError = fn }
-func (a *Avatar) ImagePath() string              { return a.imagePath }
-func (a *Avatar) Content() string                { return a.content }
-func (a *Avatar) Shape() AvatarShape             { return a.shape }
-func (a *Avatar) Src() string                    { return a.src }
-func (a *Avatar) LoadState() AvatarLoadState     { return a.loadState }
+func (a *Avatar) SetImagePath(path string)               { a.imagePath = path }
+func (a *Avatar) SetBgColor(c uimath.Color)              { a.bgColor = c }
+func (a *Avatar) SetHideOnLoadFailed(v bool)             { a.hideOnLoadFailed = v }
+func (a *Avatar) OnError(fn func())                      { a.onError = fn }
+func (a *Avatar) ImagePath() string                      { return a.imagePath }
+func (a *Avatar) Content() string                        { return a.content }
+func (a *Avatar) Shape() AvatarShape                     { return a.shape }
+func (a *Avatar) Src() string                            { return a.src }
+func (a *Avatar) LoadState() AvatarLoadState             { return a.loadState }
 
 // SetSize sets one of the preset sizes (Small=32, Medium=48, Large=64).
 func (a *Avatar) SetSize(s Size) {
@@ -234,7 +234,7 @@ func (a *Avatar) loadFromFile(path string) {
 		}
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if isGIF(path) {
 		a.loadGIFFromReader(f)
@@ -389,7 +389,7 @@ func (a *Avatar) uploadFrame(idx int) {
 		return
 	}
 	region := uimath.NewRect(0, 0, float32(a.naturalW), float32(a.naturalH))
-	backend.UpdateTexture(a.srcTexture, region, a.frames[idx].pixels)
+	_ = backend.UpdateTexture(a.srcTexture, region, a.frames[idx].pixels)
 }
 
 func (a *Avatar) destroySrcTexture() {

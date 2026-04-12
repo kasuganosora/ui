@@ -239,18 +239,18 @@ func setupDemoWidgets(doc *ui.Document, tree *core.Tree, cfg *widget.Config) {
 	// --- Avatar ---
 	if c := get("demo-avatar"); c != nil {
 		a1 := widget.NewAvatar(tree, cfg)
-		a1.SetText("U")
+		a1.SetContent("U")
 		a1.SetSize(widget.SizeMedium)
 		a1.SetBgColor(uimath.ColorHex("#1677ff"))
 		c.AppendChild(a1)
 		a2 := widget.NewAvatar(tree, cfg)
-		a2.SetText("A")
+		a2.SetContent("A")
 		a2.SetSize(widget.SizeMedium)
 		a2.SetShape(widget.AvatarSquare)
 		a2.SetBgColor(uimath.ColorHex("#00a870"))
 		c.AppendChild(a2)
 		a3 := widget.NewAvatar(tree, cfg)
-		a3.SetText("B")
+		a3.SetContent("B")
 		a3.SetSize(widget.SizeSmall)
 		a3.SetBgColor(uimath.ColorHex("#ed7b2f"))
 		c.AppendChild(a3)
@@ -375,7 +375,7 @@ func setupDemoWidgets(doc *ui.Document, tree *core.Tree, cfg *widget.Config) {
 			{Header: "面板二：详细描述", Value: "p2", Content: mk("折叠面板第二项的内容，默认关闭。")},
 			{Header: "面板三：更多设置", Value: "p3", Content: mk("折叠面板第三项的内容。")},
 		})
-		col.SetBordered(true)
+		col.SetBorderless(false)
 		col.Toggle("p1")
 		c.AppendChild(col)
 	}

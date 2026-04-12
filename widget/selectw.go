@@ -94,10 +94,10 @@ func NewSelect(tree *core.Tree, options []SelectOption, cfg *Config) *Select {
 	return s
 }
 
-func (s *Select) Value() string       { return s.value }
-func (s *Select) Placeholder() string { return s.placeholder }
-func (s *Select) IsDisabled() bool    { return s.disabled }
-func (s *Select) IsOpen() bool        { return s.open }
+func (s *Select) Value() string           { return s.value }
+func (s *Select) Placeholder() string     { return s.placeholder }
+func (s *Select) IsDisabled() bool        { return s.disabled }
+func (s *Select) IsOpen() bool            { return s.open }
 func (s *Select) Options() []SelectOption { return s.options }
 
 func (s *Select) SetValue(v string) {
@@ -142,28 +142,28 @@ func (s *Select) SetMultiple(m bool) { s.multiple = m }
 func (s *Select) SelectedValues() []string { return s.selectedValues }
 
 // Additional prop getters/setters
-func (s *Select) Borderless() bool              { return s.borderless }
-func (s *Select) SetBorderless(v bool)          { s.borderless = v }
-func (s *Select) Loading() bool                 { return s.loading }
-func (s *Select) SetLoading(v bool)             { s.loading = v }
-func (s *Select) Readonly() bool                { return s.readonly }
-func (s *Select) SetReadonly(v bool)             { s.readonly = v }
-func (s *Select) Creatable() bool               { return s.creatable }
-func (s *Select) SetCreatable(v bool)           { s.creatable = v }
-func (s *Select) Max() int                      { return s.max }
-func (s *Select) SetMax(n int)                  { s.max = n }
-func (s *Select) MinCollapsedNum() int          { return s.minCollapsedNum }
-func (s *Select) SetMinCollapsedNum(n int)      { s.minCollapsedNum = n }
-func (s *Select) ShowArrow() bool               { return s.showArrow }
-func (s *Select) SetShowArrow(v bool)           { s.showArrow = v }
-func (s *Select) Empty() string                 { return s.empty }
-func (s *Select) SetEmpty(e string)             { s.empty = e }
-func (s *Select) InputValue() string            { return s.inputValue }
-func (s *Select) SetInputValue(v string)        { s.inputValue = v }
-func (s *Select) PopupVisible() bool            { return s.popupVisible }
-func (s *Select) SetPopupVisible(v bool)        { s.popupVisible = v }
-func (s *Select) SelectLabel() string           { return s.label }
-func (s *Select) SetLabel(l string)             { s.label = l }
+func (s *Select) Borderless() bool         { return s.borderless }
+func (s *Select) SetBorderless(v bool)     { s.borderless = v }
+func (s *Select) Loading() bool            { return s.loading }
+func (s *Select) SetLoading(v bool)        { s.loading = v }
+func (s *Select) Readonly() bool           { return s.readonly }
+func (s *Select) SetReadonly(v bool)       { s.readonly = v }
+func (s *Select) Creatable() bool          { return s.creatable }
+func (s *Select) SetCreatable(v bool)      { s.creatable = v }
+func (s *Select) Max() int                 { return s.max }
+func (s *Select) SetMax(n int)             { s.max = n }
+func (s *Select) MinCollapsedNum() int     { return s.minCollapsedNum }
+func (s *Select) SetMinCollapsedNum(n int) { s.minCollapsedNum = n }
+func (s *Select) ShowArrow() bool          { return s.showArrow }
+func (s *Select) SetShowArrow(v bool)      { s.showArrow = v }
+func (s *Select) Empty() string            { return s.empty }
+func (s *Select) SetEmpty(e string)        { s.empty = e }
+func (s *Select) InputValue() string       { return s.inputValue }
+func (s *Select) SetInputValue(v string)   { s.inputValue = v }
+func (s *Select) PopupVisible() bool       { return s.popupVisible }
+func (s *Select) SetPopupVisible(v bool)   { s.popupVisible = v }
+func (s *Select) SelectLabel() string      { return s.label }
+func (s *Select) SetLabel(l string)        { s.label = l }
 
 // Event setters
 func (s *Select) OnBlur(fn func(string))             { s.onBlur = fn }
@@ -356,9 +356,9 @@ func (s *Select) Draw(buf *render.CommandBuffer) {
 	if s.disabled {
 		arrowColor = cfg.DisabledColor
 	}
-	chevW := float32(8)  // total width of chevron
-	chevH := float32(4)  // total height of chevron
-	lineW := float32(1.5) // line thickness
+	chevW := float32(8)                                   // total width of chevron
+	chevH := float32(4)                                   // total height of chevron
+	lineW := float32(1.5)                                 // line thickness
 	cx := bounds.X + bounds.Width - cfg.SpaceSM - chevW/2 // center X
 	cy := bounds.Y + (bounds.Height-chevH)/2              // top Y
 	steps := 5

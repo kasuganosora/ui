@@ -53,9 +53,9 @@ type Engine struct {
 	dpiScale       float32 // DPI scale factor for converting metrics to logical units
 
 	// Performance caches
-	lastFace      ftFace // last face passed to setPixelSize
-	lastPixels    uint32 // last pixel size set (avoids redundant FT_Set_Pixel_Sizes)
-	metricsCache  map[glyphMetricsKey]font.GlyphMetrics
+	lastFace     ftFace // last face passed to setPixelSize
+	lastPixels   uint32 // last pixel size set (avoids redundant FT_Set_Pixel_Sizes)
+	metricsCache map[glyphMetricsKey]font.GlyphMetrics
 }
 
 type faceEntry struct {
@@ -307,13 +307,13 @@ func (e *Engine) RasterizeGlyph(id font.ID, glyph font.GlyphID, size float32, sd
 	if pixelMode == ftPixelModeBGRA {
 		data := make([]byte, width*rows*4)
 		for y := 0; y < rows; y++ {
-			src := bufPtr + uintptr(y*pitch)
 			dst := y * width * 4
+			row := unsafe.Slice((*byte)(unsafe.Pointer(bufPtr+uintptr(y*pitch))), width*4) //nolint:govet // C FFI pointer arithmetic
 			for x := 0; x < width; x++ {
-				b := *(*byte)(unsafe.Pointer(src + uintptr(x*4+0)))
-				g := *(*byte)(unsafe.Pointer(src + uintptr(x*4+1)))
-				r := *(*byte)(unsafe.Pointer(src + uintptr(x*4+2)))
-				a := *(*byte)(unsafe.Pointer(src + uintptr(x*4+3)))
+				b := row[x*4+0]
+				g := row[x*4+1]
+				r := row[x*4+2]
+				a := row[x*4+3]
 				// Un-premultiply: FreeType BGRA is pre-multiplied
 				if a > 0 && a < 255 {
 					r = uint8(uint16(r) * 255 / uint16(a))
@@ -337,10 +337,9 @@ func (e *Engine) RasterizeGlyph(id font.ID, glyph font.GlyphID, size float32, sd
 	// Grayscale / SDF bitmap — copy single-channel data
 	data := make([]byte, width*rows)
 	for y := 0; y < rows; y++ {
-		src := bufPtr + uintptr(y*pitch)
 		dst := y * width
 		for x := 0; x < width; x++ {
-			data[dst+x] = *(*byte)(unsafe.Pointer(src + uintptr(x)))
+			data[dst+x] = *(*byte)(unsafe.Pointer(bufPtr + uintptr(y*pitch) + uintptr(x))) //nolint:govet // C FFI pointer arithmetic
 		}
 	}
 

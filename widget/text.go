@@ -30,9 +30,9 @@ func NewText(tree *core.Tree, text string, cfg *Config) *Text {
 	return t
 }
 
-func (t *Text) Text() string         { return t.text }
-func (t *Text) Color() uimath.Color  { return t.color }
-func (t *Text) FontSize() float32    { return t.fontSize }
+func (t *Text) Text() string        { return t.text }
+func (t *Text) Color() uimath.Color { return t.color }
+func (t *Text) FontSize() float32   { return t.fontSize }
 
 func (t *Text) SetText(text string) {
 	t.text = text

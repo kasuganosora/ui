@@ -10,15 +10,15 @@ import (
 // CastBar shows a spell/ability casting progress bar.
 type CastBar struct {
 	widget.Base
-	spellName  string
-	progress   float32 // 0-1
-	castTime   float32 // total cast time in seconds
-	elapsed    float32 // elapsed time
-	color      uimath.Color
-	visible    bool
-	width      float32
-	height     float32
-	onComplete func()
+	spellName   string
+	progress    float32 // 0-1
+	castTime    float32 // total cast time in seconds
+	elapsed     float32 // elapsed time
+	color       uimath.Color
+	visible     bool
+	width       float32
+	height      float32
+	onComplete  func()
 	onInterrupt func()
 }
 
@@ -34,13 +34,13 @@ func NewCastBar(tree *core.Tree, cfg *widget.Config) *CastBar {
 	}
 }
 
-func (cb *CastBar) SpellName() string          { return cb.spellName }
-func (cb *CastBar) Progress() float32          { return cb.progress }
-func (cb *CastBar) IsVisible() bool            { return cb.visible }
-func (cb *CastBar) SetColor(c uimath.Color)    { cb.color = c }
-func (cb *CastBar) SetSize(w, h float32)       { cb.width = w; cb.height = h }
-func (cb *CastBar) OnComplete(fn func())       { cb.onComplete = fn }
-func (cb *CastBar) OnInterrupt(fn func())      { cb.onInterrupt = fn }
+func (cb *CastBar) SpellName() string       { return cb.spellName }
+func (cb *CastBar) Progress() float32       { return cb.progress }
+func (cb *CastBar) IsVisible() bool         { return cb.visible }
+func (cb *CastBar) SetColor(c uimath.Color) { cb.color = c }
+func (cb *CastBar) SetSize(w, h float32)    { cb.width = w; cb.height = h }
+func (cb *CastBar) OnComplete(fn func())    { cb.onComplete = fn }
+func (cb *CastBar) OnInterrupt(fn func())   { cb.onInterrupt = fn }
 
 func (cb *CastBar) StartCast(spellName string, castTime float32) {
 	cb.spellName = spellName

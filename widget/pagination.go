@@ -21,7 +21,7 @@ const (
 type PageEllipsisMode int
 
 const (
-	PageEllipsisModeMid      PageEllipsisMode = iota // default
+	PageEllipsisModeMid PageEllipsisMode = iota // default
 	PageEllipsisModeBothEnds
 )
 
@@ -35,24 +35,24 @@ type PaginationPageInfo struct {
 // Pagination displays page navigation buttons.
 type Pagination struct {
 	Base
-	current                int
-	total                  int
-	pageSize               int
-	size                   Size
-	theme                  PaginationTheme  // visual style
-	disabled               bool             // whether disabled
-	foldedMaxPageBtn       int              // max page buttons when folded
-	maxPageBtn             int              // max page buttons
-	pageEllipsisMode       PageEllipsisMode // ellipsis display mode
-	showFirstAndLastPageBtn bool            // show first/last page buttons
-	showJumper             bool             // show page jumper input
-	showPageNumber         bool             // show page numbers
-	showPageSize           bool             // show page size selector
-	showPreviousAndNextBtn bool             // show prev/next buttons
-	totalContent           bool             // show total count
-	onChange               func(pageInfo PaginationPageInfo) // called on any page/size change
-	onCurrentChange        func(current int, pageInfo PaginationPageInfo) // called on page change
-	onPageSizeChange       func(pageSize int, pageInfo PaginationPageInfo) // called on page size change
+	current                 int
+	total                   int
+	pageSize                int
+	size                    Size
+	theme                   PaginationTheme                                 // visual style
+	disabled                bool                                            // whether disabled
+	foldedMaxPageBtn        int                                             // max page buttons when folded
+	maxPageBtn              int                                             // max page buttons
+	pageEllipsisMode        PageEllipsisMode                                // ellipsis display mode
+	showFirstAndLastPageBtn bool                                            // show first/last page buttons
+	showJumper              bool                                            // show page jumper input
+	showPageNumber          bool                                            // show page numbers
+	showPageSize            bool                                            // show page size selector
+	showPreviousAndNextBtn  bool                                            // show prev/next buttons
+	totalContent            bool                                            // show total count
+	onChange                func(pageInfo PaginationPageInfo)               // called on any page/size change
+	onCurrentChange         func(current int, pageInfo PaginationPageInfo)  // called on page change
+	onPageSizeChange        func(pageSize int, pageInfo PaginationPageInfo) // called on page size change
 
 	// Clickable child elements for hit testing
 	prevID    core.ElementID
@@ -107,17 +107,17 @@ func NewPagination(tree *core.Tree, cfg *Config) *Pagination {
 	return p
 }
 
-func (p *Pagination) Current() int                 { return p.current }
-func (p *Pagination) Total() int                   { return p.total }
-func (p *Pagination) PageSize() int                { return p.pageSize }
-func (p *Pagination) SetCurrent(c int)             { p.current = c }
-func (p *Pagination) SetTotal(t int)               { p.total = t }
-func (p *Pagination) SetPageSize(s int)            { p.pageSize = s }
-func (p *Pagination) SetSize(s Size)               { p.size = s }
-func (p *Pagination) SetTheme(t PaginationTheme)   { p.theme = t }
-func (p *Pagination) SetDisabled(d bool)           { p.disabled = d }
-func (p *Pagination) SetFoldedMaxPageBtn(n int)    { p.foldedMaxPageBtn = n }
-func (p *Pagination) SetMaxPageBtn(n int)          { p.maxPageBtn = n }
+func (p *Pagination) Current() int                           { return p.current }
+func (p *Pagination) Total() int                             { return p.total }
+func (p *Pagination) PageSize() int                          { return p.pageSize }
+func (p *Pagination) SetCurrent(c int)                       { p.current = c }
+func (p *Pagination) SetTotal(t int)                         { p.total = t }
+func (p *Pagination) SetPageSize(s int)                      { p.pageSize = s }
+func (p *Pagination) SetSize(s Size)                         { p.size = s }
+func (p *Pagination) SetTheme(t PaginationTheme)             { p.theme = t }
+func (p *Pagination) SetDisabled(d bool)                     { p.disabled = d }
+func (p *Pagination) SetFoldedMaxPageBtn(n int)              { p.foldedMaxPageBtn = n }
+func (p *Pagination) SetMaxPageBtn(n int)                    { p.maxPageBtn = n }
 func (p *Pagination) SetPageEllipsisMode(m PageEllipsisMode) { p.pageEllipsisMode = m }
 func (p *Pagination) SetShowFirstAndLastPageBtn(v bool)      { p.showFirstAndLastPageBtn = v }
 func (p *Pagination) SetShowJumper(v bool)                   { p.showJumper = v }

@@ -54,11 +54,11 @@ func NewSubWindow(tree *core.Tree, title string, cfg *Config) *SubWindow {
 
 func (w *SubWindow) SetPosition(x, y float32) { w.x = x; w.y = y }
 func (w *SubWindow) SetSize(wi, h float32)    { w.width = wi; w.height = h }
-func (w *SubWindow) SetTitle(t string)         { w.title = t }
-func (w *SubWindow) SetClosable(c bool)        { w.closable = c }
-func (w *SubWindow) OnClose(fn func())         { w.onClose = fn }
-func (w *SubWindow) IsVisible() bool           { return w.visible }
-func (w *SubWindow) Open()                     { w.visible = true; w.tree.MarkDirty(w.id) }
+func (w *SubWindow) SetTitle(t string)        { w.title = t }
+func (w *SubWindow) SetClosable(c bool)       { w.closable = c }
+func (w *SubWindow) OnClose(fn func())        { w.onClose = fn }
+func (w *SubWindow) IsVisible() bool          { return w.visible }
+func (w *SubWindow) Open()                    { w.visible = true; w.tree.MarkDirty(w.id) }
 func (w *SubWindow) Close() {
 	w.visible = false
 	w.tree.MarkDirty(w.id)

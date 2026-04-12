@@ -169,11 +169,11 @@ func TestGetWheelDelta(t *testing.T) {
 
 func TestXButtonFromWParam(t *testing.T) {
 	// XBUTTON1 = hiword 1
-	if xButtonFromWParam(uintptr(1 << 16)) != event.MouseButton4 {
+	if xButtonFromWParam(uintptr(1<<16)) != event.MouseButton4 {
 		t.Error("XBUTTON1 should map to MouseButton4")
 	}
 	// XBUTTON2 = hiword 2
-	if xButtonFromWParam(uintptr(2 << 16)) != event.MouseButton5 {
+	if xButtonFromWParam(uintptr(2<<16)) != event.MouseButton5 {
 		t.Error("XBUTTON2 should map to MouseButton5")
 	}
 }

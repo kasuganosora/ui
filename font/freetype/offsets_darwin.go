@@ -22,7 +22,7 @@ const (
 
 const (
 	offSlotMetrics             = 48
-	offSlotMetricsWidth        = offSlotMetrics + 0  // FT_Pos (8 bytes)
+	offSlotMetricsWidth        = offSlotMetrics + 0 // FT_Pos (8 bytes)
 	offSlotMetricsHeight       = offSlotMetrics + 8
 	offSlotMetricsHoriBearingX = offSlotMetrics + 16
 	offSlotMetricsHoriBearingY = offSlotMetrics + 24

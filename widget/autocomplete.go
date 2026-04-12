@@ -30,11 +30,11 @@ func NewAutoComplete(tree *core.Tree, cfg *Config) *AutoComplete {
 	return ac
 }
 
-func (ac *AutoComplete) Text() string                { return ac.text }
-func (ac *AutoComplete) IsOpen() bool                { return ac.open }
-func (ac *AutoComplete) SetOpen(o bool)              { ac.open = o }
-func (ac *AutoComplete) OnSelect(fn func(string))    { ac.onSelect = fn }
-func (ac *AutoComplete) Filtered() []string          { return ac.filtered }
+func (ac *AutoComplete) Text() string             { return ac.text }
+func (ac *AutoComplete) IsOpen() bool             { return ac.open }
+func (ac *AutoComplete) SetOpen(o bool)           { ac.open = o }
+func (ac *AutoComplete) OnSelect(fn func(string)) { ac.onSelect = fn }
+func (ac *AutoComplete) Filtered() []string       { return ac.filtered }
 
 func (ac *AutoComplete) SetSuggestions(s []string) {
 	ac.suggestions = make([]string, len(s))

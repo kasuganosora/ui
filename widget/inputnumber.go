@@ -92,42 +92,42 @@ func NewInputNumber(tree *core.Tree, cfg *Config) *InputNumber {
 	return n
 }
 
-func (n *InputNumber) Value() float64              { return n.value }
-func (n *InputNumber) Min() float64                { return n.min }
-func (n *InputNumber) Max() float64                { return n.max }
-func (n *InputNumber) Step() float64               { return n.step }
-func (n *InputNumber) Theme() InputNumberTheme     { return n.theme }
-func (n *InputNumber) DecimalPlaces() int          { return n.decimalPlaces }
-func (n *InputNumber) Text() string                { return n.text }
-func (n *InputNumber) SetMin(v float64)            { n.min = v }
-func (n *InputNumber) SetMax(v float64)            { n.max = v }
-func (n *InputNumber) SetStep(v float64)           { n.step = v }
-func (n *InputNumber) SetDisabled(d bool)              { n.disabled = d }
-func (n *InputNumber) SetTheme(t InputNumberTheme)     { n.theme = t }
-func (n *InputNumber) SetDecimalPlaces(d int)          { n.decimalPlaces = d }
-func (n *InputNumber) SetSize(s Size)                  { n.size = s }
-func (n *InputNumber) Size() Size                      { return n.size }
-func (n *InputNumber) SetAlign(a InputNumberAlign)     { n.align = a }
-func (n *InputNumber) Align() InputNumberAlign         { return n.align }
-func (n *InputNumber) SetStatus(s InputNumberStatus)   { n.status = s }
-func (n *InputNumber) Status() InputNumberStatus       { return n.status }
-func (n *InputNumber) SetPlaceholder(p string)         { n.placeholder = p }
-func (n *InputNumber) Placeholder() string             { return n.placeholder }
-func (n *InputNumber) SetLabel(l string)               { n.label = l }
-func (n *InputNumber) Label() string                   { return n.label }
-func (n *InputNumber) SetSuffix(s string)              { n.suffix = s }
-func (n *InputNumber) Suffix() string                  { return n.suffix }
-func (n *InputNumber) SetTips(t string)                { n.tips = t }
-func (n *InputNumber) Tips() string                    { return n.tips }
-func (n *InputNumber) SetReadonly(r bool)              { n.readonly = r }
-func (n *InputNumber) IsReadonly() bool                { return n.readonly }
-func (n *InputNumber) SetAllowInputOverLimit(v bool)   { n.allowInputOverLimit = v }
-func (n *InputNumber) AllowInputOverLimit() bool       { return n.allowInputOverLimit }
-func (n *InputNumber) OnChange(fn func(float64))       { n.onChange = fn }
-func (n *InputNumber) OnBlur(fn func(float64))         { n.onBlur = fn }
-func (n *InputNumber) OnFocus(fn func(float64))        { n.onFocus = fn }
-func (n *InputNumber) OnEnter(fn func(float64))        { n.onEnter = fn }
-func (n *InputNumber) OnValidate(fn func(err string))  { n.onValidate = fn }
+func (n *InputNumber) Value() float64                 { return n.value }
+func (n *InputNumber) Min() float64                   { return n.min }
+func (n *InputNumber) Max() float64                   { return n.max }
+func (n *InputNumber) Step() float64                  { return n.step }
+func (n *InputNumber) Theme() InputNumberTheme        { return n.theme }
+func (n *InputNumber) DecimalPlaces() int             { return n.decimalPlaces }
+func (n *InputNumber) Text() string                   { return n.text }
+func (n *InputNumber) SetMin(v float64)               { n.min = v }
+func (n *InputNumber) SetMax(v float64)               { n.max = v }
+func (n *InputNumber) SetStep(v float64)              { n.step = v }
+func (n *InputNumber) SetDisabled(d bool)             { n.disabled = d }
+func (n *InputNumber) SetTheme(t InputNumberTheme)    { n.theme = t }
+func (n *InputNumber) SetDecimalPlaces(d int)         { n.decimalPlaces = d }
+func (n *InputNumber) SetSize(s Size)                 { n.size = s }
+func (n *InputNumber) Size() Size                     { return n.size }
+func (n *InputNumber) SetAlign(a InputNumberAlign)    { n.align = a }
+func (n *InputNumber) Align() InputNumberAlign        { return n.align }
+func (n *InputNumber) SetStatus(s InputNumberStatus)  { n.status = s }
+func (n *InputNumber) Status() InputNumberStatus      { return n.status }
+func (n *InputNumber) SetPlaceholder(p string)        { n.placeholder = p }
+func (n *InputNumber) Placeholder() string            { return n.placeholder }
+func (n *InputNumber) SetLabel(l string)              { n.label = l }
+func (n *InputNumber) Label() string                  { return n.label }
+func (n *InputNumber) SetSuffix(s string)             { n.suffix = s }
+func (n *InputNumber) Suffix() string                 { return n.suffix }
+func (n *InputNumber) SetTips(t string)               { n.tips = t }
+func (n *InputNumber) Tips() string                   { return n.tips }
+func (n *InputNumber) SetReadonly(r bool)             { n.readonly = r }
+func (n *InputNumber) IsReadonly() bool               { return n.readonly }
+func (n *InputNumber) SetAllowInputOverLimit(v bool)  { n.allowInputOverLimit = v }
+func (n *InputNumber) AllowInputOverLimit() bool      { return n.allowInputOverLimit }
+func (n *InputNumber) OnChange(fn func(float64))      { n.onChange = fn }
+func (n *InputNumber) OnBlur(fn func(float64))        { n.onBlur = fn }
+func (n *InputNumber) OnFocus(fn func(float64))       { n.onFocus = fn }
+func (n *InputNumber) OnEnter(fn func(float64))       { n.onEnter = fn }
+func (n *InputNumber) OnValidate(fn func(err string)) { n.onValidate = fn }
 
 func (n *InputNumber) SetValue(v float64) {
 	if v < n.min {

@@ -17,80 +17,80 @@ type Loader struct {
 	// WGL functions (from opengl32.dll)
 	wglCreateContext  *syscall.LazyProc
 	wglDeleteContext  *syscall.LazyProc
-	wglMakeCurrent   *syscall.LazyProc
+	wglMakeCurrent    *syscall.LazyProc
 	wglGetProcAddress *syscall.LazyProc
 	wglSwapBuffers    *syscall.LazyProc // actually SwapBuffers from gdi32
 
 	// GDI functions
-	choosePF  *syscall.LazyProc // ChoosePixelFormat
-	setPF     *syscall.LazyProc // SetPixelFormat
-	describePF *syscall.LazyProc // DescribePixelFormat
-	getDC          *syscall.LazyProc // from user32
-	releaseDC      *syscall.LazyProc // from user32
-	getClientRect  *syscall.LazyProc // from user32
+	choosePF      *syscall.LazyProc // ChoosePixelFormat
+	setPF         *syscall.LazyProc // SetPixelFormat
+	describePF    *syscall.LazyProc // DescribePixelFormat
+	getDC         *syscall.LazyProc // from user32
+	releaseDC     *syscall.LazyProc // from user32
+	getClientRect *syscall.LazyProc // from user32
 
 	user32 *syscall.LazyDLL
 
 	// OpenGL 1.x functions (from opengl32.dll)
-	glGetIntegerv uintptr
-	glEnable      uintptr
-	glDisable     uintptr
-	glViewport    uintptr
-	glScissor     uintptr
-	glClearColor  uintptr
-	glClear       uintptr
-	glGetError    uintptr
-	glBlendFunc   uintptr
-	glPixelStorei uintptr
-	glTexImage2D  uintptr
-	glTexSubImage2D uintptr
-	glTexParameteri uintptr
-	glGenTextures   uintptr
+	glGetIntegerv    uintptr
+	glEnable         uintptr
+	glDisable        uintptr
+	glViewport       uintptr
+	glScissor        uintptr
+	glClearColor     uintptr
+	glClear          uintptr
+	glGetError       uintptr
+	glBlendFunc      uintptr
+	glPixelStorei    uintptr
+	glTexImage2D     uintptr
+	glTexSubImage2D  uintptr
+	glTexParameteri  uintptr
+	glGenTextures    uintptr
 	glDeleteTextures uintptr
-	glBindTexture   uintptr
-	glActiveTexture uintptr
-	glDrawArrays    uintptr
-	glReadPixels    uintptr
-	glFlush         uintptr
-	glFinish        uintptr
+	glBindTexture    uintptr
+	glActiveTexture  uintptr
+	glDrawArrays     uintptr
+	glReadPixels     uintptr
+	glFlush          uintptr
+	glFinish         uintptr
 
 	// OpenGL 2.0+ extension functions (via wglGetProcAddress)
-	glCreateShader       uintptr
-	glShaderSource       uintptr
-	glCompileShader      uintptr
-	glGetShaderiv        uintptr
-	glGetShaderInfoLog   uintptr
-	glDeleteShader       uintptr
-	glCreateProgram      uintptr
-	glAttachShader       uintptr
-	glLinkProgram        uintptr
-	glGetProgramiv       uintptr
-	glGetProgramInfoLog  uintptr
-	glUseProgram         uintptr
-	glDeleteProgram      uintptr
-	glGetUniformLocation uintptr
-	glUniform1i          uintptr
-	glGenBuffers         uintptr
-	glDeleteBuffers      uintptr
-	glBindBuffer         uintptr
-	glBufferData         uintptr
-	glBufferSubData      uintptr
-	glMapBufferRange     uintptr
-	glUnmapBuffer        uintptr
-	glGenVertexArrays    uintptr
-	glDeleteVertexArrays uintptr
-	glBindVertexArray    uintptr
+	glCreateShader             uintptr
+	glShaderSource             uintptr
+	glCompileShader            uintptr
+	glGetShaderiv              uintptr
+	glGetShaderInfoLog         uintptr
+	glDeleteShader             uintptr
+	glCreateProgram            uintptr
+	glAttachShader             uintptr
+	glLinkProgram              uintptr
+	glGetProgramiv             uintptr
+	glGetProgramInfoLog        uintptr
+	glUseProgram               uintptr
+	glDeleteProgram            uintptr
+	glGetUniformLocation       uintptr
+	glUniform1i                uintptr
+	glGenBuffers               uintptr
+	glDeleteBuffers            uintptr
+	glBindBuffer               uintptr
+	glBufferData               uintptr
+	glBufferSubData            uintptr
+	glMapBufferRange           uintptr
+	glUnmapBuffer              uintptr
+	glGenVertexArrays          uintptr
+	glDeleteVertexArrays       uintptr
+	glBindVertexArray          uintptr
 	glEnableVertexAttribArray  uintptr
 	glDisableVertexAttribArray uintptr
 	glVertexAttribPointer      uintptr
-	glBlendFuncSeparate  uintptr
-	glBlendEquation      uintptr
+	glBlendFuncSeparate        uintptr
+	glBlendEquation            uintptr
 
 	// Framebuffer (for sRGB and readback)
-	glGenFramebuffers    uintptr
-	glDeleteFramebuffers uintptr
-	glBindFramebuffer    uintptr
-	glFramebufferTexture2D uintptr
+	glGenFramebuffers        uintptr
+	glDeleteFramebuffers     uintptr
+	glBindFramebuffer        uintptr
+	glFramebufferTexture2D   uintptr
 	glCheckFramebufferStatus uintptr
 }
 
@@ -270,8 +270,8 @@ func (l *Loader) GetClientRect(hwnd uintptr) (int, int) {
 
 // WGL_ARB constants for wglCreateContextAttribsARB
 const (
-	WGL_CONTEXT_MAJOR_VERSION_ARB = 0x2091
-	WGL_CONTEXT_MINOR_VERSION_ARB = 0x2092
-	WGL_CONTEXT_PROFILE_MASK_ARB  = 0x9126
+	WGL_CONTEXT_MAJOR_VERSION_ARB    = 0x2091
+	WGL_CONTEXT_MINOR_VERSION_ARB    = 0x2092
+	WGL_CONTEXT_PROFILE_MASK_ARB     = 0x9126
 	WGL_CONTEXT_CORE_PROFILE_BIT_ARB = 0x00000001
 )

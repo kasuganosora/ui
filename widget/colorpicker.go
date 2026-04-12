@@ -36,11 +36,11 @@ func NewColorPicker(tree *core.Tree, cfg *Config) *ColorPicker {
 	return cp
 }
 
-func (cp *ColorPicker) Value() uimath.Color        { return cp.value }
-func (cp *ColorPicker) SetValue(c uimath.Color)    { cp.value = c }
-func (cp *ColorPicker) SetPresets(p []uimath.Color) { cp.presets = p }
+func (cp *ColorPicker) Value() uimath.Color            { return cp.value }
+func (cp *ColorPicker) SetValue(c uimath.Color)        { cp.value = c }
+func (cp *ColorPicker) SetPresets(p []uimath.Color)    { cp.presets = p }
 func (cp *ColorPicker) OnChange(fn func(uimath.Color)) { cp.onChange = fn }
-func (cp *ColorPicker) IsOpen() bool                { return cp.open }
+func (cp *ColorPicker) IsOpen() bool                   { return cp.open }
 
 func (cp *ColorPicker) SelectColor(c uimath.Color) {
 	cp.value = c

@@ -10,8 +10,8 @@ import (
 	"github.com/kasuganosora/ui/platform"
 	"github.com/kasuganosora/ui/platform/win32"
 	"github.com/kasuganosora/ui/render"
-	"github.com/kasuganosora/ui/render/dx9"
 	"github.com/kasuganosora/ui/render/dx11"
+	"github.com/kasuganosora/ui/render/dx9"
 	"github.com/kasuganosora/ui/render/gl"
 	"github.com/kasuganosora/ui/render/vulkan"
 )

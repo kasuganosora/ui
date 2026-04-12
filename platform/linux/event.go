@@ -165,7 +165,7 @@ func (p *Platform) translateEvent(xe XEvent, win *Window, events *[]event.Event)
 
 	case FocusIn:
 		*events = append(*events, event.Event{
-			Type:        event.WindowFocus,
+			Type: event.WindowFocus,
 		})
 
 	case FocusOut:

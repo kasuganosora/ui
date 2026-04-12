@@ -27,12 +27,12 @@ func buildBenchTree(t testing.TB) (*core.Tree, widget.Widget) {
 	addWindow := func(x, y, w, h float32, children int) {
 		win := widget.NewDiv(tree, cfg)
 		win.SetStyle(layout.Style{
-			Position: layout.PositionAbsolute,
-			Left:     layout.Px(x),
-			Top:      layout.Px(y),
-			Width:    layout.Px(w),
-			Height:   layout.Px(h),
-			Display:  layout.DisplayFlex,
+			Position:      layout.PositionAbsolute,
+			Left:          layout.Px(x),
+			Top:           layout.Px(y),
+			Width:         layout.Px(w),
+			Height:        layout.Px(h),
+			Display:       layout.DisplayFlex,
 			FlexDirection: layout.FlexDirectionColumn,
 		})
 		for i := 0; i < children; i++ {
@@ -93,7 +93,7 @@ func BenchmarkCSSLayoutFast(b *testing.B) {
 
 	lc := NewCSSLayoutCache()
 	lc.Layout(tree, root, 1280, 800, cfg) // warm up cache
-	tree.ClearAllDirty()                   // simulate post-frame cleanup; cache stays valid
+	tree.ClearAllDirty()                  // simulate post-frame cleanup; cache stays valid
 
 	b.ReportAllocs()
 	b.ResetTimer()

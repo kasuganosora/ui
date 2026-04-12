@@ -17,16 +17,16 @@ type ftFace uintptr
 type loader struct {
 	dll *syscall.LazyDLL
 
-	ftInitFreeType    uintptr
-	ftDoneFreeType    uintptr
-	ftNewFace         uintptr
-	ftNewMemoryFace   uintptr
-	ftDoneFace        uintptr
-	ftSetPixelSizes   uintptr
-	ftLoadGlyph       uintptr
-	ftRenderGlyph     uintptr
-	ftGetCharIndex    uintptr
-	ftGetKerning      uintptr
+	ftInitFreeType  uintptr
+	ftDoneFreeType  uintptr
+	ftNewFace       uintptr
+	ftNewMemoryFace uintptr
+	ftDoneFace      uintptr
+	ftSetPixelSizes uintptr
+	ftLoadGlyph     uintptr
+	ftRenderGlyph   uintptr
+	ftGetCharIndex  uintptr
+	ftGetKerning    uintptr
 }
 
 // dllNames lists candidate DLL names in priority order.

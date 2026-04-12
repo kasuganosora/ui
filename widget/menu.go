@@ -20,11 +20,11 @@ const (
 
 // MenuItem represents a single menu entry.
 type MenuItem struct {
-	Value    string            // unique identifier
-	Content  string            // menu item text content
+	Value    string               // unique identifier
+	Content  string               // menu item text content
 	Icon     render.TextureHandle // icon
-	Disabled bool              // whether disabled
-	Children []MenuItem        // submenu items
+	Disabled bool                 // whether disabled
+	Children []MenuItem           // submenu items
 }
 
 // menuItemRect stores layout info for hit testing.
@@ -37,19 +37,19 @@ type menuItemRect struct {
 // Menu is a vertical navigation menu.
 type Menu struct {
 	Base
-	items       []MenuItem
-	value       string          // active menu item value
-	expanded    map[string]bool // expanded submenu values
-	onChange    func(value string)        // called when active item changes
-	onExpand    func(expanded []string)   // called when expanded submenus change
-	itemHeight  float32
-	indent      float32
+	items        []MenuItem
+	value        string                  // active menu item value
+	expanded     map[string]bool         // expanded submenu values
+	onChange     func(value string)      // called when active item changes
+	onExpand     func(expanded []string) // called when expanded submenus change
+	itemHeight   float32
+	indent       float32
 	hoveredValue string
-	itemRects   []menuItemRect // rebuilt each Draw for hit testing
-	theme       MenuTheme
-	collapsed   bool    // collapsed sidebar mode
-	expandMutex bool    // same-level mutual exclusion
-	width       float32 // menu width, 0 = auto
+	itemRects    []menuItemRect // rebuilt each Draw for hit testing
+	theme        MenuTheme
+	collapsed    bool    // collapsed sidebar mode
+	expandMutex  bool    // same-level mutual exclusion
+	width        float32 // menu width, 0 = auto
 }
 
 func NewMenu(tree *core.Tree, cfg *Config) *Menu {
@@ -449,14 +449,4 @@ func (m *Menu) drawArrow(buf *render.CommandBuffer, cx, cy, size float32, open b
 			}, 2, 1)
 		}
 	}
-}
-
-// findItemAt returns the value of the item at the given global position, or "".
-func (m *Menu) findItemAt(gy float32) string {
-	for _, r := range m.itemRects {
-		if gy >= r.y && gy < r.y+r.h {
-			return r.value
-		}
-	}
-	return ""
 }

@@ -15,12 +15,12 @@ import (
 
 // Foundation Framework symbols
 var (
-	objc_msgSend        uintptr
-	objc_msgSend_stret  uintptr // amd64-only: for struct returns > 16 bytes
-	objc_getClass       uintptr
-	sel_registerName    uintptr
-	class_getName       uintptr
-	object_getClass     uintptr
+	objc_msgSend       uintptr
+	objc_msgSend_stret uintptr // amd64-only: for struct returns > 16 bytes
+	objc_getClass      uintptr
+	sel_registerName   uintptr
+	class_getName      uintptr
+	object_getClass    uintptr
 )
 
 // Typed objc_msgSend wrappers for methods with floating-point / struct arguments.
@@ -29,7 +29,7 @@ var (
 	// NSRect (32 bytes) is passed as a struct parameter — it MUST be kept as a struct
 	// so purego places it on the stack (amd64) or in contiguous FP regs (arm64 HFA).
 	// Splitting it into 4 float64 would put them in xmm0-xmm3, which is wrong for amd64.
-	msgSendInitWindowRect func(obj id, sel SEL, rect NSRect, styleMask uint64, backing uint64, deferFlag bool) id
+	msgSendInitWindowRect       func(obj id, sel SEL, rect NSRect, styleMask uint64, backing uint64, deferFlag bool) id
 	msgSendSizeArg              func(obj id, sel SEL, size NSSize)
 	msgSendRectReturn           func(obj id, sel SEL) NSRect
 	msgSendRectArgReturnID      func(obj id, sel SEL, rect NSRect) NSRect
@@ -48,14 +48,14 @@ var (
 
 // NSObject selectors
 var (
-	selAlloc           SEL
-	selInit            SEL
-	selRelease         SEL
-	selAutorelease     SEL
-	selRetain          SEL
-	selClass           SEL
-	selDescription     SEL
-	selUTF8String      SEL
+	selAlloc       SEL
+	selInit        SEL
+	selRelease     SEL
+	selAutorelease SEL
+	selRetain      SEL
+	selClass       SEL
+	selDescription SEL
+	selUTF8String  SEL
 )
 
 // NSString selectors
@@ -67,50 +67,50 @@ var (
 
 // NSApplication selectors
 var (
-	selSharedApplication    SEL
-	selRun                  SEL
-	selTerminate            SEL
-	selSetActivationPolicy  SEL
+	selSharedApplication         SEL
+	selRun                       SEL
+	selTerminate                 SEL
+	selSetActivationPolicy       SEL
 	selActivateIgnoringOtherApps SEL
 )
 
 // NSWindow selectors
 var (
-	selInitWithContentRect  SEL
-	selMakeKeyAndOrderFront SEL
-	selClose                SEL
-	selSetTitle             SEL
-	selContentView          SEL
-	selFrame                SEL
-	selSetFrame             SEL
-	selSetFrameTopLeftPoint SEL
+	selInitWithContentRect     SEL
+	selMakeKeyAndOrderFront    SEL
+	selClose                   SEL
+	selSetTitle                SEL
+	selContentView             SEL
+	selFrame                   SEL
+	selSetFrame                SEL
+	selSetFrameTopLeftPoint    SEL
 	selContentRectForFrameRect SEL
 	selFrameRectForContentRect SEL
-	selMinSize           SEL
-	selSetMinSize           SEL
-	selMaxSize           SEL
-	selSetMaxSize           SEL
-	selToggleFullScreen     SEL
-	selIsZoomed             SEL
-	selSetStyleMask         SEL
-	selStyleMask            SEL
-	selSetOpaque            SEL
-	selSetBackgroundColor   SEL
-	selMakeFirstResponder   SEL
-	selConvertRectToScreen  SEL
-	selScreen               SEL
-	selWindow               SEL
+	selMinSize                 SEL
+	selSetMinSize              SEL
+	selMaxSize                 SEL
+	selSetMaxSize              SEL
+	selToggleFullScreen        SEL
+	selIsZoomed                SEL
+	selSetStyleMask            SEL
+	selStyleMask               SEL
+	selSetOpaque               SEL
+	selSetBackgroundColor      SEL
+	selMakeFirstResponder      SEL
+	selConvertRectToScreen     SEL
+	selScreen                  SEL
+	selWindow                  SEL
 )
 
 // NSView selectors
 var (
-	selSetWantsLayer        SEL
-	selLayer                SEL
-	selSetLayer             SEL
-	selBounds               SEL
-	selSetBounds            SEL
-	selConvertRectFromView  SEL
-	selConvertRectToView    SEL
+	selSetWantsLayer       SEL
+	selLayer               SEL
+	selSetLayer            SEL
+	selBounds              SEL
+	selSetBounds           SEL
+	selConvertRectFromView SEL
+	selConvertRectToView   SEL
 )
 
 // NSResponder selectors
@@ -122,64 +122,64 @@ var (
 
 // NSEvent selectors
 var (
-	selType           SEL
+	selType             SEL
 	selLocationInWindow SEL
-	selModifierFlags  SEL
-	selButtonNumber   SEL
-	selClickCount     SEL
-	selKeyCode        SEL
-	selCharacters     SEL
-	selDeltaX         SEL
-	selDeltaY         SEL
-	selTimestamp      SEL
+	selModifierFlags    SEL
+	selButtonNumber     SEL
+	selClickCount       SEL
+	selKeyCode          SEL
+	selCharacters       SEL
+	selDeltaX           SEL
+	selDeltaY           SEL
+	selTimestamp        SEL
 )
 
 // NSTextInputClient selectors (for IME)
 var (
-	selInsertText                     SEL
-	selSetMarkedText                  SEL
-	selUnmarkText                     SEL
-	selSelectedRange                  SEL
-	selMarkedRange                    SEL
-	selHasMarkedText                  SEL
-	selAttributedSubstringFromRange   SEL
-	selFirstRectForCharacterRange     SEL
-	selCharacterIndexForPoint         SEL
-	selValidAttributesForMarkedText   SEL
+	selInsertText                   SEL
+	selSetMarkedText                SEL
+	selUnmarkText                   SEL
+	selSelectedRange                SEL
+	selMarkedRange                  SEL
+	selHasMarkedText                SEL
+	selAttributedSubstringFromRange SEL
+	selFirstRectForCharacterRange   SEL
+	selCharacterIndexForPoint       SEL
+	selValidAttributesForMarkedText SEL
 )
 
 // NSMenu/NSMenuItem selectors
 var (
-	selAllocMenu        SEL
-	selInitWithTitle    SEL
-	selAddItem          SEL
-	selInsertItem       SEL
-	selPopUpMenuPositioningItem SEL
-	selMenuItemWithTitle SEL
-	selSeparatorItem    SEL
-	selSetKeyEquivalent SEL
+	selAllocMenu                    SEL
+	selInitWithTitle                SEL
+	selAddItem                      SEL
+	selInsertItem                   SEL
+	selPopUpMenuPositioningItem     SEL
+	selMenuItemWithTitle            SEL
+	selSeparatorItem                SEL
+	selSetKeyEquivalent             SEL
 	selSetKeyEquivalentModifierMask SEL
-	selSetTarget        SEL
-	selSetAction        SEL
-	selSetEnabled       SEL
-	selTitle            SEL
-	selTag              SEL
-	selSetTag           SEL
+	selSetTarget                    SEL
+	selSetAction                    SEL
+	selSetEnabled                   SEL
+	selTitle                        SEL
+	selTag                          SEL
+	selSetTag                       SEL
 )
 
 // NSCursor selectors
 var (
-	selArrowCursor      SEL
-	selIBeamCursor      SEL
-	selCrosshairCursor  SEL
-	selPointingHandCursor SEL
-	selResizeLeftRightCursor SEL
-	selResizeUpDownCursor SEL
-	selPop              SEL
-	selPush             SEL
-	selSet              SEL
-	selHide             SEL
-	selUnhide           SEL
+	selArrowCursor              SEL
+	selIBeamCursor              SEL
+	selCrosshairCursor          SEL
+	selPointingHandCursor       SEL
+	selResizeLeftRightCursor    SEL
+	selResizeUpDownCursor       SEL
+	selPop                      SEL
+	selPush                     SEL
+	selSet                      SEL
+	selHide                     SEL
+	selUnhide                   SEL
 	selSetHiddenUntilMouseMoves SEL
 )
 
@@ -193,40 +193,40 @@ var (
 
 // NSScreen selectors
 var (
-	selMainScreen        SEL
-	selScreens           SEL
+	selMainScreen         SEL
+	selScreens            SEL
 	selBackingScaleFactor SEL
-	selVisibleFrame      SEL
+	selVisibleFrame       SEL
 )
 
 // NSLocale selectors
 var (
-	selCurrentLocale     SEL
-	selLocaleIdentifier  SEL
+	selCurrentLocale    SEL
+	selLocaleIdentifier SEL
 )
 
 // NSTrackingArea selectors
 var (
-	selInitWithRect      SEL
-	selAddTrackingArea   SEL
+	selInitWithRect       SEL
+	selAddTrackingArea    SEL
 	selRemoveTrackingArea SEL
 )
 
 // Core Foundation functions
 var (
-	cfRelease           uintptr
+	cfRelease                 uintptr
 	cfStringCreateWithCString uintptr
-	cfStringGetCString  uintptr
-	cfStringGetLength   uintptr
-	cfDataCreate        uintptr
-	cfDataGetBytePtr    uintptr
-	cfDataGetLength     uintptr
+	cfStringGetCString        uintptr
+	cfStringGetLength         uintptr
+	cfDataCreate              uintptr
+	cfDataGetBytePtr          uintptr
+	cfDataGetLength           uintptr
 )
 
 // NSApplication activation policies
 const (
-	NSApplicationActivationPolicyRegular   = 0
-	NSApplicationActivationPolicyAccessory = 1
+	NSApplicationActivationPolicyRegular    = 0
+	NSApplicationActivationPolicyAccessory  = 1
 	NSApplicationActivationPolicyProhibited = 2
 )
 
@@ -256,39 +256,39 @@ const (
 
 // NSEvent types
 const (
-	NSEventTypeLeftMouseDown         = 1
-	NSEventTypeLeftMouseUp           = 2
-	NSEventTypeRightMouseDown        = 3
-	NSEventTypeRightMouseUp          = 4
-	NSEventTypeMouseMoved            = 5
-	NSEventTypeLeftMouseDragged      = 6
-	NSEventTypeRightMouseDragged     = 7
-	NSEventTypeMouseEntered          = 8
-	NSEventTypeMouseExited           = 9
-	NSEventTypeKeyDown               = 10
-	NSEventTypeKeyUp                 = 11
-	NSEventTypeFlagsChanged          = 12
-	NSEventTypeAppKitDefined         = 13
-	NSEventTypeSystemDefined         = 14
-	NSEventTypeApplicationDefined    = 15
-	NSEventTypePeriodic              = 16
-	NSEventTypeCursorUpdate          = 17
-	NSEventTypeScrollWheel           = 22
-	NSEventTypeTabletPoint           = 23
-	NSEventTypeTabletProximity       = 24
-	NSEventTypeOtherMouseDown        = 25
-	NSEventTypeOtherMouseUp          = 26
-	NSEventTypeOtherMouseDragged     = 27
-	NSEventTypeGesture               = 29
-	NSEventTypeMagnify               = 30
-	NSEventTypeSwipe                 = 31
-	NSEventTypeRotate                = 18
-	NSEventTypeBeginGesture          = 19
-	NSEventTypeEndGesture            = 20
-	NSEventTypeSmartMagnify          = 32
-	NSEventTypeQuickLook             = 33
-	NSEventTypePressure              = 34
-	NSEventTypeDirectTouch           = 35
+	NSEventTypeLeftMouseDown      = 1
+	NSEventTypeLeftMouseUp        = 2
+	NSEventTypeRightMouseDown     = 3
+	NSEventTypeRightMouseUp       = 4
+	NSEventTypeMouseMoved         = 5
+	NSEventTypeLeftMouseDragged   = 6
+	NSEventTypeRightMouseDragged  = 7
+	NSEventTypeMouseEntered       = 8
+	NSEventTypeMouseExited        = 9
+	NSEventTypeKeyDown            = 10
+	NSEventTypeKeyUp              = 11
+	NSEventTypeFlagsChanged       = 12
+	NSEventTypeAppKitDefined      = 13
+	NSEventTypeSystemDefined      = 14
+	NSEventTypeApplicationDefined = 15
+	NSEventTypePeriodic           = 16
+	NSEventTypeCursorUpdate       = 17
+	NSEventTypeScrollWheel        = 22
+	NSEventTypeTabletPoint        = 23
+	NSEventTypeTabletProximity    = 24
+	NSEventTypeOtherMouseDown     = 25
+	NSEventTypeOtherMouseUp       = 26
+	NSEventTypeOtherMouseDragged  = 27
+	NSEventTypeGesture            = 29
+	NSEventTypeMagnify            = 30
+	NSEventTypeSwipe              = 31
+	NSEventTypeRotate             = 18
+	NSEventTypeBeginGesture       = 19
+	NSEventTypeEndGesture         = 20
+	NSEventTypeSmartMagnify       = 32
+	NSEventTypeQuickLook          = 33
+	NSEventTypePressure           = 34
+	NSEventTypeDirectTouch        = 35
 )
 
 // NSEvent modifier flags
@@ -305,16 +305,16 @@ const (
 
 // NSTrackingArea options
 const (
-	NSTrackingMouseEnteredAndExited = 1 << 0
-	NSTrackingMouseMoved            = 1 << 1
-	NSTrackingCursorUpdate          = 1 << 2
+	NSTrackingMouseEnteredAndExited    = 1 << 0
+	NSTrackingMouseMoved               = 1 << 1
+	NSTrackingCursorUpdate             = 1 << 2
 	NSTrackingActiveWhenFirstResponder = 1 << 4
-	NSTrackingActiveInKeyWindow     = 1 << 5
-	NSTrackingActiveInActiveApp     = 1 << 6
-	NSTrackingActiveAlways          = 1 << 7
-	NSTrackingAssumeInside          = 1 << 8
-	NSTrackingInVisibleRect         = 1 << 9
-	NSTrackingEnabledDuringMouseDrag = 1 << 10
+	NSTrackingActiveInKeyWindow        = 1 << 5
+	NSTrackingActiveInActiveApp        = 1 << 6
+	NSTrackingActiveAlways             = 1 << 7
+	NSTrackingAssumeInside             = 1 << 8
+	NSTrackingInVisibleRect            = 1 << 9
+	NSTrackingEnabledDuringMouseDrag   = 1 << 10
 )
 
 // NSPasteboard types
@@ -363,20 +363,20 @@ type IMP uintptr
 
 var (
 	// Cached class references
-	classNSApplication   Class
-	classNSWindow        Class
-	classNSView          Class
-	classNSString        Class
-	classNSEvent         Class
-	classNSMenu          Class
-	classNSMenuItem      Class
-	classNSCursor        Class
-	classNSPasteboard    Class
-	classNSScreen        Class
-	classNSLocale        Class
-	classNSTrackingArea  Class
-	classNSColor         Class
-	classCALayer         Class
+	classNSApplication  Class
+	classNSWindow       Class
+	classNSView         Class
+	classNSString       Class
+	classNSEvent        Class
+	classNSMenu         Class
+	classNSMenuItem     Class
+	classNSCursor       Class
+	classNSPasteboard   Class
+	classNSScreen       Class
+	classNSLocale       Class
+	classNSTrackingArea Class
+	classNSColor        Class
+	classCALayer        Class
 )
 
 // objcClass gets a class by name, caching the result
@@ -482,11 +482,11 @@ func objcSelector(name string) SEL {
 	if sel, ok := selectorCache[name]; ok {
 		return sel
 	}
-	
+
 	// Register new selector
 	r1, _, _ := purego.SyscallN(sel_registerName, uintptr(unsafe.Pointer(cstring(name))))
 	sel := SEL(r1)
-	
+
 	// Cache it
 	selectorCache[name] = sel
 	return sel
@@ -728,13 +728,13 @@ func init() {
 	}
 
 	// Register typed wrappers for methods with float/struct arguments.
-	purego.RegisterFunc(&msgSendInitWindowRect, objc_msgSend)           // returns id (8 bytes) → normal
-	purego.RegisterFunc(&msgSendSizeArg, objc_msgSend)                  // returns void → normal
-	purego.RegisterFunc(&msgSendRectReturn, msgSendStretOrNormal)       // returns NSRect (32 bytes) → stret on amd64
-	purego.RegisterFunc(&msgSendRectArgReturnID, msgSendStretOrNormal)  // returns NSRect (32 bytes) → stret on amd64
-	purego.RegisterFunc(&msgSendRectArgDisplay, objc_msgSend)           // returns void → normal
-	purego.RegisterFunc(&msgSendPointArg, objc_msgSend)                 // returns void → normal
-	purego.RegisterFunc(&msgSendInitTrackingAreaRect, objc_msgSend)     // returns id (8 bytes) → normal
+	purego.RegisterFunc(&msgSendInitWindowRect, objc_msgSend)          // returns id (8 bytes) → normal
+	purego.RegisterFunc(&msgSendSizeArg, objc_msgSend)                 // returns void → normal
+	purego.RegisterFunc(&msgSendRectReturn, msgSendStretOrNormal)      // returns NSRect (32 bytes) → stret on amd64
+	purego.RegisterFunc(&msgSendRectArgReturnID, msgSendStretOrNormal) // returns NSRect (32 bytes) → stret on amd64
+	purego.RegisterFunc(&msgSendRectArgDisplay, objc_msgSend)          // returns void → normal
+	purego.RegisterFunc(&msgSendPointArg, objc_msgSend)                // returns void → normal
+	purego.RegisterFunc(&msgSendInitTrackingAreaRect, objc_msgSend)    // returns id (8 bytes) → normal
 	purego.RegisterFunc(&msgSendFloat64Return, objc_msgSend)           // returns float64 → reads from xmm0/d0
 	purego.RegisterFunc(&msgSendPointReturn, objc_msgSend)             // returns NSPoint (16 bytes) → reads from xmm0+xmm1
 
@@ -769,19 +769,19 @@ func init() {
 	selClass = objcSelector("class")
 	selDescription = objcSelector("description")
 	selUTF8String = objcSelector("UTF8String")
-	
+
 	// NSString
 	selStringWithUTF8String = objcSelector("stringWithUTF8String:")
 	selLength = objcSelector("length")
 	selCharacterAtIndex = objcSelector("characterAtIndex:")
-	
+
 	// NSApplication
 	selSharedApplication = objcSelector("sharedApplication")
 	selRun = objcSelector("run")
 	selTerminate = objcSelector("terminate:")
 	selSetActivationPolicy = objcSelector("setActivationPolicy:")
 	selActivateIgnoringOtherApps = objcSelector("activateIgnoringOtherApps:")
-	
+
 	// NSWindow
 	selInitWithContentRect = objcSelector("initWithContentRect:styleMask:backing:defer:")
 	selMakeKeyAndOrderFront = objcSelector("makeKeyAndOrderFront:")
@@ -805,7 +805,7 @@ func init() {
 	selConvertRectToScreen = objcSelector("convertRectToScreen:")
 	selScreen = objcSelector("screen")
 	selWindow = objcSelector("window")
-	
+
 	// NSView
 	selSetWantsLayer = objcSelector("setWantsLayer:")
 	selLayer = objcSelector("layer")
@@ -814,12 +814,12 @@ func init() {
 	selSetBounds = objcSelector("setBounds:")
 	selConvertRectFromView = objcSelector("convertRect:fromView:")
 	selConvertRectToView = objcSelector("convertRect:toView:")
-	
+
 	// NSResponder
 	selAcceptsFirstResponder = objcSelector("acceptsFirstResponder")
 	selBecomeFirstResponder = objcSelector("becomeFirstResponder")
 	selResignFirstResponder = objcSelector("resignFirstResponder")
-	
+
 	// NSEvent
 	selType = objcSelector("type")
 	selLocationInWindow = objcSelector("locationInWindow")
@@ -831,7 +831,7 @@ func init() {
 	selDeltaX = objcSelector("deltaX")
 	selDeltaY = objcSelector("deltaY")
 	selTimestamp = objcSelector("timestamp")
-	
+
 	// NSTextInputClient
 	selInsertText = objcSelector("insertText:replacementRange:")
 	selSetMarkedText = objcSelector("setMarkedText:selectedRange:replacementRange:")
@@ -843,7 +843,7 @@ func init() {
 	selFirstRectForCharacterRange = objcSelector("firstRectForCharacterRange:actualRange:")
 	selCharacterIndexForPoint = objcSelector("characterIndexForPoint:")
 	selValidAttributesForMarkedText = objcSelector("validAttributesForMarkedText")
-	
+
 	// NSMenu/NSMenuItem
 	selAllocMenu = objcSelector("alloc")
 	selInitWithTitle = objcSelector("initWithTitle:")
@@ -860,7 +860,7 @@ func init() {
 	selTitle = objcSelector("title")
 	selTag = objcSelector("tag")
 	selSetTag = objcSelector("setTag:")
-	
+
 	// NSCursor
 	selArrowCursor = objcSelector("arrowCursor")
 	selIBeamCursor = objcSelector("IBeamCursor")
@@ -874,23 +874,23 @@ func init() {
 	selHide = objcSelector("hide")
 	selUnhide = objcSelector("unhide")
 	selSetHiddenUntilMouseMoves = objcSelector("setHiddenUntilMouseMoves:")
-	
+
 	// NSPasteboard
 	selGeneralPasteboard = objcSelector("generalPasteboard")
 	selStringForType = objcSelector("stringForType:")
 	selSetString = objcSelector("setString:forType:")
 	selClearContents = objcSelector("clearContents")
-	
+
 	// NSScreen
 	selMainScreen = objcSelector("mainScreen")
 	selScreens = objcSelector("screens")
 	selBackingScaleFactor = objcSelector("backingScaleFactor")
 	selVisibleFrame = objcSelector("visibleFrame")
-	
+
 	// NSLocale
 	selCurrentLocale = objcSelector("currentLocale")
 	selLocaleIdentifier = objcSelector("localeIdentifier")
-	
+
 	// NSTrackingArea
 	selInitWithRect = objcSelector("initWithRect:options:owner:userInfo:")
 	selAddTrackingArea = objcSelector("addTrackingArea:")

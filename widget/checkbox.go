@@ -49,18 +49,18 @@ func NewCheckbox(tree *core.Tree, label string, cfg *Config) *Checkbox {
 	return c
 }
 
-func (c *Checkbox) Label() string          { return c.label }
-func (c *Checkbox) Value() string          { return c.value }
-func (c *Checkbox) IsChecked() bool        { return c.checked }
-func (c *Checkbox) IsIndeterminate() bool  { return c.indeterminate }
-func (c *Checkbox) IsDisabled() bool       { return c.disabled }
-func (c *Checkbox) IsReadonly() bool       { return c.readonly }
-func (c *Checkbox) IsCheckAll() bool       { return c.checkAll }
+func (c *Checkbox) Label() string         { return c.label }
+func (c *Checkbox) Value() string         { return c.value }
+func (c *Checkbox) IsChecked() bool       { return c.checked }
+func (c *Checkbox) IsIndeterminate() bool { return c.indeterminate }
+func (c *Checkbox) IsDisabled() bool      { return c.disabled }
+func (c *Checkbox) IsReadonly() bool      { return c.readonly }
+func (c *Checkbox) IsCheckAll() bool      { return c.checkAll }
 
-func (c *Checkbox) SetValue(v string)          { c.value = v }
-func (c *Checkbox) SetIndeterminate(ind bool)  { c.indeterminate = ind }
-func (c *Checkbox) SetReadonly(r bool)         { c.readonly = r }
-func (c *Checkbox) SetCheckAll(v bool)         { c.checkAll = v }
+func (c *Checkbox) SetValue(v string)         { c.value = v }
+func (c *Checkbox) SetIndeterminate(ind bool) { c.indeterminate = ind }
+func (c *Checkbox) SetReadonly(r bool)        { c.readonly = r }
+func (c *Checkbox) SetCheckAll(v bool)        { c.checkAll = v }
 
 func (c *Checkbox) SetLabel(label string) {
 	c.label = label

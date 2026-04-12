@@ -91,11 +91,12 @@ func (s *Skeleton) Draw(buf *render.CommandBuffer) {
 
 	// Animation opacity modulation
 	opacity := float32(1.0)
-	if s.animation == AnimationGradient {
+	switch s.animation {
+	case AnimationGradient:
 		elapsed := time.Since(s.startTime).Seconds()
 		opacity = float32(0.4 + 0.6*gomath.Abs(gomath.Sin(elapsed*2.0)))
 		s.tree.MarkDirty(s.id) // continuous redraw
-	} else if s.animation == AnimationFlashed {
+	case AnimationFlashed:
 		elapsed := time.Since(s.startTime).Seconds()
 		// Flash: alternate between 0.3 and 1.0
 		phase := gomath.Mod(elapsed*2.0, 2.0)

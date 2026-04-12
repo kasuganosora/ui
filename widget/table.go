@@ -11,7 +11,7 @@ import (
 type TableColumnAlign int
 
 const (
-	TableAlignLeft   TableColumnAlign = iota // default
+	TableAlignLeft TableColumnAlign = iota // default
 	TableAlignCenter
 	TableAlignRight
 )
@@ -20,7 +20,7 @@ const (
 type TableColumnFixed int
 
 const (
-	TableFixedNone  TableColumnFixed = iota
+	TableFixedNone TableColumnFixed = iota
 	TableFixedLeft
 	TableFixedRight
 )
@@ -61,15 +61,15 @@ type Table struct {
 	rowKey     string // field name for unique row id
 	hoveredRow int    // -1 = none
 
-	onRowClick  func(ctx RowEventContext)  // called on row click
-	onCellClick func(ctx CellEventContext) // called on cell click
-	onPageChange func(pageInfo PageInfo)   // called on page change
-	onSortChange func(sort SortInfo)       // called on sort change
+	onRowClick   func(ctx RowEventContext)  // called on row click
+	onCellClick  func(ctx CellEventContext) // called on cell click
+	onPageChange func(pageInfo PageInfo)    // called on page change
+	onSortChange func(sort SortInfo)        // called on sort change
 }
 
 // SortInfo describes a column sort state.
 type SortInfo struct {
-	SortBy string // column key
+	SortBy     string // column key
 	Descending bool
 }
 
@@ -280,9 +280,10 @@ func (t *Table) Draw(buf *render.CommandBuffer) {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 			tw := cfg.TextRenderer.MeasureText(col.Title, cfg.FontSizeSm)
 			tx := cx + cfg.SpaceMD
-			if col.Align == TableAlignCenter {
+			switch col.Align {
+			case TableAlignCenter:
 				tx = cx + (colWidths[i]-tw)/2
-			} else if col.Align == TableAlignRight {
+			case TableAlignRight:
 				tx = cx + colWidths[i] - tw - cfg.SpaceMD
 			}
 			cfg.TextRenderer.DrawText(buf, col.Title, tx, bounds.Y+(t.headerH-lh)/2, cfg.FontSizeSm, colWidths[i]-cfg.SpaceMD*2, headerTextColor, 1)
@@ -342,9 +343,10 @@ func (t *Table) Draw(buf *render.CommandBuffer) {
 				lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 				tw := cfg.TextRenderer.MeasureText(cell, cfg.FontSize)
 				tx := cx + cfg.SpaceMD
-				if col.Align == TableAlignCenter {
+				switch col.Align {
+				case TableAlignCenter:
 					tx = cx + (colWidths[ci]-tw)/2
-				} else if col.Align == TableAlignRight {
+				case TableAlignRight:
 					tx = cx + colWidths[ci] - tw - cfg.SpaceMD
 				}
 				cfg.TextRenderer.DrawText(buf, cell, tx, ry+(t.rowHeight-lh)/2, cfg.FontSize, colWidths[ci]-cfg.SpaceMD*2, cfg.TextColor, 1)

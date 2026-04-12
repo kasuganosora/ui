@@ -76,16 +76,16 @@ func (t *Tooltip) AnchorID() core.ElementID  { return t.anchorID }
 func (t *Tooltip) Theme() TooltipTheme       { return t.theme }
 func (t *Tooltip) ShowArrow() bool           { return t.showArrow }
 
-func (t *Tooltip) SetText(text string)             { t.text = text }
-func (t *Tooltip) SetPlacement(p PopupPlacement)   { t.placement = p }
-func (t *Tooltip) SetTheme(th TooltipTheme)        { t.theme = th }
-func (t *Tooltip) SetShowArrow(v bool)             { t.showArrow = v }
-func (t *Tooltip) Delay() int                      { return t.delay }
-func (t *Tooltip) SetDelay(ms int)                 { t.delay = ms }
-func (t *Tooltip) DestroyOnClose() bool            { return t.destroyOnClose }
-func (t *Tooltip) SetDestroyOnClose(v bool)        { t.destroyOnClose = v }
-func (t *Tooltip) Duration() int                   { return t.duration }
-func (t *Tooltip) SetDuration(ms int)              { t.duration = ms }
+func (t *Tooltip) SetText(text string)           { t.text = text }
+func (t *Tooltip) SetPlacement(p PopupPlacement) { t.placement = p }
+func (t *Tooltip) SetTheme(th TooltipTheme)      { t.theme = th }
+func (t *Tooltip) SetShowArrow(v bool)           { t.showArrow = v }
+func (t *Tooltip) Delay() int                    { return t.delay }
+func (t *Tooltip) SetDelay(ms int)               { t.delay = ms }
+func (t *Tooltip) DestroyOnClose() bool          { return t.destroyOnClose }
+func (t *Tooltip) SetDestroyOnClose(v bool)      { t.destroyOnClose = v }
+func (t *Tooltip) Duration() int                 { return t.duration }
+func (t *Tooltip) SetDuration(ms int)            { t.duration = ms }
 
 func (t *Tooltip) Show() {
 	t.visible = true

@@ -33,9 +33,9 @@ type loader struct {
 // newLoader opens libfreetype via purego and resolves all function pointers.
 func newLoader() (*loader, error) {
 	candidates := []string{
-		"/usr/local/lib/libfreetype.dylib",         // Intel Homebrew
-		"/opt/homebrew/lib/libfreetype.dylib",       // Apple Silicon Homebrew
-		"libfreetype.6.dylib",                       // fallback: search path
+		"/usr/local/lib/libfreetype.dylib",    // Intel Homebrew
+		"/opt/homebrew/lib/libfreetype.dylib", // Apple Silicon Homebrew
+		"libfreetype.6.dylib",                 // fallback: search path
 		"/usr/local/lib/libfreetype.6.dylib",
 		"/opt/homebrew/lib/libfreetype.6.dylib",
 	}

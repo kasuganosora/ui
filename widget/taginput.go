@@ -51,20 +51,20 @@ func NewTagInput(tree *core.Tree, cfg *Config) *TagInput {
 	return ti
 }
 
-func (ti *TagInput) Tags() []string                    { return ti.tags }
-func (ti *TagInput) InputText() string                 { return ti.inputText }
-func (ti *TagInput) Placeholder() string               { return ti.placeholder }
-func (ti *TagInput) MaxTags() int                      { return ti.maxTags }
-func (ti *TagInput) Clearable() bool                   { return ti.clearable }
-func (ti *TagInput) Size() Size                        { return ti.size }
-func (ti *TagInput) SetMaxTags(m int)                  { ti.maxTags = m }
-func (ti *TagInput) SetInputText(s string)             { ti.inputText = s }
-func (ti *TagInput) SetPlaceholder(s string)           { ti.placeholder = s }
-func (ti *TagInput) SetSize(s Size)                    { ti.size = s }
-func (ti *TagInput) SetClearable(c bool)               { ti.clearable = c }
-func (ti *TagInput) OnAdd(fn func(string))             { ti.onAdd = fn }
-func (ti *TagInput) OnRemove(fn func(string, int))     { ti.onRemove = fn }
-func (ti *TagInput) OnChange(fn func([]string))        { ti.onChange = fn }
+func (ti *TagInput) Tags() []string                { return ti.tags }
+func (ti *TagInput) InputText() string             { return ti.inputText }
+func (ti *TagInput) Placeholder() string           { return ti.placeholder }
+func (ti *TagInput) MaxTags() int                  { return ti.maxTags }
+func (ti *TagInput) Clearable() bool               { return ti.clearable }
+func (ti *TagInput) Size() Size                    { return ti.size }
+func (ti *TagInput) SetMaxTags(m int)              { ti.maxTags = m }
+func (ti *TagInput) SetInputText(s string)         { ti.inputText = s }
+func (ti *TagInput) SetPlaceholder(s string)       { ti.placeholder = s }
+func (ti *TagInput) SetSize(s Size)                { ti.size = s }
+func (ti *TagInput) SetClearable(c bool)           { ti.clearable = c }
+func (ti *TagInput) OnAdd(fn func(string))         { ti.onAdd = fn }
+func (ti *TagInput) OnRemove(fn func(string, int)) { ti.onRemove = fn }
+func (ti *TagInput) OnChange(fn func([]string))    { ti.onChange = fn }
 
 func (ti *TagInput) AddTag(tag string) {
 	if tag == "" {
@@ -100,18 +100,6 @@ func (ti *TagInput) ClearTags() {
 	ti.tags = ti.tags[:0]
 	if ti.onChange != nil {
 		ti.onChange(ti.tags)
-	}
-}
-
-// heightForSize returns the container height based on the Size setting.
-func (ti *TagInput) heightForSize() float32 {
-	switch ti.size {
-	case SizeSmall:
-		return 28
-	case SizeLarge:
-		return 40
-	default: // SizeMedium
-		return 32
 	}
 }
 

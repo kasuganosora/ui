@@ -41,14 +41,14 @@ func NewLootWindow(tree *core.Tree, cfg *widget.Config) *LootWindow {
 	}
 }
 
-func (lw *LootWindow) Title() string           { return lw.title }
-func (lw *LootWindow) Items() []LootItem       { return lw.items }
-func (lw *LootWindow) IsVisible() bool         { return lw.visible }
-func (lw *LootWindow) SetTitle(t string)       { lw.title = t }
-func (lw *LootWindow) SetWidth(w float32)      { lw.width = w }
-func (lw *LootWindow) OnLoot(fn func(int))     { lw.onLoot = fn }
-func (lw *LootWindow) OnClose(fn func())       { lw.onClose = fn }
-func (lw *LootWindow) SetEmbedded(v bool)      { lw.embedded = v }
+func (lw *LootWindow) Title() string       { return lw.title }
+func (lw *LootWindow) Items() []LootItem   { return lw.items }
+func (lw *LootWindow) IsVisible() bool     { return lw.visible }
+func (lw *LootWindow) SetTitle(t string)   { lw.title = t }
+func (lw *LootWindow) SetWidth(w float32)  { lw.width = w }
+func (lw *LootWindow) OnLoot(fn func(int)) { lw.onLoot = fn }
+func (lw *LootWindow) OnClose(fn func())   { lw.onClose = fn }
+func (lw *LootWindow) SetEmbedded(v bool)  { lw.embedded = v }
 
 func (lw *LootWindow) AddItem(item LootItem) {
 	lw.items = append(lw.items, item)

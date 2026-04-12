@@ -18,9 +18,9 @@ func skipIfNotDarwin(t *testing.T) {
 
 func TestCstring(t *testing.T) {
 	skipIfNotDarwin(t)
-	
+
 	tests := []struct {
-		name string
+		name  string
 		input string
 	}{
 		{"empty", ""},
@@ -49,20 +49,20 @@ func TestCstring(t *testing.T) {
 
 func TestNSStringGoStringRoundTrip(t *testing.T) {
 	skipIfNotDarwin(t)
-	
+
 	// Ensure Foundation framework is loaded for test
 	ensureFoundation()
-	
+
 	// Test creating an NSString and converting back to Go string
 	testStr := "Hello, 世界!"
-	
+
 	// Create NSString
 	ns := nsString(testStr)
 	if ns == 0 {
 		t.Fatal("nsString returned nil")
 	}
 	defer msgSend(ns, selRelease)
-	
+
 	// Convert back to Go string
 	result := goString(ns)
 	if result != testStr {
@@ -150,9 +150,9 @@ func TestRectFromPtr(t *testing.T) {
 
 	original := nsRect(10, 20, 300, 400)
 	ptr := unsafe.Pointer(&original)
-	
+
 	result := rectFromPtr(ptr)
-	
+
 	if result.Origin.X != original.Origin.X ||
 		result.Origin.Y != original.Origin.Y ||
 		result.Size.Width != original.Size.Width ||
@@ -166,9 +166,9 @@ func TestPointFromPtr(t *testing.T) {
 
 	original := nsPoint(100.5, 200.5)
 	ptr := unsafe.Pointer(&original)
-	
+
 	result := pointFromPtr(ptr)
-	
+
 	if result.X != original.X || result.Y != original.Y {
 		t.Errorf("pointFromPtr mismatch: expected %+v, got %+v", original, result)
 	}
@@ -179,9 +179,9 @@ func TestSizeFromPtr(t *testing.T) {
 
 	original := nsSize(300.5, 400.5)
 	ptr := unsafe.Pointer(&original)
-	
+
 	result := sizeFromPtr(ptr)
-	
+
 	if result.Width != original.Width || result.Height != original.Height {
 		t.Errorf("sizeFromPtr mismatch: expected %+v, got %+v", original, result)
 	}
@@ -193,22 +193,22 @@ func TestObjcClassCaching(t *testing.T) {
 	// Test that objcClass returns same pointer for same class
 	cls1 := objcClass("NSString")
 	cls2 := objcClass("NSString")
-	
+
 	if cls1 == 0 {
 		t.Fatal("objcClass returned nil for NSString")
 	}
-	
+
 	if cls1 != cls2 {
-		t.Errorf("objcClass caching failed: got different pointers %p vs %p", 
+		t.Errorf("objcClass caching failed: got different pointers %p vs %p",
 			unsafe.Pointer(cls1), unsafe.Pointer(cls2))
 	}
-	
+
 	// Test different classes
 	clsArray := objcClass("NSArray")
 	if clsArray == 0 {
 		t.Fatal("objcClass returned nil for NSArray")
 	}
-	
+
 	if cls1 == clsArray {
 		t.Error("objcClass returned same pointer for different classes")
 	}
@@ -245,12 +245,12 @@ func TestMsgSendVariadicArgs(t *testing.T) {
 	// but we can ensure the function doesn't panic with different arg counts
 
 	// This is more of a smoke test
-	_ = msgSend(0, 0)           // 0 args
-	_ = msgSend(0, 0, 1)        // 1 arg
-	_ = msgSend(0, 0, 1, 2)     // 2 args
-	_ = msgSend(0, 0, 1, 2, 3)  // 3 args
-	_ = msgSend(0, 0, 1, 2, 3, 4) // 4 args
-	_ = msgSend(0, 0, 1, 2, 3, 4, 5) // 5 args
+	_ = msgSend(0, 0)                      // 0 args
+	_ = msgSend(0, 0, 1)                   // 1 arg
+	_ = msgSend(0, 0, 1, 2)                // 2 args
+	_ = msgSend(0, 0, 1, 2, 3)             // 3 args
+	_ = msgSend(0, 0, 1, 2, 3, 4)          // 4 args
+	_ = msgSend(0, 0, 1, 2, 3, 4, 5)       // 5 args
 	_ = msgSend(0, 0, 1, 2, 3, 4, 5, 6, 7) // > 5 args
 }
 

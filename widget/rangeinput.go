@@ -10,13 +10,13 @@ import (
 // RangeInput is a dual-thumb range slider.
 type RangeInput struct {
 	Base
-	min       float32
-	max       float32
-	low       float32
-	high      float32
-	step      float32
-	dragging  int // 0=none, 1=low, 2=high
-	onChange  func(low, high float32)
+	min      float32
+	max      float32
+	low      float32
+	high     float32
+	step     float32
+	dragging int // 0=none, 1=low, 2=high
+	onChange func(low, high float32)
 }
 
 func NewRangeInput(tree *core.Tree, min, max float32, cfg *Config) *RangeInput {

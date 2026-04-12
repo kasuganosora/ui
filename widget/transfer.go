@@ -29,8 +29,8 @@ func NewTransfer(tree *core.Tree, cfg *Config) *Transfer {
 	}
 }
 
-func (t *Transfer) Source() []TransferItem { return t.source }
-func (t *Transfer) Target() []TransferItem { return t.target }
+func (t *Transfer) Source() []TransferItem     { return t.source }
+func (t *Transfer) Target() []TransferItem     { return t.target }
 func (t *Transfer) OnChange(fn func([]string)) { t.onChange = fn }
 
 func (t *Transfer) SetSource(items []TransferItem) {

@@ -11,32 +11,32 @@ import (
 
 // Window implements platform.Window using Win32 HWND.
 type Window struct {
-	hwnd       uintptr
-	hinstance  uintptr
-	p          *Platform // back-reference for event queue
+	hwnd      uintptr
+	hinstance uintptr
+	p         *Platform // back-reference for event queue
 
 	// State
-	width, height   int // client area logical pixels
+	width, height     int // client area logical pixels
 	fbWidth, fbHeight int // framebuffer physical pixels
-	posX, posY      int
-	dpiScale        float32
-	fullscreen      bool
-	decorated       bool
-	resizable       bool
-	transparent     bool
-	visible         bool
-	deferredVisible bool // true if ShowWindow is deferred until first PollEvents
-	shouldClose     bool
-	mouseTracked    bool // for WM_MOUSELEAVE tracking
+	posX, posY        int
+	dpiScale          float32
+	fullscreen        bool
+	decorated         bool
+	resizable         bool
+	transparent       bool
+	visible           bool
+	deferredVisible   bool // true if ShowWindow is deferred until first PollEvents
+	shouldClose       bool
+	mouseTracked      bool // for WM_MOUSELEAVE tracking
 
 	// Size constraints
 	minWidth, minHeight int
 	maxWidth, maxHeight int
 
 	// Saved window state for fullscreen toggle
-	savedStyle    uint32
-	savedExStyle  uint32
-	savedRect     RECT
+	savedStyle   uint32
+	savedExStyle uint32
+	savedRect    RECT
 
 	// Cursor
 	currentCursor  uintptr
@@ -48,18 +48,18 @@ type Window struct {
 	imeLineH   int32 // line height for candidate window exclusion rect
 
 	// TSF (Text Services Framework) for modern IME support
-	tsfMgr       *TSFManager
-	tsfProvider  platform.TSFTextProvider
+	tsfMgr      *TSFManager
+	tsfProvider platform.TSFTextProvider
 
 	// Resize callback — called from WndProc on WM_SIZE during the modal
 	// resize loop so the app can re-layout and render while the user drags.
-	inSizeMove     bool
-	onResizeFunc   func()
+	inSizeMove   bool
+	onResizeFunc func()
 
 	// Per-pixel hit test callback for transparent windows.
 	// Returns true if the window handles input at (x,y), false to pass through.
-	hitTestFunc  func(x, y int) bool
-	customIBeam  uintptr // custom cursor handle that needs DestroyCursor
+	hitTestFunc func(x, y int) bool
+	customIBeam uintptr // custom cursor handle that needs DestroyCursor
 
 	// Accessibility: UI Automation provider
 	uiaProvider *UIAProvider

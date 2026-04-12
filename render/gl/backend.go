@@ -46,10 +46,10 @@ type Backend struct {
 	texturedVAO, texturedVBO uint32
 
 	// State
-	width, height   int // from FramebufferSize (for NDC calculations, matches VK/DX11)
+	width, height     int // from FramebufferSize (for NDC calculations, matches VK/DX11)
 	vpWidth, vpHeight int // actual physical viewport pixels (from GetClientRect)
-	dpiScale        float32
-	shared          bool // true when using external GL context (embedded mode)
+	dpiScale          float32
+	shared            bool // true when using external GL context (embedded mode)
 
 	// Textures
 	nextTextureID render.TextureHandle
@@ -363,7 +363,7 @@ func (b *Backend) renderRect(c render.Command) {
 			RadiusTL: rect.Corners.TopLeft * s, RadiusTR: rect.Corners.TopRight * s,
 			RadiusBR: rect.Corners.BottomRight * s, RadiusBL: rect.Corners.BottomLeft * s,
 			BorderWidth: rect.BorderWidth * s,
-			BorderR: rect.BorderColor.R, BorderG: rect.BorderColor.G,
+			BorderR:     rect.BorderColor.R, BorderG: rect.BorderColor.G,
 			BorderB: rect.BorderColor.B, BorderA: rect.BorderColor.A,
 		}
 	}
@@ -402,7 +402,7 @@ func (b *Backend) renderText(c render.Command) {
 	for _, g := range tc.Glyphs {
 		x0 := (g.X/logW)*2 - 1
 		y0 := 1 - (g.Y/logH)*2
-		x1 := ((g.X + g.Width) / logW) * 2 - 1
+		x1 := ((g.X+g.Width)/logW)*2 - 1
 		y1 := 1 - ((g.Y+g.Height)/logH)*2
 
 		clr := TexturedVertex{
@@ -452,7 +452,7 @@ func (b *Backend) renderImage(c render.Command) {
 
 	x0 := (dx/logW)*2 - 1
 	y0 := 1 - (dy/logH)*2
-	x1 := ((dx + dw) / logW) * 2 - 1
+	x1 := ((dx+dw)/logW)*2 - 1
 	y1 := 1 - ((dy+dh)/logH)*2
 
 	// UV: use SrcRect if set, otherwise full texture

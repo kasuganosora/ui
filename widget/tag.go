@@ -96,32 +96,32 @@ func NewTag(tree *core.Tree, label string, cfg *Config) *Tag {
 	return t
 }
 
-func (t *Tag) Content() string      { return t.content }
-func (t *Tag) Theme() TagTheme      { return t.theme }
-func (t *Tag) Size() Size           { return t.size }
-func (t *Tag) Closable() bool       { return t.closable }
-func (t *Tag) Shape() TagShape      { return t.shape }
-func (t *Tag) Variant() TagVariant  { return t.variant }
-func (t *Tag) Disabled() bool       { return t.disabled }
-func (t *Tag) MaxWidth() float32    { return t.maxWidth }
-func (t *Tag) Title() string        { return t.title }
+func (t *Tag) Content() string     { return t.content }
+func (t *Tag) Theme() TagTheme     { return t.theme }
+func (t *Tag) Size() Size          { return t.size }
+func (t *Tag) Closable() bool      { return t.closable }
+func (t *Tag) Shape() TagShape     { return t.shape }
+func (t *Tag) Variant() TagVariant { return t.variant }
+func (t *Tag) Disabled() bool      { return t.disabled }
+func (t *Tag) MaxWidth() float32   { return t.maxWidth }
+func (t *Tag) Title() string       { return t.title }
 
 func (t *Tag) SetContent(content string) {
 	t.content = content
 	t.tree.SetProperty(t.id, "text", content)
 }
 
-func (t *Tag) SetTheme(th TagTheme)      { t.theme = th }
-func (t *Tag) SetColor(c uimath.Color)   { t.color = c }
-func (t *Tag) SetSize(s Size)            { t.size = s }
-func (t *Tag) SetClosable(c bool)        { t.closable = c }
-func (t *Tag) OnClose(fn func())         { t.onClose = fn }
-func (t *Tag) OnClick(fn func())         { t.onClick = fn }
-func (t *Tag) SetShape(s TagShape)       { t.shape = s }
-func (t *Tag) SetVariant(v TagVariant)   { t.variant = v }
-func (t *Tag) SetDisabled(d bool)        { t.disabled = d }
-func (t *Tag) SetMaxWidth(w float32)     { t.maxWidth = w }
-func (t *Tag) SetTitle(title string)     { t.title = title }
+func (t *Tag) SetTheme(th TagTheme)    { t.theme = th }
+func (t *Tag) SetColor(c uimath.Color) { t.color = c }
+func (t *Tag) SetSize(s Size)          { t.size = s }
+func (t *Tag) SetClosable(c bool)      { t.closable = c }
+func (t *Tag) OnClose(fn func())       { t.onClose = fn }
+func (t *Tag) OnClick(fn func())       { t.onClick = fn }
+func (t *Tag) SetShape(s TagShape)     { t.shape = s }
+func (t *Tag) SetVariant(v TagVariant) { t.variant = v }
+func (t *Tag) SetDisabled(d bool)      { t.disabled = d }
+func (t *Tag) SetMaxWidth(w float32)   { t.maxWidth = w }
+func (t *Tag) SetTitle(title string)   { t.title = title }
 
 // sizeHeight returns the tag height based on size.
 func (t *Tag) sizeHeight() float32 {

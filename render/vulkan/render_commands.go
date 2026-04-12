@@ -115,50 +115,50 @@ func (b *Backend) flushBatch(cmd CommandBuffer, batch *batchState) {
 
 	switch batch.pipelineType {
 	case render.CmdRect:
-		syscallN(b.loader.vkCmdBindPipeline,
+		_, _, _ = syscallN(b.loader.vkCmdBindPipeline,
 			uintptr(cmd), uintptr(PipelineBindPointGraphics), uintptr(b.rectPipeline),
 		)
-		syscallN(b.loader.vkCmdBindVertexBuffers,
+		_, _, _ = syscallN(b.loader.vkCmdBindVertexBuffers,
 			uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&vb)), uintptr(unsafe.Pointer(&batch.vertexStart)),
 		)
-		syscallN(b.loader.vkCmdDraw, uintptr(cmd), uintptr(batch.count), 1, 0, 0)
+		_, _, _ = syscallN(b.loader.vkCmdDraw, uintptr(cmd), uintptr(batch.count), 1, 0, 0)
 
 	case render.CmdText:
-		syscallN(b.loader.vkCmdBindPipeline,
+		_, _, _ = syscallN(b.loader.vkCmdBindPipeline,
 			uintptr(cmd), uintptr(PipelineBindPointGraphics), uintptr(b.textPipeline),
 		)
-		syscallN(b.loader.vkCmdBindDescriptorSets,
+		_, _, _ = syscallN(b.loader.vkCmdBindDescriptorSets,
 			uintptr(cmd), uintptr(PipelineBindPointGraphics), uintptr(b.textPipelineLayout),
 			0, 1, uintptr(unsafe.Pointer(&batch.descriptorSet)),
 			0, 0,
 		)
-		syscallN(b.loader.vkCmdBindVertexBuffers,
+		_, _, _ = syscallN(b.loader.vkCmdBindVertexBuffers,
 			uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&vb)), uintptr(unsafe.Pointer(&batch.vertexStart)),
 		)
-		syscallN(b.loader.vkCmdDraw, uintptr(cmd), uintptr(batch.count), 1, 0, 0)
+		_, _, _ = syscallN(b.loader.vkCmdDraw, uintptr(cmd), uintptr(batch.count), 1, 0, 0)
 
 	case render.CmdImage:
-		syscallN(b.loader.vkCmdBindPipeline,
+		_, _, _ = syscallN(b.loader.vkCmdBindPipeline,
 			uintptr(cmd), uintptr(PipelineBindPointGraphics), uintptr(b.texturedPipeline),
 		)
-		syscallN(b.loader.vkCmdBindDescriptorSets,
+		_, _, _ = syscallN(b.loader.vkCmdBindDescriptorSets,
 			uintptr(cmd), uintptr(PipelineBindPointGraphics), uintptr(b.texturedPipelineLayout),
 			0, 1, uintptr(unsafe.Pointer(&batch.descriptorSet)),
 			0, 0,
 		)
-		syscallN(b.loader.vkCmdBindVertexBuffers,
+		_, _, _ = syscallN(b.loader.vkCmdBindVertexBuffers,
 			uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&vb)), uintptr(unsafe.Pointer(&batch.vertexStart)),
 		)
-		syscallN(b.loader.vkCmdDraw, uintptr(cmd), uintptr(batch.count), 1, 0, 0)
+		_, _, _ = syscallN(b.loader.vkCmdDraw, uintptr(cmd), uintptr(batch.count), 1, 0, 0)
 
 	case render.CmdShadow:
-		syscallN(b.loader.vkCmdBindPipeline,
+		_, _, _ = syscallN(b.loader.vkCmdBindPipeline,
 			uintptr(cmd), uintptr(PipelineBindPointGraphics), uintptr(b.shadowPipeline),
 		)
-		syscallN(b.loader.vkCmdBindVertexBuffers,
+		_, _, _ = syscallN(b.loader.vkCmdBindVertexBuffers,
 			uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&vb)), uintptr(unsafe.Pointer(&batch.vertexStart)),
 		)
-		syscallN(b.loader.vkCmdDraw, uintptr(cmd), uintptr(batch.count), 1, 0, 0)
+		_, _, _ = syscallN(b.loader.vkCmdDraw, uintptr(cmd), uintptr(batch.count), 1, 0, 0)
 	}
 
 	batch.count = 0
@@ -400,7 +400,7 @@ func (b *Backend) applyScissor(cmd CommandBuffer, clip *render.ClipCmd) {
 		Offset: Offset2D{X: x, Y: y},
 		Extent: Extent2D{Width: w, Height: h},
 	}
-	syscallN(b.loader.vkCmdSetScissor, uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&scissor)))
+	_, _, _ = syscallN(b.loader.vkCmdSetScissor, uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&scissor)))
 }
 
 // mapVertexBuffer maps the current frame's vertex buffer for the entire frame.
@@ -417,7 +417,7 @@ func (b *Backend) mapVertexBuffer() {
 // unmapVertexBuffer unmaps the current frame's vertex buffer.
 func (b *Backend) unmapVertexBuffer() {
 	if b.mappedVertexPtr != nil {
-		syscallN(b.loader.vkUnmapMemory, uintptr(b.device), uintptr(b.vertexMemory[b.currentFrame]))
+		_, _, _ = syscallN(b.loader.vkUnmapMemory, uintptr(b.device), uintptr(b.vertexMemory[b.currentFrame]))
 		b.mappedVertexPtr = nil
 	}
 }

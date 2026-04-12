@@ -19,7 +19,7 @@ const (
 type SpaceAlign uint8
 
 const (
-	SpaceAlignStart    SpaceAlign = iota
+	SpaceAlignStart SpaceAlign = iota
 	SpaceAlignCenter
 	SpaceAlignEnd
 	SpaceAlignBaseline

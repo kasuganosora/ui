@@ -113,11 +113,11 @@ func (l *Loader) CreateSwapchain(
 
 	// Get swapchain images
 	var count uint32
-	syscallN(l.vkGetSwapchainImagesKHR,
+	_, _, _ = syscallN(l.vkGetSwapchainImagesKHR,
 		uintptr(device), uintptr(swapchain), uintptr(unsafe.Pointer(&count)), 0,
 	)
 	images := make([]Image, count)
-	syscallN(l.vkGetSwapchainImagesKHR,
+	_, _, _ = syscallN(l.vkGetSwapchainImagesKHR,
 		uintptr(device), uintptr(swapchain), uintptr(unsafe.Pointer(&count)), uintptr(unsafe.Pointer(&images[0])),
 	)
 
@@ -244,16 +244,16 @@ func (l *Loader) CreateFramebuffers(device Device, renderPass RenderPass, sc *Sw
 func (l *Loader) DestroySwapchain(device Device, sc *Swapchain) {
 	for _, fb := range sc.framebuffers {
 		if fb != 0 {
-			syscallN(l.vkDestroyFramebuffer, uintptr(device), uintptr(fb), 0)
+			_, _, _ = syscallN(l.vkDestroyFramebuffer, uintptr(device), uintptr(fb), 0)
 		}
 	}
 	for _, view := range sc.imageViews {
 		if view != 0 {
-			syscallN(l.vkDestroyImageView, uintptr(device), uintptr(view), 0)
+			_, _, _ = syscallN(l.vkDestroyImageView, uintptr(device), uintptr(view), 0)
 		}
 	}
 	if sc.handle != 0 {
-		syscallN(l.vkDestroySwapchainKHR, uintptr(device), uintptr(sc.handle), 0)
+		_, _, _ = syscallN(l.vkDestroySwapchainKHR, uintptr(device), uintptr(sc.handle), 0)
 	}
 }
 

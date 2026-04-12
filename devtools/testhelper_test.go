@@ -48,7 +48,7 @@ func newTestPair(t *testing.T) *testPair {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	t.Cleanup(func() { client.Close() })
+	t.Cleanup(func() { _ = client.Close() })
 
 	return &testPair{srv: srv, sess: <-sessCh, client: client}
 }
@@ -64,14 +64,14 @@ func (tp *testPair) send(t *testing.T, id int, method string, params any) map[st
 	data, _ := json.Marshal(raw)
 	tp.sess.handleMessage(data)
 
-	tp.client.SetReadDeadline(time.Now().Add(time.Second))
+	_ = tp.client.SetReadDeadline(time.Now().Add(time.Second))
 	_, resp, err := tp.client.ReadMessage()
-	tp.client.SetReadDeadline(time.Time{})
+	_ = tp.client.SetReadDeadline(time.Time{})
 	if err != nil {
 		t.Fatalf("read response for %s: %v", method, err)
 	}
 	var m map[string]any
-	json.Unmarshal(resp, &m)
+	_ = json.Unmarshal(resp, &m)
 	return m
 }
 
@@ -80,16 +80,16 @@ func (tp *testPair) readAll(t *testing.T) []map[string]any {
 	t.Helper()
 	var msgs []map[string]any
 	for {
-		tp.client.SetReadDeadline(time.Now().Add(30 * time.Millisecond))
+		_ = tp.client.SetReadDeadline(time.Now().Add(30 * time.Millisecond))
 		_, data, err := tp.client.ReadMessage()
 		if err != nil {
 			break
 		}
 		var m map[string]any
-		json.Unmarshal(data, &m)
+		_ = json.Unmarshal(data, &m)
 		msgs = append(msgs, m)
 	}
-	tp.client.SetReadDeadline(time.Time{})
+	_ = tp.client.SetReadDeadline(time.Time{})
 	return msgs
 }
 
@@ -105,14 +105,14 @@ func (tp *testPair) sendN(t *testing.T, id int, method string, params any, n int
 
 	var msgs []map[string]any
 	for i := 0; i < n; i++ {
-		tp.client.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+		_ = tp.client.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
 		_, resp, err := tp.client.ReadMessage()
-		tp.client.SetReadDeadline(time.Time{})
+		_ = tp.client.SetReadDeadline(time.Time{})
 		if err != nil {
 			break
 		}
 		var m map[string]any
-		json.Unmarshal(resp, &m)
+		_ = json.Unmarshal(resp, &m)
 		msgs = append(msgs, m)
 	}
 	return msgs

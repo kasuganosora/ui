@@ -122,13 +122,13 @@ type Window interface {
 
 // WindowOptions specifies options for creating a new window.
 type WindowOptions struct {
-	Title      string
-	Width      int
-	Height     int
-	MinWidth   int
-	MinHeight  int
-	MaxWidth   int
-	MaxHeight  int
+	Title       string
+	Width       int
+	Height      int
+	MinWidth    int
+	MinHeight   int
+	MaxWidth    int
+	MaxHeight   int
 	Resizable   bool
 	Visible     bool
 	Decorated   bool // Window decorations (title bar, borders)

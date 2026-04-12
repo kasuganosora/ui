@@ -1,6 +1,7 @@
 package devtools
 
 import (
+	"context"
 	"testing"
 
 	"github.com/kasuganosora/ui/core"
@@ -227,8 +228,6 @@ func TestBroadcast_NoSessions(t *testing.T) {
 
 func TestStop_WithoutStart(t *testing.T) {
 	s := NewServer(Options{})
-	// httpSrv is nil; Stop should handle this gracefully
-	if err := s.Stop(nil); err == nil {
-		// acceptably no-ops or returns error; just should not panic
-	}
+	// httpSrv is nil; Stop should handle this gracefully (no panic).
+	_ = s.Stop(context.TODO())
 }

@@ -64,6 +64,10 @@ type Server struct {
 	// Gin HTTP router and underlying http.Server.
 	router  *gin.Engine
 	httpSrv *http.Server
+
+	// widgetMap maps element IDs to their widgets for CSS live-editing.
+	// Rebuilt on every AfterLayout call.
+	widgetMap map[core.ElementID]widget.Widget
 }
 
 // NewServer creates a DevTools server. Call Start() to begin accepting connections.
@@ -77,6 +81,7 @@ func NewServer(opts Options) *Server {
 
 	gin.SetMode(gin.ReleaseMode)
 	s := &Server{opts: opts}
+	s.widgetMap = make(map[core.ElementID]widget.Widget)
 	s.router = gin.New()
 	s.router.Use(gin.Recovery())
 	s.setupRoutes()
@@ -112,10 +117,28 @@ func (s *Server) AfterLayout(tree *core.Tree, root widget.Widget, w, h float32) 
 	snap := buildSnapshot(tree, root, w, h)
 	s.snapMu.Lock()
 	s.snapshot = snap
+	s.widgetMap = buildWidgetMap(root)
 	s.snapMu.Unlock()
 
 	// Notify connected sessions that the DOM tree may have been updated.
 	s.broadcast("DOM.documentUpdated", map[string]any{})
+}
+
+// buildWidgetMap walks the widget tree and returns a map from ElementID to Widget.
+func buildWidgetMap(root widget.Widget) map[core.ElementID]widget.Widget {
+	m := make(map[core.ElementID]widget.Widget)
+	var walk func(w widget.Widget)
+	walk = func(w widget.Widget) {
+		if w == nil {
+			return
+		}
+		m[w.ElementID()] = w
+		for _, child := range w.Children() {
+			walk(child)
+		}
+	}
+	walk(root)
+	return m
 }
 
 // DrawOverlay draws the element highlight box if an element is currently inspected.
@@ -219,11 +242,11 @@ func (s *Server) DrawOverlayLabel(buf *render.CommandBuffer, tr *textrender.Rend
 	dimsLine := fmt.Sprintf("%.0f × %.0f", node.Bounds.Width, node.Bounds.Height)
 
 	const (
-		fontSize  = 11.0
-		padH      = 8.0  // horizontal padding inside label box
-		padV      = 5.0  // vertical padding
-		lineGap   = 3.0  // gap between the two text lines
-		cornerR   = 4.0
+		fontSize = 11.0
+		padH     = 8.0 // horizontal padding inside label box
+		padV     = 5.0 // vertical padding
+		lineGap  = 3.0 // gap between the two text lines
+		cornerR  = 4.0
 	)
 	shapeOpts := font.ShapeOptions{FontID: fontID, FontSize: fontSize}
 	tm1 := tr.Measure(tagLine, shapeOpts)

@@ -65,11 +65,11 @@ const (
 
 // Pixel formats
 const (
-	GL_RED  = 0x1903
-	GL_RGBA = 0x1908
-	GL_BGRA = 0x80E1
-	GL_R8   = 0x8229
-	GL_RGBA8 = 0x8058
+	GL_RED          = 0x1903
+	GL_RGBA         = 0x1908
+	GL_BGRA         = 0x80E1
+	GL_R8           = 0x8229
+	GL_RGBA8        = 0x8058
 	GL_SRGB8_ALPHA8 = 0x8C43
 )
 
@@ -91,11 +91,11 @@ const (
 
 // Framebuffer
 const (
-	GL_FRAMEBUFFER               = 0x8D40
-	GL_READ_FRAMEBUFFER          = 0x8C36
-	GL_COLOR_ATTACHMENT0         = 0x8CE0
-	GL_FRAMEBUFFER_COMPLETE      = 0x8CD5
-	GL_FRAMEBUFFER_SRGB          = 0x8DB9
+	GL_FRAMEBUFFER          = 0x8D40
+	GL_READ_FRAMEBUFFER     = 0x8C36
+	GL_COLOR_ATTACHMENT0    = 0x8CE0
+	GL_FRAMEBUFFER_COMPLETE = 0x8CD5
+	GL_FRAMEBUFFER_SRGB     = 0x8DB9
 )
 
 // Get queries
@@ -112,26 +112,26 @@ const (
 
 // Map access
 const (
-	GL_MAP_WRITE_BIT              = 0x0002
-	GL_MAP_INVALIDATE_BUFFER_BIT  = 0x0008
+	GL_MAP_WRITE_BIT             = 0x0002
+	GL_MAP_INVALIDATE_BUFFER_BIT = 0x0008
 )
 
 // RectVertex matches the vertex layout used by both Vulkan and DX11 backends.
 // 19 float32 fields = 76 bytes per vertex.
 type RectVertex struct {
-	PosX, PosY     float32 // NDC position
-	U, V           float32 // UV for SDF (0..1)
-	ColorR, ColorG, ColorB, ColorA float32 // Fill color
-	RectW, RectH   float32 // Rect size in pixels (for SDF)
+	PosX, PosY                             float32 // NDC position
+	U, V                                   float32 // UV for SDF (0..1)
+	ColorR, ColorG, ColorB, ColorA         float32 // Fill color
+	RectW, RectH                           float32 // Rect size in pixels (for SDF)
 	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32 // Corner radii
-	BorderWidth    float32
-	BorderR, BorderG, BorderB, BorderA float32 // Border color
+	BorderWidth                            float32
+	BorderR, BorderG, BorderB, BorderA     float32 // Border color
 }
 
 // TexturedVertex for text glyphs and images.
 // 8 float32 fields = 32 bytes per vertex.
 type TexturedVertex struct {
-	PosX, PosY     float32 // NDC position
-	U, V           float32 // Texture UV
+	PosX, PosY                     float32 // NDC position
+	U, V                           float32 // Texture UV
 	ColorR, ColorG, ColorB, ColorA float32 // Tint color
 }

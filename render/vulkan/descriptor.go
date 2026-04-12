@@ -158,7 +158,7 @@ func (b *Backend) allocateTextureDescriptorSet(entry *textureEntry) error {
 		PImageInfo:      &imageInfo,
 	}
 
-	syscallN(b.loader.vkUpdateDescriptorSets,
+	_, _, _ = syscallN(b.loader.vkUpdateDescriptorSets,
 		uintptr(b.device), 1, uintptr(unsafe.Pointer(&write)), 0, 0,
 	)
 

@@ -16,13 +16,13 @@ type ElementType string
 
 // Common element types
 const (
-	TypeDiv      ElementType = "div"
-	TypeText     ElementType = "text"
-	TypeButton   ElementType = "button"
-	TypeInput    ElementType = "input"
-	TypeImage    ElementType = "image"
-	TypeScroll   ElementType = "scroll"
-	TypeCustom   ElementType = "custom"
+	TypeDiv    ElementType = "div"
+	TypeText   ElementType = "text"
+	TypeButton ElementType = "button"
+	TypeInput  ElementType = "input"
+	TypeImage  ElementType = "image"
+	TypeScroll ElementType = "scroll"
+	TypeCustom ElementType = "custom"
 )
 
 // HitTestFunc tests whether a point (in local element coordinates) should
@@ -41,20 +41,20 @@ type Element struct {
 	properties map[string]any
 
 	// Layout results (computed by layout engine)
-	layout     LayoutResult
+	layout LayoutResult
 
 	// State flags
-	visible    bool
-	enabled    bool
-	focused    bool
-	hovered    bool
-	dirty      DirtyFlags
+	visible bool
+	enabled bool
+	focused bool
+	hovered bool
+	dirty   DirtyFlags
 
 	// Event handlers
-	handlers   map[event.Type][]EventHandler
+	handlers map[event.Type][]EventHandler
 
 	// Optional per-pixel hit test (for shaped / transparent regions).
-	hitTestFn  HitTestFunc
+	hitTestFn HitTestFunc
 }
 
 // EventHandler is a function that handles an event.
@@ -62,22 +62,22 @@ type EventHandler func(e *event.Event)
 
 // LayoutResult contains computed layout information. Value object.
 type LayoutResult struct {
-	Bounds   uimath.Rect  // Position and size relative to parent
-	Padding  uimath.Edges // Computed padding
-	Margin   uimath.Edges // Computed margin
-	Border   uimath.Edges // Computed border widths
-	ContentBounds uimath.Rect // Content area (bounds minus padding/border)
+	Bounds        uimath.Rect  // Position and size relative to parent
+	Padding       uimath.Edges // Computed padding
+	Margin        uimath.Edges // Computed margin
+	Border        uimath.Edges // Computed border widths
+	ContentBounds uimath.Rect  // Content area (bounds minus padding/border)
 }
 
 // DirtyFlags tracks what needs to be recalculated.
 type DirtyFlags uint8
 
 const (
-	DirtyNone    DirtyFlags = 0
-	DirtyLayout  DirtyFlags = 1 << iota // Needs layout recalculation
-	DirtyPaint                           // Needs repaint
-	DirtyStyle                           // Needs style recalculation
-	DirtyAll     = DirtyLayout | DirtyPaint | DirtyStyle
+	DirtyNone   DirtyFlags = 0
+	DirtyLayout DirtyFlags = 1 << iota // Needs layout recalculation
+	DirtyPaint                         // Needs repaint
+	DirtyStyle                         // Needs style recalculation
+	DirtyAll    = DirtyLayout | DirtyPaint | DirtyStyle
 )
 
 // NewElement creates a new element with the given type.
@@ -95,18 +95,18 @@ func NewElement(id ElementID, elemType ElementType) *Element {
 
 // --- Getters (elements are accessed through the tree aggregate root) ---
 
-func (e *Element) ID() ElementID        { return e.id }
-func (e *Element) Type() ElementType     { return e.elemType }
-func (e *Element) Classes() []string     { return e.classes }
-func (e *Element) ParentID() ElementID   { return e.parent }
-func (e *Element) ChildIDs() []ElementID { return e.children }
-func (e *Element) Layout() LayoutResult  { return e.layout }
-func (e *Element) IsVisible() bool       { return e.visible }
-func (e *Element) IsEnabled() bool       { return e.enabled }
-func (e *Element) IsFocused() bool       { return e.focused }
-func (e *Element) IsHovered() bool       { return e.hovered }
+func (e *Element) ID() ElementID                 { return e.id }
+func (e *Element) Type() ElementType             { return e.elemType }
+func (e *Element) Classes() []string             { return e.classes }
+func (e *Element) ParentID() ElementID           { return e.parent }
+func (e *Element) ChildIDs() []ElementID         { return e.children }
+func (e *Element) Layout() LayoutResult          { return e.layout }
+func (e *Element) IsVisible() bool               { return e.visible }
+func (e *Element) IsEnabled() bool               { return e.enabled }
+func (e *Element) IsFocused() bool               { return e.focused }
+func (e *Element) IsHovered() bool               { return e.hovered }
 func (e *Element) IsDirty(flags DirtyFlags) bool { return e.dirty&flags != 0 }
-func (e *Element) HasHandler(t event.Type) bool { return len(e.handlers[t]) > 0 }
+func (e *Element) HasHandler(t event.Type) bool  { return len(e.handlers[t]) > 0 }
 
 func (e *Element) Property(key string) (any, bool) {
 	v, ok := e.properties[key]
@@ -128,7 +128,6 @@ type Tree struct {
 	elements map[ElementID]*Element
 	root     ElementID
 	nextID   ElementID
-	idGen    func() ElementID
 }
 
 // NewTree creates a new element tree.

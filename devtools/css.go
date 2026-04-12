@@ -69,11 +69,11 @@ func (s *Session) handleCSS(req Request) {
 		}
 		inline := inlineStyleBlock(node.Style)
 		s.sendResult(req.ID, map[string]any{
-			"inlineStyle":      inline,
-			"attributesStyle":  nil,
-			"matchedCSSRules":  []any{},
-			"pseudoElements":   []any{},
-			"inherited":        []any{},
+			"inlineStyle":       inline,
+			"attributesStyle":   nil,
+			"matchedCSSRules":   []any{},
+			"pseudoElements":    []any{},
+			"inherited":         []any{},
 			"cssKeyframesRules": []any{},
 		})
 
@@ -102,10 +102,10 @@ func (s *Session) handleCSS(req Request) {
 	case "CSS.getBackgroundColors":
 		// Not implemented — return empty.
 		s.sendResult(req.ID, map[string]any{
-			"backgroundColors":      []string{},
-			"computedFontSize":      "",
-			"computedFontWeight":    "",
-			"computedBodyFontSize":  "",
+			"backgroundColors":     []string{},
+			"computedFontSize":     "",
+			"computedFontWeight":   "",
+			"computedBodyFontSize": "",
 		})
 
 	case "CSS.getStyleSheetText":
@@ -310,14 +310,20 @@ func declaredStyleProps(st layout.Style) []cssProperty {
 	addEdgesNonZero("margin", st.Margin.Top, st.Margin.Right, st.Margin.Bottom, st.Margin.Left)
 	addEdgesNonZero("border-width", st.Border.Top, st.Border.Right, st.Border.Bottom, st.Border.Left)
 
-	if st.Display == layout.DisplayFlex {
+	if st.Display == layout.DisplayFlex || st.FlexDirection != layout.FlexDirectionRow {
 		add("flex-direction", flexDirCSS(st.FlexDirection))
+	}
+	if st.Display == layout.DisplayFlex || st.FlexWrap != layout.FlexWrapNoWrap {
 		add("flex-wrap", flexWrapCSS(st.FlexWrap))
+	}
+	if st.Display == layout.DisplayFlex || st.JustifyContent != layout.JustifyFlexStart {
 		add("justify-content", justifyCSS(st.JustifyContent))
+	}
+	if st.Display == layout.DisplayFlex || st.AlignItems != layout.AlignStretch {
 		add("align-items", alignItemsCSS(st.AlignItems))
-		if st.Gap != 0 {
-			add("gap", fmt.Sprintf("%.2fpx", st.Gap))
-		}
+	}
+	if st.Gap != 0 {
+		add("gap", fmt.Sprintf("%.2fpx", st.Gap))
 	}
 
 	if st.FlexGrow != 0 {

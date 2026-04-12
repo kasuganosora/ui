@@ -99,12 +99,12 @@ func NewButton(tree *core.Tree, label string, cfg *Config) *Button {
 	return b
 }
 
-func (b *Button) Content() string         { return b.content }
-func (b *Button) Variant() ButtonVariant  { return b.variant }
-func (b *Button) Disabled() bool          { return b.disabled }
-func (b *Button) IsDisabled() bool        { return b.disabled } // backward compat
-func (b *Button) IsPressed() bool         { return b.pressed }
-func (b *Button) Block() bool             { return b.block }
+func (b *Button) Content() string        { return b.content }
+func (b *Button) Variant() ButtonVariant { return b.variant }
+func (b *Button) Disabled() bool         { return b.disabled }
+func (b *Button) IsDisabled() bool       { return b.disabled } // backward compat
+func (b *Button) IsPressed() bool        { return b.pressed }
+func (b *Button) Block() bool            { return b.block }
 
 // Label is an alias for Content (backward compatibility).
 func (b *Button) Label() string { return b.content }
@@ -137,11 +137,11 @@ func (b *Button) OnClick(fn func()) {
 	b.onClick = fn
 }
 
-func (b *Button) Theme() ButtonTheme    { return b.theme }
-func (b *Button) Size() Size            { return b.size }
-func (b *Button) Shape() ButtonShape    { return b.shape }
-func (b *Button) IsGhost() bool         { return b.ghost }
-func (b *Button) IsLoading() bool       { return b.loading }
+func (b *Button) Theme() ButtonTheme { return b.theme }
+func (b *Button) Size() Size         { return b.size }
+func (b *Button) Shape() ButtonShape { return b.shape }
+func (b *Button) IsGhost() bool      { return b.ghost }
+func (b *Button) IsLoading() bool    { return b.loading }
 
 func (b *Button) SetTheme(t ButtonTheme) {
 	b.theme = t

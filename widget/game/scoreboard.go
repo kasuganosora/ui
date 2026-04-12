@@ -42,12 +42,12 @@ func NewScoreboard(tree *core.Tree, cfg *widget.Config) *Scoreboard {
 	}
 }
 
-func (sb *Scoreboard) Entries() []ScoreEntry   { return sb.entries }
-func (sb *Scoreboard) IsVisible() bool         { return sb.visible }
-func (sb *Scoreboard) SetVisible(v bool)       { sb.visible = v }
-func (sb *Scoreboard) SetTitle(t string)       { sb.title = t }
-func (sb *Scoreboard) SetWidth(w float32)      { sb.width = w }
-func (sb *Scoreboard) SetEmbedded(v bool)      { sb.embedded = v }
+func (sb *Scoreboard) Entries() []ScoreEntry { return sb.entries }
+func (sb *Scoreboard) IsVisible() bool       { return sb.visible }
+func (sb *Scoreboard) SetVisible(v bool)     { sb.visible = v }
+func (sb *Scoreboard) SetTitle(t string)     { sb.title = t }
+func (sb *Scoreboard) SetWidth(w float32)    { sb.width = w }
+func (sb *Scoreboard) SetEmbedded(v bool)    { sb.embedded = v }
 
 func (sb *Scoreboard) AddEntry(e ScoreEntry) {
 	sb.entries = append(sb.entries, e)

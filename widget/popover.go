@@ -49,17 +49,22 @@ func NewPopover(tree *core.Tree, cfg *Config) *Popover {
 	return p
 }
 
-func (p *Popover) IsVisible() bool                  { return p.visible }
-func (p *Popover) SetVisible(v bool)                { p.visible = v }
-func (p *Popover) SetTitle(t string)                { p.title = t }
-func (p *Popover) SetContent(w Widget)              { p.content = w }
-func (p *Popover) SetPlacement(pl PopupPlacement)   { p.placement = pl }
-func (p *Popover) SetTrigger(t PopoverTrigger)      { p.trigger = t }
-func (p *Popover) SetWidth(w float32)               { p.width = w }
-func (p *Popover) OnClose(fn func())                { p.onClose = fn }
-func (p *Popover) SetAnchorRect(x, y, w, h float32) { p.anchorX = x; p.anchorY = y; p.anchorW = w; p.anchorH = h }
+func (p *Popover) IsVisible() bool                { return p.visible }
+func (p *Popover) SetVisible(v bool)              { p.visible = v }
+func (p *Popover) SetTitle(t string)              { p.title = t }
+func (p *Popover) SetContent(w Widget)            { p.content = w }
+func (p *Popover) SetPlacement(pl PopupPlacement) { p.placement = pl }
+func (p *Popover) SetTrigger(t PopoverTrigger)    { p.trigger = t }
+func (p *Popover) SetWidth(w float32)             { p.width = w }
+func (p *Popover) OnClose(fn func())              { p.onClose = fn }
+func (p *Popover) SetAnchorRect(x, y, w, h float32) {
+	p.anchorX = x
+	p.anchorY = y
+	p.anchorW = w
+	p.anchorH = h
+}
 
-func (p *Popover) Open()  { p.visible = true }
+func (p *Popover) Open() { p.visible = true }
 func (p *Popover) Close() {
 	p.visible = false
 	if p.onClose != nil {

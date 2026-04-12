@@ -10,11 +10,11 @@ import (
 // CountdownTimer displays a countdown timer.
 type CountdownTimer struct {
 	widget.Base
-	seconds   float32
-	label     string
-	color     uimath.Color
-	fontSize  float32
-	onExpire  func()
+	seconds  float32
+	label    string
+	color    uimath.Color
+	fontSize float32
+	onExpire func()
 }
 
 func NewCountdownTimer(tree *core.Tree, cfg *widget.Config) *CountdownTimer {
@@ -28,13 +28,13 @@ func NewCountdownTimer(tree *core.Tree, cfg *widget.Config) *CountdownTimer {
 	}
 }
 
-func (ct *CountdownTimer) Seconds() float32         { return ct.seconds }
-func (ct *CountdownTimer) SetSeconds(s float32)     { ct.seconds = s }
-func (ct *CountdownTimer) SetLabel(l string)        { ct.label = l }
-func (ct *CountdownTimer) SetColor(c uimath.Color)  { ct.color = c }
-func (ct *CountdownTimer) SetFontSize(s float32)    { ct.fontSize = s }
-func (ct *CountdownTimer) OnExpire(fn func())       { ct.onExpire = fn }
-func (ct *CountdownTimer) IsExpired() bool          { return ct.seconds <= 0 }
+func (ct *CountdownTimer) Seconds() float32        { return ct.seconds }
+func (ct *CountdownTimer) SetSeconds(s float32)    { ct.seconds = s }
+func (ct *CountdownTimer) SetLabel(l string)       { ct.label = l }
+func (ct *CountdownTimer) SetColor(c uimath.Color) { ct.color = c }
+func (ct *CountdownTimer) SetFontSize(s float32)   { ct.fontSize = s }
+func (ct *CountdownTimer) OnExpire(fn func())      { ct.onExpire = fn }
+func (ct *CountdownTimer) IsExpired() bool         { return ct.seconds <= 0 }
 
 func (ct *CountdownTimer) Tick(dt float32) {
 	if ct.seconds <= 0 {

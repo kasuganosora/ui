@@ -34,7 +34,7 @@ func NewContextMenu(tree *core.Tree, cfg *Config) *ContextMenu {
 	}
 }
 
-func (cm *ContextMenu) IsVisible() bool { return cm.visible }
+func (cm *ContextMenu) IsVisible() bool    { return cm.visible }
 func (cm *ContextMenu) SetWidth(w float32) { cm.width = w }
 
 func (cm *ContextMenu) AddItem(item ContextMenuItem) {

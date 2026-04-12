@@ -11,7 +11,7 @@ import (
 type AlertTheme uint8
 
 const (
-	AlertThemeInfo    AlertTheme = iota
+	AlertThemeInfo AlertTheme = iota
 	AlertThemeSuccess
 	AlertThemeWarning
 	AlertThemeError
@@ -55,15 +55,15 @@ func NewAlert(tree *core.Tree, message string, cfg *Config) *Alert {
 	return a
 }
 
-func (a *Alert) SetMessage(m string)       { a.message = m }
-func (a *Alert) SetTheme(t AlertTheme)     { a.theme = t }
-func (a *Alert) SetCloseBtn(c bool)        { a.closeBtn = c }
-func (a *Alert) OnClose(fn func())         { a.onClose = fn }
-func (a *Alert) OnClosed(fn func())        { a.onClosed = fn }
-func (a *Alert) IsVisible() bool           { return a.visible }
-func (a *Alert) SetTitle(t string)         { a.title = t }
-func (a *Alert) SetOperation(op string)    { a.operation = op }
-func (a *Alert) SetMaxLine(n int)          { a.maxLine = n }
+func (a *Alert) SetMessage(m string)    { a.message = m }
+func (a *Alert) SetTheme(t AlertTheme)  { a.theme = t }
+func (a *Alert) SetCloseBtn(c bool)     { a.closeBtn = c }
+func (a *Alert) OnClose(fn func())      { a.onClose = fn }
+func (a *Alert) OnClosed(fn func())     { a.onClosed = fn }
+func (a *Alert) IsVisible() bool        { return a.visible }
+func (a *Alert) SetTitle(t string)      { a.title = t }
+func (a *Alert) SetOperation(op string) { a.operation = op }
+func (a *Alert) SetMaxLine(n int)       { a.maxLine = n }
 
 func (a *Alert) Close() {
 	a.visible = false

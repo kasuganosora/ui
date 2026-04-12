@@ -31,9 +31,9 @@ func NewComment(tree *core.Tree, data CommentData, cfg *Config) *Comment {
 	}
 }
 
-func (c *Comment) Data() CommentData       { return c.data }
-func (c *Comment) SetData(d CommentData)   { c.data = d }
-func (c *Comment) Replies() []*Comment      { return c.children }
+func (c *Comment) Data() CommentData     { return c.data }
+func (c *Comment) SetData(d CommentData) { c.data = d }
+func (c *Comment) Replies() []*Comment   { return c.children }
 
 func (c *Comment) AddReply(reply *Comment) {
 	c.children = append(c.children, reply)

@@ -32,10 +32,10 @@ func NewAnchor(tree *core.Tree, cfg *Config) *Anchor {
 	}
 }
 
-func (a *Anchor) Links() []AnchorLink        { return a.links }
-func (a *Anchor) Active() string              { return a.active }
-func (a *Anchor) SetActive(href string)       { a.active = href }
-func (a *Anchor) OnChange(fn func(string))    { a.onChange = fn }
+func (a *Anchor) Links() []AnchorLink      { return a.links }
+func (a *Anchor) Active() string           { return a.active }
+func (a *Anchor) SetActive(href string)    { a.active = href }
+func (a *Anchor) OnChange(fn func(string)) { a.onChange = fn }
 
 func (a *Anchor) SetLinks(links []AnchorLink) {
 	a.links = links

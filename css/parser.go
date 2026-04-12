@@ -106,9 +106,10 @@ func (p *cssParser) skipBlock() {
 			return
 		}
 		p.advance()
-		if tok.Type == TokenLBrace {
+		switch tok.Type {
+		case TokenLBrace:
 			depth++
-		} else if tok.Type == TokenRBrace {
+		case TokenRBrace:
 			depth--
 		}
 	}
@@ -189,7 +190,7 @@ func (p *cssParser) parseDeclarations() []Declaration {
 
 func (p *cssParser) parseDeclaration() (Declaration, bool) {
 	tok := p.peek()
-	if tok.Type != TokenIdent && !(tok.Type == TokenDelim && tok.Value == "-") {
+	if tok.Type != TokenIdent && (tok.Type != TokenDelim || tok.Value != "-") {
 		// Try to recover: skip to next ; or }
 		p.skipToSemicolonOrBrace()
 		return Declaration{}, false

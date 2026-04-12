@@ -366,10 +366,10 @@ func TestParseValueAllBranches(t *testing.T) {
 		{"50%", layout.Pct(50)},
 		{"2em", layout.Px(32)},
 		{"1rem", layout.Px(16)},
-		{"100", layout.Px(100)},     // plain number
-		{"-10", layout.Px(-10)},     // negative plain number
-		{".5", layout.Px(0.5)},      // dot-started number
-		{"invalid", layout.Auto},    // non-numeric string
+		{"100", layout.Px(100)},  // plain number
+		{"-10", layout.Px(-10)},  // negative plain number
+		{".5", layout.Px(0.5)},   // dot-started number
+		{"invalid", layout.Auto}, // non-numeric string
 	}
 	for _, tt := range tests {
 		got := ParseValue(tt.input)

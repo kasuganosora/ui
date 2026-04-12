@@ -49,10 +49,10 @@ func NewBuffBar(tree *core.Tree, cfg *widget.Config) *BuffBar {
 	}
 }
 
-func (bb *BuffBar) Buffs() []Buff          { return bb.buffs }
-func (bb *BuffBar) SetIconSize(s float32)  { bb.iconSize = s }
-func (bb *BuffBar) SetGap(g float32)       { bb.gap = g }
-func (bb *BuffBar) SetMaxIcons(m int)      { bb.maxIcons = m }
+func (bb *BuffBar) Buffs() []Buff            { return bb.buffs }
+func (bb *BuffBar) SetIconSize(s float32)    { bb.iconSize = s }
+func (bb *BuffBar) SetGap(g float32)         { bb.gap = g }
+func (bb *BuffBar) SetMaxIcons(m int)        { bb.maxIcons = m }
 func (bb *BuffBar) OnCancel(fn func(string)) { bb.onCancel = fn }
 
 // SetFilter restricts drawing to only buffs of the given type.

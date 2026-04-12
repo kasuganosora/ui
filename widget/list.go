@@ -11,14 +11,14 @@ import (
 // ListItem represents a single list entry.
 // Supports text-only, multi-line (title+description), avatar, and actions.
 type ListItem struct {
-	Value       string   // unique identifier (used with selectable mode)
-	Group       string   // group header text (items with same Group are grouped together)
+	Value       string // unique identifier (used with selectable mode)
+	Group       string // group header text (items with same Group are grouped together)
 	Title       string
 	Description string
-	Extra       string   // single extra text on the right (deprecated, use Actions)
-	Actions     []string // action text links on the right (e.g. "操作1", "操作2")
-	Avatar      string   // avatar text/initials (rendered as circle)
-	AvatarColor uimath.Color // avatar background color (zero = default)
+	Extra       string               // single extra text on the right (deprecated, use Actions)
+	Actions     []string             // action text links on the right (e.g. "操作1", "操作2")
+	Avatar      string               // avatar text/initials (rendered as circle)
+	AvatarColor uimath.Color         // avatar background color (zero = default)
 	Image       render.TextureHandle // avatar image texture
 }
 
@@ -35,27 +35,27 @@ const (
 // When selectable is true, items can be clicked to select, with active highlight.
 type List struct {
 	Base
-	items        []ListItem
-	itemHeight   float32
-	scrollY      float32
-	bordered     bool
-	split        bool
-	stripe       bool
-	size         Size
-	hoverable    bool
-	hoveredIndex int
-	layout       ListLayout
-	asyncLoading string
-	header       string
-	footer       string
-	selectable    bool   // enable selection mode (nav list)
-	selectedValue string // active item value (selectable mode)
+	items         []ListItem
+	itemHeight    float32
+	scrollY       float32
+	bordered      bool
+	split         bool
+	stripe        bool
+	size          Size
+	hoverable     bool
+	hoveredIndex  int
+	layout        ListLayout
+	asyncLoading  string
+	header        string
+	footer        string
+	selectable    bool    // enable selection mode (nav list)
+	selectedValue string  // active item value (selectable mode)
 	groupHeight   float32 // height of group header rows
-	onSelect     func(index int)
-	onChange     func(value string) // called when selected value changes (selectable mode)
-	onAction     func(itemIndex, actionIndex int)
-	onLoadMore   func()
-	onScroll     func(scrollTop, scrollBottom float32)
+	onSelect      func(index int)
+	onChange      func(value string) // called when selected value changes (selectable mode)
+	onAction      func(itemIndex, actionIndex int)
+	onLoadMore    func()
+	onScroll      func(scrollTop, scrollBottom float32)
 }
 
 func NewList(tree *core.Tree, cfg *Config) *List {
@@ -119,27 +119,27 @@ func (l *List) SetItems(items []ListItem) {
 	l.items = items
 	l.updatePreferredHeight()
 }
-func (l *List) Items() []ListItem         { return l.items }
-func (l *List) SetItemHeight(h float32)   { l.itemHeight = h }
-func (l *List) SetBordered(b bool)        { l.bordered = b }
-func (l *List) OnSelect(fn func(int))     { l.onSelect = fn }
-func (l *List) ScrollY() float32          { return l.scrollY }
-func (l *List) SetScrollY(y float32)      { l.scrollY = y }
-func (l *List) SetSplit(v bool)           { l.split = v }
-func (l *List) SetStripe(v bool)          { l.stripe = v }
-func (l *List) SetHoverable(v bool)       { l.hoverable = v }
-func (l *List) SetLayout(v ListLayout)    { l.layout = v }
-func (l *List) SetAsyncLoading(v string)  { l.asyncLoading = v }
-func (l *List) SetHeader(v string)        { l.header = v }
-func (l *List) SetFooter(v string)        { l.footer = v }
-func (l *List) OnLoadMore(fn func())      { l.onLoadMore = fn }
-func (l *List) OnAction(fn func(itemIndex, actionIndex int)) { l.onAction = fn }
+func (l *List) Items() []ListItem                                 { return l.items }
+func (l *List) SetItemHeight(h float32)                           { l.itemHeight = h }
+func (l *List) SetBordered(b bool)                                { l.bordered = b }
+func (l *List) OnSelect(fn func(int))                             { l.onSelect = fn }
+func (l *List) ScrollY() float32                                  { return l.scrollY }
+func (l *List) SetScrollY(y float32)                              { l.scrollY = y }
+func (l *List) SetSplit(v bool)                                   { l.split = v }
+func (l *List) SetStripe(v bool)                                  { l.stripe = v }
+func (l *List) SetHoverable(v bool)                               { l.hoverable = v }
+func (l *List) SetLayout(v ListLayout)                            { l.layout = v }
+func (l *List) SetAsyncLoading(v string)                          { l.asyncLoading = v }
+func (l *List) SetHeader(v string)                                { l.header = v }
+func (l *List) SetFooter(v string)                                { l.footer = v }
+func (l *List) OnLoadMore(fn func())                              { l.onLoadMore = fn }
+func (l *List) OnAction(fn func(itemIndex, actionIndex int))      { l.onAction = fn }
 func (l *List) OnScroll(fn func(scrollTop, scrollBottom float32)) { l.onScroll = fn }
-func (l *List) SetSelectable(v bool)       { l.selectable = v }
-func (l *List) IsSelectable() bool         { return l.selectable }
-func (l *List) SetSelectedValue(v string)  { l.selectedValue = v }
-func (l *List) SelectedValue() string      { return l.selectedValue }
-func (l *List) OnChange(fn func(string))   { l.onChange = fn }
+func (l *List) SetSelectable(v bool)                              { l.selectable = v }
+func (l *List) IsSelectable() bool                                { return l.selectable }
+func (l *List) SetSelectedValue(v string)                         { l.selectedValue = v }
+func (l *List) SelectedValue() string                             { return l.selectedValue }
+func (l *List) OnChange(fn func(string))                          { l.onChange = fn }
 
 func (l *List) SetSize(s Size) {
 	l.size = s
@@ -438,7 +438,7 @@ func (l *List) drawItem(buf *render.CommandBuffer, item ListItem, bounds uimath.
 		lh := cfg.TextRenderer.LineHeight(titleFs)
 		var titleY float32
 		if hasDesc {
-			titleY = y + (ih/2-lh) - 2
+			titleY = y + (ih/2 - lh) - 2
 		} else {
 			titleY = y + (ih-lh)/2
 		}
@@ -451,7 +451,7 @@ func (l *List) drawItem(buf *render.CommandBuffer, item ListItem, bounds uimath.
 		th := titleFs * 1.2
 		var titleY float32
 		if hasDesc {
-			titleY = y + (ih/2-th) - 2
+			titleY = y + (ih/2 - th) - 2
 		} else {
 			titleY = y + (ih-th)/2
 		}
@@ -581,9 +581,9 @@ func NewVirtualList(tree *core.Tree, cfg *Config) *VirtualList {
 }
 
 func (vl *VirtualList) SetItemCount(n int)      { vl.itemCount = n }
-func (vl *VirtualList) SetItemHeight(h float32)  { vl.itemHeight = h }
-func (vl *VirtualList) SetScrollY(y float32)     { vl.scrollY = y }
-func (vl *VirtualList) ScrollY() float32         { return vl.scrollY }
+func (vl *VirtualList) SetItemHeight(h float32) { vl.itemHeight = h }
+func (vl *VirtualList) SetScrollY(y float32)    { vl.scrollY = y }
+func (vl *VirtualList) ScrollY() float32        { return vl.scrollY }
 func (vl *VirtualList) SetRenderItem(fn func(int, *render.CommandBuffer, float32, float32, float32, float32)) {
 	vl.renderItem = fn
 }
@@ -603,7 +603,7 @@ func (vl *VirtualList) Draw(buf *render.CommandBuffer) {
 	if startIdx < 0 {
 		startIdx = 0
 	}
-	endIdx := int((vl.scrollY + bounds.Height) / vl.itemHeight) + 1
+	endIdx := int((vl.scrollY+bounds.Height)/vl.itemHeight) + 1
 	if endIdx > vl.itemCount {
 		endIdx = vl.itemCount
 	}

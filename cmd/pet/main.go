@@ -49,7 +49,7 @@ var vpetFrames = []string{
 }
 
 func main() {
-	os.MkdirAll(cacheDir, 0755)
+	_ = os.MkdirAll(cacheDir, 0755)
 
 	// Download animation frames
 	fmt.Println("[pet] downloading animation frames...")
@@ -126,7 +126,9 @@ func main() {
 			fmt.Printf("  texture error: %v\n", err)
 			continue
 		}
-		backend.UpdateTexture(tex, uimath.NewRect(0, 0, float32(w), float32(h)), img.Pix)
+		if err := backend.UpdateTexture(tex, uimath.NewRect(0, 0, float32(w), float32(h)), img.Pix); err != nil {
+			fmt.Printf("  update texture error: %v\n", err)
+		}
 		textures[i] = tex
 		frameImages[i] = img
 		fmt.Printf("  frame %d: %dx%d, %v\n", frame.index, w, h, frame.duration)
@@ -263,7 +265,7 @@ func downloadFile(url, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
@@ -271,7 +273,7 @@ func downloadFile(url, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	_, err = io.Copy(f, resp.Body)
 	return err
 }
@@ -281,7 +283,7 @@ func measureFrame(path string) (int, int) {
 	if err != nil {
 		return 0, 0
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	cfg, err := png.DecodeConfig(f)
 	if err != nil {
 		return 0, 0
@@ -294,7 +296,7 @@ func loadPNG(path string) (*image.RGBA, int, int) {
 	if err != nil {
 		return nil, 0, 0
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	img, err := png.Decode(f)
 	if err != nil {
 		return nil, 0, 0

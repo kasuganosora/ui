@@ -16,19 +16,19 @@ import (
 
 // Platform implements platform.Platform using Cocoa APIs.
 type Platform struct {
-	app      id
-	windows  []*Window
-	events   []event.Event
-	mu       sync.Mutex
-	inited   bool
-	running  bool
-	
+	app     id
+	windows []*Window
+	events  []event.Event
+	mu      sync.Mutex
+	inited  bool
+	running bool
+
 	// Clipboard cache
 	pasteboard id
 
 	// Autorelease pool for command-line app lifecycle
 	autoreleasePool id
-	
+
 	// Cached NSDefaultRunLoopMode constant
 	defaultRunLoopMode id
 
@@ -165,14 +165,14 @@ func (p *Platform) processPendingEvents() {
 			uintptr(runLoopMode),
 			1, // dequeue
 		)
-		
+
 		if event == 0 {
 			break
 		}
 
 		// Send the event to be processed
 		msgSend(p.app, objcSelector("sendEvent:"), uintptr(event))
-		
+
 		// Convert and store the event
 		p.convertAndStoreEvent(event)
 	}
@@ -189,7 +189,7 @@ func (p *Platform) convertAndStoreEvent(nsevent id) {
 
 	// Get the window for this event
 	nswindow := msgSend(nsevent, selWindow)
-	
+
 	// Find our Window wrapper
 	var w *Window
 	if nswindow != 0 {
@@ -203,7 +203,7 @@ func (p *Platform) convertAndStoreEvent(nsevent id) {
 
 	// Get event type
 	eventType := uint64(msgSend(nsevent, selType))
-	
+
 	// Get timestamp
 	timestamp := p.currentTimestamp()
 
@@ -418,17 +418,17 @@ func (p *Platform) GetClipboardText() string {
 	if p.pasteboard == 0 {
 		return ""
 	}
-	
+
 	// Create NSString for the pasteboard type
 	pasteboardType := nsString(NSPasteboardTypeString)
 	defer msgSend(pasteboardType, selRelease)
-	
+
 	// Get string for type
 	result := msgSend(p.pasteboard, selStringForType, uintptr(pasteboardType))
 	if result == 0 {
 		return ""
 	}
-	
+
 	return goString(result)
 }
 
@@ -437,18 +437,18 @@ func (p *Platform) SetClipboardText(text string) {
 	if p.pasteboard == 0 {
 		return
 	}
-	
+
 	// Clear existing contents
 	msgSend(p.pasteboard, selClearContents)
-	
+
 	// Create NSString from text
 	nsText := nsString(text)
 	defer msgSend(nsText, selRelease)
-	
+
 	// Create NSString for the pasteboard type
 	pasteboardType := nsString(NSPasteboardTypeString)
 	defer msgSend(pasteboardType, selRelease)
-	
+
 	// Set string for type
 	msgSend(p.pasteboard, selSetString, uintptr(nsText), uintptr(pasteboardType))
 }
@@ -460,10 +460,10 @@ func (p *Platform) GetPrimaryMonitorDPI() float32 {
 	if screen == 0 {
 		return 96.0 // Default fallback
 	}
-	
+
 	// Get backing scale factor (1.0 = 72 DPI, 2.0 = 144 DPI for Retina)
 	scale := msgSendFloat64Return(screen, selBackingScaleFactor)
-	
+
 	// Convert to DPI (macOS uses 72 as base DPI)
 	return float32(scale * 72.0)
 }
@@ -475,13 +475,13 @@ func (p *Platform) GetSystemLocale() string {
 	if locale == 0 {
 		return "en-US"
 	}
-	
+
 	// Get locale identifier
 	identifier := msgSend(locale, selLocaleIdentifier)
 	if identifier == 0 {
 		return "en-US"
 	}
-	
+
 	return goString(identifier)
 }
 
@@ -513,106 +513,206 @@ func convertModifiers(flags uint64) event.Modifiers {
 func translateKeyCode(keyCode uint16) event.Key {
 	// macOS virtual key codes (based on USB HID usage)
 	switch keyCode {
-	case 0x00: return event.KeyA
-	case 0x01: return event.KeyS
-	case 0x02: return event.KeyD
-	case 0x03: return event.KeyF
-	case 0x04: return event.KeyH
-	case 0x05: return event.KeyG
-	case 0x06: return event.KeyZ
-	case 0x07: return event.KeyX
-	case 0x08: return event.KeyC
-	case 0x09: return event.KeyV
-	case 0x0B: return event.KeyB
-	case 0x0C: return event.KeyQ
-	case 0x0D: return event.KeyW
-	case 0x0E: return event.KeyE
-	case 0x0F: return event.KeyR
-	case 0x10: return event.KeyY
-	case 0x11: return event.KeyT
-	case 0x12: return event.Key1
-	case 0x13: return event.Key2
-	case 0x14: return event.Key3
-	case 0x15: return event.Key4
-	case 0x16: return event.Key6
-	case 0x17: return event.Key5
-	case 0x18: return event.KeyEqual
-	case 0x19: return event.Key9
-	case 0x1A: return event.Key7
-	case 0x1B: return event.KeyMinus
-	case 0x1C: return event.Key8
-	case 0x1D: return event.Key0
-	case 0x1E: return event.KeyRightBracket
-	case 0x1F: return event.KeyO
-	case 0x20: return event.KeyU
-	case 0x21: return event.KeyLeftBracket
-	case 0x22: return event.KeyI
-	case 0x23: return event.KeyP
-	case 0x25: return event.KeyL
-	case 0x26: return event.KeyJ
-	case 0x27: return event.KeyApostrophe
-	case 0x28: return event.KeyK
-	case 0x29: return event.KeySemicolon
-	case 0x2A: return event.KeyBackslash
-	case 0x2B: return event.KeyComma
-	case 0x2C: return event.KeySlash
-	case 0x2D: return event.KeyN
-	case 0x2E: return event.KeyM
-	case 0x2F: return event.KeyPeriod
-	case 0x32: return event.KeyGraveAccent
-	case 0x24: return event.KeyEnter
-	case 0x30: return event.KeyTab
-	case 0x31: return event.KeySpace
-	case 0x33: return event.KeyBackspace
-	case 0x34: return event.KeyNumpadEnter
-	case 0x35: return event.KeyEscape
-	case 0x37: return event.KeyLeftSuper // Command
-	case 0x38: return event.KeyLeftShift
-	case 0x39: return event.KeyCapsLock
-	case 0x3A: return event.KeyLeftAlt // Option
-	case 0x3B: return event.KeyLeftCtrl
-	case 0x3C: return event.KeyRightShift
-	case 0x3D: return event.KeyRightAlt
-	case 0x3E: return event.KeyRightCtrl
-	case 0x3F: return event.KeyNumpadMultiply
-	case 0x45: return event.KeyNumpadAdd
-	case 0x4B: return event.KeyNumpadDivide
-	case 0x4E: return event.KeyNumpadSubtract
-	case 0x47: return event.KeyNumLock // Clear key on macOS numpad
-	case 0x52: return event.KeyNumpad0
-	case 0x53: return event.KeyNumpad1
-	case 0x54: return event.KeyNumpad2
-	case 0x55: return event.KeyNumpad3
-	case 0x56: return event.KeyNumpad4
-	case 0x57: return event.KeyNumpad5
-	case 0x58: return event.KeyNumpad6
-	case 0x59: return event.KeyNumpad7
-	case 0x5B: return event.KeyNumpad8
-	case 0x5C: return event.KeyNumpad9
-	case 0x60: return event.KeyF5
-	case 0x61: return event.KeyF6
-	case 0x62: return event.KeyF7
-	case 0x63: return event.KeyF3
-	case 0x64: return event.KeyF8
-	case 0x65: return event.KeyF9
-	case 0x67: return event.KeyF11
-	case 0x6D: return event.KeyF10
-	case 0x6E: return event.KeyF12
-	case 0x71: return event.KeyPause // Help key on some keyboards
-	case 0x72: return event.KeyInsert
-	case 0x73: return event.KeyHome
-	case 0x74: return event.KeyPageUp
-	case 0x75: return event.KeyDelete
-	case 0x76: return event.KeyF4
-	case 0x77: return event.KeyEnd
-	case 0x78: return event.KeyF2
-	case 0x79: return event.KeyPageDown
-	case 0x7A: return event.KeyF1
-	case 0x7B: return event.KeyArrowLeft
-	case 0x7C: return event.KeyArrowRight
-	case 0x7D: return event.KeyArrowDown
-	case 0x7E: return event.KeyArrowUp
-	default: return event.KeyUnknown
+	case 0x00:
+		return event.KeyA
+	case 0x01:
+		return event.KeyS
+	case 0x02:
+		return event.KeyD
+	case 0x03:
+		return event.KeyF
+	case 0x04:
+		return event.KeyH
+	case 0x05:
+		return event.KeyG
+	case 0x06:
+		return event.KeyZ
+	case 0x07:
+		return event.KeyX
+	case 0x08:
+		return event.KeyC
+	case 0x09:
+		return event.KeyV
+	case 0x0B:
+		return event.KeyB
+	case 0x0C:
+		return event.KeyQ
+	case 0x0D:
+		return event.KeyW
+	case 0x0E:
+		return event.KeyE
+	case 0x0F:
+		return event.KeyR
+	case 0x10:
+		return event.KeyY
+	case 0x11:
+		return event.KeyT
+	case 0x12:
+		return event.Key1
+	case 0x13:
+		return event.Key2
+	case 0x14:
+		return event.Key3
+	case 0x15:
+		return event.Key4
+	case 0x16:
+		return event.Key6
+	case 0x17:
+		return event.Key5
+	case 0x18:
+		return event.KeyEqual
+	case 0x19:
+		return event.Key9
+	case 0x1A:
+		return event.Key7
+	case 0x1B:
+		return event.KeyMinus
+	case 0x1C:
+		return event.Key8
+	case 0x1D:
+		return event.Key0
+	case 0x1E:
+		return event.KeyRightBracket
+	case 0x1F:
+		return event.KeyO
+	case 0x20:
+		return event.KeyU
+	case 0x21:
+		return event.KeyLeftBracket
+	case 0x22:
+		return event.KeyI
+	case 0x23:
+		return event.KeyP
+	case 0x25:
+		return event.KeyL
+	case 0x26:
+		return event.KeyJ
+	case 0x27:
+		return event.KeyApostrophe
+	case 0x28:
+		return event.KeyK
+	case 0x29:
+		return event.KeySemicolon
+	case 0x2A:
+		return event.KeyBackslash
+	case 0x2B:
+		return event.KeyComma
+	case 0x2C:
+		return event.KeySlash
+	case 0x2D:
+		return event.KeyN
+	case 0x2E:
+		return event.KeyM
+	case 0x2F:
+		return event.KeyPeriod
+	case 0x32:
+		return event.KeyGraveAccent
+	case 0x24:
+		return event.KeyEnter
+	case 0x30:
+		return event.KeyTab
+	case 0x31:
+		return event.KeySpace
+	case 0x33:
+		return event.KeyBackspace
+	case 0x34:
+		return event.KeyNumpadEnter
+	case 0x35:
+		return event.KeyEscape
+	case 0x37:
+		return event.KeyLeftSuper // Command
+	case 0x38:
+		return event.KeyLeftShift
+	case 0x39:
+		return event.KeyCapsLock
+	case 0x3A:
+		return event.KeyLeftAlt // Option
+	case 0x3B:
+		return event.KeyLeftCtrl
+	case 0x3C:
+		return event.KeyRightShift
+	case 0x3D:
+		return event.KeyRightAlt
+	case 0x3E:
+		return event.KeyRightCtrl
+	case 0x3F:
+		return event.KeyNumpadMultiply
+	case 0x45:
+		return event.KeyNumpadAdd
+	case 0x4B:
+		return event.KeyNumpadDivide
+	case 0x4E:
+		return event.KeyNumpadSubtract
+	case 0x47:
+		return event.KeyNumLock // Clear key on macOS numpad
+	case 0x52:
+		return event.KeyNumpad0
+	case 0x53:
+		return event.KeyNumpad1
+	case 0x54:
+		return event.KeyNumpad2
+	case 0x55:
+		return event.KeyNumpad3
+	case 0x56:
+		return event.KeyNumpad4
+	case 0x57:
+		return event.KeyNumpad5
+	case 0x58:
+		return event.KeyNumpad6
+	case 0x59:
+		return event.KeyNumpad7
+	case 0x5B:
+		return event.KeyNumpad8
+	case 0x5C:
+		return event.KeyNumpad9
+	case 0x60:
+		return event.KeyF5
+	case 0x61:
+		return event.KeyF6
+	case 0x62:
+		return event.KeyF7
+	case 0x63:
+		return event.KeyF3
+	case 0x64:
+		return event.KeyF8
+	case 0x65:
+		return event.KeyF9
+	case 0x67:
+		return event.KeyF11
+	case 0x6D:
+		return event.KeyF10
+	case 0x6E:
+		return event.KeyF12
+	case 0x71:
+		return event.KeyPause // Help key on some keyboards
+	case 0x72:
+		return event.KeyInsert
+	case 0x73:
+		return event.KeyHome
+	case 0x74:
+		return event.KeyPageUp
+	case 0x75:
+		return event.KeyDelete
+	case 0x76:
+		return event.KeyF4
+	case 0x77:
+		return event.KeyEnd
+	case 0x78:
+		return event.KeyF2
+	case 0x79:
+		return event.KeyPageDown
+	case 0x7A:
+		return event.KeyF1
+	case 0x7B:
+		return event.KeyArrowLeft
+	case 0x7C:
+		return event.KeyArrowRight
+	case 0x7D:
+		return event.KeyArrowDown
+	case 0x7E:
+		return event.KeyArrowUp
+	default:
+		return event.KeyUnknown
 	}
 }
 

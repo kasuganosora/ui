@@ -78,10 +78,10 @@ func (tf *TeamFrame) Draw(buf *render.CommandBuffer) {
 // TargetFrame displays the currently selected target.
 type TargetFrame struct {
 	widget.Base
-	target   *UnitFrameData
-	width    float32
-	height   float32
-	visible  bool
+	target  *UnitFrameData
+	width   float32
+	height  float32
+	visible bool
 }
 
 func NewTargetFrame(tree *core.Tree, cfg *widget.Config) *TargetFrame {
@@ -95,9 +95,9 @@ func NewTargetFrame(tree *core.Tree, cfg *widget.Config) *TargetFrame {
 	}
 }
 
-func (tf *TargetFrame) Target() *UnitFrameData    { return tf.target }
-func (tf *TargetFrame) IsVisible() bool            { return tf.visible }
-func (tf *TargetFrame) SetSize(w, h float32)       { tf.width = w; tf.height = h }
+func (tf *TargetFrame) Target() *UnitFrameData { return tf.target }
+func (tf *TargetFrame) IsVisible() bool        { return tf.visible }
+func (tf *TargetFrame) SetSize(w, h float32)   { tf.width = w; tf.height = h }
 
 func (tf *TargetFrame) SetTarget(data *UnitFrameData) {
 	tf.target = data

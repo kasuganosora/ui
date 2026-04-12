@@ -1,9 +1,10 @@
 // Command gdext builds a GDExtension shared library for Godot integration.
 //
 // Build:
-//   CGO_ENABLED=1 go build -buildmode=c-shared -o goui.dll ./godot/cmd/gdext
-//   CGO_ENABLED=1 go build -buildmode=c-shared -o goui.so  ./godot/cmd/gdext   (Linux)
-//   CGO_ENABLED=1 go build -buildmode=c-shared -o goui.dylib ./godot/cmd/gdext (macOS)
+//
+//	CGO_ENABLED=1 go build -buildmode=c-shared -o goui.dll ./godot/cmd/gdext
+//	CGO_ENABLED=1 go build -buildmode=c-shared -o goui.so  ./godot/cmd/gdext   (Linux)
+//	CGO_ENABLED=1 go build -buildmode=c-shared -o goui.dylib ./godot/cmd/gdext (macOS)
 //
 // Install the .dll/.so/.dylib + .gdextension file in your Godot project.
 // See godot/doc.go for GDScript usage examples.

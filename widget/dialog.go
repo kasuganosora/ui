@@ -44,25 +44,25 @@ type Dialog struct {
 	width   float32
 	body    Widget
 
-	onClose            func()
-	onCloseBtnClick    func()
-	onClosed           func()
-	onOpened           func()
-	onBeforeClose      func()
-	onBeforeOpen       func()
-	onEscKeydown       func()
-	onOverlayClick     func()
-	confirmBtn         string
-	cancelBtn          string
-	onConfirm          func()
-	onCancel           func()
-	footer             bool
+	onClose             func()
+	onCloseBtnClick     func()
+	onClosed            func()
+	onOpened            func()
+	onBeforeClose       func()
+	onBeforeOpen        func()
+	onEscKeydown        func()
+	onOverlayClick      func()
+	confirmBtn          string
+	cancelBtn           string
+	onConfirm           func()
+	onCancel            func()
+	footer              bool
 	closeOnOverlayClick bool
-	closeOnEscKeydown  bool
-	showOverlay        bool
-	theme              DialogTheme
-	placement          DialogPlacement
-	mode               DialogMode
+	closeOnEscKeydown   bool
+	showOverlay         bool
+	theme               DialogTheme
+	placement           DialogPlacement
+	mode                DialogMode
 
 	closeID   core.ElementID // close X button element
 	confirmID core.ElementID // confirm button element
@@ -126,31 +126,31 @@ func NewDialog(tree *core.Tree, title string, cfg *Config) *Dialog {
 	return d
 }
 
-func (d *Dialog) Header() string   { return d.header }
-func (d *Dialog) IsVisible() bool  { return d.visible }
+func (d *Dialog) Header() string  { return d.header }
+func (d *Dialog) IsVisible() bool { return d.visible }
 
-func (d *Dialog) SetHeader(header string)              { d.header = header }
-func (d *Dialog) SetWidth(w float32)                   { d.width = w }
-func (d *Dialog) SetBody(w Widget)                     { d.body = w }
-func (d *Dialog) OnClose(fn func())                    { d.onClose = fn }
-func (d *Dialog) OnCloseBtnClick(fn func())            { d.onCloseBtnClick = fn }
-func (d *Dialog) OnClosed(fn func())                   { d.onClosed = fn }
-func (d *Dialog) OnOpened(fn func())                   { d.onOpened = fn }
-func (d *Dialog) OnBeforeClose(fn func())              { d.onBeforeClose = fn }
-func (d *Dialog) OnBeforeOpen(fn func())               { d.onBeforeOpen = fn }
-func (d *Dialog) OnEscKeydown(fn func())               { d.onEscKeydown = fn }
-func (d *Dialog) OnOverlayClick(fn func())             { d.onOverlayClick = fn }
-func (d *Dialog) SetConfirmBtn(t string)               { d.confirmBtn = t }
-func (d *Dialog) SetCancelBtn(t string)                { d.cancelBtn = t }
-func (d *Dialog) OnConfirm(fn func())                  { d.onConfirm = fn }
-func (d *Dialog) OnCancel(fn func())                   { d.onCancel = fn }
-func (d *Dialog) SetFooter(show bool)                  { d.footer = show }
-func (d *Dialog) SetCloseOnOverlayClick(close bool)    { d.closeOnOverlayClick = close }
-func (d *Dialog) SetCloseOnEscKeydown(close bool)      { d.closeOnEscKeydown = close }
-func (d *Dialog) SetShowOverlay(show bool)             { d.showOverlay = show }
-func (d *Dialog) SetTheme(t DialogTheme)               { d.theme = t }
-func (d *Dialog) SetPlacement(p DialogPlacement)       { d.placement = p }
-func (d *Dialog) SetMode(m DialogMode)                 { d.mode = m }
+func (d *Dialog) SetHeader(header string)           { d.header = header }
+func (d *Dialog) SetWidth(w float32)                { d.width = w }
+func (d *Dialog) SetBody(w Widget)                  { d.body = w }
+func (d *Dialog) OnClose(fn func())                 { d.onClose = fn }
+func (d *Dialog) OnCloseBtnClick(fn func())         { d.onCloseBtnClick = fn }
+func (d *Dialog) OnClosed(fn func())                { d.onClosed = fn }
+func (d *Dialog) OnOpened(fn func())                { d.onOpened = fn }
+func (d *Dialog) OnBeforeClose(fn func())           { d.onBeforeClose = fn }
+func (d *Dialog) OnBeforeOpen(fn func())            { d.onBeforeOpen = fn }
+func (d *Dialog) OnEscKeydown(fn func())            { d.onEscKeydown = fn }
+func (d *Dialog) OnOverlayClick(fn func())          { d.onOverlayClick = fn }
+func (d *Dialog) SetConfirmBtn(t string)            { d.confirmBtn = t }
+func (d *Dialog) SetCancelBtn(t string)             { d.cancelBtn = t }
+func (d *Dialog) OnConfirm(fn func())               { d.onConfirm = fn }
+func (d *Dialog) OnCancel(fn func())                { d.onCancel = fn }
+func (d *Dialog) SetFooter(show bool)               { d.footer = show }
+func (d *Dialog) SetCloseOnOverlayClick(close bool) { d.closeOnOverlayClick = close }
+func (d *Dialog) SetCloseOnEscKeydown(close bool)   { d.closeOnEscKeydown = close }
+func (d *Dialog) SetShowOverlay(show bool)          { d.showOverlay = show }
+func (d *Dialog) SetTheme(t DialogTheme)            { d.theme = t }
+func (d *Dialog) SetPlacement(p DialogPlacement)    { d.placement = p }
+func (d *Dialog) SetMode(m DialogMode)              { d.mode = m }
 
 func (d *Dialog) Open() {
 	d.visible = true

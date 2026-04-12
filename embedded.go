@@ -100,4 +100,3 @@ func (e *EmbeddedUI) Render() *render.CommandBuffer {
 	e.tree.ClearAllDirty()
 	return e.buf
 }
-

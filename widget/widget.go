@@ -48,9 +48,9 @@ func NewBase(tree *core.Tree, elemType core.ElementType, cfg *Config) Base {
 		cfg = DefaultConfig()
 	}
 	return Base{
-		id:    tree.CreateElement(elemType),
-		tree:  tree,
-		style: layout.DefaultStyle(),
+		id:     tree.CreateElement(elemType),
+		tree:   tree,
+		style:  layout.DefaultStyle(),
 		config: cfg,
 	}
 }

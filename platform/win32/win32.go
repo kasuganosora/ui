@@ -24,53 +24,53 @@ var (
 
 // user32 functions
 var (
-	procRegisterClassExW     = user32.NewProc("RegisterClassExW")
-	procCreateWindowExW      = user32.NewProc("CreateWindowExW")
-	procDestroyWindow        = user32.NewProc("DestroyWindow")
-	procShowWindow           = user32.NewProc("ShowWindow")
-	procUpdateWindow         = user32.NewProc("UpdateWindow")
-	procDefWindowProcW       = user32.NewProc("DefWindowProcW")
-	procPeekMessageW         = user32.NewProc("PeekMessageW")
-	procTranslateMessage     = user32.NewProc("TranslateMessage")
-	procDispatchMessageW     = user32.NewProc("DispatchMessageW")
-	procPostQuitMessage      = user32.NewProc("PostQuitMessage")
-	procGetClientRect        = user32.NewProc("GetClientRect")
-	procSetWindowPos         = user32.NewProc("SetWindowPos")
-	procSetWindowTextW       = user32.NewProc("SetWindowTextW")
-	procGetWindowLongPtrW    = user32.NewProc("GetWindowLongPtrW")
-	procSetWindowLongPtrW    = user32.NewProc("SetWindowLongPtrW")
-	procGetWindowRect        = user32.NewProc("GetWindowRect")
-	procMoveWindow           = user32.NewProc("MoveWindow")
-	procGetDC                = user32.NewProc("GetDC")
-	procReleaseDC            = user32.NewProc("ReleaseDC")
-	procGetSystemMetrics     = user32.NewProc("GetSystemMetrics")
-	procAdjustWindowRectEx   = user32.NewProc("AdjustWindowRectEx")
-	procSetCursor            = user32.NewProc("SetCursor")
-	procLoadCursorW          = user32.NewProc("LoadCursorW")
-	procCreateCursor         = user32.NewProc("CreateCursor")
-	procDestroyCursor        = user32.NewProc("DestroyCursor")
-	procGetIconInfo          = user32.NewProc("GetIconInfo")
-	procCreateIconIndirect   = user32.NewProc("CreateIconIndirect")
-	procSetCapture           = user32.NewProc("SetCapture")
-	procReleaseCapture       = user32.NewProc("ReleaseCapture")
-	procGetCursorPos         = user32.NewProc("GetCursorPos")
-	procScreenToClient       = user32.NewProc("ScreenToClient")
-	procClientToScreen       = user32.NewProc("ClientToScreen")
-	procSetFocus             = user32.NewProc("SetFocus")
-	procGetFocus             = user32.NewProc("GetFocus")
-	procGetKeyState          = user32.NewProc("GetKeyState")
-	procGetAsyncKeyState     = user32.NewProc("GetAsyncKeyState")
-	procMonitorFromWindow    = user32.NewProc("MonitorFromWindow")
-	procOpenClipboard        = user32.NewProc("OpenClipboard")
-	procCloseClipboard       = user32.NewProc("CloseClipboard")
-	procEmptyClipboard       = user32.NewProc("EmptyClipboard")
-	procGetClipboardData     = user32.NewProc("GetClipboardData")
-	procSetClipboardData     = user32.NewProc("SetClipboardData")
-	procChangeWindowMessageFilterEx = user32.NewProc("ChangeWindowMessageFilterEx")
-	procGetDpiForWindow      = user32.NewProc("GetDpiForWindow")
-	procSetProcessDPIAware   = user32.NewProc("SetProcessDPIAware")
-	procSetTimer             = user32.NewProc("SetTimer")
-	procKillTimer            = user32.NewProc("KillTimer")
+	procRegisterClassExW              = user32.NewProc("RegisterClassExW")
+	procCreateWindowExW               = user32.NewProc("CreateWindowExW")
+	procDestroyWindow                 = user32.NewProc("DestroyWindow")
+	procShowWindow                    = user32.NewProc("ShowWindow")
+	procUpdateWindow                  = user32.NewProc("UpdateWindow")
+	procDefWindowProcW                = user32.NewProc("DefWindowProcW")
+	procPeekMessageW                  = user32.NewProc("PeekMessageW")
+	procTranslateMessage              = user32.NewProc("TranslateMessage")
+	procDispatchMessageW              = user32.NewProc("DispatchMessageW")
+	procPostQuitMessage               = user32.NewProc("PostQuitMessage")
+	procGetClientRect                 = user32.NewProc("GetClientRect")
+	procSetWindowPos                  = user32.NewProc("SetWindowPos")
+	procSetWindowTextW                = user32.NewProc("SetWindowTextW")
+	procGetWindowLongPtrW             = user32.NewProc("GetWindowLongPtrW")
+	procSetWindowLongPtrW             = user32.NewProc("SetWindowLongPtrW")
+	procGetWindowRect                 = user32.NewProc("GetWindowRect")
+	procMoveWindow                    = user32.NewProc("MoveWindow")
+	procGetDC                         = user32.NewProc("GetDC")
+	procReleaseDC                     = user32.NewProc("ReleaseDC")
+	procGetSystemMetrics              = user32.NewProc("GetSystemMetrics")
+	procAdjustWindowRectEx            = user32.NewProc("AdjustWindowRectEx")
+	procSetCursor                     = user32.NewProc("SetCursor")
+	procLoadCursorW                   = user32.NewProc("LoadCursorW")
+	procCreateCursor                  = user32.NewProc("CreateCursor")
+	procDestroyCursor                 = user32.NewProc("DestroyCursor")
+	procGetIconInfo                   = user32.NewProc("GetIconInfo")
+	procCreateIconIndirect            = user32.NewProc("CreateIconIndirect")
+	procSetCapture                    = user32.NewProc("SetCapture")
+	procReleaseCapture                = user32.NewProc("ReleaseCapture")
+	procGetCursorPos                  = user32.NewProc("GetCursorPos")
+	procScreenToClient                = user32.NewProc("ScreenToClient")
+	procClientToScreen                = user32.NewProc("ClientToScreen")
+	procSetFocus                      = user32.NewProc("SetFocus")
+	procGetFocus                      = user32.NewProc("GetFocus")
+	procGetKeyState                   = user32.NewProc("GetKeyState")
+	procGetAsyncKeyState              = user32.NewProc("GetAsyncKeyState")
+	procMonitorFromWindow             = user32.NewProc("MonitorFromWindow")
+	procOpenClipboard                 = user32.NewProc("OpenClipboard")
+	procCloseClipboard                = user32.NewProc("CloseClipboard")
+	procEmptyClipboard                = user32.NewProc("EmptyClipboard")
+	procGetClipboardData              = user32.NewProc("GetClipboardData")
+	procSetClipboardData              = user32.NewProc("SetClipboardData")
+	procChangeWindowMessageFilterEx   = user32.NewProc("ChangeWindowMessageFilterEx")
+	procGetDpiForWindow               = user32.NewProc("GetDpiForWindow")
+	procSetProcessDPIAware            = user32.NewProc("SetProcessDPIAware")
+	procSetTimer                      = user32.NewProc("SetTimer")
+	procKillTimer                     = user32.NewProc("KillTimer")
 	procPostMessageW                  = user32.NewProc("PostMessageW")
 	procDisableProcessWindowsGhosting = user32.NewProc("DisableProcessWindowsGhosting")
 	procCreatePopupMenu               = user32.NewProc("CreatePopupMenu")
@@ -83,23 +83,23 @@ var (
 
 // kernel32 functions
 var (
-	procGetModuleHandleW = kernel32.NewProc("GetModuleHandleW")
-	procGlobalAlloc      = kernel32.NewProc("GlobalAlloc")
-	procGlobalFree       = kernel32.NewProc("GlobalFree")
-	procGlobalLock       = kernel32.NewProc("GlobalLock")
-	procGlobalUnlock     = kernel32.NewProc("GlobalUnlock")
-	procGetLastError     = kernel32.NewProc("GetLastError")
+	procGetModuleHandleW          = kernel32.NewProc("GetModuleHandleW")
+	procGlobalAlloc               = kernel32.NewProc("GlobalAlloc")
+	procGlobalFree                = kernel32.NewProc("GlobalFree")
+	procGlobalLock                = kernel32.NewProc("GlobalLock")
+	procGlobalUnlock              = kernel32.NewProc("GlobalUnlock")
+	procGetLastError              = kernel32.NewProc("GetLastError")
 	procQueryPerformanceCounter   = kernel32.NewProc("QueryPerformanceCounter")
 	procQueryPerformanceFrequency = kernel32.NewProc("QueryPerformanceFrequency")
 )
 
 // gdi32 functions
 var (
-	procGetDeviceCaps  = gdi32.NewProc("GetDeviceCaps")
-	procGetObject      = gdi32.NewProc("GetObjectW")
-	procGetBitmapBits  = gdi32.NewProc("GetBitmapBits")
-	procCreateBitmap   = gdi32.NewProc("CreateBitmap")
-	procDeleteObject   = gdi32.NewProc("DeleteObject")
+	procGetDeviceCaps = gdi32.NewProc("GetDeviceCaps")
+	procGetObject     = gdi32.NewProc("GetObjectW")
+	procGetBitmapBits = gdi32.NewProc("GetBitmapBits")
+	procCreateBitmap  = gdi32.NewProc("CreateBitmap")
+	procDeleteObject  = gdi32.NewProc("DeleteObject")
 )
 
 // shcore functions (DPI awareness)
@@ -115,65 +115,65 @@ var (
 
 // imm32 functions (IME)
 var (
-	procImmGetContext        = imm32.NewProc("ImmGetContext")
-	procImmReleaseContext    = imm32.NewProc("ImmReleaseContext")
-	procImmSetCompositionWindow = imm32.NewProc("ImmSetCompositionWindow")
+	procImmGetContext            = imm32.NewProc("ImmGetContext")
+	procImmReleaseContext        = imm32.NewProc("ImmReleaseContext")
+	procImmSetCompositionWindow  = imm32.NewProc("ImmSetCompositionWindow")
 	procImmGetCompositionStringW = imm32.NewProc("ImmGetCompositionStringW")
-	procImmSetCandidateWindow = imm32.NewProc("ImmSetCandidateWindow")
+	procImmSetCandidateWindow    = imm32.NewProc("ImmSetCandidateWindow")
 )
 
 // ---- Win32 Constants ----
 
 // Window messages
 const (
-	WM_CREATE          = 0x0001
-	WM_DESTROY         = 0x0002
-	WM_MOVE            = 0x0003
-	WM_SIZE            = 0x0005
-	WM_ACTIVATE        = 0x0006
-	WM_SETFOCUS        = 0x0007
-	WM_KILLFOCUS       = 0x0008
-	WM_CLOSE           = 0x0010
-	WM_QUIT            = 0x0012
-	WM_PAINT           = 0x000F
-	WM_ERASEBKGND      = 0x0014
-	WM_SHOWWINDOW      = 0x0018
-	WM_GETMINMAXINFO   = 0x0024
-	WM_SETCURSOR       = 0x0020
-	WM_MOUSEMOVE       = 0x0200
-	WM_LBUTTONDOWN     = 0x0201
-	WM_LBUTTONUP       = 0x0202
-	WM_LBUTTONDBLCLK   = 0x0203
-	WM_RBUTTONDOWN     = 0x0204
-	WM_RBUTTONUP       = 0x0205
-	WM_RBUTTONDBLCLK   = 0x0206
-	WM_MBUTTONDOWN     = 0x0207
-	WM_MBUTTONUP       = 0x0208
-	WM_MBUTTONDBLCLK   = 0x0209
-	WM_MOUSEWHEEL      = 0x020A
-	WM_MOUSEHWHEEL     = 0x020E
-	WM_XBUTTONDOWN     = 0x020B
-	WM_XBUTTONUP       = 0x020C
-	WM_MOUSELEAVE      = 0x02A3
-	WM_KEYDOWN         = 0x0100
-	WM_KEYUP           = 0x0101
-	WM_CHAR            = 0x0102
-	WM_SYSCOMMAND      = 0x0112
-	WM_SYSKEYDOWN      = 0x0104
-	WM_SYSKEYUP        = 0x0105
-	WM_TIMER           = 0x0113
-	WM_DPICHANGED      = 0x02E0
-	WM_NCHITTEST       = 0x0084
-	WM_ENTERSIZEMOVE   = 0x0231
-	WM_EXITSIZEMOVE    = 0x0232
+	WM_CREATE        = 0x0001
+	WM_DESTROY       = 0x0002
+	WM_MOVE          = 0x0003
+	WM_SIZE          = 0x0005
+	WM_ACTIVATE      = 0x0006
+	WM_SETFOCUS      = 0x0007
+	WM_KILLFOCUS     = 0x0008
+	WM_CLOSE         = 0x0010
+	WM_QUIT          = 0x0012
+	WM_PAINT         = 0x000F
+	WM_ERASEBKGND    = 0x0014
+	WM_SHOWWINDOW    = 0x0018
+	WM_GETMINMAXINFO = 0x0024
+	WM_SETCURSOR     = 0x0020
+	WM_MOUSEMOVE     = 0x0200
+	WM_LBUTTONDOWN   = 0x0201
+	WM_LBUTTONUP     = 0x0202
+	WM_LBUTTONDBLCLK = 0x0203
+	WM_RBUTTONDOWN   = 0x0204
+	WM_RBUTTONUP     = 0x0205
+	WM_RBUTTONDBLCLK = 0x0206
+	WM_MBUTTONDOWN   = 0x0207
+	WM_MBUTTONUP     = 0x0208
+	WM_MBUTTONDBLCLK = 0x0209
+	WM_MOUSEWHEEL    = 0x020A
+	WM_MOUSEHWHEEL   = 0x020E
+	WM_XBUTTONDOWN   = 0x020B
+	WM_XBUTTONUP     = 0x020C
+	WM_MOUSELEAVE    = 0x02A3
+	WM_KEYDOWN       = 0x0100
+	WM_KEYUP         = 0x0101
+	WM_CHAR          = 0x0102
+	WM_SYSCOMMAND    = 0x0112
+	WM_SYSKEYDOWN    = 0x0104
+	WM_SYSKEYUP      = 0x0105
+	WM_TIMER         = 0x0113
+	WM_DPICHANGED    = 0x02E0
+	WM_NCHITTEST     = 0x0084
+	WM_ENTERSIZEMOVE = 0x0231
+	WM_EXITSIZEMOVE  = 0x0232
 
 	// IME messages
-	WM_IME_STARTCOMPOSITION  = 0x010D
-	WM_IME_ENDCOMPOSITION    = 0x010E
-	WM_IME_COMPOSITION       = 0x010F
-	WM_IME_SETCONTEXT        = 0x0281
-	WM_IME_NOTIFY            = 0x0282
-	WM_IME_CHAR              = 0x0286
+	WM_IME_STARTCOMPOSITION = 0x010D
+	WM_IME_ENDCOMPOSITION   = 0x010E
+	WM_IME_COMPOSITION      = 0x010F
+	WM_IME_SETCONTEXT       = 0x0281
+	WM_IME_NOTIFY           = 0x0282
+	WM_IME_CHAR             = 0x0286
 )
 
 // IME composition string flags
@@ -199,20 +199,20 @@ const (
 	WS_CLIPCHILDREN     = 0x02000000
 	WS_CLIPSIBLINGS     = 0x04000000
 
-	WS_EX_APPWINDOW   = 0x00040000
-	WS_EX_WINDOWEDGE  = 0x00000100
-	WS_EX_TOPMOST     = 0x00000008
-	WS_EX_TOOLWINDOW  = 0x00000080
-	WS_EX_LAYERED     = 0x00080000
-	WS_EX_TRANSPARENT = 0x00000020
+	WS_EX_APPWINDOW           = 0x00040000
+	WS_EX_WINDOWEDGE          = 0x00000100
+	WS_EX_TOPMOST             = 0x00000008
+	WS_EX_TOOLWINDOW          = 0x00000080
+	WS_EX_LAYERED             = 0x00080000
+	WS_EX_TRANSPARENT         = 0x00000020
 	WS_EX_NOREDIRECTIONBITMAP = 0x00200000
 )
 
 // Show window commands
 const (
-	SW_HIDE         = 0
-	SW_SHOW         = 5
-	SW_SHOWDEFAULT  = 10
+	SW_HIDE          = 0
+	SW_SHOW          = 5
+	SW_SHOWDEFAULT   = 10
 	SW_SHOWMAXIMIZED = 3
 )
 
@@ -227,8 +227,8 @@ const (
 
 // SetWindowPos insertion targets
 const (
-	HWND_TOPMOST    = ^uintptr(0)    // (HWND)-1
-	HWND_NOTOPMOST  = ^uintptr(1)    // (HWND)-2
+	HWND_TOPMOST   = ^uintptr(0) // (HWND)-1
+	HWND_NOTOPMOST = ^uintptr(1) // (HWND)-2
 )
 
 // WM_NCHITTEST return values
@@ -287,17 +287,17 @@ const (
 	VK_LMENU     = 0xA4
 	VK_RMENU     = 0xA5
 
-	VK_OEM_MINUS     = 0xBD
-	VK_OEM_PLUS      = 0xBB
-	VK_OEM_4         = 0xDB // [
-	VK_OEM_6         = 0xDD // ]
-	VK_OEM_5         = 0xDC // backslash
-	VK_OEM_1         = 0xBA // ;
-	VK_OEM_7         = 0xDE // '
-	VK_OEM_3         = 0xC0 // `
-	VK_OEM_COMMA     = 0xBC
-	VK_OEM_PERIOD    = 0xBE
-	VK_OEM_2         = 0xBF // /
+	VK_OEM_MINUS  = 0xBD
+	VK_OEM_PLUS   = 0xBB
+	VK_OEM_4      = 0xDB // [
+	VK_OEM_6      = 0xDD // ]
+	VK_OEM_5      = 0xDC // backslash
+	VK_OEM_1      = 0xBA // ;
+	VK_OEM_7      = 0xDE // '
+	VK_OEM_3      = 0xC0 // `
+	VK_OEM_COMMA  = 0xBC
+	VK_OEM_PERIOD = 0xBE
+	VK_OEM_2      = 0xBF // /
 )
 
 // Mouse tracking
@@ -353,8 +353,8 @@ const (
 
 // Menu flags
 const (
-	MF_STRING  = 0x00000000
-	MF_GRAYED  = 0x00000001
+	MF_STRING = 0x00000000
+	MF_GRAYED = 0x00000001
 
 	TPM_RETURNCMD   = 0x0100
 	TPM_RIGHTBUTTON = 0x0002
@@ -362,10 +362,10 @@ const (
 
 // Class styles
 const (
-	CS_HREDRAW  = 0x0002
-	CS_VREDRAW  = 0x0001
-	CS_OWNDC    = 0x0020
-	CS_DBLCLKS  = 0x0008
+	CS_HREDRAW = 0x0002
+	CS_VREDRAW = 0x0001
+	CS_OWNDC   = 0x0020
+	CS_DBLCLKS = 0x0008
 )
 
 // ---- Win32 Structures ----
@@ -382,7 +382,7 @@ type WNDCLASSEXW struct {
 	HbrBackground uintptr
 	LpszMenuName  *uint16
 	LpszClassName *uint16
-	HIconSm      uintptr
+	HIconSm       uintptr
 }
 
 type MSG struct {
@@ -418,20 +418,20 @@ type TRACKMOUSEEVENT struct {
 }
 
 type COMPOSITIONFORM struct {
-	DwStyle uint32
+	DwStyle      uint32
 	PtCurrentPos POINT
-	RcArea  RECT
+	RcArea       RECT
 }
 
 type CANDIDATEFORM struct {
-	DwIndex uint32
-	DwStyle uint32
+	DwIndex      uint32
+	DwStyle      uint32
 	PtCurrentPos POINT
-	RcArea  RECT
+	RcArea       RECT
 }
 
 type ICONINFO struct {
-	FIcon    int32   // TRUE = icon, FALSE = cursor
+	FIcon    int32 // TRUE = icon, FALSE = cursor
 	XHotspot uint32
 	YHotspot uint32
 	HbmMask  uintptr

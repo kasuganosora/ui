@@ -16,10 +16,10 @@ import (
 // dict is a word frequency dictionary used by the jieba segmenter.
 // It stores word frequencies and a prefix set for efficient DAG construction.
 type dict struct {
-	freq     map[string]float64 // word → frequency
-	total    float64            // sum of all frequencies
-	logTotal float64            // log(total)
-	maxWordLen int              // max word length in runes
+	freq       map[string]float64 // word → frequency
+	total      float64            // sum of all frequencies
+	logTotal   float64            // log(total)
+	maxWordLen int                // max word length in runes
 }
 
 // newDict creates an empty dictionary.
@@ -88,7 +88,7 @@ func (d *dict) loadFromFile(path string) error {
 	if err != nil {
 		return fmt.Errorf("segment: open dict: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	return d.loadFromReader(f)
 }
 
@@ -98,13 +98,13 @@ func (d *dict) loadFromGzipFile(path string) error {
 	if err != nil {
 		return fmt.Errorf("segment: open dict: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	gz, err := gzip.NewReader(f)
 	if err != nil {
 		return fmt.Errorf("segment: gzip reader: %w", err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 
 	return d.loadFromReader(gz)
 }
@@ -115,7 +115,7 @@ func (d *dict) loadFromGzipData(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("segment: gzip reader: %w", err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 	return d.loadFromReader(gz)
 }
 

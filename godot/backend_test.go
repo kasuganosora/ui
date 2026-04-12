@@ -45,7 +45,7 @@ func TestSoftwareBackend_InitDPI(t *testing.T) {
 func TestSoftwareBackend_ClearOnBeginFrame(t *testing.T) {
 	win := NewHeadlessWindow(4, 4, 1.0)
 	b := NewSoftwareBackend()
-	b.Init(win)
+	_ = b.Init(win)
 	defer b.Destroy()
 
 	// Dirty the buffer
@@ -66,7 +66,7 @@ func TestSoftwareBackend_ClearOnBeginFrame(t *testing.T) {
 func TestSoftwareBackend_DrawRect(t *testing.T) {
 	win := NewHeadlessWindow(100, 100, 1.0)
 	b := NewSoftwareBackend()
-	b.Init(win)
+	_ = b.Init(win)
 	defer b.Destroy()
 
 	buf := render.NewCommandBuffer()
@@ -94,7 +94,7 @@ func TestSoftwareBackend_DrawRect(t *testing.T) {
 func TestSoftwareBackend_DrawRectWithBorder(t *testing.T) {
 	win := NewHeadlessWindow(100, 100, 1.0)
 	b := NewSoftwareBackend()
-	b.Init(win)
+	_ = b.Init(win)
 	defer b.Destroy()
 
 	buf := render.NewCommandBuffer()
@@ -125,7 +125,7 @@ func TestSoftwareBackend_DrawRectWithBorder(t *testing.T) {
 func TestSoftwareBackend_AlphaBlending(t *testing.T) {
 	win := NewHeadlessWindow(100, 100, 1.0)
 	b := NewSoftwareBackend()
-	b.Init(win)
+	_ = b.Init(win)
 	defer b.Destroy()
 
 	buf := render.NewCommandBuffer()
@@ -157,7 +157,7 @@ func TestSoftwareBackend_AlphaBlending(t *testing.T) {
 func TestSoftwareBackend_Scissor(t *testing.T) {
 	win := NewHeadlessWindow(100, 100, 1.0)
 	b := NewSoftwareBackend()
-	b.Init(win)
+	_ = b.Init(win)
 	defer b.Destroy()
 
 	buf := render.NewCommandBuffer()
@@ -190,7 +190,7 @@ func TestSoftwareBackend_Scissor(t *testing.T) {
 func TestSoftwareBackend_TextureCreateUpdate(t *testing.T) {
 	win := NewHeadlessWindow(100, 100, 1.0)
 	b := NewSoftwareBackend()
-	b.Init(win)
+	_ = b.Init(win)
 	defer b.Destroy()
 
 	// Create 2x2 RGBA texture
@@ -223,7 +223,7 @@ func TestSoftwareBackend_TextureCreateUpdate(t *testing.T) {
 func TestSoftwareBackend_R8Texture(t *testing.T) {
 	win := NewHeadlessWindow(100, 100, 1.0)
 	b := NewSoftwareBackend()
-	b.Init(win)
+	_ = b.Init(win)
 	defer b.Destroy()
 
 	// Create 2x2 R8 texture (glyph atlas)
@@ -257,7 +257,7 @@ func TestSoftwareBackend_R8Texture(t *testing.T) {
 func TestSoftwareBackend_ReadPixels(t *testing.T) {
 	win := NewHeadlessWindow(10, 10, 1.0)
 	b := NewSoftwareBackend()
-	b.Init(win)
+	_ = b.Init(win)
 	defer b.Destroy()
 
 	buf := render.NewCommandBuffer()
@@ -285,7 +285,7 @@ func TestSoftwareBackend_ReadPixels(t *testing.T) {
 func BenchmarkSoftwareBackend_FillRect(b *testing.B) {
 	win := NewHeadlessWindow(1920, 1080, 1.0)
 	be := NewSoftwareBackend()
-	be.Init(win)
+	_ = be.Init(win)
 	defer be.Destroy()
 
 	buf := render.NewCommandBuffer()

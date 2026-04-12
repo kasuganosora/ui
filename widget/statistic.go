@@ -65,23 +65,23 @@ func NewStatistic(tree *core.Tree, title, value string, cfg *Config) *Statistic 
 	}
 }
 
-func (s *Statistic) Title() string              { return s.title }
-func (s *Statistic) Value() string              { return s.value }
-func (s *Statistic) SetTitle(t string)          { s.title = t }
-func (s *Statistic) SetValue(v string)          { s.value = v }
-func (s *Statistic) SetPrefix(p string)         { s.prefix = p }
-func (s *Statistic) SetSuffix(su string)        { s.suffix = su }
-func (s *Statistic) SetColor(c uimath.Color)    { s.color = c }
-func (s *Statistic) SetTrend(t Trend)           { s.trend = t }
-func (s *Statistic) SetSeparator(sep string)    { s.separator = sep }
-func (s *Statistic) SetDecimalPlaces(d int)                  { s.decimalPlaces = d }
-func (s *Statistic) SetLoading(l bool)                       { s.loading = l }
-func (s *Statistic) SetAnimation(a *StatisticAnimation)      { s.animation = a }
-func (s *Statistic) SetAnimationStart(v bool)                { s.animationStart = v }
-func (s *Statistic) SetExtra(e string)                       { s.extra = e }
-func (s *Statistic) SetFormat(fn func(float64) string)       { s.format = fn }
-func (s *Statistic) SetTrendPlacement(tp TrendPlacement)     { s.trendPlacement = tp }
-func (s *Statistic) SetUnit(u string)                        { s.unit = u }
+func (s *Statistic) Title() string                       { return s.title }
+func (s *Statistic) Value() string                       { return s.value }
+func (s *Statistic) SetTitle(t string)                   { s.title = t }
+func (s *Statistic) SetValue(v string)                   { s.value = v }
+func (s *Statistic) SetPrefix(p string)                  { s.prefix = p }
+func (s *Statistic) SetSuffix(su string)                 { s.suffix = su }
+func (s *Statistic) SetColor(c uimath.Color)             { s.color = c }
+func (s *Statistic) SetTrend(t Trend)                    { s.trend = t }
+func (s *Statistic) SetSeparator(sep string)             { s.separator = sep }
+func (s *Statistic) SetDecimalPlaces(d int)              { s.decimalPlaces = d }
+func (s *Statistic) SetLoading(l bool)                   { s.loading = l }
+func (s *Statistic) SetAnimation(a *StatisticAnimation)  { s.animation = a }
+func (s *Statistic) SetAnimationStart(v bool)            { s.animationStart = v }
+func (s *Statistic) SetExtra(e string)                   { s.extra = e }
+func (s *Statistic) SetFormat(fn func(float64) string)   { s.format = fn }
+func (s *Statistic) SetTrendPlacement(tp TrendPlacement) { s.trendPlacement = tp }
+func (s *Statistic) SetUnit(u string)                    { s.unit = u }
 
 // formatValue applies thousands separator and decimal formatting to the value.
 func (s *Statistic) formatValue() string {
@@ -115,11 +115,9 @@ func addThousandsSeparator(numStr, sep string) string {
 	}
 
 	if len(intPart) <= 3 {
-		result := numStr
+		result := intPart
 		if negative {
-			result = "-" + intPart
-		} else {
-			result = intPart
+			result = "-" + result
 		}
 		if len(parts) == 2 {
 			result += "." + parts[1]
@@ -196,11 +194,11 @@ func (s *Statistic) Draw(buf *render.CommandBuffer) {
 		var arrowColor uimath.Color
 		if s.trend == TrendIncrease {
 			mdiName = "arrow_upward"
-			arrow = "\u25B2" // ▲
+			arrow = "\u25B2"                        // ▲
 			arrowColor = uimath.ColorHex("#2ba471") // green
 		} else {
 			mdiName = "arrow_downward"
-			arrow = "\u25BC" // ▼
+			arrow = "\u25BC"                        // ▼
 			arrowColor = uimath.ColorHex("#d54941") // red
 		}
 		arrowSize := valSize * 0.7

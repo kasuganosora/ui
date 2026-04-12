@@ -89,7 +89,7 @@ func (l *Loader) CreateInstance(appName, engineName string, enableValidation boo
 // DestroyInstance destroys a Vulkan instance.
 func (l *Loader) DestroyInstance(instance Instance) {
 	if l.vkDestroyInstance != 0 {
-		syscallN(l.vkDestroyInstance, uintptr(instance), 0)
+		_, _, _ = syscallN(l.vkDestroyInstance, uintptr(instance), 0)
 	}
 }
 
@@ -122,7 +122,7 @@ func (l *Loader) EnumeratePhysicalDevices(instance Instance) ([]PhysicalDevice, 
 // GetPhysicalDeviceQueueFamilyProperties returns queue family properties.
 func (l *Loader) GetPhysicalDeviceQueueFamilyProperties(device PhysicalDevice) []QueueFamilyProperties {
 	var count uint32
-	syscallN(l.vkGetPhysicalDeviceQueueFamilyProperties,
+	_, _, _ = syscallN(l.vkGetPhysicalDeviceQueueFamilyProperties,
 		uintptr(device),
 		uintptr(unsafe.Pointer(&count)),
 		0,
@@ -131,7 +131,7 @@ func (l *Loader) GetPhysicalDeviceQueueFamilyProperties(device PhysicalDevice) [
 		return nil
 	}
 	props := make([]QueueFamilyProperties, count)
-	syscallN(l.vkGetPhysicalDeviceQueueFamilyProperties,
+	_, _, _ = syscallN(l.vkGetPhysicalDeviceQueueFamilyProperties,
 		uintptr(device),
 		uintptr(unsafe.Pointer(&count)),
 		uintptr(unsafe.Pointer(&props[0])),
@@ -149,7 +149,7 @@ func (l *Loader) GetPhysicalDeviceNameAndDriver(device PhysicalDevice) (name str
 	//   uint32 deviceType       (offset 16)
 	//   char   deviceName[256]  (offset 20)
 	var buf [1024]byte
-	syscallN(l.vkGetPhysicalDeviceProperties,
+	_, _, _ = syscallN(l.vkGetPhysicalDeviceProperties,
 		uintptr(device),
 		uintptr(unsafe.Pointer(&buf[0])),
 	)
@@ -170,7 +170,7 @@ func (l *Loader) GetPhysicalDeviceNameAndDriver(device PhysicalDevice) (name str
 // GetPhysicalDeviceMemoryProperties returns memory properties.
 func (l *Loader) GetPhysicalDeviceMemoryProperties(device PhysicalDevice) PhysicalDeviceMemoryProperties {
 	var props PhysicalDeviceMemoryProperties
-	syscallN(l.vkGetPhysicalDeviceMemoryProperties,
+	_, _, _ = syscallN(l.vkGetPhysicalDeviceMemoryProperties,
 		uintptr(device),
 		uintptr(unsafe.Pointer(&props)),
 	)
@@ -180,7 +180,7 @@ func (l *Loader) GetPhysicalDeviceMemoryProperties(device PhysicalDevice) Physic
 // GetPhysicalDeviceSurfaceSupportKHR checks if a queue family supports presentation.
 func (l *Loader) GetPhysicalDeviceSurfaceSupportKHR(device PhysicalDevice, queueFamily uint32, surface SurfaceKHR) bool {
 	var supported uint32
-	syscallN(l.vkGetPhysicalDeviceSurfaceSupportKHR,
+	_, _, _ = syscallN(l.vkGetPhysicalDeviceSurfaceSupportKHR,
 		uintptr(device),
 		uintptr(queueFamily),
 		uintptr(surface),
@@ -244,7 +244,7 @@ func (l *Loader) GetPhysicalDeviceSurfacePresentModesKHR(device PhysicalDevice, 
 // DestroySurfaceKHR destroys a surface.
 func (l *Loader) DestroySurfaceKHR(instance Instance, surface SurfaceKHR) {
 	if l.vkDestroySurfaceKHR != 0 {
-		syscallN(l.vkDestroySurfaceKHR, uintptr(instance), uintptr(surface), 0)
+		_, _, _ = syscallN(l.vkDestroySurfaceKHR, uintptr(instance), uintptr(surface), 0)
 	}
 }
 

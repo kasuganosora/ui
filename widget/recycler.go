@@ -30,12 +30,12 @@ type RecyclerView struct {
 	itemCount int
 
 	// Sizing
-	estimatedHeight float32              // default height estimate per item
-	heightFn        func(int) float32    // optional per-item height estimate
+	estimatedHeight float32           // default height estimate per item
+	heightFn        func(int) float32 // optional per-item height estimate
 
 	// Widget lifecycle
-	createFn  func(index int) Widget          // create & bind a widget for data[index]
-	destroyFn func(index int, w Widget)       // cleanup before recycle (must call w.Destroy())
+	createFn  func(index int) Widget    // create & bind a widget for data[index]
+	destroyFn func(index int, w Widget) // cleanup before recycle (must call w.Destroy())
 
 	// Optional: run CSS layout on newly created items. Returns computed height.
 	// When set, RecyclerView captures relative element positions at creation
@@ -67,12 +67,9 @@ type RecyclerView struct {
 	bufferCount int
 
 	// Callbacks
-	onScroll    func(scrollY float32)
-	onNearEnd   func() // called when scrolled near the bottom (infinite scroll trigger)
-	nearEndPx   float32
-
-	// Track if we need to rebuild cumulative heights
-	heightsDirty bool
+	onScroll  func(scrollY float32)
+	onNearEnd func() // called when scrolled near the bottom (infinite scroll trigger)
+	nearEndPx float32
 }
 
 // itemLayoutCache stores the relative element positions for one item,
@@ -150,14 +147,14 @@ func (rv *RecyclerView) SetLayoutItem(fn func(w Widget, width float32) float32) 
 	rv.layoutFn = fn
 }
 
-func (rv *RecyclerView) SetBufferCount(n int) { rv.bufferCount = n }
-func (rv *RecyclerView) SetOnScroll(fn func(float32)) { rv.onScroll = fn }
-func (rv *RecyclerView) SetOnNearEnd(fn func())       { rv.onNearEnd = fn }
+func (rv *RecyclerView) SetBufferCount(n int)           { rv.bufferCount = n }
+func (rv *RecyclerView) SetOnScroll(fn func(float32))   { rv.onScroll = fn }
+func (rv *RecyclerView) SetOnNearEnd(fn func())         { rv.onNearEnd = fn }
 func (rv *RecyclerView) SetNearEndThreshold(px float32) { rv.nearEndPx = px }
 
 func (rv *RecyclerView) ScrollY() float32       { return rv.scrollY }
-func (rv *RecyclerView) ContentHeight() float32  { return rv.contentHeight }
-func (rv *RecyclerView) ActiveCount() int        { return len(rv.active) }
+func (rv *RecyclerView) ContentHeight() float32 { return rv.contentHeight }
+func (rv *RecyclerView) ActiveCount() int       { return len(rv.active) }
 
 // ScrollTo sets the scroll position.
 func (rv *RecyclerView) ScrollTo(y float32) {

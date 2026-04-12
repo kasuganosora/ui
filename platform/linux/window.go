@@ -11,35 +11,35 @@ import (
 
 // XC_ cursor font shape constants.
 const (
-	xcArrow          = 68  // XC_left_ptr
-	xcIBeam          = 152 // XC_xterm
-	xcCrosshair      = 34  // XC_crosshair
-	xcHand           = 60  // XC_hand2
-	xcHResize        = 108 // XC_sb_h_double_arrow
-	xcVResize        = 116 // XC_sb_v_double_arrow
-	xcSizing         = 120 // XC_sizing (used for NW/NE diagonal)
-	xcFleur          = 52  // XC_fleur (all-resize)
-	xcXCursor        = 0   // XC_X_cursor (not-allowed)
-	xcWatch          = 150 // XC_watch
+	xcArrow     = 68  // XC_left_ptr
+	xcIBeam     = 152 // XC_xterm
+	xcCrosshair = 34  // XC_crosshair
+	xcHand      = 60  // XC_hand2
+	xcHResize   = 108 // XC_sb_h_double_arrow
+	xcVResize   = 116 // XC_sb_v_double_arrow
+	xcSizing    = 120 // XC_sizing (used for NW/NE diagonal)
+	xcFleur     = 52  // XC_fleur (all-resize)
+	xcXCursor   = 0   // XC_X_cursor (not-allowed)
+	xcWatch     = 150 // XC_watch
 )
 
 // Window implements platform.Window for Linux/X11.
 type Window struct {
-	p   *Platform
-	dpy Display
+	p    *Platform
+	dpy  Display
 	xwin XWindow
 
 	width, height       int
 	minWidth, minHeight int
 	maxWidth, maxHeight int
 
-	dpiScale    float32
-	fullscreen  bool
-	decorated   bool
-	resizable   bool
-	visible     bool
+	dpiScale        float32
+	fullscreen      bool
+	decorated       bool
+	resizable       bool
+	visible         bool
 	deferredVisible bool
-	shouldClose bool
+	shouldClose     bool
 
 	// Saved pre-fullscreen geometry
 	savedX, savedY, savedW, savedH int
@@ -314,8 +314,8 @@ func (w *Window) ClientToScreen(x, y int) (int, int) {
 	return destX, destY
 }
 
-func (w *Window) IsTransparent() bool              { return false }
-func (w *Window) SetTopMost(topmost bool)           {}
+func (w *Window) IsTransparent() bool                { return false }
+func (w *Window) SetTopMost(topmost bool)            {}
 func (w *Window) SetHitTestFunc(func(int, int) bool) {}
 
 func (w *Window) Destroy() {
@@ -335,7 +335,6 @@ func (w *Window) Destroy() {
 	}
 	XFlush(w.dpy)
 }
-
 
 // XDisplay returns the X11 Display* as a uintptr for Vulkan surface creation.
 // This satisfies the vulkan.xlibWindowProvider interface.

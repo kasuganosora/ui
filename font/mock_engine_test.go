@@ -3,8 +3,8 @@ package font
 // mockEngine is a test double for font.Engine.
 // It simulates a monospace font where every glyph has the same advance.
 type mockEngine struct {
-	fonts    map[ID]*mockFont
-	nextID   ID
+	fonts  map[ID]*mockFont
+	nextID ID
 }
 
 type mockFont struct {
@@ -80,8 +80,12 @@ func (e *mockEngine) GlyphMetrics(id ID, glyph GlyphID, size float32) GlyphMetri
 func (e *mockEngine) RasterizeGlyph(id ID, glyph GlyphID, size float32, sdf bool) (GlyphBitmap, error) {
 	w := int(size * 0.6)
 	h := int(size)
-	if w < 1 { w = 1 }
-	if h < 1 { h = 1 }
+	if w < 1 {
+		w = 1
+	}
+	if h < 1 {
+		h = 1
+	}
 	return GlyphBitmap{
 		Width:  w,
 		Height: h,
@@ -104,5 +108,5 @@ func (e *mockEngine) HasGlyph(id ID, r rune) bool {
 }
 
 func (e *mockEngine) HasColorGlyphs(ID) bool { return false }
-func (e *mockEngine) SetDPIScale(float32)          {}
-func (e *mockEngine) Destroy()                     {}
+func (e *mockEngine) SetDPIScale(float32)    {}
+func (e *mockEngine) Destroy()               {}

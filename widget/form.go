@@ -37,10 +37,10 @@ func NewForm(tree *core.Tree, cfg *Config) *Form {
 	return f
 }
 
-func (f *Form) Layout() FormLayout     { return f.layout }
-func (f *Form) LabelWidth() float32    { return f.labelWidth }
+func (f *Form) Layout() FormLayout  { return f.layout }
+func (f *Form) LabelWidth() float32 { return f.labelWidth }
 
-func (f *Form) SetLayout(l FormLayout) { f.layout = l }
+func (f *Form) SetLayout(l FormLayout)  { f.layout = l }
 func (f *Form) SetLabelWidth(w float32) { f.labelWidth = w }
 
 func (f *Form) Draw(buf *render.CommandBuffer) {
@@ -77,10 +77,10 @@ func NewFormItem(tree *core.Tree, label string, control Widget, cfg *Config) *Fo
 	return fi
 }
 
-func (fi *FormItem) Label() string   { return fi.label }
+func (fi *FormItem) Label() string    { return fi.label }
 func (fi *FormItem) IsRequired() bool { return fi.required }
-func (fi *FormItem) Error() string   { return fi.error }
-func (fi *FormItem) Control() Widget { return fi.control }
+func (fi *FormItem) Error() string    { return fi.error }
+func (fi *FormItem) Control() Widget  { return fi.control }
 
 func (fi *FormItem) SetLabel(label string) { fi.label = label }
 func (fi *FormItem) SetRequired(r bool)    { fi.required = r }

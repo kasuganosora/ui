@@ -30,9 +30,9 @@ func NewPanel(tree *core.Tree, title string, cfg *Config) *Panel {
 	return p
 }
 
-func (p *Panel) SetTitle(t string)          { p.title = t }
+func (p *Panel) SetTitle(t string)         { p.title = t }
 func (p *Panel) SetBgColor(c uimath.Color) { p.bgColor = c }
-func (p *Panel) SetBordered(b bool)         { p.bordered = b }
+func (p *Panel) SetBordered(b bool)        { p.bordered = b }
 
 func (p *Panel) Draw(buf *render.CommandBuffer) {
 	bounds := p.Bounds()

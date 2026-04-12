@@ -9,11 +9,11 @@ import (
 // Calendar displays a full month calendar grid.
 type Calendar struct {
 	Base
-	year      int
-	month     int
-	selected  int // day
-	cellSize  float32
-	onSelect  func(year, month, day int)
+	year     int
+	month    int
+	selected int // day
+	cellSize float32
+	onSelect func(year, month, day int)
 }
 
 func NewCalendar(tree *core.Tree, cfg *Config) *Calendar {
@@ -29,13 +29,13 @@ func NewCalendar(tree *core.Tree, cfg *Config) *Calendar {
 	}
 }
 
-func (c *Calendar) Year() int                          { return c.year }
-func (c *Calendar) Month() int                         { return c.month }
-func (c *Calendar) Selected() int                      { return c.selected }
-func (c *Calendar) SetYear(y int)                      { c.year = y }
-func (c *Calendar) SetMonth(m int)                     { c.month = m }
-func (c *Calendar) SetSelected(d int)                  { c.selected = d }
-func (c *Calendar) OnSelect(fn func(int, int, int))    { c.onSelect = fn }
+func (c *Calendar) Year() int                       { return c.year }
+func (c *Calendar) Month() int                      { return c.month }
+func (c *Calendar) Selected() int                   { return c.selected }
+func (c *Calendar) SetYear(y int)                   { c.year = y }
+func (c *Calendar) SetMonth(m int)                  { c.month = m }
+func (c *Calendar) SetSelected(d int)               { c.selected = d }
+func (c *Calendar) OnSelect(fn func(int, int, int)) { c.onSelect = fn }
 
 func (c *Calendar) NextMonth() {
 	c.month++

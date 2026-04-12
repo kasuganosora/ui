@@ -84,7 +84,7 @@ func (c *Client) Fetch(rawURL string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fetch %s: %w", rawURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("fetch %s: HTTP %d", rawURL, resp.StatusCode)
 	}

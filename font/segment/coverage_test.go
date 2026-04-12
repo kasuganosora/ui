@@ -1,8 +1,8 @@
 package segment
 
 import (
-	"compress/gzip"
 	"bytes"
+	"compress/gzip"
 	"strings"
 	"testing"
 )
@@ -17,7 +17,9 @@ func TestLoadFromGzipData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gw.Close()
+	if err := gw.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	j, err := New(WithDictGzipData(buf.Bytes()))
 	if err != nil {

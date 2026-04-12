@@ -37,7 +37,7 @@ const (
 type PopupTrigger uint8
 
 const (
-	TriggerHover      PopupTrigger = iota
+	TriggerHover PopupTrigger = iota
 	TriggerClick
 	TriggerFocus
 	TriggerMousedown
@@ -102,22 +102,22 @@ func (p *Popup) SetAnchor(id core.ElementID) {
 	p.anchorID = id
 }
 
-func (p *Popup) SetBgColor(c uimath.Color)        { p.bgColor = c }
-func (p *Popup) SetShadow(s bool)                 { p.shadow = s }
-func (p *Popup) SetShowArrow(v bool)               { p.showArrow = v }
-func (p *Popup) SetTrigger(t PopupTrigger)         { p.trigger = t }
-func (p *Popup) Disabled() bool                    { return p.disabled }
-func (p *Popup) SetDisabled(v bool)                { p.disabled = v }
-func (p *Popup) HideEmptyPopup() bool              { return p.hideEmptyPopup }
-func (p *Popup) SetHideEmptyPopup(v bool)          { p.hideEmptyPopup = v }
-func (p *Popup) DestroyOnClose() bool              { return p.destroyOnClose }
-func (p *Popup) SetDestroyOnClose(v bool)          { p.destroyOnClose = v }
-func (p *Popup) ZIndex() int                       { return p.zIndex }
-func (p *Popup) SetZIndex(z int)                   { p.zIndex = z }
-func (p *Popup) OnVisibleChange(fn func(bool))     { p.onVisibleChange = fn }
-func (p *Popup) OnOverlayClick(fn func())          { p.onOverlayClick = fn }
-func (p *Popup) OnScroll(fn func())                { p.onScroll = fn }
-func (p *Popup) OnScrollToBottom(fn func())        { p.onScrollToBottom = fn }
+func (p *Popup) SetBgColor(c uimath.Color)     { p.bgColor = c }
+func (p *Popup) SetShadow(s bool)              { p.shadow = s }
+func (p *Popup) SetShowArrow(v bool)           { p.showArrow = v }
+func (p *Popup) SetTrigger(t PopupTrigger)     { p.trigger = t }
+func (p *Popup) Disabled() bool                { return p.disabled }
+func (p *Popup) SetDisabled(v bool)            { p.disabled = v }
+func (p *Popup) HideEmptyPopup() bool          { return p.hideEmptyPopup }
+func (p *Popup) SetHideEmptyPopup(v bool)      { p.hideEmptyPopup = v }
+func (p *Popup) DestroyOnClose() bool          { return p.destroyOnClose }
+func (p *Popup) SetDestroyOnClose(v bool)      { p.destroyOnClose = v }
+func (p *Popup) ZIndex() int                   { return p.zIndex }
+func (p *Popup) SetZIndex(z int)               { p.zIndex = z }
+func (p *Popup) OnVisibleChange(fn func(bool)) { p.onVisibleChange = fn }
+func (p *Popup) OnOverlayClick(fn func())      { p.onOverlayClick = fn }
+func (p *Popup) OnScroll(fn func())            { p.onScroll = fn }
+func (p *Popup) OnScrollToBottom(fn func())    { p.onScrollToBottom = fn }
 
 // UpdatePosition calculates popup position based on anchor and placement.
 func (p *Popup) UpdatePosition() {

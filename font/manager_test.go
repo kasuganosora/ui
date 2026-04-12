@@ -85,8 +85,8 @@ func TestManagerFallbackChain(t *testing.T) {
 	engine := newMockEngine()
 	mgr := NewManager(engine)
 
-	mgr.Register("Latin", WeightRegular, StyleNormal, nil)
-	cjkID, _ := mgr.Register("CJK", WeightRegular, StyleNormal, nil)
+	_, _ = mgr.Register("Latin", WeightRegular, StyleNormal, nil)
+	_, cjkID := mgr.Register("CJK", WeightRegular, StyleNormal, nil)
 
 	mgr.SetFallbackChain("", []string{"Latin", "CJK"})
 
@@ -128,9 +128,9 @@ func TestManagerMultipleWeights(t *testing.T) {
 		{WeightRegular, regular},
 		{WeightBold, bold},
 		{WeightBlack, black},
-		{WeightMedium, regular},   // 500 closest to 400
-		{WeightSemiBold, bold},    // 600 closest to 700
-		{WeightExtraBold, bold},   // 800 equidistant to 700/900, first match wins
+		{WeightMedium, regular}, // 500 closest to 400
+		{WeightSemiBold, bold},  // 600 closest to 700
+		{WeightExtraBold, bold}, // 800 equidistant to 700/900, first match wins
 	}
 
 	for _, tc := range tests {

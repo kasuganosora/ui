@@ -21,15 +21,15 @@ func newMockBackend() *mockBackend {
 	return &mockBackend{textures: make(map[render.TextureHandle]bool), nextTexture: 1}
 }
 
-func (b *mockBackend) Init(window platform.Window) error  { return nil }
-func (b *mockBackend) BeginFrame()                        {}
-func (b *mockBackend) EndFrame()                          {}
-func (b *mockBackend) Submit(buf *render.CommandBuffer)    {}
-func (b *mockBackend) Resize(w, h int)                    {}
-func (b *mockBackend) MaxTextureSize() int                { return 4096 }
-func (b *mockBackend) DPIScale() float32                  { return 1.0 }
-func (b *mockBackend) ReadPixels() (*image.RGBA, error)   { return nil, nil }
-func (b *mockBackend) Destroy()                           {}
+func (b *mockBackend) Init(window platform.Window) error { return nil }
+func (b *mockBackend) BeginFrame()                       {}
+func (b *mockBackend) EndFrame()                         {}
+func (b *mockBackend) Submit(buf *render.CommandBuffer)  {}
+func (b *mockBackend) Resize(w, h int)                   {}
+func (b *mockBackend) MaxTextureSize() int               { return 4096 }
+func (b *mockBackend) DPIScale() float32                 { return 1.0 }
+func (b *mockBackend) ReadPixels() (*image.RGBA, error)  { return nil, nil }
+func (b *mockBackend) Destroy()                          {}
 func (b *mockBackend) CreateTexture(desc render.TextureDesc) (render.TextureHandle, error) {
 	h := b.nextTexture
 	b.nextTexture++
@@ -88,7 +88,9 @@ func TestAtlasDestroyWithBackend(t *testing.T) {
 	// Insert and upload to create texture
 	bitmap := font.GlyphBitmap{Width: 5, Height: 5, Data: make([]byte, 25)}
 	a.Insert(MakeKey(1, 1, 16), bitmap, font.GlyphMetrics{})
-	a.Upload()
+	if err := a.Upload(); err != nil {
+		t.Fatal(err)
+	}
 
 	h := a.Texture()
 	if h == render.InvalidTexture {

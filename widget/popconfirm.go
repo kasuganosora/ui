@@ -19,21 +19,21 @@ const (
 // Popconfirm is a confirmation popup anchored to a trigger element.
 type Popconfirm struct {
 	Base
-	content        string
-	visible        bool
-	placement      PopupPlacement
-	anchorX        float32
-	anchorY        float32
-	anchorW        float32
-	anchorH        float32
-	width          float32
-	showArrow      bool
-	confirmBtn     string
-	cancelBtn      string
-	destroyOnClose bool
-	theme          PopconfirmTheme
-	onConfirm      func()
-	onCancel       func()
+	content         string
+	visible         bool
+	placement       PopupPlacement
+	anchorX         float32
+	anchorY         float32
+	anchorW         float32
+	anchorH         float32
+	width           float32
+	showArrow       bool
+	confirmBtn      string
+	cancelBtn       string
+	destroyOnClose  bool
+	theme           PopconfirmTheme
+	onConfirm       func()
+	onCancel        func()
 	onVisibleChange func(visible bool)
 
 	// Internal button elements for hit testing
@@ -46,7 +46,7 @@ func NewPopconfirm(tree *core.Tree, title string, cfg *Config) *Popconfirm {
 		cfg = DefaultConfig()
 	}
 	p := &Popconfirm{
-		Base:        NewBase(tree, core.TypeCustom, cfg),
+		Base:           NewBase(tree, core.TypeCustom, cfg),
 		content:        title,
 		placement:      PlacementTop,
 		width:          220,
@@ -88,26 +88,29 @@ func (p *Popconfirm) SetContent(t string)            { p.content = t }
 func (p *Popconfirm) SetVisible(v bool)              { p.visible = v }
 func (p *Popconfirm) SetPlacement(pl PopupPlacement) { p.placement = pl }
 func (p *Popconfirm) SetAnchorRect(x, y, w, h float32) {
-	p.anchorX = x; p.anchorY = y; p.anchorW = w; p.anchorH = h
+	p.anchorX = x
+	p.anchorY = y
+	p.anchorW = w
+	p.anchorH = h
 }
-func (p *Popconfirm) OnConfirm(fn func())            { p.onConfirm = fn }
-func (p *Popconfirm) OnCancel(fn func())             { p.onCancel = fn }
-func (p *Popconfirm) OnVisibleChange(fn func(bool))  { p.onVisibleChange = fn }
-func (p *Popconfirm) SetShowArrow(v bool)            { p.showArrow = v }
-func (p *Popconfirm) SetConfirmBtn(t string)         { p.confirmBtn = t }
-func (p *Popconfirm) SetCancelBtn(t string)          { p.cancelBtn = t }
-func (p *Popconfirm) DestroyOnClose() bool           { return p.destroyOnClose }
-func (p *Popconfirm) SetDestroyOnClose(v bool)       { p.destroyOnClose = v }
-func (p *Popconfirm) Theme() PopconfirmTheme         { return p.theme }
-func (p *Popconfirm) SetTheme(t PopconfirmTheme)     { p.theme = t }
+func (p *Popconfirm) OnConfirm(fn func())           { p.onConfirm = fn }
+func (p *Popconfirm) OnCancel(fn func())            { p.onCancel = fn }
+func (p *Popconfirm) OnVisibleChange(fn func(bool)) { p.onVisibleChange = fn }
+func (p *Popconfirm) SetShowArrow(v bool)           { p.showArrow = v }
+func (p *Popconfirm) SetConfirmBtn(t string)        { p.confirmBtn = t }
+func (p *Popconfirm) SetCancelBtn(t string)         { p.cancelBtn = t }
+func (p *Popconfirm) DestroyOnClose() bool          { return p.destroyOnClose }
+func (p *Popconfirm) SetDestroyOnClose(v bool)      { p.destroyOnClose = v }
+func (p *Popconfirm) Theme() PopconfirmTheme        { return p.theme }
+func (p *Popconfirm) SetTheme(t PopconfirmTheme)    { p.theme = t }
 
 // Deprecated: Use Content instead.
-func (p *Popconfirm) Title() string     { return p.content }
+func (p *Popconfirm) Title() string { return p.content }
 
 // Deprecated: Use SetContent instead.
 func (p *Popconfirm) SetTitle(t string) { p.content = t }
 
-func (p *Popconfirm) Show()    { p.visible = true }
+func (p *Popconfirm) Show() { p.visible = true }
 func (p *Popconfirm) Confirm() {
 	p.visible = false
 	if p.onConfirm != nil {

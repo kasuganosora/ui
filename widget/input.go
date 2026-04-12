@@ -21,38 +21,38 @@ type Input struct {
 	cursorPos   int // cursor position in runes
 	selAnchor   int // selection anchor in runes (-1 = no selection)
 
-	dragging     bool // mouse drag selection in progress
-	dragSelected bool // true if the last drag produced a selection
+	dragging     bool  // mouse drag selection in progress
+	dragSelected bool  // true if the last drag produced a selection
 	blinkReset   int64 // UnixMilli timestamp of last edit (forces cursor visible)
 
-	size            Size
-	status          Status
-	clearable       bool
-	maxLength       int // 0 = unlimited
-	readonly        bool
-	tips            string
-	showLimitNumber bool
-	align           InputAlign
+	size              Size
+	status            Status
+	clearable         bool
+	maxLength         int // 0 = unlimited
+	readonly          bool
+	tips              string
+	showLimitNumber   bool
+	align             InputAlign
 	allowInputOverMax bool
-	borderless      bool
-	label           string
-	inputType       InputType
+	borderless        bool
+	label             string
+	inputType         InputType
 
-	onChange         func(value string)
-	onBlur           func(value string)
-	onFocus          func(value string)
-	onClear          func()
-	onEnter          func(value string)
-	onKeydown        func(value string, key event.Key)
-	onKeyup          func(value string, key event.Key)
-	onValidate       func(error string)
+	onChange   func(value string)
+	onBlur     func(value string)
+	onFocus    func(value string)
+	onClear    func()
+	onEnter    func(value string)
+	onKeydown  func(value string, key event.Key)
+	onKeyup    func(value string, key event.Key)
+	onValidate func(error string)
 }
 
 // InputAlign controls text alignment within the input.
 type InputAlign uint8
 
 const (
-	InputAlignLeft   InputAlign = iota // default
+	InputAlignLeft InputAlign = iota // default
 	InputAlignCenter
 	InputAlignRight
 )
@@ -61,7 +61,7 @@ const (
 type InputType uint8
 
 const (
-	InputTypeText     InputType = iota // default
+	InputTypeText InputType = iota // default
 	InputTypePassword
 	InputTypeNumber
 )
@@ -309,10 +309,10 @@ func NewInput(tree *core.Tree, cfg *Config) *Input {
 	return inp
 }
 
-func (inp *Input) Value() string            { return inp.value }
-func (inp *Input) Placeholder() string      { return inp.placeholder }
-func (inp *Input) IsDisabled() bool         { return inp.disabled }
-func (inp *Input) CursorPos() int           { return inp.cursorPos }
+func (inp *Input) Value() string       { return inp.value }
+func (inp *Input) Placeholder() string { return inp.placeholder }
+func (inp *Input) IsDisabled() bool    { return inp.disabled }
+func (inp *Input) CursorPos() int      { return inp.cursorPos }
 func (inp *Input) Selection() (int, int) {
 	if inp.selAnchor < 0 {
 		return inp.cursorPos, inp.cursorPos
@@ -347,33 +347,33 @@ func (inp *Input) SetSize(s Size) {
 	inp.style.Height = layout.Px(inp.config.SizeHeight(s))
 }
 
-func (inp *Input) SetStatus(s Status)          { inp.status = s }
-func (inp *Input) SetClearable(c bool)          { inp.clearable = c }
-func (inp *Input) SetMaxLength(n int)           { inp.maxLength = n }
-func (inp *Input) SetReadonly(r bool)           { inp.readonly = r }
-func (inp *Input) SetTips(t string)             { inp.tips = t }
-func (inp *Input) SetShowLimitNumber(s bool)    { inp.showLimitNumber = s }
+func (inp *Input) SetStatus(s Status)        { inp.status = s }
+func (inp *Input) SetClearable(c bool)       { inp.clearable = c }
+func (inp *Input) SetMaxLength(n int)        { inp.maxLength = n }
+func (inp *Input) SetReadonly(r bool)        { inp.readonly = r }
+func (inp *Input) SetTips(t string)          { inp.tips = t }
+func (inp *Input) SetShowLimitNumber(s bool) { inp.showLimitNumber = s }
 
 // Additional prop getters/setters
-func (inp *Input) Align() InputAlign             { return inp.align }
-func (inp *Input) SetAlign(a InputAlign)         { inp.align = a }
-func (inp *Input) AllowInputOverMax() bool       { return inp.allowInputOverMax }
-func (inp *Input) SetAllowInputOverMax(v bool)   { inp.allowInputOverMax = v }
-func (inp *Input) Borderless() bool              { return inp.borderless }
-func (inp *Input) SetBorderless(v bool)          { inp.borderless = v }
-func (inp *Input) InputLabel() string            { return inp.label }
-func (inp *Input) SetLabel(l string)             { inp.label = l }
-func (inp *Input) Type() InputType               { return inp.inputType }
-func (inp *Input) SetType(t InputType)           { inp.inputType = t }
+func (inp *Input) Align() InputAlign           { return inp.align }
+func (inp *Input) SetAlign(a InputAlign)       { inp.align = a }
+func (inp *Input) AllowInputOverMax() bool     { return inp.allowInputOverMax }
+func (inp *Input) SetAllowInputOverMax(v bool) { inp.allowInputOverMax = v }
+func (inp *Input) Borderless() bool            { return inp.borderless }
+func (inp *Input) SetBorderless(v bool)        { inp.borderless = v }
+func (inp *Input) InputLabel() string          { return inp.label }
+func (inp *Input) SetLabel(l string)           { inp.label = l }
+func (inp *Input) Type() InputType             { return inp.inputType }
+func (inp *Input) SetType(t InputType)         { inp.inputType = t }
 
 // Event setters
-func (inp *Input) OnBlur(fn func(string))                  { inp.onBlur = fn }
-func (inp *Input) OnFocus(fn func(string))                 { inp.onFocus = fn }
-func (inp *Input) OnClear(fn func())                       { inp.onClear = fn }
-func (inp *Input) OnEnter(fn func(string))                 { inp.onEnter = fn }
-func (inp *Input) OnKeydown(fn func(string, event.Key))    { inp.onKeydown = fn }
-func (inp *Input) OnKeyup(fn func(string, event.Key))      { inp.onKeyup = fn }
-func (inp *Input) OnValidate(fn func(string))              { inp.onValidate = fn }
+func (inp *Input) OnBlur(fn func(string))               { inp.onBlur = fn }
+func (inp *Input) OnFocus(fn func(string))              { inp.onFocus = fn }
+func (inp *Input) OnClear(fn func())                    { inp.onClear = fn }
+func (inp *Input) OnEnter(fn func(string))              { inp.onEnter = fn }
+func (inp *Input) OnKeydown(fn func(string, event.Key)) { inp.onKeydown = fn }
+func (inp *Input) OnKeyup(fn func(string, event.Key))   { inp.onKeyup = fn }
+func (inp *Input) OnValidate(fn func(string))           { inp.onValidate = fn }
 
 // --- Selection helpers ---
 
@@ -892,4 +892,3 @@ func (inp *Input) Draw(buf *render.CommandBuffer) {
 		}
 	}
 }
-

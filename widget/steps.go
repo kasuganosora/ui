@@ -30,7 +30,7 @@ const (
 type StepsSeparator int
 
 const (
-	StepsSeparatorLine   StepsSeparator = iota // default
+	StepsSeparatorLine StepsSeparator = iota // default
 	StepsSeparatorDashed
 	StepsSeparatorArrow
 )
@@ -63,13 +63,13 @@ type StepItem struct {
 // Steps displays a navigation progress bar.
 type Steps struct {
 	Base
-	options   []StepItem     // step items
-	current   int            // current step index
-	layout    StepsLayout    // horizontal or vertical
-	readonly  bool           // read-only mode
-	separator StepsSeparator // separator style
-	sequence  StepsSequence  // display order
-	theme     StepsTheme     // visual theme
+	options   []StepItem                      // step items
+	current   int                             // current step index
+	layout    StepsLayout                     // horizontal or vertical
+	readonly  bool                            // read-only mode
+	separator StepsSeparator                  // separator style
+	sequence  StepsSequence                   // display order
+	theme     StepsTheme                      // visual theme
 	onChange  func(current int, previous int) // called on step change
 }
 
@@ -82,19 +82,19 @@ func NewSteps(tree *core.Tree, cfg *Config) *Steps {
 	}
 }
 
-func (s *Steps) Current() int            { return s.current }
-func (s *Steps) SetCurrent(c int)        { s.current = c }
-func (s *Steps) Options() []StepItem     { return s.options }
-func (s *Steps) SetLayout(l StepsLayout) { s.layout = l }
-func (s *Steps) Layout() StepsLayout     { return s.layout }
-func (s *Steps) SetReadonly(v bool)       { s.readonly = v }
-func (s *Steps) IsReadonly() bool         { return s.readonly }
+func (s *Steps) Current() int                    { return s.current }
+func (s *Steps) SetCurrent(c int)                { s.current = c }
+func (s *Steps) Options() []StepItem             { return s.options }
+func (s *Steps) SetLayout(l StepsLayout)         { s.layout = l }
+func (s *Steps) Layout() StepsLayout             { return s.layout }
+func (s *Steps) SetReadonly(v bool)              { s.readonly = v }
+func (s *Steps) IsReadonly() bool                { return s.readonly }
 func (s *Steps) SetSeparator(sep StepsSeparator) { s.separator = sep }
 func (s *Steps) Separator() StepsSeparator       { return s.separator }
-func (s *Steps) SetSequence(seq StepsSequence)    { s.sequence = seq }
-func (s *Steps) Sequence() StepsSequence          { return s.sequence }
-func (s *Steps) SetTheme(t StepsTheme)            { s.theme = t }
-func (s *Steps) Theme() StepsTheme                { return s.theme }
+func (s *Steps) SetSequence(seq StepsSequence)   { s.sequence = seq }
+func (s *Steps) Sequence() StepsSequence         { return s.sequence }
+func (s *Steps) SetTheme(t StepsTheme)           { s.theme = t }
+func (s *Steps) Theme() StepsTheme               { return s.theme }
 
 // OnChange sets the callback for step changes.
 func (s *Steps) OnChange(fn func(current int, previous int)) { s.onChange = fn }

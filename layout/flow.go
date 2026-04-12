@@ -11,11 +11,10 @@ func (e *Engine) layoutBlock(nodeIdx int, availWidth, availHeight float32) {
 
 	contentX := padLeft + bdrLeft
 	contentY := padTop + bdrTop
-	contentW := node.result.Width - (padLeft + padLeft + bdrLeft + bdrLeft)
 	// Recalculate properly using all four sides
 	padH, _ := resolveEdgesTotal(style.Padding, availWidth)
 	bdrH, _ := resolveEdgesTotal(style.Border, availWidth)
-	contentW = node.result.Width - padH - bdrH
+	contentW := node.result.Width - padH - bdrH
 	if contentW < 0 {
 		contentW = 0
 	}

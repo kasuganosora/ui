@@ -33,17 +33,17 @@ func NewImageViewer(tree *core.Tree, cfg *Config) *ImageViewer {
 	return iv
 }
 
-func (iv *ImageViewer) Texture() render.TextureHandle { return iv.texture }
-func (iv *ImageViewer) Zoom() float32                 { return iv.zoom }
-func (iv *ImageViewer) IsVisible() bool               { return iv.visible }
+func (iv *ImageViewer) Texture() render.TextureHandle     { return iv.texture }
+func (iv *ImageViewer) Zoom() float32                     { return iv.zoom }
+func (iv *ImageViewer) IsVisible() bool                   { return iv.visible }
 func (iv *ImageViewer) SetTexture(t render.TextureHandle) { iv.texture = t }
-func (iv *ImageViewer) SetZoom(z float32)             { iv.zoom = z }
-func (iv *ImageViewer) SetPan(x, y float32)           { iv.panX = x; iv.panY = y }
-func (iv *ImageViewer) SetVisible(v bool)             { iv.visible = v }
-func (iv *ImageViewer) OnClose(fn func())             { iv.onClose = fn }
+func (iv *ImageViewer) SetZoom(z float32)                 { iv.zoom = z }
+func (iv *ImageViewer) SetPan(x, y float32)               { iv.panX = x; iv.panY = y }
+func (iv *ImageViewer) SetVisible(v bool)                 { iv.visible = v }
+func (iv *ImageViewer) OnClose(fn func())                 { iv.onClose = fn }
 
-func (iv *ImageViewer) ZoomIn()  { iv.zoom *= 1.25 }
-func (iv *ImageViewer) ZoomOut() { iv.zoom *= 0.8 }
+func (iv *ImageViewer) ZoomIn()    { iv.zoom *= 1.25 }
+func (iv *ImageViewer) ZoomOut()   { iv.zoom *= 0.8 }
 func (iv *ImageViewer) ResetZoom() { iv.zoom = 1; iv.panX = 0; iv.panY = 0 }
 
 func (iv *ImageViewer) Draw(buf *render.CommandBuffer) {

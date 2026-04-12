@@ -46,9 +46,9 @@ func (img *Image) Src() string                   { return img.src }
 
 func (img *Image) SetTexture(t render.TextureHandle) { img.texture = t }
 func (img *Image) SetSrcRect(r uimath.Rect)          { img.srcRect = r }
-func (img *Image) SetFit(f ImageFit)                  { img.fit = f }
-func (img *Image) SetTint(c uimath.Color)             { img.tint = c }
-func (img *Image) SetSrc(s string)                    { img.src = s }
+func (img *Image) SetFit(f ImageFit)                 { img.fit = f }
+func (img *Image) SetTint(c uimath.Color)            { img.tint = c }
+func (img *Image) SetSrc(s string)                   { img.src = s }
 
 func (img *Image) Draw(buf *render.CommandBuffer) {
 	bounds := img.Bounds()

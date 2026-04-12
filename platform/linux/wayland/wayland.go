@@ -20,18 +20,15 @@ import (
 // ---- Function pointer variables ----
 
 var (
-	fnWlDisplayConnect                     uintptr
-	fnWlDisplayDisconnect                  uintptr
-	fnWlDisplayFlush                       uintptr
-	fnWlDisplayRoundtrip                   uintptr
-	fnWlDisplayDispatch                    uintptr
-	fnWlDisplayDispatchPending             uintptr
-	fnWlDisplayGetFd                       uintptr
-	fnWlProxyDestroy                       uintptr
-	fnWlProxyMarshal                       uintptr
-	fnWlProxyMarshalConstructorVersioned   uintptr
-	fnWlProxyAddListener                   uintptr
-	fnWlProxyGetVersion                    uintptr
+	fnWlDisplayConnect                   uintptr
+	fnWlDisplayDisconnect                uintptr
+	fnWlDisplayFlush                     uintptr
+	fnWlDisplayRoundtrip                 uintptr
+	fnWlDisplayDispatchPending           uintptr
+	fnWlProxyDestroy                     uintptr
+	fnWlProxyMarshal                     uintptr
+	fnWlProxyMarshalConstructorVersioned uintptr
+	fnWlProxyAddListener                 uintptr
 )
 
 func init() {
@@ -49,14 +46,10 @@ func init() {
 	fnWlDisplayDisconnect = sym("wl_display_disconnect")
 	fnWlDisplayFlush = sym("wl_display_flush")
 	fnWlDisplayRoundtrip = sym("wl_display_roundtrip")
-	fnWlDisplayDispatch = sym("wl_display_dispatch")
 	fnWlDisplayDispatchPending = sym("wl_display_dispatch_pending")
-	fnWlDisplayGetFd = sym("wl_display_get_fd")
 	fnWlProxyDestroy = sym("wl_proxy_destroy")
 	fnWlProxyMarshal = sym("wl_proxy_marshal")
 	fnWlProxyMarshalConstructorVersioned = sym("wl_proxy_marshal_constructor_versioned")
-	fnWlProxyAddListener = sym("wl_proxy_add_listener")
-	fnWlProxyGetVersion = sym("wl_proxy_get_version")
 }
 
 // ---- Wayland opaque proxy type ----
@@ -116,12 +109,12 @@ const (
 	wlCompositorCreateSurface = 0
 
 	// wl_surface
-	wlSurfaceDestroy   = 0
-	wlSurfaceCommit    = 6
+	wlSurfaceDestroy = 0
+	wlSurfaceCommit  = 6
 
 	// xdg_wm_base
-	xdgWmBaseDestroy    = 0
-	xdgWmBasePong       = 3
+	xdgWmBaseDestroy       = 0
+	xdgWmBasePong          = 3
 	xdgWmBaseGetXdgSurface = 2
 
 	// xdg_surface
@@ -130,22 +123,16 @@ const (
 	xdgSurfaceAckConfigure = 4
 
 	// xdg_toplevel
-	xdgToplevelDestroy   = 0
-	xdgToplevelSetTitle  = 2
-	xdgToplevelSetMinSize = 7
-	xdgToplevelSetMaxSize = 8
+	xdgToplevelDestroy         = 0
+	xdgToplevelSetTitle        = 2
+	xdgToplevelSetMinSize      = 7
+	xdgToplevelSetMaxSize      = 8
 	xdgToplevelUnsetFullscreen = 12
 	xdgToplevelSetFullscreen   = 11
 
 	// wl_seat
 	wlSeatGetPointer  = 0
 	wlSeatGetKeyboard = 1
-
-	// wl_pointer
-	wlPointerRelease = 1
-
-	// wl_keyboard
-	wlKeyboardRelease = 0
 )
 
 // ---- Wayland interface name strings ----
@@ -183,21 +170,9 @@ func wlDisplayRoundtrip(dpy WlDisplay) int {
 	return int(int32(r))
 }
 
-// wlDisplayDispatch dispatches pending events (blocking if no events).
-func wlDisplayDispatch(dpy WlDisplay) int {
-	r, _, _ := purego.SyscallN(fnWlDisplayDispatch, uintptr(dpy))
-	return int(int32(r))
-}
-
 // wlDisplayDispatchPending dispatches any already-queued events (non-blocking).
 func wlDisplayDispatchPending(dpy WlDisplay) int {
 	r, _, _ := purego.SyscallN(fnWlDisplayDispatchPending, uintptr(dpy))
-	return int(int32(r))
-}
-
-// wlDisplayGetFd returns the file descriptor for the Wayland socket.
-func wlDisplayGetFd(dpy WlDisplay) int {
-	r, _, _ := purego.SyscallN(fnWlDisplayGetFd, uintptr(dpy))
 	return int(int32(r))
 }
 
@@ -261,24 +236,24 @@ type WlSeatListener struct {
 
 // WlPointerListener handles wl_pointer events.
 type WlPointerListener struct {
-	Enter  uintptr // (data, wl_pointer*, serial, surface, sx, sy)
-	Leave  uintptr // (data, wl_pointer*, serial, surface)
-	Motion uintptr // (data, wl_pointer*, time, sx, sy)
-	Button uintptr // (data, wl_pointer*, serial, time, button, state)
-	Axis   uintptr // (data, wl_pointer*, time, axis, value)
-	Frame  uintptr
-	AxisSource  uintptr
-	AxisStop    uintptr
+	Enter        uintptr // (data, wl_pointer*, serial, surface, sx, sy)
+	Leave        uintptr // (data, wl_pointer*, serial, surface)
+	Motion       uintptr // (data, wl_pointer*, time, sx, sy)
+	Button       uintptr // (data, wl_pointer*, serial, time, button, state)
+	Axis         uintptr // (data, wl_pointer*, time, axis, value)
+	Frame        uintptr
+	AxisSource   uintptr
+	AxisStop     uintptr
 	AxisDiscrete uintptr
 }
 
 // WlKeyboardListener handles wl_keyboard events.
 type WlKeyboardListener struct {
-	Keymap    uintptr // (data, wl_keyboard*, format, fd, size)
-	Enter     uintptr // (data, wl_keyboard*, serial, surface, keys)
-	Leave     uintptr // (data, wl_keyboard*, serial, surface)
-	Key       uintptr // (data, wl_keyboard*, serial, time, key, state)
-	Modifiers uintptr // (data, wl_keyboard*, serial, mods_depressed, mods_latched, mods_locked, group)
+	Keymap     uintptr // (data, wl_keyboard*, format, fd, size)
+	Enter      uintptr // (data, wl_keyboard*, serial, surface, keys)
+	Leave      uintptr // (data, wl_keyboard*, serial, surface)
+	Key        uintptr // (data, wl_keyboard*, serial, time, key, state)
+	Modifiers  uintptr // (data, wl_keyboard*, serial, mods_depressed, mods_latched, mods_locked, group)
 	RepeatInfo uintptr // (data, wl_keyboard*, rate, delay)
 }
 

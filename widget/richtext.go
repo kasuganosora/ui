@@ -11,8 +11,8 @@ type RichSpanType uint8
 
 const (
 	RichSpanText  RichSpanType = iota // Text with styling
-	RichSpanImage                      // Inline image
-	RichSpanBreak                      // Line break
+	RichSpanImage                     // Inline image
+	RichSpanBreak                     // Line break
 )
 
 // RichSpan is a single styled fragment within rich text.

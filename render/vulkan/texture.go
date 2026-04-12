@@ -116,13 +116,13 @@ func (b *Backend) createTextureImage(width, height int, vkFormat Format) (Image,
 	}
 
 	var memReqs MemoryRequirements
-	syscallN(b.loader.vkGetImageMemoryRequirements,
+	_, _, _ = syscallN(b.loader.vkGetImageMemoryRequirements,
 		uintptr(b.device), uintptr(image), uintptr(unsafe.Pointer(&memReqs)),
 	)
 
 	memTypeIdx, ok := FindMemoryType(b.memProps, memReqs.MemoryTypeBits, MemoryPropertyDeviceLocalBit)
 	if !ok {
-		syscallN(b.loader.vkDestroyImage, uintptr(b.device), uintptr(image), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyImage, uintptr(b.device), uintptr(image), 0)
 		return 0, 0, fmt.Errorf("vulkan: no suitable memory type for texture")
 	}
 
@@ -137,7 +137,7 @@ func (b *Backend) createTextureImage(width, height int, vkFormat Format) (Image,
 		uintptr(b.device), uintptr(unsafe.Pointer(&ai)), 0, uintptr(unsafe.Pointer(&memory)),
 	)
 	if Result(r) != Success {
-		syscallN(b.loader.vkDestroyImage, uintptr(b.device), uintptr(image), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyImage, uintptr(b.device), uintptr(image), 0)
 		return 0, 0, fmt.Errorf("vulkan: vkAllocateMemory for texture failed: %v", Result(r))
 	}
 
@@ -145,8 +145,8 @@ func (b *Backend) createTextureImage(width, height int, vkFormat Format) (Image,
 		uintptr(b.device), uintptr(image), uintptr(memory), 0,
 	)
 	if Result(r) != Success {
-		syscallN(b.loader.vkFreeMemory, uintptr(b.device), uintptr(memory), 0)
-		syscallN(b.loader.vkDestroyImage, uintptr(b.device), uintptr(image), 0)
+		_, _, _ = syscallN(b.loader.vkFreeMemory, uintptr(b.device), uintptr(memory), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyImage, uintptr(b.device), uintptr(image), 0)
 		return 0, 0, fmt.Errorf("vulkan: vkBindImageMemory failed: %v", Result(r))
 	}
 
@@ -287,7 +287,7 @@ func (b *Backend) transitionImageLayout(cmd CommandBuffer, image Image, oldLayou
 		},
 	}
 
-	syscallN(b.loader.vkCmdPipelineBarrier,
+	_, _, _ = syscallN(b.loader.vkCmdPipelineBarrier,
 		uintptr(cmd),
 		uintptr(srcStage), uintptr(dstStage),
 		0, // dependency flags
@@ -318,14 +318,14 @@ func (b *Backend) beginOneTimeCommands() (CommandBuffer, error) {
 		SType: StructureTypeCommandBufferBeginInfo,
 		Flags: 0x00000001, // VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
 	}
-	syscallN(b.loader.vkBeginCommandBuffer, uintptr(cmd), uintptr(unsafe.Pointer(&beginInfo)))
+	_, _, _ = syscallN(b.loader.vkBeginCommandBuffer, uintptr(cmd), uintptr(unsafe.Pointer(&beginInfo)))
 
 	return cmd, nil
 }
 
 // endOneTimeCommands ends, submits, and waits for a one-time command buffer.
 func (b *Backend) endOneTimeCommands(cmd CommandBuffer) {
-	syscallN(b.loader.vkEndCommandBuffer, uintptr(cmd))
+	_, _, _ = syscallN(b.loader.vkEndCommandBuffer, uintptr(cmd))
 
 	si := submitInfo{
 		SType:              StructureTypeSubmitInfo,
@@ -344,7 +344,7 @@ func (b *Backend) endOneTimeCommands(cmd CommandBuffer) {
 		fmt.Printf("[vk] endOneTimeCommands: vkQueueWaitIdle failed: %v\n", Result(r2))
 	}
 
-	syscallN(b.loader.vkFreeCommandBuffers,
+	_, _, _ = syscallN(b.loader.vkFreeCommandBuffers,
 		uintptr(b.device), uintptr(b.commandPool), 1, uintptr(unsafe.Pointer(&cmd)),
 	)
 }
@@ -366,12 +366,12 @@ func (b *Backend) uploadTextureData(image Image, width, height int, data []byte)
 
 	// Map and copy data to staging buffer
 	var mapped unsafe.Pointer
-	syscallN(b.loader.vkMapMemory,
+	_, _, _ = syscallN(b.loader.vkMapMemory,
 		uintptr(b.device), uintptr(stagingMem), 0, uintptr(dataSize), 0,
 		uintptr(unsafe.Pointer(&mapped)),
 	)
 	copy(unsafe.Slice((*byte)(mapped), dataSize), data)
-	syscallN(b.loader.vkUnmapMemory, uintptr(b.device), uintptr(stagingMem))
+	_, _, _ = syscallN(b.loader.vkUnmapMemory, uintptr(b.device), uintptr(stagingMem))
 
 	// Record copy commands
 	cmd, err := b.beginOneTimeCommands()
@@ -399,7 +399,7 @@ func (b *Backend) uploadTextureData(image Image, width, height int, data []byte)
 		},
 	}
 
-	syscallN(b.loader.vkCmdCopyBufferToImage,
+	_, _, _ = syscallN(b.loader.vkCmdCopyBufferToImage,
 		uintptr(cmd), uintptr(stagingBuf), uintptr(image),
 		uintptr(ImageLayoutTransferDstOptimal),
 		1, uintptr(unsafe.Pointer(&region)),
@@ -431,12 +431,12 @@ func (b *Backend) uploadTextureRegion(image Image, region uimath.Rect, rowBytes 
 	defer b.destroyBuffer(stagingBuf, stagingMem)
 
 	var mapped unsafe.Pointer
-	syscallN(b.loader.vkMapMemory,
+	_, _, _ = syscallN(b.loader.vkMapMemory,
 		uintptr(b.device), uintptr(stagingMem), 0, uintptr(dataSize), 0,
 		uintptr(unsafe.Pointer(&mapped)),
 	)
 	copy(unsafe.Slice((*byte)(mapped), dataSize), data)
-	syscallN(b.loader.vkUnmapMemory, uintptr(b.device), uintptr(stagingMem))
+	_, _, _ = syscallN(b.loader.vkUnmapMemory, uintptr(b.device), uintptr(stagingMem))
 
 	cmd, err := b.beginOneTimeCommands()
 	if err != nil {
@@ -466,7 +466,7 @@ func (b *Backend) uploadTextureRegion(image Image, region uimath.Rect, rowBytes 
 		},
 	}
 
-	syscallN(b.loader.vkCmdCopyBufferToImage,
+	_, _, _ = syscallN(b.loader.vkCmdCopyBufferToImage,
 		uintptr(cmd), uintptr(stagingBuf), uintptr(image),
 		uintptr(ImageLayoutTransferDstOptimal),
 		1, uintptr(unsafe.Pointer(&copyRegion)),

@@ -267,13 +267,13 @@ func (b *Backend) createRectPipeline() error {
 	if err != nil {
 		return fmt.Errorf("vulkan: rect vertex shader: %w", err)
 	}
-	defer syscallN(b.loader.vkDestroyShaderModule, uintptr(b.device), uintptr(vertModule), 0)
+	defer func() { _, _, _ = syscallN(b.loader.vkDestroyShaderModule, uintptr(b.device), uintptr(vertModule), 0) }()
 
 	fragModule, err := b.createShaderModule(rectFragSPV)
 	if err != nil {
 		return fmt.Errorf("vulkan: rect fragment shader: %w", err)
 	}
-	defer syscallN(b.loader.vkDestroyShaderModule, uintptr(b.device), uintptr(fragModule), 0)
+	defer func() { _, _, _ = syscallN(b.loader.vkDestroyShaderModule, uintptr(b.device), uintptr(fragModule), 0) }()
 
 	// Shader stages
 	shaderStages := [2]pipelineShaderStageCreateInfo{
@@ -410,13 +410,13 @@ func (b *Backend) createShadowPipeline() error {
 	if err != nil {
 		return fmt.Errorf("vulkan: shadow vertex shader: %w", err)
 	}
-	defer syscallN(b.loader.vkDestroyShaderModule, uintptr(b.device), uintptr(vertModule), 0)
+	defer func() { _, _, _ = syscallN(b.loader.vkDestroyShaderModule, uintptr(b.device), uintptr(vertModule), 0) }()
 
 	fragModule, err := b.createShaderModule(shadowFragSPV)
 	if err != nil {
 		return fmt.Errorf("vulkan: shadow fragment shader: %w", err)
 	}
-	defer syscallN(b.loader.vkDestroyShaderModule, uintptr(b.device), uintptr(fragModule), 0)
+	defer func() { _, _, _ = syscallN(b.loader.vkDestroyShaderModule, uintptr(b.device), uintptr(fragModule), 0) }()
 
 	shaderStages := [2]pipelineShaderStageCreateInfo{
 		{SType: StructureTypePipelineShaderStageCreateInfo, Stage: ShaderStageVertexBit, Module: vertModule, PName: &mainEntryPoint[0]},

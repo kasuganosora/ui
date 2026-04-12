@@ -16,18 +16,18 @@ type DragSource struct {
 
 // DropTarget marks a widget as a drop target.
 type DropTarget struct {
-	Widget   Widget
-	Accept   func(data any) bool  // Returns true if the data is acceptable
-	OnDrop   func(data any)       // Called when a valid drop occurs
-	OnEnter  func(data any)       // Called when drag enters
-	OnLeave  func()               // Called when drag leaves
+	Widget  Widget
+	Accept  func(data any) bool // Returns true if the data is acceptable
+	OnDrop  func(data any)      // Called when a valid drop occurs
+	OnEnter func(data any)      // Called when drag enters
+	OnLeave func()              // Called when drag leaves
 }
 
 // DragDropManager coordinates drag and drop operations.
 type DragDropManager struct {
-	tree       *core.Tree
-	sources    map[core.ElementID]*DragSource
-	targets    map[core.ElementID]*DropTarget
+	tree    *core.Tree
+	sources map[core.ElementID]*DragSource
+	targets map[core.ElementID]*DropTarget
 
 	// Active drag state
 	dragging   bool

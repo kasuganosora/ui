@@ -6,10 +6,10 @@ import (
 	"testing"
 	"unsafe"
 
+	"github.com/ebitengine/purego"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/platform"
 	"github.com/kasuganosora/ui/render"
-	"github.com/ebitengine/purego"
 )
 
 // TestNew verifies that New() returns a non-nil backend with expected defaults.
@@ -222,11 +222,11 @@ type nilWindow struct{}
 
 var _ platform.Window = (*nilWindow)(nil)
 
-func (w *nilWindow) Size() (int, int)             { return 800, 600 }
-func (w *nilWindow) SetSize(int, int)              {}
-func (w *nilWindow) FramebufferSize() (int, int)  { return 800, 600 }
-func (w *nilWindow) Position() (int, int)          { return 0, 0 }
-func (w *nilWindow) SetPosition(int, int)          {}
+func (w *nilWindow) Size() (int, int)               { return 800, 600 }
+func (w *nilWindow) SetSize(int, int)               {}
+func (w *nilWindow) FramebufferSize() (int, int)    { return 800, 600 }
+func (w *nilWindow) Position() (int, int)           { return 0, 0 }
+func (w *nilWindow) SetPosition(int, int)           {}
 func (w *nilWindow) SetTitle(string)                {}
 func (w *nilWindow) SetFullscreen(bool)             {}
 func (w *nilWindow) IsFullscreen() bool             { return false }
@@ -244,4 +244,4 @@ func (w *nilWindow) ShowContextMenu(clientX, clientY int, items []platform.Conte
 	return -1
 }
 func (w *nilWindow) ClientToScreen(x, y int) (int, int) { return x, y }
-func (w *nilWindow) Destroy()                            {}
+func (w *nilWindow) Destroy()                           {}

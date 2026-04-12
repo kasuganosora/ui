@@ -39,9 +39,9 @@ func (p *HeadlessPlatform) InjectEvent(evt event.Event) {
 	p.events = append(p.events, evt)
 }
 
-func (p *HeadlessPlatform) ProcessMessages()          {}
-func (p *HeadlessPlatform) GetClipboardText() string   { return p.clipboard }
-func (p *HeadlessPlatform) SetClipboardText(t string)  { p.clipboard = t }
+func (p *HeadlessPlatform) ProcessMessages()              {}
+func (p *HeadlessPlatform) GetClipboardText() string      { return p.clipboard }
+func (p *HeadlessPlatform) SetClipboardText(t string)     { p.clipboard = t }
 func (p *HeadlessPlatform) GetPrimaryMonitorDPI() float32 { return 96 }
-func (p *HeadlessPlatform) GetSystemLocale() string    { return p.locale }
-func (p *HeadlessPlatform) Terminate()                 {}
+func (p *HeadlessPlatform) GetSystemLocale() string       { return p.locale }
+func (p *HeadlessPlatform) Terminate()                    {}

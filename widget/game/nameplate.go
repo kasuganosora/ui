@@ -48,16 +48,16 @@ func NewNameplate(tree *core.Tree, name string, cfg *widget.Config) *Nameplate {
 	}
 }
 
-func (np *Nameplate) Name() string                { return np.name }
-func (np *Nameplate) SetName(n string)            { np.name = n }
-func (np *Nameplate) SetTitle(t string)           { np.title = t }
-func (np *Nameplate) SetLevel(l int)              { np.level = l }
-func (np *Nameplate) SetHP(current, max float32)  { np.hp = current; np.hpMax = max }
-func (np *Nameplate) SetType(t NameplateType)     { np.npType = t }
-func (np *Nameplate) SetPosition(x, y float32)    { np.x = x; np.y = y }
-func (np *Nameplate) SetBarSize(w, h float32)     { np.barWidth = w; np.barHeight = h }
-func (np *Nameplate) IsVisible() bool             { return np.visible }
-func (np *Nameplate) SetVisible(v bool)           { np.visible = v }
+func (np *Nameplate) Name() string               { return np.name }
+func (np *Nameplate) SetName(n string)           { np.name = n }
+func (np *Nameplate) SetTitle(t string)          { np.title = t }
+func (np *Nameplate) SetLevel(l int)             { np.level = l }
+func (np *Nameplate) SetHP(current, max float32) { np.hp = current; np.hpMax = max }
+func (np *Nameplate) SetType(t NameplateType)    { np.npType = t }
+func (np *Nameplate) SetPosition(x, y float32)   { np.x = x; np.y = y }
+func (np *Nameplate) SetBarSize(w, h float32)    { np.barWidth = w; np.barHeight = h }
+func (np *Nameplate) IsVisible() bool            { return np.visible }
+func (np *Nameplate) SetVisible(v bool)          { np.visible = v }
 
 func nameplateColor(t NameplateType) uimath.Color {
 	switch t {

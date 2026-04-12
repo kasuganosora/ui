@@ -13,42 +13,42 @@ import (
 
 // Window implements platform.Window using Cocoa NSWindow.
 type Window struct {
-	nswindow   id
-	nsview     id
+	nswindow     id
+	nsview       id
 	trackingArea id
-	p          *Platform
+	p            *Platform
 
 	// State
-	width, height       int
-	fbWidth, fbHeight   int
-	posX, posY          int
-	dpiScale            float32
-	fullscreen          bool
-	decorated           bool
-	resizable           bool
-	visible             bool
-	deferredVisible     bool
-	shouldClose         bool
-	mouseDown           bool
-	lastModifiers       event.Modifiers
+	width, height     int
+	fbWidth, fbHeight int
+	posX, posY        int
+	dpiScale          float32
+	fullscreen        bool
+	decorated         bool
+	resizable         bool
+	visible           bool
+	deferredVisible   bool
+	shouldClose       bool
+	mouseDown         bool
+	lastModifiers     event.Modifiers
 
 	// Size constraints
 	minWidth, minHeight int
 	maxWidth, maxHeight int
 
 	// Saved window state for fullscreen toggle
-	savedFrame          NSRect
-	savedStyleMask      uint64
+	savedFrame     NSRect
+	savedStyleMask uint64
 
 	// Cursor
-	currentCursor       platform.CursorShape
-	cursorHidden        bool
+	currentCursor platform.CursorShape
+	cursorHidden  bool
 
 	// IME state
-	imeX, imeY          int32
-	imeLineH            int32
-	hasMarkedText       bool
-	markedText          string
+	imeX, imeY    int32
+	imeLineH      int32
+	hasMarkedText bool
+	markedText    string
 }
 
 // initWindowWithContentRect creates an NSWindow using the designated initializer.
@@ -100,7 +100,7 @@ func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 	if screen != 0 {
 		screenFrame = msgSendRectReturn(screen, selFrame)
 	}
-	
+
 	// Center the window on screen
 	centerX := (screenFrame.Size.Width - float64(opts.Width)) / 2
 	centerY := (screenFrame.Size.Height - float64(opts.Height)) / 2
@@ -147,7 +147,7 @@ func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 	// Set background color to white
 	whiteColor := msgSend(id(classNSColor), objcSelector("whiteColor"))
 	msgSend(w.nswindow, selSetBackgroundColor, uintptr(whiteColor))
-	
+
 	// Create tracking area for mouse enter/exit events
 	// NOTE: Disabled temporarily on darwin to avoid ObjC struct-call ABI issues in purego path.
 	// w.createTrackingArea()
@@ -185,7 +185,7 @@ func (w *Window) SetSize(width, height int) {
 		selFrameRectForContentRect,
 		contentRect,
 	)
-	
+
 	// Keep the same top-left position
 	newFrameRect.Origin = frame.Origin
 
@@ -212,14 +212,14 @@ func (w *Window) Position() (int, int) {
 func (w *Window) SetPosition(x, y int) {
 	w.posX = x
 	w.posY = y
-	
+
 	// Convert to top-left based coordinates (Cocoa uses bottom-left)
 	screen := msgSend(w.nswindow, selScreen)
 	if screen != 0 {
 		screenFrame := msgSendRectReturn(screen, selFrame)
 		y = int(screenFrame.Size.Height) - y - w.height
 	}
-	
+
 	msgSendPointArg(w.nswindow, selSetFrameTopLeftPoint, nsPoint(float64(x), float64(y)))
 }
 
@@ -351,12 +351,12 @@ func (w *Window) SetIMEPosition(caretRect uimath.Rect) {
 	// The position is relative to the view coordinates
 	// Convert to Cocoa's bottom-left origin
 	cocoaY := float64(w.height) - float64(caretRect.Y) - float64(caretRect.Height)
-	
+
 	// Store the IME rect for the input method handler
 	w.imeX = int32(caretRect.X)
 	w.imeY = int32(cocoaY)
 	w.imeLineH = int32(caretRect.Height)
-	
+
 	// Update the input method context if we have marked text
 	if w.hasMarkedText {
 		w.updateIMECursorPosition()
@@ -370,7 +370,7 @@ func (w *Window) updateIMECursorPosition() {
 	if inputContext == 0 {
 		return
 	}
-	
+
 	// Invalidate the character coordinates so the IME fetches new ones
 	msgSend(inputContext, objcSelector("invalidateCharacterCoordinates"))
 }
@@ -378,13 +378,13 @@ func (w *Window) updateIMECursorPosition() {
 func (w *Window) ClientToScreen(x, y int) (int, int) {
 	// Convert from view coordinates to window coordinates
 	point := nsPoint(float64(x), float64(w.height)-float64(y))
-	
+
 	// Convert to screen coordinates
 	screenPoint := msgSend(w.nswindow, selConvertRectToScreen,
 		*(*uintptr)(unsafe.Pointer(&point.X)),
 		*(*uintptr)(unsafe.Pointer(&point.Y)),
 		0, 0) // width=0, height=0
-	
+
 	screenPt := pointFromPtr(unsafe.Pointer(&screenPoint))
 	return int(screenPt.X), int(screenPt.Y)
 }
@@ -393,7 +393,7 @@ func (w *Window) ShowContextMenu(clientX, clientY int, items []platform.ContextM
 	// Create an NSMenu
 	menu := msgSend(msgSend(id(classNSMenu), selAlloc), selInitWithTitle, 0)
 	defer msgSend(menu, selRelease)
-	
+
 	// Add menu items
 	for i, item := range items {
 		var menuItem id
@@ -409,24 +409,24 @@ func (w *Window) ShowContextMenu(clientX, clientY int, items []platform.ContextM
 				0, // no action
 				0) // no key equivalent
 			msgSend(itemTitle, selRelease)
-			
+
 			if !item.Enabled {
 				msgSend(menuItem, selSetEnabled, 0)
 			} else {
 				msgSend(menuItem, selSetEnabled, 1)
 			}
-			
+
 			// Set tag to identify the item
 			msgSend(menuItem, selSetTag, uintptr(i))
 		}
-		
+
 		msgSend(menu, selAddItem, uintptr(menuItem))
 		msgSend(menuItem, selRelease)
 	}
-	
+
 	// Convert client coordinates to screen coordinates
 	screenX, screenY := w.ClientToScreen(clientX, clientY)
-	
+
 	// Position for the menu (flip Y for Cocoa)
 	screen := msgSend(w.nswindow, selScreen)
 	var screenFrame NSRect
@@ -434,7 +434,7 @@ func (w *Window) ShowContextMenu(clientX, clientY int, items []platform.ContextM
 		screenFrame = msgSendRectReturn(screen, selFrame)
 	}
 	menuY := int(screenFrame.Size.Height) - screenY
-	
+
 	// Pop up the menu
 	// popUpMenuPositioningItem:atLocation:inView:callbackNumber:callback:selector:
 	location := nsPoint(float64(screenX), float64(menuY))
@@ -442,9 +442,9 @@ func (w *Window) ShowContextMenu(clientX, clientY int, items []platform.ContextM
 		0, // no positioning item
 		*(*uintptr)(unsafe.Pointer(&location.X)),
 		*(*uintptr)(unsafe.Pointer(&location.Y)),
-		0, // inView = nil (screen coordinates)
+		0,       // inView = nil (screen coordinates)
 		0, 0, 0) // no callback
-	
+
 	// Get the selected item
 	// On macOS, we need to track this differently since popUpMenuPositioningItem is async
 	// For simplicity, we return -1 indicating no selection for now
@@ -452,8 +452,8 @@ func (w *Window) ShowContextMenu(clientX, clientY int, items []platform.ContextM
 	return -1
 }
 
-func (w *Window) IsTransparent() bool              { return false }
-func (w *Window) SetTopMost(topmost bool)           {}
+func (w *Window) IsTransparent() bool                { return false }
+func (w *Window) SetTopMost(topmost bool)            {}
 func (w *Window) SetHitTestFunc(func(int, int) bool) {}
 
 func (w *Window) Destroy() {
@@ -462,7 +462,7 @@ func (w *Window) Destroy() {
 		msgSend(w.trackingArea, selRelease)
 		w.trackingArea = 0
 	}
-	
+
 	if w.nswindow != 0 {
 		msgSend(w.nswindow, selClose)
 		w.nswindow = 0
@@ -473,7 +473,7 @@ func (w *Window) Destroy() {
 func (w *Window) createTrackingArea() {
 	// Create tracking area for the entire view
 	bounds := nsRect(0, 0, float64(w.width), float64(w.height))
-	
+
 	w.trackingArea = msgSendInitTrackingAreaRect(
 		msgSend(id(objcClass("NSTrackingArea")), selAlloc),
 		selInitWithRect,
@@ -482,7 +482,7 @@ func (w *Window) createTrackingArea() {
 		w.nsview, // owner
 		0,
 	) // userInfo
-	
+
 	if w.trackingArea != 0 {
 		msgSend(w.nsview, selAddTrackingArea, uintptr(w.trackingArea))
 	}
@@ -497,7 +497,7 @@ func (w *Window) queryDPI() float32 {
 	if screen == 0 {
 		return 72.0 // Default macOS DPI
 	}
-	
+
 	scale := msgSendFloat64Return(screen, selBackingScaleFactor)
 	return float32(scale * 72.0)
 }
@@ -506,7 +506,7 @@ func (w *Window) queryDPI() float32 {
 func (w *Window) updateContentSize() {
 	// Get the content view bounds
 	bounds := msgSendRectReturn(w.nsview, selBounds)
-	
+
 	w.width = int(bounds.Size.Width)
 	w.height = int(bounds.Size.Height)
 	w.fbWidth = int(float32(w.width) * w.dpiScale)

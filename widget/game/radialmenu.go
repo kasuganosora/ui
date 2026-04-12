@@ -18,13 +18,13 @@ type RadialMenuItem struct {
 // RadialMenu is a circular context menu with items around a center.
 type RadialMenu struct {
 	widget.Base
-	items     []RadialMenuItem
-	visible   bool
-	cx, cy    float32
-	radius    float32
-	innerR    float32
-	hovered   int
-	onSelect  func(int)
+	items    []RadialMenuItem
+	visible  bool
+	cx, cy   float32
+	radius   float32
+	innerR   float32
+	hovered  int
+	onSelect func(int)
 }
 
 func NewRadialMenu(tree *core.Tree, cfg *widget.Config) *RadialMenu {
@@ -39,13 +39,13 @@ func NewRadialMenu(tree *core.Tree, cfg *widget.Config) *RadialMenu {
 	}
 }
 
-func (rm *RadialMenu) IsVisible() bool           { return rm.visible }
-func (rm *RadialMenu) SetRadius(r float32)        { rm.radius = r }
-func (rm *RadialMenu) SetInnerRadius(r float32)   { rm.innerR = r }
-func (rm *RadialMenu) Hovered() int               { return rm.hovered }
-func (rm *RadialMenu) SetHovered(h int)           { rm.hovered = h }
-func (rm *RadialMenu) OnSelect(fn func(int))      { rm.onSelect = fn }
-func (rm *RadialMenu) Items() []RadialMenuItem    { return rm.items }
+func (rm *RadialMenu) IsVisible() bool          { return rm.visible }
+func (rm *RadialMenu) SetRadius(r float32)      { rm.radius = r }
+func (rm *RadialMenu) SetInnerRadius(r float32) { rm.innerR = r }
+func (rm *RadialMenu) Hovered() int             { return rm.hovered }
+func (rm *RadialMenu) SetHovered(h int)         { rm.hovered = h }
+func (rm *RadialMenu) OnSelect(fn func(int))    { rm.onSelect = fn }
+func (rm *RadialMenu) Items() []RadialMenuItem  { return rm.items }
 
 func (rm *RadialMenu) AddItem(item RadialMenuItem) {
 	rm.items = append(rm.items, item)

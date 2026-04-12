@@ -33,9 +33,9 @@ func NewIcon(tree *core.Tree, name string, cfg *Config) *Icon {
 	return ic
 }
 
-func (ic *Icon) Name() string              { return ic.name }
-func (ic *Icon) Size() float32             { return ic.size }
-func (ic *Icon) Color() uimath.Color       { return ic.color }
+func (ic *Icon) Name() string                  { return ic.name }
+func (ic *Icon) Size() float32                 { return ic.size }
+func (ic *Icon) Color() uimath.Color           { return ic.color }
 func (ic *Icon) Texture() render.TextureHandle { return ic.texture }
 
 func (ic *Icon) SetName(name string) { ic.name = name }

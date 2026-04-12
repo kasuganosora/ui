@@ -12,7 +12,7 @@ import (
 type MessageBoxType uint8
 
 const (
-	MessageBoxInfo    MessageBoxType = iota
+	MessageBoxInfo MessageBoxType = iota
 	MessageBoxSuccess
 	MessageBoxWarning
 	MessageBoxError
@@ -22,13 +22,13 @@ const (
 // MessageBox is a modal message dialog with OK/Cancel buttons.
 type MessageBox struct {
 	Base
-	title     string
-	content   string
-	boxType   MessageBoxType
-	visible   bool
-	width     float32
-	onOK      func()
-	onCancel  func()
+	title      string
+	content    string
+	boxType    MessageBoxType
+	visible    bool
+	width      float32
+	onOK       func()
+	onCancel   func()
 	showCancel bool
 }
 
@@ -57,18 +57,18 @@ func NewMessageBox(tree *core.Tree, title, content string, cfg *Config) *Message
 	return mb
 }
 
-func (mb *MessageBox) Title() string          { return mb.title }
-func (mb *MessageBox) Content() string        { return mb.content }
+func (mb *MessageBox) Title() string           { return mb.title }
+func (mb *MessageBox) Content() string         { return mb.content }
 func (mb *MessageBox) BoxType() MessageBoxType { return mb.boxType }
-func (mb *MessageBox) IsVisible() bool        { return mb.visible }
+func (mb *MessageBox) IsVisible() bool         { return mb.visible }
 
-func (mb *MessageBox) SetTitle(title string)        { mb.title = title }
-func (mb *MessageBox) SetContent(content string)    { mb.content = content }
-func (mb *MessageBox) SetBoxType(t MessageBoxType)   { mb.boxType = t }
-func (mb *MessageBox) SetWidth(w float32)            { mb.width = w }
-func (mb *MessageBox) SetShowCancel(v bool)          { mb.showCancel = v }
-func (mb *MessageBox) OnOK(fn func())                { mb.onOK = fn }
-func (mb *MessageBox) OnCancel(fn func())            { mb.onCancel = fn }
+func (mb *MessageBox) SetTitle(title string)       { mb.title = title }
+func (mb *MessageBox) SetContent(content string)   { mb.content = content }
+func (mb *MessageBox) SetBoxType(t MessageBoxType) { mb.boxType = t }
+func (mb *MessageBox) SetWidth(w float32)          { mb.width = w }
+func (mb *MessageBox) SetShowCancel(v bool)        { mb.showCancel = v }
+func (mb *MessageBox) OnOK(fn func())              { mb.onOK = fn }
+func (mb *MessageBox) OnCancel(fn func())          { mb.onCancel = fn }
 
 func (mb *MessageBox) Open() {
 	mb.visible = true

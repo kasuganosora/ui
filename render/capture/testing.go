@@ -36,11 +36,11 @@ func MustMatchGolden(t *testing.T, backend render.Backend, goldenPath string, th
 		// Save actual and diff images for debugging
 		if result.DiffImage != nil {
 			diffPath := goldenPath[:len(goldenPath)-len(filepath.Ext(goldenPath))] + "_diff.png"
-			SavePNG(result.DiffImage, diffPath)
+			_ = SavePNG(result.DiffImage, diffPath)
 			t.Logf("capture: diff image saved to %s", diffPath)
 		}
 		actualPath := goldenPath[:len(goldenPath)-len(filepath.Ext(goldenPath))] + "_actual.png"
-		SavePNG(img, actualPath)
+		_ = SavePNG(img, actualPath)
 		t.Logf("capture: actual image saved to %s", actualPath)
 	}
 }

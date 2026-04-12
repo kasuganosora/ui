@@ -121,7 +121,7 @@ func (e *feedTestEnv) renderFrames(root widget.Widget, n int) {
 		e.textRenderer.BeginFrame()
 		e.buf.Reset()
 		root.Draw(e.buf)
-		e.textRenderer.Upload()
+		_ = e.textRenderer.Upload()
 		e.backend.Submit(e.buf)
 		e.backend.EndFrame()
 	}
@@ -134,7 +134,7 @@ func (e *feedTestEnv) screenshot(t *testing.T, name string) (string, *image.RGBA
 		t.Fatalf("screenshot failed: %v", err)
 	}
 	dir := filepath.Join("testdata", "screenshots")
-	os.MkdirAll(dir, 0755)
+	_ = os.MkdirAll(dir, 0755)
 	path := filepath.Join(dir, name+".png")
 	if err := capture.SavePNG(img, path); err != nil {
 		t.Fatalf("save screenshot: %v", err)

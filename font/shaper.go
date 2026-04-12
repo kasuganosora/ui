@@ -60,8 +60,8 @@ func (s *basicShaper) Shape(text string, opts ShapeOptions) []GlyphRun {
 
 	var runs []GlyphRun
 	var currentGlyphs []PositionedGlyph
-	var currentRunes []rune    // Track runes for punctuation compression
-	var currentFontIDs []ID    // Per-glyph font ID (for fallback support)
+	var currentRunes []rune // Track runes for punctuation compression
+	var currentFontIDs []ID // Per-glyph font ID (for fallback support)
 
 	halfEm := opts.FontSize * 0.5
 	cursorX := float32(0)
@@ -601,10 +601,10 @@ func isInvisibleModifier(r rune) bool {
 // isCJK returns true for CJK unified ideographs and common CJK ranges.
 func isCJK(r rune) bool {
 	return unicode.In(r,
-		unicode.Han,                          // CJK Unified Ideographs
-		unicode.Hangul,                       // Korean
-		unicode.Katakana,                     // Japanese Katakana
-		unicode.Hiragana,                     // Japanese Hiragana
+		unicode.Han,      // CJK Unified Ideographs
+		unicode.Hangul,   // Korean
+		unicode.Katakana, // Japanese Katakana
+		unicode.Hiragana, // Japanese Hiragana
 	) ||
 		// CJK Symbols and Punctuation
 		(r >= 0x3000 && r <= 0x303F) ||

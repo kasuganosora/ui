@@ -31,47 +31,47 @@ func classifyPunct(r rune) punctType {
 	switch r {
 	// Opening brackets (full-width)
 	case '\u3008', // 〈
-		'\u300A',  // 《
-		'\u300C',  // 「
-		'\u300E',  // 『
-		'\u3010',  // 【
-		'\u3014',  // 〔
-		'\u3016',  // 〖
-		'\u3018',  // 〘
-		'\u301A',  // 〚
-		'\uFF08',  // （
-		'\uFF3B',  // ［
-		'\uFF5B',  // ｛
-		'\u201C',  // " (CJK left double quotation)
-		'\u2018':  // ' (CJK left single quotation)
+		'\u300A', // 《
+		'\u300C', // 「
+		'\u300E', // 『
+		'\u3010', // 【
+		'\u3014', // 〔
+		'\u3016', // 〖
+		'\u3018', // 〘
+		'\u301A', // 〚
+		'\uFF08', // （
+		'\uFF3B', // ［
+		'\uFF5B', // ｛
+		'\u201C', // " (CJK left double quotation)
+		'\u2018': // ' (CJK left single quotation)
 		return punctOpening
 
 	// Closing brackets (full-width)
 	case '\u3009', // 〉
-		'\u300B',  // 》
-		'\u300D',  // 」
-		'\u300F',  // 』
-		'\u3011',  // 】
-		'\u3015',  // 〕
-		'\u3017',  // 〗
-		'\u3019',  // 〙
-		'\u301B',  // 〛
-		'\uFF09',  // ）
-		'\uFF3D',  // ］
-		'\uFF5D',  // ｝
-		'\u201D',  // " (CJK right double quotation)
-		'\u2019':  // ' (CJK right single quotation)
+		'\u300B', // 》
+		'\u300D', // 」
+		'\u300F', // 』
+		'\u3011', // 】
+		'\u3015', // 〕
+		'\u3017', // 〗
+		'\u3019', // 〙
+		'\u301B', // 〛
+		'\uFF09', // ）
+		'\uFF3D', // ］
+		'\uFF5D', // ｝
+		'\u201D', // " (CJK right double quotation)
+		'\u2019': // ' (CJK right single quotation)
 		return punctClosing
 
 	// Middle punctuation (full-width stops, commas, colons)
 	case '\u3001', // 、
-		'\u3002',  // 。
-		'\uFF0C',  // ，
-		'\uFF0E',  // ．
-		'\uFF1A',  // ：
-		'\uFF1B',  // ；
-		'\uFF01',  // ！
-		'\uFF1F':  // ？
+		'\u3002', // 。
+		'\uFF0C', // ，
+		'\uFF0E', // ．
+		'\uFF1A', // ：
+		'\uFF1B', // ；
+		'\uFF01', // ！
+		'\uFF1F': // ？
 		return punctMiddle
 	}
 	return punctNone
@@ -79,9 +79,9 @@ func classifyPunct(r rune) punctType {
 
 // punctCompression stores the advance adjustment for a glyph due to punctuation compression.
 type punctCompression struct {
-	index      int     // glyph index in the run
-	trimLeft   float32 // amount to trim from the left (shift this and all subsequent glyphs)
-	trimRight  float32 // amount to trim from advance (just this glyph's advance)
+	index     int     // glyph index in the run
+	trimLeft  float32 // amount to trim from the left (shift this and all subsequent glyphs)
+	trimRight float32 // amount to trim from advance (just this glyph's advance)
 }
 
 // compressPunctuation calculates compression adjustments for a slice of runes

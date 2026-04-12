@@ -559,12 +559,12 @@ func (b *Backend) BeginFrame() {
 		fmt.Printf("[vk] ERROR: WaitForFences TIMEOUT on slot %d — recovering\n", b.currentFrame)
 		b.loader.DeviceWaitIdle(b.device)
 		// Recreate the fence in signaled state so we can proceed.
-		syscallN(b.loader.vkDestroyFence, uintptr(b.device), uintptr(fence), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyFence, uintptr(b.device), uintptr(fence), 0)
 		fi := fenceCreateInfo{
 			SType: StructureTypeFenceCreateInfo,
 			Flags: FenceCreateSignaledBit,
 		}
-		syscallN(b.loader.vkCreateFence,
+		_, _, _ = syscallN(b.loader.vkCreateFence,
 			uintptr(b.device), uintptr(unsafe.Pointer(&fi)), 0,
 			uintptr(unsafe.Pointer(&b.inFlightFences[b.currentFrame])),
 		)
@@ -619,8 +619,8 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 
 	// Begin command buffer
 	beginInfo := commandBufferBeginInfo{SType: StructureTypeCommandBufferBeginInfo}
-	syscallN(b.loader.vkResetCommandBuffer, uintptr(cmd), 0)
-	syscallN(b.loader.vkBeginCommandBuffer, uintptr(cmd), uintptr(unsafe.Pointer(&beginInfo)))
+	_, _, _ = syscallN(b.loader.vkResetCommandBuffer, uintptr(cmd), 0)
+	_, _, _ = syscallN(b.loader.vkBeginCommandBuffer, uintptr(cmd), uintptr(unsafe.Pointer(&beginInfo)))
 
 	// Begin render pass
 	clearAlpha := float32(1.0)
@@ -638,7 +638,7 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 		ClearValueCount: 1,
 		PClearValues:    &clearColor,
 	}
-	syscallN(b.loader.vkCmdBeginRenderPass,
+	_, _, _ = syscallN(b.loader.vkCmdBeginRenderPass,
 		uintptr(cmd), uintptr(unsafe.Pointer(&rpBeginInfo)), uintptr(SubpassContentsInline),
 	)
 
@@ -649,8 +649,8 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 		MaxDepth: 1.0,
 	}
 	scissor := Rect2D{Extent: b.swapchain.extent}
-	syscallN(b.loader.vkCmdSetViewport, uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&viewport)))
-	syscallN(b.loader.vkCmdSetScissor, uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&scissor)))
+	_, _, _ = syscallN(b.loader.vkCmdSetViewport, uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&viewport)))
+	_, _, _ = syscallN(b.loader.vkCmdSetScissor, uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&scissor)))
 
 	// Reset per-frame vertex offset and map vertex buffer for the frame
 	b.frameVertexOffset = 0
@@ -665,7 +665,7 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 	// Reset scissor to full viewport so overlays are not clipped.
 	overlays := buf.Overlays()
 	if len(overlays) > 0 {
-		syscallN(b.loader.vkCmdSetScissor, uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&scissor)))
+		_, _, _ = syscallN(b.loader.vkCmdSetScissor, uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&scissor)))
 		b.renderAllCommands(cmd, overlays)
 	}
 
@@ -673,8 +673,8 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 	b.unmapVertexBuffer()
 
 	// End render pass and command buffer
-	syscallN(b.loader.vkCmdEndRenderPass, uintptr(cmd))
-	syscallN(b.loader.vkEndCommandBuffer, uintptr(cmd))
+	_, _, _ = syscallN(b.loader.vkCmdEndRenderPass, uintptr(cmd))
+	_, _, _ = syscallN(b.loader.vkEndCommandBuffer, uintptr(cmd))
 
 	// Submit
 	b.submitCommandBuffer(cmd, imageIndex)
@@ -748,7 +748,7 @@ func (b *Backend) submitCommandBuffer(cmd CommandBuffer, imageIndex uint32) {
 	// Reset the fence right before submit so it will be signaled when the GPU finishes.
 	// This is done here (not in BeginFrame) so that if AcquireNextImageKHR fails,
 	// the fence remains signaled and the next BeginFrame won't deadlock.
-	syscallN(b.loader.vkResetFences,
+	_, _, _ = syscallN(b.loader.vkResetFences,
 		uintptr(b.device), 1, uintptr(unsafe.Pointer(&fence)),
 	)
 	r, _, _ := syscallN(b.loader.vkQueueSubmit,
@@ -764,12 +764,12 @@ func (b *Backend) submitCommandBuffer(cmd CommandBuffer, imageIndex uint32) {
 		// Recreate the fence in signaled state to prevent deadlock.
 		fmt.Printf("[vk] ERROR: vkQueueSubmit failed: %v, recovering fence\n", Result(r))
 		b.loader.DeviceWaitIdle(b.device)
-		syscallN(b.loader.vkDestroyFence, uintptr(b.device), uintptr(fence), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyFence, uintptr(b.device), uintptr(fence), 0)
 		fi := fenceCreateInfo{
 			SType: StructureTypeFenceCreateInfo,
 			Flags: FenceCreateSignaledBit,
 		}
-		syscallN(b.loader.vkCreateFence,
+		_, _, _ = syscallN(b.loader.vkCreateFence,
 			uintptr(b.device), uintptr(unsafe.Pointer(&fi)), 0,
 			uintptr(unsafe.Pointer(&b.inFlightFences[b.currentFrame])),
 		)
@@ -814,8 +814,8 @@ func (b *Backend) submitEmpty() {
 
 	cmd := b.commandBuffers[b.currentFrame]
 	beginInfo := commandBufferBeginInfo{SType: StructureTypeCommandBufferBeginInfo}
-	syscallN(b.loader.vkResetCommandBuffer, uintptr(cmd), 0)
-	syscallN(b.loader.vkBeginCommandBuffer, uintptr(cmd), uintptr(unsafe.Pointer(&beginInfo)))
+	_, _, _ = syscallN(b.loader.vkResetCommandBuffer, uintptr(cmd), 0)
+	_, _, _ = syscallN(b.loader.vkBeginCommandBuffer, uintptr(cmd), uintptr(unsafe.Pointer(&beginInfo)))
 
 	clearAlpha2 := float32(1.0)
 	if b.transparent {
@@ -830,9 +830,9 @@ func (b *Backend) submitEmpty() {
 		ClearValueCount: 1,
 		PClearValues:    &clearColor,
 	}
-	syscallN(b.loader.vkCmdBeginRenderPass, uintptr(cmd), uintptr(unsafe.Pointer(&rpBeginInfo)), uintptr(SubpassContentsInline))
-	syscallN(b.loader.vkCmdEndRenderPass, uintptr(cmd))
-	syscallN(b.loader.vkEndCommandBuffer, uintptr(cmd))
+	_, _, _ = syscallN(b.loader.vkCmdBeginRenderPass, uintptr(cmd), uintptr(unsafe.Pointer(&rpBeginInfo)), uintptr(SubpassContentsInline))
+	_, _, _ = syscallN(b.loader.vkCmdEndRenderPass, uintptr(cmd))
+	_, _, _ = syscallN(b.loader.vkEndCommandBuffer, uintptr(cmd))
 
 	b.submitCommandBuffer(cmd, imageIndex)
 	b.lastImageIndex = imageIndex
@@ -867,15 +867,15 @@ func (b *Backend) recreateSwapchain() {
 	if b.swapchain != nil {
 		for _, fb := range b.swapchain.framebuffers {
 			if fb != 0 {
-				syscallN(b.loader.vkDestroyFramebuffer, uintptr(b.device), uintptr(fb), 0)
+				_, _, _ = syscallN(b.loader.vkDestroyFramebuffer, uintptr(b.device), uintptr(fb), 0)
 			}
 		}
 		for _, view := range b.swapchain.imageViews {
 			if view != 0 {
-				syscallN(b.loader.vkDestroyImageView, uintptr(b.device), uintptr(view), 0)
+				_, _, _ = syscallN(b.loader.vkDestroyImageView, uintptr(b.device), uintptr(view), 0)
 			}
 		}
-		syscallN(b.loader.vkDestroySwapchainKHR, uintptr(b.device), uintptr(b.swapchain.handle), 0)
+		_, _, _ = syscallN(b.loader.vkDestroySwapchainKHR, uintptr(b.device), uintptr(b.swapchain.handle), 0)
 		b.swapchain = nil
 	}
 
@@ -894,16 +894,16 @@ func (b *Backend) CreateTexture(desc render.TextureDesc) (render.TextureHandle, 
 
 	view, err := b.createTextureImageView(image, vkFormat)
 	if err != nil {
-		syscallN(b.loader.vkFreeMemory, uintptr(b.device), uintptr(memory), 0)
-		syscallN(b.loader.vkDestroyImage, uintptr(b.device), uintptr(image), 0)
+		_, _, _ = syscallN(b.loader.vkFreeMemory, uintptr(b.device), uintptr(memory), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyImage, uintptr(b.device), uintptr(image), 0)
 		return render.InvalidTexture, err
 	}
 
 	sampler, err := b.createTextureSamplerWithFilter(desc.Filter)
 	if err != nil {
-		syscallN(b.loader.vkDestroyImageView, uintptr(b.device), uintptr(view), 0)
-		syscallN(b.loader.vkFreeMemory, uintptr(b.device), uintptr(memory), 0)
-		syscallN(b.loader.vkDestroyImage, uintptr(b.device), uintptr(image), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyImageView, uintptr(b.device), uintptr(view), 0)
+		_, _, _ = syscallN(b.loader.vkFreeMemory, uintptr(b.device), uintptr(memory), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyImage, uintptr(b.device), uintptr(image), 0)
 		return render.InvalidTexture, err
 	}
 
@@ -977,16 +977,16 @@ func (b *Backend) DestroyTexture(handle render.TextureHandle) {
 		return
 	}
 	if entry.sampler != 0 {
-		syscallN(b.loader.vkDestroySampler, uintptr(b.device), uintptr(entry.sampler), 0)
+		_, _, _ = syscallN(b.loader.vkDestroySampler, uintptr(b.device), uintptr(entry.sampler), 0)
 	}
 	if entry.view != 0 {
-		syscallN(b.loader.vkDestroyImageView, uintptr(b.device), uintptr(entry.view), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyImageView, uintptr(b.device), uintptr(entry.view), 0)
 	}
 	if entry.image != 0 {
-		syscallN(b.loader.vkDestroyImage, uintptr(b.device), uintptr(entry.image), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyImage, uintptr(b.device), uintptr(entry.image), 0)
 	}
 	if entry.memory != 0 {
-		syscallN(b.loader.vkFreeMemory, uintptr(b.device), uintptr(entry.memory), 0)
+		_, _, _ = syscallN(b.loader.vkFreeMemory, uintptr(b.device), uintptr(entry.memory), 0)
 	}
 }
 
@@ -1051,7 +1051,7 @@ func (b *Backend) ReadPixels() (*image.RGBA, error) {
 			Depth:  1,
 		},
 	}
-	syscallN(b.loader.vkCmdCopyImageToBuffer,
+	_, _, _ = syscallN(b.loader.vkCmdCopyImageToBuffer,
 		uintptr(cmd), uintptr(srcImage),
 		uintptr(ImageLayoutTransferSrcOptimal),
 		uintptr(stagingBuf),
@@ -1069,13 +1069,13 @@ func (b *Backend) ReadPixels() (*image.RGBA, error) {
 
 	// Map staging buffer and read data
 	var mapped unsafe.Pointer
-	syscallN(b.loader.vkMapMemory,
+	_, _, _ = syscallN(b.loader.vkMapMemory,
 		uintptr(b.device), uintptr(stagingMem), 0, uintptr(dataSize), 0,
 		uintptr(unsafe.Pointer(&mapped)),
 	)
 	raw := make([]byte, dataSize)
 	copy(raw, unsafe.Slice((*byte)(mapped), dataSize))
-	syscallN(b.loader.vkUnmapMemory, uintptr(b.device), uintptr(stagingMem))
+	_, _, _ = syscallN(b.loader.vkUnmapMemory, uintptr(b.device), uintptr(stagingMem))
 
 	// Convert to image.RGBA (swapchain is typically BGRA, need to swap R and B)
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
@@ -1125,48 +1125,48 @@ func (b *Backend) Destroy() {
 
 	// Destroy descriptor infrastructure
 	if b.texDescPool != 0 {
-		syscallN(b.loader.vkDestroyDescriptorPool, uintptr(b.device), uintptr(b.texDescPool), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyDescriptorPool, uintptr(b.device), uintptr(b.texDescPool), 0)
 	}
 	if b.texDescSetLayout != 0 {
-		syscallN(b.loader.vkDestroyDescriptorSetLayout, uintptr(b.device), uintptr(b.texDescSetLayout), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyDescriptorSetLayout, uintptr(b.device), uintptr(b.texDescSetLayout), 0)
 	}
 
 	// Destroy pipelines
 	if b.textPipeline != 0 {
-		syscallN(b.loader.vkDestroyPipeline, uintptr(b.device), uintptr(b.textPipeline), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyPipeline, uintptr(b.device), uintptr(b.textPipeline), 0)
 	}
 	if b.textPipelineLayout != 0 {
-		syscallN(b.loader.vkDestroyPipelineLayout, uintptr(b.device), uintptr(b.textPipelineLayout), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyPipelineLayout, uintptr(b.device), uintptr(b.textPipelineLayout), 0)
 	}
 	if b.texturedPipeline != 0 {
-		syscallN(b.loader.vkDestroyPipeline, uintptr(b.device), uintptr(b.texturedPipeline), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyPipeline, uintptr(b.device), uintptr(b.texturedPipeline), 0)
 	}
 	if b.texturedPipelineLayout != 0 {
-		syscallN(b.loader.vkDestroyPipelineLayout, uintptr(b.device), uintptr(b.texturedPipelineLayout), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyPipelineLayout, uintptr(b.device), uintptr(b.texturedPipelineLayout), 0)
 	}
 	if b.rectPipeline != 0 {
-		syscallN(b.loader.vkDestroyPipeline, uintptr(b.device), uintptr(b.rectPipeline), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyPipeline, uintptr(b.device), uintptr(b.rectPipeline), 0)
 	}
 	if b.rectPipelineLayout != 0 {
-		syscallN(b.loader.vkDestroyPipelineLayout, uintptr(b.device), uintptr(b.rectPipelineLayout), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyPipelineLayout, uintptr(b.device), uintptr(b.rectPipelineLayout), 0)
 	}
 	if b.shadowPipeline != 0 {
-		syscallN(b.loader.vkDestroyPipeline, uintptr(b.device), uintptr(b.shadowPipeline), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyPipeline, uintptr(b.device), uintptr(b.shadowPipeline), 0)
 	}
 	if b.shadowPipelineLayout != 0 {
-		syscallN(b.loader.vkDestroyPipelineLayout, uintptr(b.device), uintptr(b.shadowPipelineLayout), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyPipelineLayout, uintptr(b.device), uintptr(b.shadowPipelineLayout), 0)
 	}
 
 	// Destroy sync objects
 	for i := range b.inFlightFences {
-		syscallN(b.loader.vkDestroySemaphore, uintptr(b.device), uintptr(b.imageAvailableSems[i]), 0)
-		syscallN(b.loader.vkDestroySemaphore, uintptr(b.device), uintptr(b.renderFinishedSems[i]), 0)
-		syscallN(b.loader.vkDestroyFence, uintptr(b.device), uintptr(b.inFlightFences[i]), 0)
+		_, _, _ = syscallN(b.loader.vkDestroySemaphore, uintptr(b.device), uintptr(b.imageAvailableSems[i]), 0)
+		_, _, _ = syscallN(b.loader.vkDestroySemaphore, uintptr(b.device), uintptr(b.renderFinishedSems[i]), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyFence, uintptr(b.device), uintptr(b.inFlightFences[i]), 0)
 	}
 
 	// Destroy command pool
 	if b.commandPool != 0 {
-		syscallN(b.loader.vkDestroyCommandPool, uintptr(b.device), uintptr(b.commandPool), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyCommandPool, uintptr(b.device), uintptr(b.commandPool), 0)
 	}
 
 	// Destroy swapchain
@@ -1176,7 +1176,7 @@ func (b *Backend) Destroy() {
 
 	// Destroy render pass
 	if b.renderPass != 0 {
-		syscallN(b.loader.vkDestroyRenderPass, uintptr(b.device), uintptr(b.renderPass), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyRenderPass, uintptr(b.device), uintptr(b.renderPass), 0)
 	}
 
 	// Destroy device
@@ -1229,13 +1229,13 @@ func (b *Backend) createBuffer(size uint64, usage BufferUsageFlags, properties M
 	}
 
 	var memReqs MemoryRequirements
-	syscallN(b.loader.vkGetBufferMemoryRequirements,
+	_, _, _ = syscallN(b.loader.vkGetBufferMemoryRequirements,
 		uintptr(b.device), uintptr(buffer), uintptr(unsafe.Pointer(&memReqs)),
 	)
 
 	memTypeIdx, ok := FindMemoryType(b.memProps, memReqs.MemoryTypeBits, properties)
 	if !ok {
-		syscallN(b.loader.vkDestroyBuffer, uintptr(b.device), uintptr(buffer), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyBuffer, uintptr(b.device), uintptr(buffer), 0)
 		return 0, 0, fmt.Errorf("vulkan: no suitable memory type")
 	}
 
@@ -1250,21 +1250,21 @@ func (b *Backend) createBuffer(size uint64, usage BufferUsageFlags, properties M
 		uintptr(b.device), uintptr(unsafe.Pointer(&ai)), 0, uintptr(unsafe.Pointer(&memory)),
 	)
 	if Result(r) != Success {
-		syscallN(b.loader.vkDestroyBuffer, uintptr(b.device), uintptr(buffer), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyBuffer, uintptr(b.device), uintptr(buffer), 0)
 		return 0, 0, fmt.Errorf("vulkan: vkAllocateMemory failed: %v", Result(r))
 	}
 
-	syscallN(b.loader.vkBindBufferMemory, uintptr(b.device), uintptr(buffer), uintptr(memory), 0)
+	_, _, _ = syscallN(b.loader.vkBindBufferMemory, uintptr(b.device), uintptr(buffer), uintptr(memory), 0)
 
 	return buffer, memory, nil
 }
 
 func (b *Backend) destroyBuffer(buffer Buffer, memory DeviceMemory) {
 	if buffer != 0 {
-		syscallN(b.loader.vkDestroyBuffer, uintptr(b.device), uintptr(buffer), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyBuffer, uintptr(b.device), uintptr(buffer), 0)
 	}
 	if memory != 0 {
-		syscallN(b.loader.vkFreeMemory, uintptr(b.device), uintptr(memory), 0)
+		_, _, _ = syscallN(b.loader.vkFreeMemory, uintptr(b.device), uintptr(memory), 0)
 	}
 }
 

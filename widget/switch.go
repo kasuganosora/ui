@@ -141,12 +141,12 @@ func (s *Switch) Draw(buf *render.CommandBuffer) {
 		if s.value {
 			// Label on the left side (before knob)
 			labelX := trackRect.X + 2 + (sh-sk)/2
-			maxW := sw - sk - (sh-sk) - 2
+			maxW := sw - sk - (sh - sk) - 2
 			cfg.TextRenderer.DrawText(buf, labelText, labelX, labelY, labelFontSize, maxW, labelColor, 1)
 		} else {
 			// Label on the right side (after knob)
 			labelX := trackRect.X + sk + (sh-sk)/2 + 2
-			maxW := sw - sk - (sh-sk) - 2
+			maxW := sw - sk - (sh - sk) - 2
 			cfg.TextRenderer.DrawText(buf, labelText, labelX, labelY, labelFontSize, maxW, labelColor, 1)
 		}
 	}

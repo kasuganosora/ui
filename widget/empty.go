@@ -30,7 +30,7 @@ func NewEmpty(tree *core.Tree, cfg *Config) *Empty {
 	return e
 }
 
-func (e *Empty) Description() string          { return e.description }
+func (e *Empty) Description() string        { return e.description }
 func (e *Empty) SetDescription(desc string) { e.description = desc }
 
 func (e *Empty) Draw(buf *render.CommandBuffer) {

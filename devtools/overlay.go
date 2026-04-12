@@ -6,14 +6,6 @@ import (
 	"github.com/kasuganosora/ui/core"
 )
 
-// rgbaColor is a CDP RGBA color (used in highlight configs).
-type rgbaColor struct {
-	R int     `json:"r"`
-	G int     `json:"g"`
-	B int     `json:"b"`
-	A float64 `json:"a"`
-}
-
 func (s *Session) handleOverlay(req Request) {
 	switch req.Method {
 	case "Overlay.enable":
@@ -28,7 +20,7 @@ func (s *Session) handleOverlay(req Request) {
 	// highlightNode — highlight the element box in the live window.
 	case "Overlay.highlightNode":
 		var p struct {
-			NodeID       int `json:"nodeId"`
+			NodeID        int `json:"nodeId"`
 			BackendNodeID int `json:"backendNodeId"`
 		}
 		_ = json.Unmarshal(req.Params, &p)

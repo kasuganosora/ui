@@ -20,7 +20,7 @@ import (
 
 var (
 	instanceMu sync.Mutex
-	instances  = make(map[int64]*UI)
+	instances        = make(map[int64]*UI)
 	nextInstID int64 = 1
 )
 

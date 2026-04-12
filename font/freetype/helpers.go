@@ -1,3 +1,4 @@
+//nolint:govet // C FFI: unsafe.Pointer arithmetic on C memory addresses stored as uintptr
 package freetype
 
 import "unsafe"

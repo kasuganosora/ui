@@ -42,10 +42,10 @@ type GlyphID uint32
 
 // Metrics contains font-level metrics for a given size. Value object.
 type Metrics struct {
-	Ascent      float32 // Distance from baseline to top (positive up)
-	Descent     float32 // Distance from baseline to bottom (positive down)
-	LineHeight  float32 // Recommended line spacing
-	UnitsPerEm  float32 // Font design units per em
+	Ascent     float32 // Distance from baseline to top (positive up)
+	Descent    float32 // Distance from baseline to bottom (positive down)
+	LineHeight float32 // Recommended line spacing
+	UnitsPerEm float32 // Font design units per em
 }
 
 // GlyphMetrics contains metrics for a single glyph. Value object.
@@ -68,10 +68,10 @@ type GlyphBitmap struct {
 
 // TextMetrics describes measured text dimensions. Value object.
 type TextMetrics struct {
-	Width      float32       // Total advance width
-	Height     float32       // Total height (ascent + descent)
-	LineCount  int           // Number of lines
-	Lines      []LineMetrics // Per-line metrics
+	Width     float32       // Total advance width
+	Height    float32       // Total height (ascent + descent)
+	LineCount int           // Number of lines
+	Lines     []LineMetrics // Per-line metrics
 }
 
 // LineMetrics describes a single line of text. Value object.
@@ -79,8 +79,8 @@ type LineMetrics struct {
 	Width   float32 // Width of this line
 	Ascent  float32
 	Descent float32
-	Start   int     // Start byte offset in source text
-	End     int     // End byte offset in source text
+	Start   int // Start byte offset in source text
+	End     int // End byte offset in source text
 }
 
 // GlyphRun is a sequence of positioned glyphs ready for rendering. Value object.
@@ -93,10 +93,10 @@ type GlyphRun struct {
 
 // PositionedGlyph is a glyph with its screen position. Value object.
 type PositionedGlyph struct {
-	GlyphID  GlyphID
-	X        float32 // Screen X position
-	Y        float32 // Screen Y position (baseline)
-	Advance  float32
+	GlyphID GlyphID
+	X       float32 // Screen X position
+	Y       float32 // Screen Y position (baseline)
+	Advance float32
 }
 
 // Engine is the font system interface.
@@ -178,10 +178,10 @@ type Shaper interface {
 // ShapeOptions controls text shaping. Value object.
 type ShapeOptions struct {
 	FontID          ID
-	FallbackFontIDs []ID     // Fallback fonts tried in order when a glyph is missing from FontID
+	FallbackFontIDs []ID // Fallback fonts tried in order when a glyph is missing from FontID
 	FontSize        float32
-	MaxWidth        float32      // 0 = no wrapping
-	LineHeight      float32      // 0 = use font default
+	MaxWidth        float32 // 0 = no wrapping
+	LineHeight      float32 // 0 = use font default
 	Align           TextAlign
 	Locale          string       // For locale-specific line breaking rules
 	Segmenter       Segmenter    // Optional: CJK word segmenter for smart line breaking
@@ -211,7 +211,7 @@ type Segmenter interface {
 type TruncateMode uint8
 
 const (
-	TruncateNone     TruncateMode = iota // No truncation (default)
-	TruncateChar                          // Truncate at character boundary + ellipsis
-	TruncateWord                          // Truncate at word boundary + ellipsis
+	TruncateNone TruncateMode = iota // No truncation (default)
+	TruncateChar                     // Truncate at character boundary + ellipsis
+	TruncateWord                     // Truncate at word boundary + ellipsis
 )

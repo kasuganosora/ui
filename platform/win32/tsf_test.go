@@ -13,9 +13,9 @@ func TestTSFManagerNil(t *testing.T) {
 	if tsf.IsActive() {
 		t.Error("nil TSFManager should not be active")
 	}
-	tsf.Release()             // should not panic
+	tsf.Release()                        // should not panic
 	tsf.SetCandidateWindowPosition(0, 0) // should not panic
-	tsf.ClearFocusedEdit()    // should not panic
+	tsf.ClearFocusedEdit()               // should not panic
 }
 
 func TestGUIDLayout(t *testing.T) {

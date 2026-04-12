@@ -31,10 +31,10 @@ func NewTreeSelect(tree *core.Tree, cfg *Config) *TreeSelect {
 	return ts
 }
 
-func (ts *TreeSelect) Selected() string              { return ts.selected }
-func (ts *TreeSelect) IsOpen() bool                  { return ts.open }
-func (ts *TreeSelect) SetOpen(o bool)                { ts.open = o }
-func (ts *TreeSelect) OnChange(fn func(string))      { ts.onChange = fn }
+func (ts *TreeSelect) Selected() string         { return ts.selected }
+func (ts *TreeSelect) IsOpen() bool             { return ts.open }
+func (ts *TreeSelect) SetOpen(o bool)           { ts.open = o }
+func (ts *TreeSelect) OnChange(fn func(string)) { ts.onChange = fn }
 
 func (ts *TreeSelect) SetRoots(roots []*TreeNode) {
 	ts.roots = roots

@@ -649,15 +649,15 @@ func TestPanelDrawShadow(t *testing.T) {
 	buf := render.NewCommandBuffer()
 	cfg := widget.DefaultConfig()
 	p := Panel{
-		Title:   "Test",
-		Width:   200,
-		Height:  100,
-		Shadow:  true,
-		Padding: 12,
-		BgColor: uimath.RGBA(0.1, 0.1, 0.1, 0.9),
+		Title:       "Test",
+		Width:       200,
+		Height:      100,
+		Shadow:      true,
+		Padding:     12,
+		BgColor:     uimath.RGBA(0.1, 0.1, 0.1, 0.9),
 		BorderColor: uimath.RGBA(0.5, 0.5, 0.5, 1),
 		BorderWidth: 2,
-		TitleColor: uimath.ColorWhite,
+		TitleColor:  uimath.ColorWhite,
 	}
 	r := p.Draw(buf, uimath.Rect{}, cfg, 50)
 	if r.PanelW != 200 {

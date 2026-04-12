@@ -20,7 +20,6 @@ type itemInfo struct {
 	maxMain          float32
 	crossHint        float32 // explicit cross size (from width/height CSS property)
 	intrinsicCross   float32 // measured intrinsic cross size (for non-stretch alignment)
-	frozen           bool
 	finalMain        float32
 }
 

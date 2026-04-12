@@ -16,23 +16,23 @@ import (
 
 // RectVertex matches the rect shader input layout.
 type RectVertex struct {
-	PosX, PosY                                     float32 // NDC position
-	U, V                                           float32 // UV for SDF
-	ColorR, ColorG, ColorB, ColorA                 float32
-	RectW, RectH                                   float32 // Rect size in physical pixels
-	RadiusTL, RadiusTR, RadiusBR, RadiusBL         float32
-	BorderWidth                                    float32
-	BorderR, BorderG, BorderB, BorderA             float32
+	PosX, PosY                             float32 // NDC position
+	U, V                                   float32 // UV for SDF
+	ColorR, ColorG, ColorB, ColorA         float32
+	RectW, RectH                           float32 // Rect size in physical pixels
+	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32
+	BorderWidth                            float32
+	BorderR, BorderG, BorderB, BorderA     float32
 }
 
 // ShadowVertex matches the shadow shader input layout — 15 float32, 60 bytes.
 type ShadowVertex struct {
-	PosX, PosY                              float32
-	U, V                                    float32
-	ColorR, ColorG, ColorB, ColorA          float32
-	ElemW, ElemH                            float32 // Spread-adjusted element size in physical px
+	PosX, PosY                             float32
+	U, V                                   float32
+	ColorR, ColorG, ColorB, ColorA         float32
+	ElemW, ElemH                           float32 // Spread-adjusted element size in physical px
 	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32 // Corner radii in physical px
-	Blur                                    float32
+	Blur                                   float32
 }
 
 // TexturedVertex for text and image rendering.
@@ -62,38 +62,38 @@ type textureEntry struct {
 // CreateComputeShader(18), CreateClassLinkage(19), CreateBlendState(20),
 // CreateDepthStencilState(21), CreateRasterizerState(22), CreateSamplerState(23).
 const (
-	devCreateBuffer              = 3
-	devCreateTexture2D           = 5
-	devCreateShaderResourceView  = 7
-	devCreateRenderTargetView    = 9
-	devCreateInputLayout         = 11
-	devCreateVertexShader        = 12
-	devCreatePixelShader         = 15
-	devCreateBlendState          = 20
-	devCreateRasterizerState     = 22
-	devCreateSamplerState        = 23
+	devCreateBuffer             = 3
+	devCreateTexture2D          = 5
+	devCreateShaderResourceView = 7
+	devCreateRenderTargetView   = 9
+	devCreateInputLayout        = 11
+	devCreateVertexShader       = 12
+	devCreatePixelShader        = 15
+	devCreateBlendState         = 20
+	devCreateRasterizerState    = 22
+	devCreateSamplerState       = 23
 )
 
 // ---- ID3D11DeviceContext vtable indices (IUnknown: 0-2, ID3D11DeviceChild: 3-6) ----
 const (
-	ctxPSSetShaderResources = 8
-	ctxPSSetShader          = 9
-	ctxPSSetSamplers        = 10
-	ctxVSSetShader          = 11
-	ctxDraw                 = 13
-	ctxMap                  = 14
-	ctxUnmap                = 15
-	ctxIASetInputLayout     = 17
-	ctxIASetVertexBuffers   = 18
+	ctxPSSetShaderResources   = 8
+	ctxPSSetShader            = 9
+	ctxPSSetSamplers          = 10
+	ctxVSSetShader            = 11
+	ctxDraw                   = 13
+	ctxMap                    = 14
+	ctxUnmap                  = 15
+	ctxIASetInputLayout       = 17
+	ctxIASetVertexBuffers     = 18
 	ctxIASetPrimitiveTopology = 24
-	ctxOMSetRenderTargets   = 33
-	ctxOMSetBlendState      = 35
-	ctxRSSetState           = 43
-	ctxRSSetViewports       = 44
-	ctxRSSetScissorRects    = 45
-	ctxCopyResource         = 47
-	ctxUpdateSubresource    = 48
-	ctxClearRenderTargetView = 50
+	ctxOMSetRenderTargets     = 33
+	ctxOMSetBlendState        = 35
+	ctxRSSetState             = 43
+	ctxRSSetViewports         = 44
+	ctxRSSetScissorRects      = 45
+	ctxCopyResource           = 47
+	ctxUpdateSubresource      = 48
+	ctxClearRenderTargetView  = 50
 )
 
 // ---- IDXGISwapChain vtable indices ----
@@ -117,9 +117,9 @@ type Backend struct {
 	rasterizerState uintptr // ID3D11RasterizerState*
 
 	// Rect pipeline
-	rectVS          uintptr // ID3D11VertexShader*
-	rectPS          uintptr // ID3D11PixelShader*
-	rectInputLayout uintptr // ID3D11InputLayout*
+	rectVS            uintptr // ID3D11VertexShader*
+	rectPS            uintptr // ID3D11PixelShader*
+	rectInputLayout   uintptr // ID3D11InputLayout*
 	shadowVS          uintptr // ID3D11VertexShader* (shadow)
 	shadowPS          uintptr // ID3D11PixelShader*  (shadow)
 	shadowInputLayout uintptr // ID3D11InputLayout*  (shadow)
@@ -295,12 +295,30 @@ func (b *Backend) initTransparent(featureLevels []uint32, outLevel *uint32) (ret
 	// On failure, clean up any partially created resources.
 	defer func() {
 		if retErr != nil {
-			if b.dcompVisual != 0 { comRelease(b.dcompVisual); b.dcompVisual = 0 }
-			if b.dcompTarget != 0 { comRelease(b.dcompTarget); b.dcompTarget = 0 }
-			if b.dcompDevice != 0 { comRelease(b.dcompDevice); b.dcompDevice = 0 }
-			if b.swapChain != 0   { comRelease(b.swapChain);   b.swapChain = 0 }
-			if b.context != 0     { comRelease(b.context);     b.context = 0 }
-			if b.device != 0      { comRelease(b.device);      b.device = 0 }
+			if b.dcompVisual != 0 {
+				comRelease(b.dcompVisual)
+				b.dcompVisual = 0
+			}
+			if b.dcompTarget != 0 {
+				comRelease(b.dcompTarget)
+				b.dcompTarget = 0
+			}
+			if b.dcompDevice != 0 {
+				comRelease(b.dcompDevice)
+				b.dcompDevice = 0
+			}
+			if b.swapChain != 0 {
+				comRelease(b.swapChain)
+				b.swapChain = 0
+			}
+			if b.context != 0 {
+				comRelease(b.context)
+				b.context = 0
+			}
+			if b.device != 0 {
+				comRelease(b.device)
+				b.device = 0
+			}
 		}
 	}()
 
@@ -375,9 +393,9 @@ func (b *Backend) initTransparent(featureLevels []uint32, outLevel *uint32) (ret
 	}
 	hr = comCall(comVtbl(factory2, factory2CreateSwapChainForComposition),
 		factory2,
-		b.device,                          // pDevice
-		uintptr(unsafe.Pointer(&desc1)),   // pDesc
-		0,                                 // pRestrictToOutput (NULL)
+		b.device,                        // pDevice
+		uintptr(unsafe.Pointer(&desc1)), // pDesc
+		0,                               // pRestrictToOutput (NULL)
 		uintptr(unsafe.Pointer(&b.swapChain)))
 	if hr != S_OK {
 		return fmt.Errorf("dx11: CreateSwapChainForComposition failed: 0x%x", hr)
@@ -808,12 +826,12 @@ func rectInputElements() []D3D11_INPUT_ELEMENT_DESC {
 // shadowInputElements returns the input layout for shadow vertices (ShadowVertex, 60 bytes).
 func shadowInputElements() []D3D11_INPUT_ELEMENT_DESC {
 	return []D3D11_INPUT_ELEMENT_DESC{
-		{semanticName("POSITION"), 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, 0, 0},         // pos (0)
-		{semanticName("TEXCOORD"), 0, DXGI_FORMAT_R32G32_FLOAT, 0, 8, 0, 0},         // uv (8)
-		{semanticName("COLOR"), 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, 0, 0},     // color (16)
-		{semanticName("TEXCOORD"), 1, DXGI_FORMAT_R32G32_FLOAT, 0, 32, 0, 0},        // elemSize (32)
-		{semanticName("TEXCOORD"), 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 40, 0, 0},  // radii (40)
-		{semanticName("TEXCOORD"), 3, DXGI_FORMAT_R32_FLOAT, 0, 56, 0, 0},           // blur (56)
+		{semanticName("POSITION"), 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, 0, 0},        // pos (0)
+		{semanticName("TEXCOORD"), 0, DXGI_FORMAT_R32G32_FLOAT, 0, 8, 0, 0},        // uv (8)
+		{semanticName("COLOR"), 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, 0, 0},    // color (16)
+		{semanticName("TEXCOORD"), 1, DXGI_FORMAT_R32G32_FLOAT, 0, 32, 0, 0},       // elemSize (32)
+		{semanticName("TEXCOORD"), 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 40, 0, 0}, // radii (40)
+		{semanticName("TEXCOORD"), 3, DXGI_FORMAT_R32_FLOAT, 0, 56, 0, 0},          // blur (56)
 	}
 }
 
@@ -823,8 +841,8 @@ func texturedInputElements() []D3D11_INPUT_ELEMENT_DESC {
 		{semanticName("POSITION"), 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, 0, 0},
 		{semanticName("TEXCOORD"), 0, DXGI_FORMAT_R32G32_FLOAT, 0, 8, 0, 0},
 		{semanticName("COLOR"), 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, 0, 0},
-		{semanticName("TEXCOORD"), 1, DXGI_FORMAT_R32G32_FLOAT, 0, 32, 0, 0},           // rectSize
-		{semanticName("TEXCOORD"), 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 40, 0, 0},     // radius (TL,TR,BR,BL)
+		{semanticName("TEXCOORD"), 1, DXGI_FORMAT_R32G32_FLOAT, 0, 32, 0, 0},       // rectSize
+		{semanticName("TEXCOORD"), 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 40, 0, 0}, // radius (TL,TR,BR,BL)
 	}
 }
 
@@ -1119,18 +1137,18 @@ func (b *Backend) renderRect(c render.Command) {
 			RadiusTL: rect.Corners.TopLeft * s, RadiusTR: rect.Corners.TopRight * s,
 			RadiusBR: rect.Corners.BottomRight * s, RadiusBL: rect.Corners.BottomLeft * s,
 			BorderWidth: rect.BorderWidth * s,
-			BorderR: rect.BorderColor.R, BorderG: rect.BorderColor.G,
+			BorderR:     rect.BorderColor.R, BorderG: rect.BorderColor.G,
 			BorderB: rect.BorderColor.B, BorderA: rect.BorderColor.A,
 		}
 	}
 
 	vertices := [6]RectVertex{
-		makeVertex(ndcX, ndcY, uvL, uvT),                 // top-left
-		makeVertex(ndcX+ndcW, ndcY, uvR, uvT),            // top-right
-		makeVertex(ndcX+ndcW, ndcY-ndcH, uvR, uvB),       // bottom-right
-		makeVertex(ndcX, ndcY, uvL, uvT),                  // top-left
-		makeVertex(ndcX+ndcW, ndcY-ndcH, uvR, uvB),       // bottom-right
-		makeVertex(ndcX, ndcY-ndcH, uvL, uvB),             // bottom-left
+		makeVertex(ndcX, ndcY, uvL, uvT),           // top-left
+		makeVertex(ndcX+ndcW, ndcY, uvR, uvT),      // top-right
+		makeVertex(ndcX+ndcW, ndcY-ndcH, uvR, uvB), // bottom-right
+		makeVertex(ndcX, ndcY, uvL, uvT),           // top-left
+		makeVertex(ndcX+ndcW, ndcY-ndcH, uvR, uvB), // bottom-right
+		makeVertex(ndcX, ndcY-ndcH, uvL, uvB),      // bottom-left
 	}
 
 	stride := uint32(unsafe.Sizeof(RectVertex{}))
@@ -1244,7 +1262,7 @@ func (b *Backend) renderText(c render.Command) {
 	for _, g := range glyphs {
 		x0 := (g.X/logW)*2 - 1
 		y0 := 1 - (g.Y/logH)*2 // flip Y
-		x1 := ((g.X + g.Width) / logW) * 2 - 1
+		x1 := ((g.X+g.Width)/logW)*2 - 1
 		y1 := 1 - ((g.Y+g.Height)/logH)*2 // flip Y
 
 		clr := TexturedVertex{
@@ -1295,7 +1313,7 @@ func (b *Backend) renderImage(c render.Command) {
 
 	x0 := (ic.DstRect.X/logW)*2 - 1
 	y0 := 1 - (ic.DstRect.Y/logH)*2 // flip Y
-	x1 := ((ic.DstRect.X + ic.DstRect.Width) / logW) * 2 - 1
+	x1 := ((ic.DstRect.X+ic.DstRect.Width)/logW)*2 - 1
 	y1 := 1 - ((ic.DstRect.Y+ic.DstRect.Height)/logH)*2 // flip Y
 
 	// UV from source rect; default to full texture when empty

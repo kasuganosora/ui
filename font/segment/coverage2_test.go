@@ -13,7 +13,9 @@ func TestWithDictFile(t *testing.T) {
 	// Create a temp dictionary file
 	dir := t.TempDir()
 	path := filepath.Join(dir, "dict.txt")
-	os.WriteFile(path, []byte("你好 30000\n世界 35000\n"), 0644)
+	if err := os.WriteFile(path, []byte("你好 30000\n世界 35000\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	j, err := New(WithDictFile(path))
 	if err != nil {
@@ -41,9 +43,15 @@ func TestWithDictGzipFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	gw := gzip.NewWriter(f)
-	gw.Write([]byte("你好 30000\n世界 35000\n"))
-	gw.Close()
-	f.Close()
+	if _, err := gw.Write([]byte("你好 30000\n世界 35000\n")); err != nil {
+		t.Fatal(err)
+	}
+	if err := gw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	j, err := New(WithDictGzipFile(path))
 	if err != nil {
@@ -65,7 +73,7 @@ func TestWithDictGzipFileNotFound(t *testing.T) {
 func TestWithDictGzipFileInvalidGzip(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bad.gz")
-	os.WriteFile(path, []byte("not gzip data"), 0644)
+	_ = os.WriteFile(path, []byte("not gzip data"), 0644)
 
 	_, err := New(WithDictGzipFile(path))
 	if err == nil {

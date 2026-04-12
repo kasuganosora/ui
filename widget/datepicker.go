@@ -35,13 +35,13 @@ func NewDatePicker(tree *core.Tree, cfg *Config) *DatePicker {
 	return dp
 }
 
-func (dp *DatePicker) Year() int                        { return dp.year }
-func (dp *DatePicker) Month() int                       { return dp.month }
-func (dp *DatePicker) Day() int                         { return dp.day }
-func (dp *DatePicker) IsOpen() bool                     { return dp.open }
-func (dp *DatePicker) SetDate(y, m, d int)              { dp.year = y; dp.month = m; dp.day = d }
-func (dp *DatePicker) SetOpen(o bool)                   { dp.open = o }
-func (dp *DatePicker) OnChange(fn func(int, int, int))  { dp.onChange = fn }
+func (dp *DatePicker) Year() int                       { return dp.year }
+func (dp *DatePicker) Month() int                      { return dp.month }
+func (dp *DatePicker) Day() int                        { return dp.day }
+func (dp *DatePicker) IsOpen() bool                    { return dp.open }
+func (dp *DatePicker) SetDate(y, m, d int)             { dp.year = y; dp.month = m; dp.day = d }
+func (dp *DatePicker) SetOpen(o bool)                  { dp.open = o }
+func (dp *DatePicker) OnChange(fn func(int, int, int)) { dp.onChange = fn }
 
 func (dp *DatePicker) daysInMonth() int {
 	switch dp.month {
@@ -177,9 +177,9 @@ func NewTimePicker(tree *core.Tree, cfg *Config) *TimePicker {
 	return tp
 }
 
-func (tp *TimePicker) Hour() int   { return tp.hour }
-func (tp *TimePicker) Minute() int { return tp.minute }
-func (tp *TimePicker) Second() int { return tp.second }
+func (tp *TimePicker) Hour() int    { return tp.hour }
+func (tp *TimePicker) Minute() int  { return tp.minute }
+func (tp *TimePicker) Second() int  { return tp.second }
 func (tp *TimePicker) IsOpen() bool { return tp.open }
 func (tp *TimePicker) SetTime(h, m, s int) {
 	tp.hour = h

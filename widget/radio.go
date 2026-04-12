@@ -61,16 +61,16 @@ func NewRadio(tree *core.Tree, label string, cfg *Config) *Radio {
 	return r
 }
 
-func (r *Radio) Label() string        { return r.label }
-func (r *Radio) Value() string        { return r.value }
-func (r *Radio) IsChecked() bool      { return r.checked }
-func (r *Radio) IsDisabled() bool     { return r.disabled }
-func (r *Radio) IsReadonly() bool     { return r.readonly }
-func (r *Radio) AllowUncheck() bool   { return r.allowUncheck }
+func (r *Radio) Label() string      { return r.label }
+func (r *Radio) Value() string      { return r.value }
+func (r *Radio) IsChecked() bool    { return r.checked }
+func (r *Radio) IsDisabled() bool   { return r.disabled }
+func (r *Radio) IsReadonly() bool   { return r.readonly }
+func (r *Radio) AllowUncheck() bool { return r.allowUncheck }
 
-func (r *Radio) SetValue(v string)        { r.value = v }
-func (r *Radio) SetReadonly(v bool)       { r.readonly = v }
-func (r *Radio) SetAllowUncheck(v bool)   { r.allowUncheck = v }
+func (r *Radio) SetValue(v string)      { r.value = v }
+func (r *Radio) SetReadonly(v bool)     { r.readonly = v }
+func (r *Radio) SetAllowUncheck(v bool) { r.allowUncheck = v }
 
 func (r *Radio) SetLabel(label string) {
 	r.label = label
@@ -144,9 +144,9 @@ func (r *Radio) Draw(buf *render.CommandBuffer) {
 		dotX := circleRect.X + (radioSize-dotSize)/2
 		dotY := circleRect.Y + (radioSize-dotSize)/2
 		buf.DrawRect(render.RectCmd{
-			Bounds:  uimath.NewRect(dotX, dotY, dotSize, dotSize),
+			Bounds:    uimath.NewRect(dotX, dotY, dotSize, dotSize),
 			FillColor: dotColor,
-			Corners: uimath.CornersAll(dotSize / 2),
+			Corners:   uimath.CornersAll(dotSize / 2),
 		}, 1, 1)
 	}
 
@@ -199,12 +199,12 @@ func (g *RadioGroup) SetSize(s Size) { g.size = s }
 // Size returns the current size setting.
 func (g *RadioGroup) Size() Size { return g.size }
 
-func (g *RadioGroup) SetDisabled(d bool)      { g.disabled = d }
-func (g *RadioGroup) IsDisabled() bool         { return g.disabled }
-func (g *RadioGroup) SetReadonly(r bool)       { g.readonly = r }
-func (g *RadioGroup) IsReadonly() bool         { return g.readonly }
-func (g *RadioGroup) SetAllowUncheck(v bool)   { g.allowUncheck = v }
-func (g *RadioGroup) AllowUncheck() bool       { return g.allowUncheck }
+func (g *RadioGroup) SetDisabled(d bool)     { g.disabled = d }
+func (g *RadioGroup) IsDisabled() bool       { return g.disabled }
+func (g *RadioGroup) SetReadonly(r bool)     { g.readonly = r }
+func (g *RadioGroup) IsReadonly() bool       { return g.readonly }
+func (g *RadioGroup) SetAllowUncheck(v bool) { g.allowUncheck = v }
+func (g *RadioGroup) AllowUncheck() bool     { return g.allowUncheck }
 
 // NewRadioGroup creates a radio group.
 func NewRadioGroup() *RadioGroup {

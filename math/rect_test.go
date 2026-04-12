@@ -9,9 +9,9 @@ func TestRectContains(t *testing.T) {
 		want bool
 	}{
 		{NewVec2(50, 40), true},
-		{NewVec2(10, 20), true},  // top-left corner
-		{NewVec2(5, 40), false},  // left of rect
-		{NewVec2(50, 80), false}, // below rect
+		{NewVec2(10, 20), true},   // top-left corner
+		{NewVec2(5, 40), false},   // left of rect
+		{NewVec2(50, 80), false},  // below rect
 		{NewVec2(110, 40), false}, // right edge (exclusive)
 	}
 	for _, tt := range tests {

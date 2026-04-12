@@ -28,11 +28,11 @@ type Platform struct {
 
 	// Interface descriptors for wl_proxy_marshal_constructor_versioned.
 	// These hold C-string name pointers for the binding protocol.
-	compositorIface WlInterface
-	seatIface       WlInterface
-	xdgWmBaseIface  WlInterface
-	surfaceIface    WlInterface
-	xdgSurfaceIface WlInterface
+	compositorIface  WlInterface
+	seatIface        WlInterface
+	xdgWmBaseIface   WlInterface
+	surfaceIface     WlInterface
+	xdgSurfaceIface  WlInterface
 	xdgToplevelIface WlInterface
 
 	// Compositor-reported seat capabilities
@@ -52,7 +52,7 @@ type Platform struct {
 
 	// Pointer state
 	pointerX, pointerY float32
-	pointerWindow       *Window
+	pointerWindow      *Window
 
 	// Keyboard modifier state
 	keyMods event.Modifiers
@@ -160,9 +160,9 @@ func (p *Platform) PollEvents() []event.Event {
 // ProcessMessages implements platform.Platform.
 func (p *Platform) ProcessMessages() { wlDisplayFlush(p.dpy) }
 
-func (p *Platform) GetClipboardText() string        { return "" }
-func (p *Platform) SetClipboardText(text string)    {}
-func (p *Platform) GetPrimaryMonitorDPI() float32   { return 96.0 }
+func (p *Platform) GetClipboardText() string      { return "" }
+func (p *Platform) SetClipboardText(text string)  {}
+func (p *Platform) GetPrimaryMonitorDPI() float32 { return 96.0 }
 
 func (p *Platform) GetSystemLocale() string {
 	if lang := os.Getenv("LANG"); lang != "" {
@@ -225,7 +225,7 @@ func (p *Platform) findWindowBySurface(surface WlSurface) *Window {
 // syscall.NewCallback requires all args to be uintptr.
 // uint32 arguments are passed as full uintptr; we cast them back with uint32().
 func (p *Platform) cbRegistryGlobal(data, registry, name, iface, version uintptr) uintptr {
-	ifaceName := cstringToString((*byte)(unsafe.Pointer(iface)))
+	ifaceName := cstringToString((*byte)(unsafe.Pointer(iface))) //nolint:govet // uintptr from FFI callback
 	nameU32 := uint32(name)
 	verU32 := uint32(version)
 	switch ifaceName {
@@ -449,7 +449,8 @@ func (p *Platform) cbKeyboardKey(data, keyboard, serial, time, key, state uintpt
 }
 
 // cbKeyboardModifiers: (void *data, wl_keyboard*, uint32_t serial, uint32_t mods_depressed,
-//                       uint32_t mods_latched, uint32_t mods_locked, uint32_t group)
+//
+//	uint32_t mods_latched, uint32_t mods_locked, uint32_t group)
 func (p *Platform) cbKeyboardModifiers(data, keyboard, serial, depressed, latched, locked, group uintptr) uintptr {
 	active := uint32(depressed) | uint32(latched) | uint32(locked)
 	p.keyMods = event.Modifiers{
@@ -476,16 +477,12 @@ func cstringToString(p *byte) string {
 	if p == nil {
 		return ""
 	}
-	ptr := uintptr(unsafe.Pointer(p))
+	sl := unsafe.Slice(p, 1<<20) // 1 MB max – far larger than any Wayland interface name
 	n := 0
-	for *(*byte)(unsafe.Pointer(ptr + uintptr(n))) != 0 {
+	for n < len(sl) && sl[n] != 0 {
 		n++
 	}
-	b := make([]byte, n)
-	for i := 0; i < n; i++ {
-		b[i] = *(*byte)(unsafe.Pointer(ptr + uintptr(i)))
-	}
-	return string(b)
+	return unsafe.String(p, n)
 }
 
 // Compile-time interface check.

@@ -1,0 +1,23 @@
+# Binaries
+*.test
+*.out
+feed
+
+# Backup files
+*.orig
+*.bak
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# devtools backup
+devtools_backup/
+devtools/memory/

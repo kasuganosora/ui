@@ -11,7 +11,7 @@ import (
 type SkillNodeState uint8
 
 const (
-	SkillLocked    SkillNodeState = iota
+	SkillLocked SkillNodeState = iota
 	SkillAvailable
 	SkillUnlocked
 	SkillMaxed
@@ -34,14 +34,14 @@ type SkillNode struct {
 // SkillTree displays an interconnected skill/talent tree.
 type SkillTree struct {
 	widget.Base
-	nodes      []*SkillNode
-	scrollX    float32
-	scrollY    float32
-	nodeSize   float32
-	points     int // available skill points
-	onUnlock   func(nodeID string)
-	onSelect   func(nodeID string)
-	selected   string
+	nodes    []*SkillNode
+	scrollX  float32
+	scrollY  float32
+	nodeSize float32
+	points   int // available skill points
+	onUnlock func(nodeID string)
+	onSelect func(nodeID string)
+	selected string
 }
 
 func NewSkillTree(tree *core.Tree, cfg *widget.Config) *SkillTree {
@@ -54,15 +54,15 @@ func NewSkillTree(tree *core.Tree, cfg *widget.Config) *SkillTree {
 	}
 }
 
-func (st *SkillTree) Nodes() []*SkillNode        { return st.nodes }
-func (st *SkillTree) Points() int                  { return st.points }
-func (st *SkillTree) Selected() string             { return st.selected }
-func (st *SkillTree) SetPoints(p int)              { st.points = p }
-func (st *SkillTree) SetSelected(id string)        { st.selected = id }
-func (st *SkillTree) SetNodeSize(s float32)        { st.nodeSize = s }
-func (st *SkillTree) SetScroll(x, y float32)       { st.scrollX = x; st.scrollY = y }
-func (st *SkillTree) OnUnlock(fn func(string))     { st.onUnlock = fn }
-func (st *SkillTree) OnSelect(fn func(string))     { st.onSelect = fn }
+func (st *SkillTree) Nodes() []*SkillNode      { return st.nodes }
+func (st *SkillTree) Points() int              { return st.points }
+func (st *SkillTree) Selected() string         { return st.selected }
+func (st *SkillTree) SetPoints(p int)          { st.points = p }
+func (st *SkillTree) SetSelected(id string)    { st.selected = id }
+func (st *SkillTree) SetNodeSize(s float32)    { st.nodeSize = s }
+func (st *SkillTree) SetScroll(x, y float32)   { st.scrollX = x; st.scrollY = y }
+func (st *SkillTree) OnUnlock(fn func(string)) { st.onUnlock = fn }
+func (st *SkillTree) OnSelect(fn func(string)) { st.onSelect = fn }
 
 func (st *SkillTree) AddNode(node *SkillNode) {
 	st.nodes = append(st.nodes, node)

@@ -85,8 +85,12 @@ func TestImgLoadPNG(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	png.Encode(f, rgba)
-	f.Close()
+	if err := png.Encode(f, rgba); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	tree := core.NewTree()
 	img := NewImg(tree, nil)
@@ -130,8 +134,12 @@ func TestImgLoadGIF(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gif.EncodeAll(f, g)
-	f.Close()
+	if err := gif.EncodeAll(f, g); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	tree := core.NewTree()
 	img := NewImg(tree, nil)
@@ -290,9 +298,16 @@ func TestImgOnLoadCallback(t *testing.T) {
 	path := filepath.Join(dir, "test.png")
 
 	rgba := image.NewRGBA(image.Rect(0, 0, 4, 4))
-	f, _ := os.Create(path)
-	png.Encode(f, rgba)
-	f.Close()
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := png.Encode(f, rgba); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	tree := core.NewTree()
 	img := NewImg(tree, nil)

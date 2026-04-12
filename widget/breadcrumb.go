@@ -72,9 +72,9 @@ func (b *Breadcrumb) SetOptions(items []BreadcrumbItem) {
 }
 
 func (b *Breadcrumb) SetSeparator(s string)    { b.separator = s }
-func (b *Breadcrumb) SetMaxItemWidth(w string)  { b.maxItemWidth = w }
-func (b *Breadcrumb) SetMaxItems(n int)         { b.maxItems = n }
-func (b *Breadcrumb) SetTheme(t string)         { b.theme = t }
+func (b *Breadcrumb) SetMaxItemWidth(w string) { b.maxItemWidth = w }
+func (b *Breadcrumb) SetMaxItems(n int)        { b.maxItems = n }
+func (b *Breadcrumb) SetTheme(t string)        { b.theme = t }
 
 // OnClick sets the callback for breadcrumb item clicks.
 func (b *Breadcrumb) OnClick(fn func(int, string)) { b.onClick = fn }

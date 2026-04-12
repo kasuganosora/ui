@@ -20,7 +20,7 @@ type ItemData struct {
 type ItemRarity uint8
 
 const (
-	RarityCommon    ItemRarity = iota
+	RarityCommon ItemRarity = iota
 	RarityUncommon
 	RarityRare
 	RarityEpic
@@ -64,14 +64,14 @@ func NewInventory(tree *core.Tree, rows, cols int, cfg *widget.Config) *Inventor
 	}
 }
 
-func (inv *Inventory) Rows() int                  { return inv.rows }
-func (inv *Inventory) Cols() int                   { return inv.cols }
-func (inv *Inventory) Title() string               { return inv.title }
-func (inv *Inventory) SetTitle(t string)            { inv.title = t }
-func (inv *Inventory) SetEmbedded(v bool)           { inv.embedded = v }
-func (inv *Inventory) SetSlotSize(s float32)        { inv.slotSize = s }
-func (inv *Inventory) SetGap(g float32)             { inv.gap = g }
-func (inv *Inventory) OnDrop(fn func(int, any))     { inv.onDrop = fn }
+func (inv *Inventory) Rows() int                        { return inv.rows }
+func (inv *Inventory) Cols() int                        { return inv.cols }
+func (inv *Inventory) Title() string                    { return inv.title }
+func (inv *Inventory) SetTitle(t string)                { inv.title = t }
+func (inv *Inventory) SetEmbedded(v bool)               { inv.embedded = v }
+func (inv *Inventory) SetSlotSize(s float32)            { inv.slotSize = s }
+func (inv *Inventory) SetGap(g float32)                 { inv.gap = g }
+func (inv *Inventory) OnDrop(fn func(int, any))         { inv.onDrop = fn }
 func (inv *Inventory) OnSelect(fn func(int, *ItemData)) { inv.onSelect = fn }
 
 func (inv *Inventory) SetItem(slot int, item *ItemData) {

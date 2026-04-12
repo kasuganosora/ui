@@ -71,7 +71,7 @@ func (e *Engine) layoutGrid(nodeIdx int, availWidth, availHeight float32) {
 
 	// Place children into grid cells
 	type gridPlacement struct {
-		col, row     int // 0-based start
+		col, row         int // 0-based start
 		colSpan, rowSpan int
 	}
 	placements := make([]gridPlacement, len(children))

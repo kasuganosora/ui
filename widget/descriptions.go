@@ -15,11 +15,11 @@ type DescriptionItem struct {
 // Descriptions displays a list of label-value pairs.
 type Descriptions struct {
 	Base
-	title   string
-	items   []DescriptionItem
-	columns int
+	title    string
+	items    []DescriptionItem
+	columns  int
 	bordered bool
-	rowH    float32
+	rowH     float32
 }
 
 func NewDescriptions(tree *core.Tree, cfg *Config) *Descriptions {
@@ -34,11 +34,11 @@ func NewDescriptions(tree *core.Tree, cfg *Config) *Descriptions {
 	}
 }
 
-func (d *Descriptions) Title() string               { return d.title }
-func (d *Descriptions) Items() []DescriptionItem     { return d.items }
-func (d *Descriptions) SetTitle(t string)            { d.title = t }
-func (d *Descriptions) SetColumns(c int)             { d.columns = c }
-func (d *Descriptions) SetBordered(b bool)           { d.bordered = b }
+func (d *Descriptions) Title() string            { return d.title }
+func (d *Descriptions) Items() []DescriptionItem { return d.items }
+func (d *Descriptions) SetTitle(t string)        { d.title = t }
+func (d *Descriptions) SetColumns(c int)         { d.columns = c }
+func (d *Descriptions) SetBordered(b bool)       { d.bordered = b }
 
 func (d *Descriptions) AddItem(item DescriptionItem) {
 	d.items = append(d.items, item)

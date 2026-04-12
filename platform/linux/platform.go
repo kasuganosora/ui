@@ -182,13 +182,6 @@ func (p *Platform) Terminate() {
 	p.inited = false
 }
 
-// pushEvent appends an event to the queue (called from event translation).
-func (p *Platform) pushEvent(e event.Event) {
-	p.mu.Lock()
-	p.events = append(p.events, e)
-	p.mu.Unlock()
-}
-
 // findWindow finds the Window struct for the given X11 window ID.
 func (p *Platform) findWindow(xwin XWindow) *Window {
 	for _, w := range p.windows {

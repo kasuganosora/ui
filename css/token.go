@@ -8,32 +8,32 @@ package css
 type TokenType uint8
 
 const (
-	TokenEOF TokenType = iota
-	TokenIdent         // e.g. "color", "div", "flex"
-	TokenHash          // e.g. "#id", "#ff0000"
-	TokenString        // e.g. "hello", 'world'
-	TokenNumber        // e.g. "12", "3.14"
-	TokenDimension     // e.g. "12px", "50%", "1.5em"
-	TokenColon         // :
-	TokenSemicolon     // ;
-	TokenComma         // ,
-	TokenDot           // .
-	TokenLBrace        // {
-	TokenRBrace        // }
-	TokenLParen        // (
-	TokenRParen        // )
-	TokenLBracket      // [
-	TokenRBracket      // ]
-	TokenGT            // >
-	TokenPlus          // +
-	TokenTilde         // ~
-	TokenStar          // *
-	TokenSlash         // /
-	TokenAt            // @
-	TokenExcl          // !
-	TokenWhitespace    // spaces/tabs/newlines
-	TokenFunction      // e.g. "rgb(", "var("
-	TokenDelim         // any other single character
+	TokenEOF        TokenType = iota
+	TokenIdent                // e.g. "color", "div", "flex"
+	TokenHash                 // e.g. "#id", "#ff0000"
+	TokenString               // e.g. "hello", 'world'
+	TokenNumber               // e.g. "12", "3.14"
+	TokenDimension            // e.g. "12px", "50%", "1.5em"
+	TokenColon                // :
+	TokenSemicolon            // ;
+	TokenComma                // ,
+	TokenDot                  // .
+	TokenLBrace               // {
+	TokenRBrace               // }
+	TokenLParen               // (
+	TokenRParen               // )
+	TokenLBracket             // [
+	TokenRBracket             // ]
+	TokenGT                   // >
+	TokenPlus                 // +
+	TokenTilde                // ~
+	TokenStar                 // *
+	TokenSlash                // /
+	TokenAt                   // @
+	TokenExcl                 // !
+	TokenWhitespace           // spaces/tabs/newlines
+	TokenFunction             // e.g. "rgb(", "var("
+	TokenDelim                // any other single character
 )
 
 // Token is a single CSS token.

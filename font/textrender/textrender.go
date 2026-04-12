@@ -21,7 +21,7 @@ type Renderer struct {
 	atlas     *atlas.Atlas // R8 atlas for SDF/grayscale text
 	sdf       bool
 	dpiScale  float32 // DPI scale for converting atlas bitmap (physical) to logical pixels
-	keepAlive func() // Called during heavy rasterization to keep the window responsive
+	keepAlive func()  // Called during heavy rasterization to keep the window responsive
 
 	// Color emoji support
 	colorAtlas *atlas.Atlas     // RGBA atlas for color emoji glyphs (created lazily)
@@ -49,8 +49,8 @@ type Options struct {
 	Manager   font.Manager
 	Atlas     *atlas.Atlas
 	SDF       bool
-	DPIScale  float32 // DPI scale factor (1.0 = 96 DPI). Defaults to 1.0 if zero.
-	KeepAlive func() // Optional: called during glyph rasterization to pump the OS message queue
+	DPIScale  float32        // DPI scale factor (1.0 = 96 DPI). Defaults to 1.0 if zero.
+	KeepAlive func()         // Optional: called during glyph rasterization to pump the OS message queue
 	Backend   render.Backend // For creating color atlas texture (optional)
 }
 
@@ -179,8 +179,10 @@ func (r *Renderer) drawRun(buf *render.CommandBuffer, run font.GlyphRun, opts Dr
 // drawColorRun renders color emoji glyphs as individual ImageCmd commands.
 // Each glyph is a separate textured quad using the RGBA color atlas.
 func (r *Renderer) drawColorRun(buf *render.CommandBuffer, run font.GlyphRun, opts DrawOptions) {
+	if len(run.Glyphs) == 0 {
+		return
+	}
 	ca := r.ensureColorAtlas()
-	tex := ca.Texture()
 
 	for _, pg := range run.Glyphs {
 		entry := r.ensureColorGlyph(run.FontID, pg.GlyphID, run.FontSize)
@@ -194,11 +196,8 @@ func (r *Renderer) drawColorRun(buf *render.CommandBuffer, run font.GlyphRun, op
 		w := float32(entry.Region.Width) / r.dpiScale
 		h := float32(entry.Region.Height) / r.dpiScale
 
-		// Re-fetch texture handle after potential atlas growth/upload
-		tex = ca.Texture()
-
 		cmd := render.ImageCmd{
-			Texture: tex,
+			Texture: ca.Texture(),
 			SrcRect: uimath.NewRect(entry.U0, entry.V0, entry.U1-entry.U0, entry.V1-entry.V0),
 			DstRect: uimath.NewRect(gx, gy, w, h),
 			Tint:    uimath.Color{R: 1, G: 1, B: 1, A: opts.Color.A},
@@ -315,8 +314,8 @@ func (r *Renderer) Destroy() {
 // DrawOptions controls how text is rendered.
 type DrawOptions struct {
 	ShapeOpts font.ShapeOptions
-	OriginX   float32      // Screen X origin
-	OriginY   float32      // Screen Y origin
+	OriginX   float32 // Screen X origin
+	OriginY   float32 // Screen Y origin
 	Color     uimath.Color
 	ZOrder    int32
 	Opacity   float32 // 0..1

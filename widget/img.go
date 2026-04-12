@@ -43,7 +43,7 @@ const (
 
 // gifFrame holds a pre-composited frame for animated GIF playback.
 type gifFrame struct {
-	pixels []byte       // RGBA pixel data
+	pixels []byte        // RGBA pixel data
 	delay  time.Duration // display duration
 }
 
@@ -96,21 +96,21 @@ func NewImg(tree *core.Tree, cfg *Config) *Img {
 }
 
 // Getters
-func (img *Img) Src() string       { return img.src }
-func (img *Img) Alt() string       { return img.alt }
-func (img *Img) State() ImgState   { return img.state }
-func (img *Img) Error() string     { return img.errMsg }
+func (img *Img) Src() string          { return img.src }
+func (img *Img) Alt() string          { return img.alt }
+func (img *Img) State() ImgState      { return img.state }
+func (img *Img) Error() string        { return img.errMsg }
 func (img *Img) ObjectFit() ObjectFit { return img.objectFit }
-func (img *Img) NaturalWidth() int  { return img.naturalW }
-func (img *Img) NaturalHeight() int { return img.naturalH }
-func (img *Img) IsAnimated() bool  { return len(img.frames) > 1 }
-func (img *Img) Playing() bool     { return img.playing }
+func (img *Img) NaturalWidth() int    { return img.naturalW }
+func (img *Img) NaturalHeight() int   { return img.naturalH }
+func (img *Img) IsAnimated() bool     { return len(img.frames) > 1 }
+func (img *Img) Playing() bool        { return img.playing }
 
 // Setters
-func (img *Img) SetAlt(alt string)         { img.alt = alt }
-func (img *Img) SetObjectFit(f ObjectFit)  { img.objectFit = f }
-func (img *Img) OnLoad(fn func())          { img.onLoad = fn }
-func (img *Img) OnError(fn func(error))    { img.onError = fn }
+func (img *Img) SetAlt(alt string)        { img.alt = alt }
+func (img *Img) SetObjectFit(f ObjectFit) { img.objectFit = f }
+func (img *Img) OnLoad(fn func())         { img.onLoad = fn }
+func (img *Img) OnError(fn func(error))   { img.onError = fn }
 
 // SetSrc sets the image source path and triggers loading.
 func (img *Img) SetSrc(src string) {
@@ -165,7 +165,7 @@ func (img *Img) load() {
 		img.setError(err)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Check if GIF (try animated decode first)
 	if isGIF(img.src) {
@@ -192,7 +192,11 @@ func (img *Img) load() {
 	img.pendingPixels = rgba.Pix
 	img.pendingW = img.naturalW
 	img.pendingH = img.naturalH
-	img.state = ImgStateLoading
+	img.state = ImgStateLoaded
+	if img.onLoad != nil {
+		img.onLoad()
+		img.onLoad = nil
+	}
 }
 
 func (img *Img) loadGIF(f *os.File) {
@@ -275,7 +279,11 @@ func (img *Img) loadGIFFromReader(r io.Reader) {
 	img.pendingPixels = img.frames[0].pixels
 	img.pendingW = canvasW
 	img.pendingH = canvasH
-	img.state = ImgStateLoading
+	img.state = ImgStateLoaded
+	if img.onLoad != nil {
+		img.onLoad()
+		img.onLoad = nil
+	}
 
 	// Auto-play animated GIFs
 	if len(img.frames) > 1 {
@@ -327,7 +335,11 @@ func (img *Img) loadFromBytes(data []byte, hint string) {
 	img.pendingPixels = rgba.Pix
 	img.pendingW = img.naturalW
 	img.pendingH = img.naturalH
-	img.state = ImgStateLoading
+	img.state = ImgStateLoaded
+	if img.onLoad != nil {
+		img.onLoad()
+		img.onLoad = nil
+	}
 }
 
 func isRemoteURL(src string) bool {
@@ -376,7 +388,7 @@ func (img *Img) uploadFrame(idx int) {
 		return
 	}
 	region := uimath.NewRect(0, 0, float32(img.naturalW), float32(img.naturalH))
-	backend.UpdateTexture(img.texture, region, img.frames[idx].pixels)
+	_ = backend.UpdateTexture(img.texture, region, img.frames[idx].pixels)
 }
 
 func (img *Img) setError(err error) {

@@ -75,7 +75,7 @@ func NewTimeline(tree *core.Tree, cfg *Config) *Timeline {
 	}
 }
 
-func (t *Timeline) Items() []TimelineItem             { return t.items }
+func (t *Timeline) Items() []TimelineItem              { return t.items }
 func (t *Timeline) SetItemHeight(h float32)            { t.itemH = h }
 func (t *Timeline) SetLabelAlign(a TimelineLabelAlign) { t.labelAlign = a }
 func (t *Timeline) SetLayout(l TimelineLayout)         { t.layout = l }

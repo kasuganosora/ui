@@ -18,23 +18,23 @@ import (
 // Position (float2) + UV (float2) + Color (float4) + RectSize (float2) +
 // Radius (float4) + BorderWidth (float1) + BorderColor (float4) = 19 floats = 76 bytes
 type RectVertex struct {
-	PosX, PosY                                 float32
-	U, V                                       float32
-	ColorR, ColorG, ColorB, ColorA             float32
-	RectW, RectH                               float32
-	RadiusTL, RadiusTR, RadiusBR, RadiusBL     float32
-	BorderWidth                                float32
-	BorderR, BorderG, BorderB, BorderA         float32
+	PosX, PosY                             float32
+	U, V                                   float32
+	ColorR, ColorG, ColorB, ColorA         float32
+	RectW, RectH                           float32
+	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32
+	BorderWidth                            float32
+	BorderR, BorderG, BorderB, BorderA     float32
 }
 
 // ShadowVertex matches the shadow shader input layout — 15 float32, 60 bytes.
 type ShadowVertex struct {
-	PosX, PosY                              float32
-	U, V                                    float32
-	ColorR, ColorG, ColorB, ColorA          float32
-	ElemW, ElemH                            float32
+	PosX, PosY                             float32
+	U, V                                   float32
+	ColorR, ColorG, ColorB, ColorA         float32
+	ElemW, ElemH                           float32
 	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32
-	Blur                                    float32
+	Blur                                   float32
 }
 
 // TexturedVertex for text and image rendering.
@@ -52,10 +52,10 @@ type dx9Pipeline uint8
 
 const (
 	pipelineNone     dx9Pipeline = iota
-	pipelineRect                         // SDF rect shader
-	pipelineTextured                     // image shader (sRGB texture)
-	pipelineText                         // text shader (coverage atlas, no sRGB)
-	pipelineShadow                       // shadow shader
+	pipelineRect                 // SDF rect shader
+	pipelineTextured             // image shader (sRGB texture)
+	pipelineText                 // text shader (coverage atlas, no sRGB)
+	pipelineShadow               // shadow shader
 )
 
 type textureEntry struct {
@@ -67,150 +67,150 @@ type textureEntry struct {
 
 // ---- IDirect3D9 vtable indices (IUnknown: 0-2) ----
 const (
-	d3d9RegisterSoftwareDevice = 3
-	d3d9GetAdapterCount        = 4
-	d3d9GetAdapterIdentifier   = 5
-	d3d9GetAdapterModeCount    = 6
-	d3d9EnumAdapterModes       = 7
-	d3d9GetAdapterDisplayMode  = 8
-	d3d9CheckDeviceType        = 9
-	d3d9CheckDeviceFormat      = 10
-	d3d9CheckDeviceMultiSampleType = 11
-	d3d9CheckDepthStencilMatch = 12
+	d3d9RegisterSoftwareDevice      = 3
+	d3d9GetAdapterCount             = 4
+	d3d9GetAdapterIdentifier        = 5
+	d3d9GetAdapterModeCount         = 6
+	d3d9EnumAdapterModes            = 7
+	d3d9GetAdapterDisplayMode       = 8
+	d3d9CheckDeviceType             = 9
+	d3d9CheckDeviceFormat           = 10
+	d3d9CheckDeviceMultiSampleType  = 11
+	d3d9CheckDepthStencilMatch      = 12
 	d3d9CheckDeviceFormatConversion = 13
-	d3d9GetDeviceCaps          = 14
-	d3d9GetAdapterMonitor      = 15
-	d3d9CreateDevice           = 16
+	d3d9GetDeviceCaps               = 14
+	d3d9GetAdapterMonitor           = 15
+	d3d9CreateDevice                = 16
 )
 
 // ---- IDirect3DDevice9 vtable indices (IUnknown: 0-2) ----
 const (
-	devTestCooperativeLevel = 3
-	devGetAvailableTextureMem = 4
-	devEvictManagedResources = 5
-	devGetDirect3D          = 6
-	devGetDeviceCaps        = 7
-	devGetDisplayMode       = 8
-	devGetCreationParameters = 9
-	devSetCursorProperties  = 10
-	devSetCursorPosition    = 11
-	devShowCursor           = 12
-	devCreateAdditionalSwapChain = 13
-	devGetSwapChain         = 14
-	devGetNumberOfSwapChains = 15
-	devReset                = 16
-	devPresent              = 17
-	devGetBackBuffer        = 18
-	devGetRasterStatus      = 19
-	devSetDialogBoxMode     = 20
-	devSetGammaRamp         = 21
-	devGetGammaRamp         = 22
-	devCreateTexture        = 23
-	devCreateVolumeTexture  = 24
-	devCreateCubeTexture    = 25
-	devCreateVertexBuffer   = 26
-	devCreateIndexBuffer    = 27
-	devCreateRenderTarget   = 28
-	devCreateDepthStencilSurface = 29
-	devUpdateSurface        = 30
-	devUpdateTexture        = 31
-	devGetRenderTargetData  = 32
-	devGetFrontBufferData   = 33
-	devStretchRect          = 34
-	devColorFill            = 35
+	devTestCooperativeLevel        = 3
+	devGetAvailableTextureMem      = 4
+	devEvictManagedResources       = 5
+	devGetDirect3D                 = 6
+	devGetDeviceCaps               = 7
+	devGetDisplayMode              = 8
+	devGetCreationParameters       = 9
+	devSetCursorProperties         = 10
+	devSetCursorPosition           = 11
+	devShowCursor                  = 12
+	devCreateAdditionalSwapChain   = 13
+	devGetSwapChain                = 14
+	devGetNumberOfSwapChains       = 15
+	devReset                       = 16
+	devPresent                     = 17
+	devGetBackBuffer               = 18
+	devGetRasterStatus             = 19
+	devSetDialogBoxMode            = 20
+	devSetGammaRamp                = 21
+	devGetGammaRamp                = 22
+	devCreateTexture               = 23
+	devCreateVolumeTexture         = 24
+	devCreateCubeTexture           = 25
+	devCreateVertexBuffer          = 26
+	devCreateIndexBuffer           = 27
+	devCreateRenderTarget          = 28
+	devCreateDepthStencilSurface   = 29
+	devUpdateSurface               = 30
+	devUpdateTexture               = 31
+	devGetRenderTargetData         = 32
+	devGetFrontBufferData          = 33
+	devStretchRect                 = 34
+	devColorFill                   = 35
 	devCreateOffscreenPlainSurface = 36
-	devSetRenderTarget      = 37
-	devGetRenderTarget      = 38
-	devSetDepthStencilSurface = 39
-	devGetDepthStencilSurface = 40
-	devBeginScene           = 41
-	devEndScene             = 42
-	devClear                = 43
-	devSetTransform         = 44
-	devGetTransform         = 45
-	devMultiplyTransform    = 46
-	devSetViewport          = 47
-	devGetViewport          = 48
-	devSetMaterial          = 49
-	devGetMaterial          = 50
-	devSetLight             = 51
-	devGetLight             = 52
-	devLightEnable          = 53
-	devGetLightEnable       = 54
-	devSetClipPlane         = 55
-	devGetClipPlane         = 56
-	devSetRenderState       = 57
-	devGetRenderState       = 58
-	devCreateStateBlock     = 59
-	devBeginStateBlock      = 60
-	devEndStateBlock        = 61
-	devSetClipStatus        = 62
-	devGetClipStatus        = 63
-	devGetTexture           = 64
-	devSetTexture           = 65
-	devGetTextureStageState = 66
-	devSetTextureStageState = 67
-	devGetSamplerState      = 68
-	devSetSamplerState      = 69
-	devValidateDevice       = 70
-	devSetPaletteEntries    = 71
-	devGetPaletteEntries    = 72
-	devSetCurrentTexturePalette = 73
-	devGetCurrentTexturePalette = 74
-	devSetScissorRect       = 75
-	devGetScissorRect       = 76
+	devSetRenderTarget             = 37
+	devGetRenderTarget             = 38
+	devSetDepthStencilSurface      = 39
+	devGetDepthStencilSurface      = 40
+	devBeginScene                  = 41
+	devEndScene                    = 42
+	devClear                       = 43
+	devSetTransform                = 44
+	devGetTransform                = 45
+	devMultiplyTransform           = 46
+	devSetViewport                 = 47
+	devGetViewport                 = 48
+	devSetMaterial                 = 49
+	devGetMaterial                 = 50
+	devSetLight                    = 51
+	devGetLight                    = 52
+	devLightEnable                 = 53
+	devGetLightEnable              = 54
+	devSetClipPlane                = 55
+	devGetClipPlane                = 56
+	devSetRenderState              = 57
+	devGetRenderState              = 58
+	devCreateStateBlock            = 59
+	devBeginStateBlock             = 60
+	devEndStateBlock               = 61
+	devSetClipStatus               = 62
+	devGetClipStatus               = 63
+	devGetTexture                  = 64
+	devSetTexture                  = 65
+	devGetTextureStageState        = 66
+	devSetTextureStageState        = 67
+	devGetSamplerState             = 68
+	devSetSamplerState             = 69
+	devValidateDevice              = 70
+	devSetPaletteEntries           = 71
+	devGetPaletteEntries           = 72
+	devSetCurrentTexturePalette    = 73
+	devGetCurrentTexturePalette    = 74
+	devSetScissorRect              = 75
+	devGetScissorRect              = 76
 	devSetSoftwareVertexProcessing = 77
 	devGetSoftwareVertexProcessing = 78
-	devSetNPatchMode        = 79
-	devGetNPatchMode        = 80
-	devDrawPrimitive        = 81
-	devDrawIndexedPrimitive = 82
-	devDrawPrimitiveUP      = 83
-	devDrawIndexedPrimitiveUP = 84
-	devProcessVertices      = 85
-	devCreateVertexDeclaration = 86
-	devSetVertexDeclaration = 87
-	devGetVertexDeclaration = 88
-	devSetFVF               = 89
-	devGetFVF               = 90
-	devCreateVertexShaderFn = 91
-	devSetVertexShader      = 92
-	devGetVertexShader      = 93
-	devSetVertexShaderConstantF = 94
-	devGetVertexShaderConstantF = 95
-	devSetVertexShaderConstantI = 96
-	devGetVertexShaderConstantI = 97
-	devSetVertexShaderConstantB = 98
-	devGetVertexShaderConstantB = 99
-	devSetStreamSource      = 100
-	devGetStreamSource      = 101
-	devSetStreamSourceFreq  = 102
-	devGetStreamSourceFreq  = 103
-	devSetIndices           = 104
-	devGetIndices           = 105
-	devCreatePixelShaderFn  = 106
-	devSetPixelShader       = 107
-	devGetPixelShader       = 108
-	devSetPixelShaderConstantF = 109
-	devGetPixelShaderConstantF = 110
-	devSetPixelShaderConstantI = 111
-	devGetPixelShaderConstantI = 112
-	devSetPixelShaderConstantB = 113
-	devGetPixelShaderConstantB = 114
-	devDrawRectPatch        = 115
-	devDrawTriPatch         = 116
-	devDeletePatch          = 117
-	devCreateQuery          = 118
+	devSetNPatchMode               = 79
+	devGetNPatchMode               = 80
+	devDrawPrimitive               = 81
+	devDrawIndexedPrimitive        = 82
+	devDrawPrimitiveUP             = 83
+	devDrawIndexedPrimitiveUP      = 84
+	devProcessVertices             = 85
+	devCreateVertexDeclaration     = 86
+	devSetVertexDeclaration        = 87
+	devGetVertexDeclaration        = 88
+	devSetFVF                      = 89
+	devGetFVF                      = 90
+	devCreateVertexShaderFn        = 91
+	devSetVertexShader             = 92
+	devGetVertexShader             = 93
+	devSetVertexShaderConstantF    = 94
+	devGetVertexShaderConstantF    = 95
+	devSetVertexShaderConstantI    = 96
+	devGetVertexShaderConstantI    = 97
+	devSetVertexShaderConstantB    = 98
+	devGetVertexShaderConstantB    = 99
+	devSetStreamSource             = 100
+	devGetStreamSource             = 101
+	devSetStreamSourceFreq         = 102
+	devGetStreamSourceFreq         = 103
+	devSetIndices                  = 104
+	devGetIndices                  = 105
+	devCreatePixelShaderFn         = 106
+	devSetPixelShader              = 107
+	devGetPixelShader              = 108
+	devSetPixelShaderConstantF     = 109
+	devGetPixelShaderConstantF     = 110
+	devSetPixelShaderConstantI     = 111
+	devGetPixelShaderConstantI     = 112
+	devSetPixelShaderConstantB     = 113
+	devGetPixelShaderConstantB     = 114
+	devDrawRectPatch               = 115
+	devDrawTriPatch                = 116
+	devDeletePatch                 = 117
+	devCreateQuery                 = 118
 )
 
 // ---- IDirect3DTexture9 vtable indices ----
 // IUnknown(0-2) + IDirect3DResource9(3-9) + IDirect3DBaseTexture9(10-17)
 const (
-	texGetLevelDesc  = 17
+	texGetLevelDesc    = 17
 	texGetSurfaceLevel = 18
-	texLockRect      = 19
-	texUnlockRect    = 20
-	texAddDirtyRect  = 21
+	texLockRect        = 19
+	texUnlockRect      = 20
+	texAddDirtyRect    = 21
 )
 
 // ---- IDirect3DSurface9 vtable indices ----
@@ -322,14 +322,14 @@ func (b *Backend) Init(window platform.Window) error {
 
 	// Create device
 	b.pp = D3DPRESENT_PARAMETERS{
-		BackBufferWidth:  uint32(b.width),
-		BackBufferHeight: uint32(b.height),
-		BackBufferFormat: D3DFMT_A8R8G8B8,
-		BackBufferCount:  1,
-		MultiSampleType:  D3DMULTISAMPLE_NONE,
-		SwapEffect:       D3DSWAPEFFECT_DISCARD,
-		HDeviceWindow:    b.hwnd,
-		Windowed:         1,
+		BackBufferWidth:      uint32(b.width),
+		BackBufferHeight:     uint32(b.height),
+		BackBufferFormat:     D3DFMT_A8R8G8B8,
+		BackBufferCount:      1,
+		MultiSampleType:      D3DMULTISAMPLE_NONE,
+		SwapEffect:           D3DSWAPEFFECT_DISCARD,
+		HDeviceWindow:        b.hwnd,
+		Windowed:             1,
 		PresentationInterval: 0, // D3DPRESENT_INTERVAL_IMMEDIATE
 	}
 
@@ -872,8 +872,8 @@ func (b *Backend) BeginFrame() {
 	// Clear + BeginScene
 	comCall(comVtbl(dev, devClear), dev,
 		0, 0, // no rects
-		uintptr(1|2), // D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER
-		uintptr(0xFF000000), // black
+		uintptr(1|2),                   // D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER
+		uintptr(0xFF000000),            // black
 		uintptr(math.Float64bits(1.0)), // Z
 		0)
 
@@ -1084,7 +1084,7 @@ func (b *Backend) renderRectBatch(commands []render.Command) {
 			RadiusTL: rect.Corners.TopLeft * s, RadiusTR: rect.Corners.TopRight * s,
 			RadiusBR: rect.Corners.BottomRight * s, RadiusBL: rect.Corners.BottomLeft * s,
 			BorderWidth: rect.BorderWidth * s,
-			BorderR: rect.BorderColor.R, BorderG: rect.BorderColor.G,
+			BorderR:     rect.BorderColor.R, BorderG: rect.BorderColor.G,
 			BorderB: rect.BorderColor.B, BorderA: rect.BorderColor.A,
 		}
 
@@ -1477,8 +1477,8 @@ func (b *Backend) CreateTexture(desc render.TextureDesc) (render.TextureHandle, 
 	hr := comCall(comVtbl(b.device, devCreateTexture),
 		b.device,
 		uintptr(desc.Width), uintptr(desc.Height),
-		1,    // levels
-		0,    // usage
+		1, // levels
+		0, // usage
 		uintptr(d3dFormat),
 		uintptr(D3DPOOL_MANAGED),
 		uintptr(unsafe.Pointer(&texture)),

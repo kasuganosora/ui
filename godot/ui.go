@@ -113,7 +113,7 @@ func NewUI(opts UIOptions) (*UI, error) {
 
 	u.fontEngine.SetDPIScale(opts.DPIScale)
 	u.glyphAtlas = atlas.New(atlas.Options{Width: 512, Height: 512, Backend: u.backend})
-	u.glyphAtlas.EnsureTexture()
+	_ = u.glyphAtlas.EnsureTexture()
 
 	u.textRenderer = textrender.New(textrender.Options{
 		Manager:  mgr,
@@ -200,7 +200,7 @@ func (u *UI) Frame(dt float32) {
 	u.textRenderer.BeginFrame()
 	u.buf.Reset()
 	u.root.Draw(u.buf)
-	u.textRenderer.Upload()
+	_ = u.textRenderer.Upload()
 	u.backend.Submit(u.buf)
 	u.backend.EndFrame()
 	u.tree.ClearAllDirty()
@@ -391,11 +391,11 @@ func newMockEngine() *mockEngine {
 	return e
 }
 
-func (e *mockEngine) LoadFont([]byte) (font.ID, error)     { return 1, nil }
-func (e *mockEngine) LoadFontFile(string) (font.ID, error)  { return 1, nil }
-func (e *mockEngine) UnloadFont(font.ID)                    {}
-func (e *mockEngine) SetDPIScale(float32)                    {}
-func (e *mockEngine) Destroy()                              {}
+func (e *mockEngine) LoadFont([]byte) (font.ID, error)                             { return 1, nil }
+func (e *mockEngine) LoadFontFile(string) (font.ID, error)                         { return 1, nil }
+func (e *mockEngine) UnloadFont(font.ID)                                           {}
+func (e *mockEngine) SetDPIScale(float32)                                          {}
+func (e *mockEngine) Destroy()                                                     {}
 func (e *mockEngine) Kerning(font.ID, font.GlyphID, font.GlyphID, float32) float32 { return 0 }
 func (e *mockEngine) FontMetrics(_ font.ID, size float32) font.Metrics {
 	return font.Metrics{Ascent: size * 0.8, Descent: size * 0.2, LineHeight: size * 1.2, UnitsPerEm: 1000}

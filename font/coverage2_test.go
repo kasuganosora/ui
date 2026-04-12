@@ -31,7 +31,9 @@ func TestResolveRune(t *testing.T) {
 func TestResolveRuneNotFound(t *testing.T) {
 	engine := newMockEngine()
 	mgr := NewManager(engine)
-	mgr.Register("Test", WeightRegular, StyleNormal, nil)
+	if _, err := mgr.Register("Test", WeightRegular, StyleNormal, nil); err != nil {
+		t.Fatal(err)
+	}
 
 	// Rune that doesn't exist in any font
 	_, ok := mgr.ResolveRune(Properties{Family: "Test", Weight: WeightRegular, Style: StyleNormal}, '\U0001F600')
@@ -43,8 +45,12 @@ func TestResolveRuneNotFound(t *testing.T) {
 func TestResolveRuneWithFallback(t *testing.T) {
 	engine := newMockEngine()
 	mgr := NewManager(engine)
-	mgr.Register("Primary", WeightRegular, StyleNormal, nil)
-	mgr.Register("Fallback", WeightRegular, StyleNormal, nil)
+	if _, err := mgr.Register("Primary", WeightRegular, StyleNormal, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mgr.Register("Fallback", WeightRegular, StyleNormal, nil); err != nil {
+		t.Fatal(err)
+	}
 
 	// Set fallback chain
 	mgr.SetFallbackChain("", []string{"Primary", "Fallback"})
@@ -70,8 +76,8 @@ func TestResolveRuneUnknownFamily(t *testing.T) {
 func TestResolveRuneFallbackSkipsPrimary(t *testing.T) {
 	engine := newMockEngine()
 	mgr := NewManager(engine)
-	mgr.Register("Primary", WeightRegular, StyleNormal, nil)
-	mgr.Register("Fallback", WeightRegular, StyleNormal, nil)
+	_, _ = mgr.Register("Primary", WeightRegular, StyleNormal, nil)
+	_, _ = mgr.Register("Fallback", WeightRegular, StyleNormal, nil)
 
 	mgr.SetFallbackChain("", []string{"Primary", "Fallback"})
 
@@ -198,8 +204,8 @@ func TestShaperTruncateMultiLineLimit(t *testing.T) {
 func TestResolveDifferentWeights(t *testing.T) {
 	engine := newMockEngine()
 	mgr := NewManager(engine)
-	mgr.Register("Test", WeightRegular, StyleNormal, nil)
-	mgr.Register("Test", WeightBold, StyleNormal, nil)
+	_, _ = mgr.Register("Test", WeightRegular, StyleNormal, nil)
+	_, _ = mgr.Register("Test", WeightBold, StyleNormal, nil)
 
 	// Resolve bold
 	id, ok := mgr.Resolve(Properties{Family: "Test", Weight: WeightBold, Style: StyleNormal})
@@ -212,8 +218,8 @@ func TestResolveDifferentWeights(t *testing.T) {
 func TestResolveDifferentStyles(t *testing.T) {
 	engine := newMockEngine()
 	mgr := NewManager(engine)
-	mgr.Register("Test", WeightRegular, StyleNormal, nil)
-	mgr.Register("Test", WeightRegular, StyleItalic, nil)
+	_, _ = mgr.Register("Test", WeightRegular, StyleNormal, nil)
+	_, _ = mgr.Register("Test", WeightRegular, StyleItalic, nil)
 
 	// Resolve italic
 	_, ok := mgr.Resolve(Properties{Family: "Test", Weight: WeightRegular, Style: StyleItalic})
@@ -225,8 +231,8 @@ func TestResolveDifferentStyles(t *testing.T) {
 func TestResolveClosestWeight(t *testing.T) {
 	engine := newMockEngine()
 	mgr := NewManager(engine)
-	mgr.Register("Test", 300, StyleNormal, nil)
-	mgr.Register("Test", 700, StyleNormal, nil)
+	_, _ = mgr.Register("Test", 300, StyleNormal, nil)
+	_, _ = mgr.Register("Test", 700, StyleNormal, nil)
 
 	// Request weight 400 — should get 300 (closer)
 	_, ok := mgr.Resolve(Properties{Family: "Test", Weight: 400, Style: StyleNormal})
@@ -238,7 +244,7 @@ func TestResolveClosestWeight(t *testing.T) {
 func TestResolveFallbackToAnyStyle(t *testing.T) {
 	engine := newMockEngine()
 	mgr := NewManager(engine)
-	mgr.Register("Test", WeightRegular, StyleItalic, nil) // only italic
+	_, _ = mgr.Register("Test", WeightRegular, StyleItalic, nil) // only italic
 
 	// Request normal style — should fall back to italic
 	_, ok := mgr.Resolve(Properties{Family: "Test", Weight: WeightRegular, Style: StyleNormal})
@@ -250,8 +256,8 @@ func TestResolveFallbackToAnyStyle(t *testing.T) {
 func TestResolveRuneMultipleFacesInFamily(t *testing.T) {
 	engine := newMockEngine()
 	mgr := NewManager(engine)
-	mgr.Register("Test", WeightRegular, StyleNormal, nil)
-	mgr.Register("Test", WeightBold, StyleNormal, nil)
+	_, _ = mgr.Register("Test", WeightRegular, StyleNormal, nil)
+	_, _ = mgr.Register("Test", WeightBold, StyleNormal, nil)
 
 	// Both have 'A'
 	_, ok := mgr.ResolveRune(Properties{Family: "Test", Weight: WeightRegular, Style: StyleNormal}, 'A')

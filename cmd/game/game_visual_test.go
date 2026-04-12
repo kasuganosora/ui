@@ -24,15 +24,15 @@ import (
 )
 
 type gameTestEnv struct {
-	plat         platform.Platform
-	win          platform.Window
-	backend      render.Backend
-	tree         *core.Tree
-	cfg          *widget.Config
-	buf          *render.CommandBuffer
-	textRenderer *textrender.Renderer
-	fontEngine   font.Engine
-	fontID       font.ID
+	plat          platform.Platform
+	win           platform.Window
+	backend       render.Backend
+	tree          *core.Tree
+	cfg           *widget.Config
+	buf           *render.CommandBuffer
+	textRenderer  *textrender.Renderer
+	fontEngine    font.Engine
+	fontID        font.ID
 	width, height int
 }
 
@@ -51,7 +51,8 @@ func newGameTestEnv(t *testing.T, w, h int) *gameTestEnv {
 	}
 	backend, err := ui.CreateBackend(ui.BackendAuto, win)
 	if err != nil {
-		win.Destroy(); plat.Terminate()
+		win.Destroy()
+		plat.Terminate()
 		t.Fatalf("backend: %v", err)
 	}
 	fw, fh := win.FramebufferSize()
@@ -103,7 +104,7 @@ func (e *gameTestEnv) renderFrame(root widget.Widget, onLayout func(float32, flo
 	e.textRenderer.BeginFrame()
 	e.buf.Reset()
 	root.Draw(e.buf)
-	e.textRenderer.Upload()
+	_ = e.textRenderer.Upload()
 	e.backend.Submit(e.buf)
 	e.backend.EndFrame()
 }
@@ -115,9 +116,11 @@ func (e *gameTestEnv) screenshot(t *testing.T, name string) *image.RGBA {
 		t.Fatalf("screenshot: %v", err)
 	}
 	dir := filepath.Join("testdata", "screenshots")
-	os.MkdirAll(dir, 0755)
+	_ = os.MkdirAll(dir, 0755)
 	path := filepath.Join(dir, name+".png")
-	capture.SavePNG(img, path)
+	if err := capture.SavePNG(img, path); err != nil {
+		t.Fatalf("save screenshot: %v", err)
+	}
 	t.Logf("screenshot: %s (%dx%d)", path, img.Bounds().Dx(), img.Bounds().Dy())
 	return img
 }

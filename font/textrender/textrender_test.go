@@ -79,8 +79,8 @@ func (e *mockEngine) HasGlyph(id font.ID, r rune) bool {
 	return false
 }
 func (e *mockEngine) HasColorGlyphs(font.ID) bool { return false }
-func (e *mockEngine) SetDPIScale(float32)          {}
-func (e *mockEngine) Destroy()                     {}
+func (e *mockEngine) SetDPIScale(float32)         {}
+func (e *mockEngine) Destroy()                    {}
 
 func setup(t *testing.T) (*Renderer, font.ID) {
 	t.Helper()

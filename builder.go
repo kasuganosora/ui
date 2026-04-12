@@ -123,7 +123,7 @@ func (b *Builder) Checkbox(label string) *CheckboxBuilder {
 // Progress adds a progress bar.
 func (b *Builder) Progress(percent float32) *Builder {
 	p := widget.NewProgress(b.tree, b.config)
-	p.SetPercent(percent)
+	p.SetPercentage(percent)
 	b.root.AppendChild(p)
 	return b
 }

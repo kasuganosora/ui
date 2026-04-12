@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	srcDir = flag.String("src", "", "path to material-design-icons/src directory")
+	srcDir  = flag.String("src", "", "path to material-design-icons/src directory")
 	outFile = flag.String("out", "icon/material/icons_data.json", "output JSON file")
 )
 

@@ -11,7 +11,7 @@ import (
 type DockPosition uint8
 
 const (
-	DockLeft   DockPosition = iota
+	DockLeft DockPosition = iota
 	DockRight
 	DockTop
 	DockBottom
@@ -470,7 +470,7 @@ func (dl *DockLayout) drawFloating(buf *render.CommandBuffer, p *DockPanel, cfg 
 	}, 51, 1)
 	// Title bar
 	buf.DrawOverlay(render.RectCmd{
-		Bounds: uimath.NewRect(p.FloatX, p.FloatY, p.FloatW, headerH),
+		Bounds:    uimath.NewRect(p.FloatX, p.FloatY, p.FloatW, headerH),
 		FillColor: uimath.RGBA(0, 0, 0, 0.03),
 		Corners: uimath.Corners{
 			TopLeft:  cfg.BorderRadius,

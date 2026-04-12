@@ -23,7 +23,7 @@ const (
 type TabPlacement int
 
 const (
-	TabPlacementTop    TabPlacement = iota // default
+	TabPlacementTop TabPlacement = iota // default
 	TabPlacementBottom
 	TabPlacementLeft
 	TabPlacementRight
@@ -42,9 +42,9 @@ type TabPanel struct {
 // Tabs is a tabbed container widget.
 type Tabs struct {
 	Base
-	list     []TabPanel
-	value    string // active tab value
-	tabIDs   []core.ElementID // element IDs for clickable tab headers
+	list   []TabPanel
+	value  string           // active tab value
+	tabIDs []core.ElementID // element IDs for clickable tab headers
 
 	theme     TabTheme     // visual style: normal or card
 	placement TabPlacement // tab header position

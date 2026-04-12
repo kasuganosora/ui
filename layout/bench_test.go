@@ -17,14 +17,14 @@ func buildGameDemoTree(e *Engine) NodeID {
 
 	addWindow := func(x, y, w, h float32, childCount int) NodeID {
 		win := e.AddNode(Style{
-			Position: PositionAbsolute,
-			Left:     Px(x),
-			Top:      Px(y),
-			Width:    Px(w),
-			Height:   Px(h),
-			Display:  DisplayFlex,
+			Position:      PositionAbsolute,
+			Left:          Px(x),
+			Top:           Px(y),
+			Width:         Px(w),
+			Height:        Px(h),
+			Display:       DisplayFlex,
 			FlexDirection: FlexDirectionColumn,
-			Padding:  EdgeValues{Top: Px(4), Bottom: Px(4), Left: Px(4), Right: Px(4)},
+			Padding:       EdgeValues{Top: Px(4), Bottom: Px(4), Left: Px(4), Right: Px(4)},
 		})
 		var childIDs []NodeID
 		for i := 0; i < childCount; i++ {

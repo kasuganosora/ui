@@ -134,7 +134,7 @@ func TestBuildCustomWidget(t *testing.T) {
 	cfg := widget.DefaultConfig()
 
 	prog := widget.NewProgress(tree, cfg)
-	prog.SetPercent(50)
+	prog.SetPercentage(50)
 
 	b := Build(tree, cfg)
 	b.Custom(prog)

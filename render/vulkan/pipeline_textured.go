@@ -48,13 +48,13 @@ func (b *Backend) createTexturedPipelineWithShaders(fragSPV []byte) (Pipeline, P
 	if err != nil {
 		return 0, 0, fmt.Errorf("vulkan: textured vertex shader: %w", err)
 	}
-	defer syscallN(b.loader.vkDestroyShaderModule, uintptr(b.device), uintptr(vertModule), 0)
+	defer func() { _, _, _ = syscallN(b.loader.vkDestroyShaderModule, uintptr(b.device), uintptr(vertModule), 0) }()
 
 	fragModule, err := b.createShaderModule(fragSPV)
 	if err != nil {
 		return 0, 0, fmt.Errorf("vulkan: textured fragment shader: %w", err)
 	}
-	defer syscallN(b.loader.vkDestroyShaderModule, uintptr(b.device), uintptr(fragModule), 0)
+	defer func() { _, _, _ = syscallN(b.loader.vkDestroyShaderModule, uintptr(b.device), uintptr(fragModule), 0) }()
 
 	shaderStages := [2]pipelineShaderStageCreateInfo{
 		{
@@ -169,7 +169,7 @@ func (b *Backend) createTexturedPipelineWithShaders(fragSPV []byte) (Pipeline, P
 		uintptr(unsafe.Pointer(&pipeline)),
 	)
 	if Result(r) != Success {
-		syscallN(b.loader.vkDestroyPipelineLayout, uintptr(b.device), uintptr(pipelineLayout), 0)
+		_, _, _ = syscallN(b.loader.vkDestroyPipelineLayout, uintptr(b.device), uintptr(pipelineLayout), 0)
 		return 0, 0, fmt.Errorf("vulkan: vkCreateGraphicsPipelines for textured pipeline failed: %v", Result(r))
 	}
 

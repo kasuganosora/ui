@@ -37,11 +37,11 @@ func NewBackTop(tree *core.Tree, cfg *Config) *BackTop {
 	return bt
 }
 
-func (bt *BackTop) IsVisible() bool           { return bt.visible }
-func (bt *BackTop) SetVisible(v bool)         { bt.visible = v }
-func (bt *BackTop) SetThreshold(t float32)    { bt.threshold = t }
-func (bt *BackTop) SetPosition(r, b float32)  { bt.right = r; bt.bottom = b }
-func (bt *BackTop) OnClick(fn func())         { bt.onClick = fn }
+func (bt *BackTop) IsVisible() bool          { return bt.visible }
+func (bt *BackTop) SetVisible(v bool)        { bt.visible = v }
+func (bt *BackTop) SetThreshold(t float32)   { bt.threshold = t }
+func (bt *BackTop) SetPosition(r, b float32) { bt.right = r; bt.bottom = b }
+func (bt *BackTop) OnClick(fn func())        { bt.onClick = fn }
 
 func (bt *BackTop) Draw(buf *render.CommandBuffer) {
 	if !bt.visible {

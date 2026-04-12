@@ -95,8 +95,8 @@ func (p *Path) ArcTo(rx, ry, rotation float32, largeArc, sweep bool, x, y float3
 	p.Commands = append(p.Commands, PathCommand{
 		Type: PathArcTo,
 		X1:   rx, Y1: ry,
-		X2:   rotation, Y2: la*2 + sw,
-		X3:   x, Y3: y,
+		X2: rotation, Y2: la*2 + sw,
+		X3: x, Y3: y,
 	})
 	p.curX, p.curY = x, y
 }
@@ -116,10 +116,18 @@ func (p *Path) Bounds() uimath.Rect {
 	minX, minY := float32(1e9), float32(1e9)
 	maxX, maxY := float32(-1e9), float32(-1e9)
 	update := func(x, y float32) {
-		if x < minX { minX = x }
-		if x > maxX { maxX = x }
-		if y < minY { minY = y }
-		if y > maxY { maxY = y }
+		if x < minX {
+			minX = x
+		}
+		if x > maxX {
+			maxX = x
+		}
+		if y < minY {
+			minY = y
+		}
+		if y > maxY {
+			maxY = y
+		}
 	}
 	var cx, cy float32
 	for _, c := range p.Commands {
@@ -342,7 +350,7 @@ func flattenArc(cx, cy float32, cmd PathCommand, tol float32) []uimath.Vec2 {
 
 	// Compute start/end angles
 	angleVec := func(ux, uy, vx, vy float64) float64 {
-		n := math.Sqrt((ux*ux+uy*uy) * (vx*vx + vy*vy))
+		n := math.Sqrt((ux*ux + uy*uy) * (vx*vx + vy*vy))
 		if n == 0 {
 			return 0
 		}
@@ -377,8 +385,8 @@ func flattenArc(cx, cy float32, cmd PathCommand, tol float32) []uimath.Vec2 {
 	for i := 1; i <= steps; i++ {
 		t := float64(i) / float64(steps)
 		angle := theta1 + dtheta*t
-		xp := rx*math.Cos(angle)
-		yp := ry*math.Sin(angle)
+		xp := rx * math.Cos(angle)
+		yp := ry * math.Sin(angle)
 		px := cosPhi*xp - sinPhi*yp + centerX
 		py := sinPhi*xp + cosPhi*yp + centerY
 		pts = append(pts, uimath.NewVec2(float32(px), float32(py)))
@@ -399,8 +407,8 @@ func ParseSVGPath(d string) *Path {
 	tokens := tokenizeSVGPath(d)
 	i := 0
 	var curCmd byte
-	var cx, cy float32     // current point
-	var sx, sy float32     // subpath start
+	var cx, cy float32             // current point
+	var sx, sy float32             // subpath start
 	var lastCp2x, lastCp2y float32 // last cubic control point (for S/s)
 	var lastCpx, lastCpy float32   // last quadratic control point (for T/t)
 	var lastWasCubic, lastWasQuad bool
@@ -721,7 +729,9 @@ func drawLineSegment(cb *CommandBuffer, x1, y1, x2, y2, width float32, color uim
 	if absF(dy) < 0.5 {
 		// Horizontal-ish
 		minX := x1
-		if x2 < minX { minX = x2 }
+		if x2 < minX {
+			minX = x2
+		}
 		cb.DrawRect(RectCmd{
 			Bounds:    uimath.NewRect(minX, y1-width/2, absF(dx), width),
 			FillColor: color,
@@ -729,7 +739,9 @@ func drawLineSegment(cb *CommandBuffer, x1, y1, x2, y2, width float32, color uim
 	} else if absF(dx) < 0.5 {
 		// Vertical-ish
 		minY := y1
-		if y2 < minY { minY = y2 }
+		if y2 < minY {
+			minY = y2
+		}
 		cb.DrawRect(RectCmd{
 			Bounds:    uimath.NewRect(x1-width/2, minY, width, absF(dy)),
 			FillColor: color,

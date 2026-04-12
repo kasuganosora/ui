@@ -235,7 +235,7 @@ func TestMatchesGoldenMismatch(t *testing.T) {
 
 	// Bootstrap with red
 	red := solidImage(4, 4, color.RGBA{R: 255, A: 255})
-	MatchesGolden(red, goldenPath, 0.01)
+	_, _ = MatchesGolden(red, goldenPath, 0.01)
 
 	// Compare with green — should detect diff
 	green := solidImage(4, 4, color.RGBA{G: 255, A: 255})
@@ -351,7 +351,7 @@ func TestDiffSizeMismatch(t *testing.T) {
 func TestLoadPNGInvalidData(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bad.png")
-	os.WriteFile(path, []byte("not a png"), 0644)
+	_ = os.WriteFile(path, []byte("not a png"), 0644)
 
 	_, err := LoadPNG(path)
 	if err == nil {

@@ -42,12 +42,12 @@ func NewChatBox(tree *core.Tree, cfg *widget.Config) *ChatBox {
 	}
 }
 
-func (cb *ChatBox) Messages() []ChatMessage   { return cb.messages }
-func (cb *ChatBox) InputText() string          { return cb.inputText }
-func (cb *ChatBox) SetSize(w, h float32)       { cb.width = w; cb.height = h }
-func (cb *ChatBox) SetMaxVisible(n int)        { cb.maxVisible = n }
-func (cb *ChatBox) OnSend(fn func(string))     { cb.onSend = fn }
-func (cb *ChatBox) InputH() float32            { return cb.inputH }
+func (cb *ChatBox) Messages() []ChatMessage { return cb.messages }
+func (cb *ChatBox) InputText() string       { return cb.inputText }
+func (cb *ChatBox) SetSize(w, h float32)    { cb.width = w; cb.height = h }
+func (cb *ChatBox) SetMaxVisible(n int)     { cb.maxVisible = n }
+func (cb *ChatBox) OnSend(fn func(string))  { cb.onSend = fn }
+func (cb *ChatBox) InputH() float32         { return cb.inputH }
 
 // InputBounds returns the bounding rectangle for the input area (for external Input widget placement).
 func (cb *ChatBox) InputBounds() uimath.Rect {
@@ -159,8 +159,8 @@ func NewFloatingText(tree *core.Tree, text string, x, y float32, color uimath.Co
 }
 
 func (ft *FloatingText) SetPosition(x, y float32) { ft.x = x; ft.y = y }
-func (ft *FloatingText) SetText(t string)          { ft.text = t }
-func (ft *FloatingText) SetColor(c uimath.Color)   { ft.color = c }
+func (ft *FloatingText) SetText(t string)         { ft.text = t }
+func (ft *FloatingText) SetColor(c uimath.Color)  { ft.color = c }
 
 func (ft *FloatingText) Draw(buf *render.CommandBuffer) {
 	cfg := ft.Config()
@@ -197,10 +197,10 @@ func NewItemTooltip(tree *core.Tree, cfg *widget.Config) *ItemTooltip {
 	}
 }
 
-func (it *ItemTooltip) SetItem(item *ItemData)    { it.item = item }
-func (it *ItemTooltip) SetPosition(x, y float32)  { it.x = x; it.y = y }
-func (it *ItemTooltip) SetVisible(v bool)          { it.visible = v }
-func (it *ItemTooltip) IsVisible() bool            { return it.visible }
+func (it *ItemTooltip) SetItem(item *ItemData)   { it.item = item }
+func (it *ItemTooltip) SetPosition(x, y float32) { it.x = x; it.y = y }
+func (it *ItemTooltip) SetVisible(v bool)        { it.visible = v }
+func (it *ItemTooltip) IsVisible() bool          { return it.visible }
 
 func (it *ItemTooltip) Draw(buf *render.CommandBuffer) {
 	if !it.visible || it.item == nil {
@@ -229,19 +229,18 @@ func (it *ItemTooltip) Draw(buf *render.CommandBuffer) {
 // NotificationToast displays a temporary notification message.
 type NotificationToast struct {
 	widget.Base
-	text     string
-	icon     string
+	text      string
 	toastType MessageType
-	visible  bool
-	x, y     float32
-	width    float32
+	visible   bool
+	x, y      float32
+	width     float32
 }
 
 // MessageType for toasts.
 type MessageType uint8
 
 const (
-	ToastInfo    MessageType = iota
+	ToastInfo MessageType = iota
 	ToastSuccess
 	ToastWarning
 	ToastError
@@ -261,11 +260,11 @@ func NewNotificationToast(tree *core.Tree, text string, cfg *widget.Config) *Not
 	}
 }
 
-func (nt *NotificationToast) SetText(t string)        { nt.text = t }
+func (nt *NotificationToast) SetText(t string)           { nt.text = t }
 func (nt *NotificationToast) SetToastType(t MessageType) { nt.toastType = t }
-func (nt *NotificationToast) SetVisible(v bool)        { nt.visible = v }
-func (nt *NotificationToast) SetPosition(x, y float32) { nt.x = x; nt.y = y }
-func (nt *NotificationToast) IsVisible() bool          { return nt.visible }
+func (nt *NotificationToast) SetVisible(v bool)          { nt.visible = v }
+func (nt *NotificationToast) SetPosition(x, y float32)   { nt.x = x; nt.y = y }
+func (nt *NotificationToast) IsVisible() bool            { return nt.visible }
 
 func (nt *NotificationToast) toastColor() uimath.Color {
 	switch nt.toastType {

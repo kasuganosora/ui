@@ -90,9 +90,8 @@ func TestHasGlyphMissing(t *testing.T) {
 	path := findTestFont(t)
 	id, _ := engine.LoadFontFile(path)
 
-	// Private use area rune — unlikely to be in arial
 	if engine.HasGlyph(id, '\uF8FF') {
-		// Some fonts have this, so just skip the assertion
+		t.Skip("font has private-use glyph")
 	}
 }
 
@@ -178,7 +177,9 @@ func TestLoadFontFileTempCopy(t *testing.T) {
 
 	dir := t.TempDir()
 	tmp := filepath.Join(dir, "test.ttf")
-	os.WriteFile(tmp, data, 0644)
+	if err := os.WriteFile(tmp, data, 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	id, err := engine.LoadFontFile(tmp)
 	if err != nil {

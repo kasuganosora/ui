@@ -11,7 +11,7 @@ import (
 type ExpandIconPlacement uint8
 
 const (
-	ExpandIconLeft  ExpandIconPlacement = iota
+	ExpandIconLeft ExpandIconPlacement = iota
 	ExpandIconRight
 )
 

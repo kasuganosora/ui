@@ -19,8 +19,8 @@ type shelfPacker struct {
 }
 
 type shelf struct {
-	y      int // Top Y of this shelf
-	height int // Height of this shelf
+	y       int // Top Y of this shelf
+	height  int // Height of this shelf
 	cursorX int // Next available X position
 }
 

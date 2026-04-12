@@ -8,33 +8,33 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/ebitengine/purego"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/platform"
 	"github.com/kasuganosora/ui/render"
-	"github.com/ebitengine/purego"
 )
 
 // ---- Vertex types (matching shaders.go attributes and render/dx11 layout) ----
 
 // RectVertex: 19 float32 = 76 bytes
 type RectVertex struct {
-	PosX, PosY                              float32
-	U, V                                    float32
-	ColorR, ColorG, ColorB, ColorA          float32
-	RectW, RectH                            float32
+	PosX, PosY                             float32
+	U, V                                   float32
+	ColorR, ColorG, ColorB, ColorA         float32
+	RectW, RectH                           float32
 	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32
-	BorderWidth                             float32
-	BorderR, BorderG, BorderB, BorderA      float32
+	BorderWidth                            float32
+	BorderR, BorderG, BorderB, BorderA     float32
 }
 
 // ShadowVertex: 15 float32 = 60 bytes
 type ShadowVertex struct {
-	PosX, PosY                              float32
-	U, V                                    float32
-	ColorR, ColorG, ColorB, ColorA          float32
-	ElemW, ElemH                            float32
+	PosX, PosY                             float32
+	U, V                                   float32
+	ColorR, ColorG, ColorB, ColorA         float32
+	ElemW, ElemH                           float32
 	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32
-	Blur                                    float32
+	Blur                                   float32
 }
 
 // TexturedVertex: 8 float32 = 32 bytes
@@ -406,13 +406,14 @@ const (
 
 // rectVertexDescriptor builds a MTLVertexDescriptor for RectVertex (76 bytes).
 // Layout:
-//   0: pos     float2  @ offset 0
-//   1: uv      float2  @ offset 8
-//   2: color   float4  @ offset 16
-//   3: rectSize float2 @ offset 32
-//   4: radii   float4  @ offset 40
-//   5: borderWidth float @ offset 56
-//   6: borderColor float4 @ offset 60
+//
+//	0: pos     float2  @ offset 0
+//	1: uv      float2  @ offset 8
+//	2: color   float4  @ offset 16
+//	3: rectSize float2 @ offset 32
+//	4: radii   float4  @ offset 40
+//	5: borderWidth float @ offset 56
+//	6: borderColor float4 @ offset 60
 func (b *Backend) rectVertexDescriptor() uintptr {
 	vdClass := objcClass("MTLVertexDescriptor")
 	var vd uintptr
@@ -450,12 +451,13 @@ func (b *Backend) rectVertexDescriptor() uintptr {
 
 // shadowVertexDescriptor builds a MTLVertexDescriptor for ShadowVertex (60 bytes).
 // Layout:
-//   0: pos      float2  @ offset 0
-//   1: uv       float2  @ offset 8
-//   2: color    float4  @ offset 16
-//   3: elemSize float2  @ offset 32
-//   4: radii    float4  @ offset 40
-//   5: blur     float   @ offset 56
+//
+//	0: pos      float2  @ offset 0
+//	1: uv       float2  @ offset 8
+//	2: color    float4  @ offset 16
+//	3: elemSize float2  @ offset 32
+//	4: radii    float4  @ offset 40
+//	5: blur     float   @ offset 56
 func (b *Backend) shadowVertexDescriptor() uintptr {
 	vdClass := objcClass("MTLVertexDescriptor")
 	var vd uintptr
@@ -492,9 +494,10 @@ func (b *Backend) shadowVertexDescriptor() uintptr {
 
 // texturedVertexDescriptor builds a MTLVertexDescriptor for TexturedVertex (32 bytes).
 // Layout:
-//   0: pos   float2  @ offset 0
-//   1: uv    float2  @ offset 8
-//   2: color float4  @ offset 16
+//
+//	0: pos   float2  @ offset 0
+//	1: uv    float2  @ offset 8
+//	2: color float4  @ offset 16
 func (b *Backend) texturedVertexDescriptor() uintptr {
 	vdClass := objcClass("MTLVertexDescriptor")
 	var vd uintptr
@@ -786,12 +789,12 @@ func (b *Backend) drawRect(r *render.RectCmd, opacity float32) {
 
 	// Two triangles: (v0,v1,v2), (v0,v2,v3)
 	vertices := [6]RectVertex{
-		v(ndcX, ndcY, uvL, uvT),                // top-left
-		v(ndcX+ndcW, ndcY, uvR, uvT),           // top-right
-		v(ndcX+ndcW, ndcY-ndcH, uvR, uvB),      // bottom-right
-		v(ndcX, ndcY, uvL, uvT),                // top-left
-		v(ndcX+ndcW, ndcY-ndcH, uvR, uvB),      // bottom-right
-		v(ndcX, ndcY-ndcH, uvL, uvB),           // bottom-left
+		v(ndcX, ndcY, uvL, uvT),           // top-left
+		v(ndcX+ndcW, ndcY, uvR, uvT),      // top-right
+		v(ndcX+ndcW, ndcY-ndcH, uvR, uvB), // bottom-right
+		v(ndcX, ndcY, uvL, uvT),           // top-left
+		v(ndcX+ndcW, ndcY-ndcH, uvR, uvB), // bottom-right
+		v(ndcX, ndcY-ndcH, uvL, uvB),      // bottom-left
 	}
 
 	data := unsafe.Slice((*byte)(unsafe.Pointer(&vertices[0])), 6*int(unsafe.Sizeof(RectVertex{})))
@@ -910,7 +913,7 @@ func (b *Backend) drawText(t *render.TextCmd, opacity float32) {
 		// Metal Y-up NDC
 		x0 := (glyph.X/logW)*2 - 1
 		y0 := 1 - (glyph.Y/logH)*2
-		x1 := ((glyph.X + glyph.Width) / logW) * 2 - 1
+		x1 := ((glyph.X+glyph.Width)/logW)*2 - 1
 		y1 := 1 - ((glyph.Y+glyph.Height)/logH)*2
 
 		vertices = append(vertices,
@@ -955,7 +958,7 @@ func (b *Backend) drawImage(img *render.ImageCmd, opacity float32) {
 	// Metal Y-up NDC
 	x0 := (img.DstRect.X/logW)*2 - 1
 	y0 := 1 - (img.DstRect.Y/logH)*2
-	x1 := ((img.DstRect.X + img.DstRect.Width) / logW) * 2 - 1
+	x1 := ((img.DstRect.X+img.DstRect.Width)/logW)*2 - 1
 	y1 := 1 - ((img.DstRect.Y+img.DstRect.Height)/logH)*2
 
 	// Default SrcRect to full texture when empty

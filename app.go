@@ -5,19 +5,19 @@ import (
 	"time"
 
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/devtools"
 	"github.com/kasuganosora/ui/event"
-	"github.com/kasuganosora/ui/layout"
 	"github.com/kasuganosora/ui/font"
 	"github.com/kasuganosora/ui/font/atlas"
 	"github.com/kasuganosora/ui/font/textrender"
-	uimath "github.com/kasuganosora/ui/math"
-	"github.com/kasuganosora/ui/platform"
-	"github.com/kasuganosora/ui/theme"
-	"github.com/kasuganosora/ui/render"
 	"github.com/kasuganosora/ui/icon/material"
+	"github.com/kasuganosora/ui/layout"
+	uimath "github.com/kasuganosora/ui/math"
 	uinet "github.com/kasuganosora/ui/net"
+	"github.com/kasuganosora/ui/platform"
+	"github.com/kasuganosora/ui/render"
+	"github.com/kasuganosora/ui/theme"
 	"github.com/kasuganosora/ui/widget"
-	"github.com/kasuganosora/ui/devtools"
 )
 
 // resizeCallback is an optional interface for platform windows that support
@@ -37,12 +37,12 @@ type sizeMoveInProgress interface {
 type BackendType int
 
 const (
-	BackendAuto    BackendType = iota // Auto-select best available backend
-	BackendVulkan                     // Force Vulkan
-	BackendDX11                       // Force DirectX 11 (Windows only)
-	BackendDX9                        // Force DirectX 9 (Windows only)
-	BackendOpenGL                     // Force OpenGL 3.3
-	BackendMetal                      // Force Metal (macOS only)
+	BackendAuto   BackendType = iota // Auto-select best available backend
+	BackendVulkan                    // Force Vulkan
+	BackendDX11                      // Force DirectX 11 (Windows only)
+	BackendDX9                       // Force DirectX 9 (Windows only)
+	BackendOpenGL                    // Force OpenGL 3.3
+	BackendMetal                     // Force Metal (macOS only)
 )
 
 // AppOptions configures an App instance.
@@ -189,7 +189,9 @@ func NewApp(opts AppOptions) (*App, error) {
 	a.fontEngine.SetDPIScale(dpi)
 
 	a.glyphAtlas = atlas.New(atlas.Options{Width: 1024, Height: 1024, Backend: a.backend})
-	a.glyphAtlas.EnsureTexture()
+	if err := a.glyphAtlas.EnsureTexture(); err != nil {
+		return nil, fmt.Errorf("ensure glyph atlas texture: %w", err)
+	}
 
 	a.textRenderer = textrender.New(textrender.Options{
 		Manager:   mgr,
@@ -360,13 +362,13 @@ func (a *App) Run() error {
 		a.buf.Reset()
 		a.root.Draw(a.buf)
 
-	// Draw DevTools element highlight on top of everything else.
-	if a.devtools != nil {
-		a.devtools.DrawOverlay(a.buf)
-		a.devtools.DrawOverlayLabel(a.buf, a.textRenderer, a.fontID)
-	}
+		// Draw DevTools element highlight on top of everything else.
+		if a.devtools != nil {
+			a.devtools.DrawOverlay(a.buf)
+			a.devtools.DrawOverlayLabel(a.buf, a.textRenderer, a.fontID)
+		}
 
-		a.textRenderer.Upload()
+		_ = a.textRenderer.Upload()
 		a.backend.Submit(a.buf)
 		a.backend.EndFrame()
 	}
@@ -1189,10 +1191,10 @@ func newMockEngine() *mockEngine {
 	return e
 }
 
-func (e *mockEngine) LoadFont([]byte) (font.ID, error)    { return 1, nil }
+func (e *mockEngine) LoadFont([]byte) (font.ID, error)     { return 1, nil }
 func (e *mockEngine) LoadFontFile(string) (font.ID, error) { return 1, nil }
 func (e *mockEngine) UnloadFont(font.ID)                   {}
-func (e *mockEngine) SetDPIScale(float32)                   {}
+func (e *mockEngine) SetDPIScale(float32)                  {}
 func (e *mockEngine) Destroy()                             {}
 func (e *mockEngine) Kerning(font.ID, font.GlyphID, font.GlyphID, float32) float32 {
 	return 0

@@ -112,9 +112,9 @@ func NewContent(tree *core.Tree, cfg *Config) *Content {
 }
 
 func (c *Content) SetBgColor(clr uimath.Color) { c.bgColor = clr }
-func (c *Content) ScrollY() float32             { return c.scrollY }
-func (c *Content) ContentHeight() float32       { return c.contentHeight }
-func (c *Content) SetContentHeight(h float32)   { c.contentHeight = h }
+func (c *Content) ScrollY() float32            { return c.scrollY }
+func (c *Content) ContentHeight() float32      { return c.contentHeight }
+func (c *Content) SetContentHeight(h float32)  { c.contentHeight = h }
 
 // ScrollBy adjusts scroll offset by delta, clamping to valid range.
 func (c *Content) ScrollBy(dy float32) {

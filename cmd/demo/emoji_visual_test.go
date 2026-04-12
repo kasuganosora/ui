@@ -139,7 +139,7 @@ func (e *emojiTestEnv) renderFrames(root widget.Widget, n int) {
 		e.textRenderer.BeginFrame()
 		e.buf.Reset()
 		root.Draw(e.buf)
-		e.textRenderer.Upload()
+		_ = e.textRenderer.Upload()
 		e.backend.Submit(e.buf)
 		e.backend.EndFrame()
 	}
@@ -154,7 +154,7 @@ func (e *emojiTestEnv) emojiScreenshot(t *testing.T, name string) (string, *imag
 	}
 
 	dir := filepath.Join("testdata", "screenshots")
-	os.MkdirAll(dir, 0755)
+	_ = os.MkdirAll(dir, 0755)
 
 	path := filepath.Join(dir, name+".png")
 	if err := capture.SavePNG(img, path); err != nil {
@@ -184,9 +184,9 @@ func TestVisualEmoji(t *testing.T) {
 	defer env.close()
 
 	doc := ui.LoadHTMLDocument(env.tree, env.cfg, emojiDemoHTML, "")
-	root := doc.Root
-	if len(root.Children()) > 0 {
-		root = root.Children()[0]
+	root := widget.Widget(doc.Root)
+	if len(doc.Root.Children()) > 0 {
+		root = doc.Root.Children()[0]
 	}
 	env.tree.AppendChild(env.tree.Root(), root.ElementID())
 

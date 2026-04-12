@@ -276,8 +276,8 @@ func TestContextProgressBarClamp(t *testing.T) {
 	ctx := NewContext(buf, cfg)
 
 	ctx.Begin("panel", 0, 0, 200, 300)
-	ctx.ProgressBar(-0.5)  // should clamp to 0
-	ctx.ProgressBar(1.5)   // should clamp to 1
+	ctx.ProgressBar(-0.5) // should clamp to 0
+	ctx.ProgressBar(1.5)  // should clamp to 1
 	ctx.End()
 }
 

@@ -103,7 +103,7 @@ func SavePNG(img *image.RGBA, path string) error {
 	if err != nil {
 		return fmt.Errorf("capture: create %s: %w", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if err := png.Encode(f, img); err != nil {
 		return fmt.Errorf("capture: encode png: %w", err)
@@ -117,7 +117,7 @@ func LoadPNG(path string) (*image.RGBA, error) {
 	if err != nil {
 		return nil, fmt.Errorf("capture: open %s: %w", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	img, err := png.Decode(f)
 	if err != nil {

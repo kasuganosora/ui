@@ -15,30 +15,30 @@ type Theme struct {
 	Name string
 
 	// Colors
-	Primary      uimath.Color
-	PrimaryHover uimath.Color
+	Primary       uimath.Color
+	PrimaryHover  uimath.Color
 	PrimaryActive uimath.Color
 
-	Success      uimath.Color
-	Warning      uimath.Color
-	Error        uimath.Color
-	Info         uimath.Color
+	Success uimath.Color
+	Warning uimath.Color
+	Error   uimath.Color
+	Info    uimath.Color
 
 	TextPrimary   uimath.Color
 	TextSecondary uimath.Color
 	TextDisabled  uimath.Color
 	TextInverse   uimath.Color
 
-	BgPrimary    uimath.Color
-	BgSecondary  uimath.Color
-	BgElevated   uimath.Color
+	BgPrimary   uimath.Color
+	BgSecondary uimath.Color
+	BgElevated  uimath.Color
 
-	Border       uimath.Color
-	BorderHover  uimath.Color
-	BorderFocus  uimath.Color
+	Border      uimath.Color
+	BorderHover uimath.Color
+	BorderFocus uimath.Color
 
-	Divider      uimath.Color
-	Mask         uimath.Color // Modal overlay color
+	Divider uimath.Color
+	Mask    uimath.Color // Modal overlay color
 
 	// Typography
 	FontSizeXS  float32
@@ -59,9 +59,9 @@ type Theme struct {
 	SpaceXXL float32
 
 	// Shape
-	RadiusSM float32
-	RadiusMD float32
-	RadiusLG float32
+	RadiusSM   float32
+	RadiusMD   float32
+	RadiusLG   float32
 	RadiusFull float32 // For pills/circles
 
 	// Borders
@@ -120,7 +120,7 @@ func Light() *Theme {
 		FontSizeLG:  16,
 		FontSizeXL:  20,
 		FontSizeXXL: 24,
-		LineHeight:   1.5,
+		LineHeight:  1.5,
 
 		SpaceXXS: 2,
 		SpaceXS:  4,
@@ -185,7 +185,7 @@ func Dark() *Theme {
 		FontSizeLG:  16,
 		FontSizeXL:  20,
 		FontSizeXXL: 24,
-		LineHeight:   1.5,
+		LineHeight:  1.5,
 
 		SpaceXXS: 2,
 		SpaceXS:  4,

@@ -246,9 +246,9 @@ func (s *Session) handleDOM(req Request) {
 		_ = json.Unmarshal(req.Params, &p)
 		s.sendResult(req.ID, map[string]any{
 			"object": map[string]any{
-				"type":     "object",
-				"subtype":  "node",
-				"objectId": fmt.Sprintf("node-%d", p.NodeID),
+				"type":        "object",
+				"subtype":     "node",
+				"objectId":    fmt.Sprintf("node-%d", p.NodeID),
 				"description": fmt.Sprintf("node#%d", p.NodeID),
 			},
 		})

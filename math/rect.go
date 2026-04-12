@@ -23,8 +23,8 @@ func RectFromPosSize(pos Vec2, size Vec2) Rect {
 	return Rect{X: pos.X, Y: pos.Y, Width: size.X, Height: size.Y}
 }
 
-func (r Rect) Min() Vec2 { return Vec2{X: r.X, Y: r.Y} }
-func (r Rect) Max() Vec2 { return Vec2{X: r.X + r.Width, Y: r.Y + r.Height} }
+func (r Rect) Min() Vec2  { return Vec2{X: r.X, Y: r.Y} }
+func (r Rect) Max() Vec2  { return Vec2{X: r.X + r.Width, Y: r.Y + r.Height} }
 func (r Rect) Size() Vec2 { return Vec2{X: r.Width, Y: r.Height} }
 
 func (r Rect) Center() Vec2 {

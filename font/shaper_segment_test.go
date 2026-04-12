@@ -10,9 +10,9 @@ type mockSegmenter struct {
 func newMockSegmenter() *mockSegmenter {
 	return &mockSegmenter{
 		words: map[string][]string{
-			"我来到北京":    {"我", "来到", "北京"},
-			"今天天气不错":   {"今天", "天气", "不错"},
-			"你好世界":     {"你好", "世界"},
+			"我来到北京":     {"我", "来到", "北京"},
+			"今天天气不错":    {"今天", "天气", "不错"},
+			"你好世界":      {"你好", "世界"},
 			"我来到北京清华大学": {"我", "来到", "北京", "清华大学"},
 		},
 	}

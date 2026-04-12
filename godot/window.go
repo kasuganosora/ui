@@ -8,10 +8,10 @@ import (
 // HeadlessWindow implements platform.Window for headless/embedded operation.
 // It reports a fixed viewport size and DPI scale with no OS window.
 type HeadlessWindow struct {
-	width     int
-	height    int
-	dpiScale  float32
-	closed    bool
+	width    int
+	height   int
+	dpiScale float32
+	closed   bool
 }
 
 // NewHeadlessWindow creates a window with the given logical size and DPI scale.
@@ -41,22 +41,22 @@ func (w *HeadlessWindow) FramebufferSize() (int, int) {
 	return fw, fh
 }
 
-func (w *HeadlessWindow) Position() (int, int) { return 0, 0 }
-func (w *HeadlessWindow) SetPosition(x, y int) {}
+func (w *HeadlessWindow) Position() (int, int)  { return 0, 0 }
+func (w *HeadlessWindow) SetPosition(x, y int)  {}
 func (w *HeadlessWindow) SetTitle(title string) {}
 func (w *HeadlessWindow) SetFullscreen(bool)    {}
 func (w *HeadlessWindow) IsFullscreen() bool    { return false }
 
-func (w *HeadlessWindow) ShouldClose() bool     { return w.closed }
-func (w *HeadlessWindow) SetShouldClose(c bool) { w.closed = c }
-func (w *HeadlessWindow) NativeHandle() uintptr { return 0 }
-func (w *HeadlessWindow) DPIScale() float32     { return w.dpiScale }
-func (w *HeadlessWindow) SetVisible(bool)       {}
-func (w *HeadlessWindow) ShowDeferred()         {}
-func (w *HeadlessWindow) SetMinSize(w2, h int)  {}
-func (w *HeadlessWindow) SetMaxSize(w2, h int)  {}
-func (w *HeadlessWindow) SetCursor(platform.CursorShape)        {}
-func (w *HeadlessWindow) SetIMEPosition(uimath.Rect)            {}
+func (w *HeadlessWindow) ShouldClose() bool              { return w.closed }
+func (w *HeadlessWindow) SetShouldClose(c bool)          { w.closed = c }
+func (w *HeadlessWindow) NativeHandle() uintptr          { return 0 }
+func (w *HeadlessWindow) DPIScale() float32              { return w.dpiScale }
+func (w *HeadlessWindow) SetVisible(bool)                {}
+func (w *HeadlessWindow) ShowDeferred()                  {}
+func (w *HeadlessWindow) SetMinSize(w2, h int)           {}
+func (w *HeadlessWindow) SetMaxSize(w2, h int)           {}
+func (w *HeadlessWindow) SetCursor(platform.CursorShape) {}
+func (w *HeadlessWindow) SetIMEPosition(uimath.Rect)     {}
 func (w *HeadlessWindow) ShowContextMenu(int, int, []platform.ContextMenuItem) int {
 	return -1
 }

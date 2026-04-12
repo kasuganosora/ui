@@ -38,23 +38,23 @@ func NewDiv(tree *core.Tree, cfg *Config) *Div {
 	return d
 }
 
-func (d *Div) BgColor() uimath.Color   { return d.bgColor }
+func (d *Div) BgColor() uimath.Color     { return d.bgColor }
 func (d *Div) BorderColor() uimath.Color { return d.borderColor }
-func (d *Div) BorderWidth() float32     { return d.borderWidth }
-func (d *Div) BorderRadius() float32    { return d.borderRadius }
-func (d *Div) ScrollX() float32         { return d.scrollX }
-func (d *Div) ScrollY() float32         { return d.scrollY }
-func (d *Div) IsScrollable() bool       { return d.scrollable }
+func (d *Div) BorderWidth() float32      { return d.borderWidth }
+func (d *Div) BorderRadius() float32     { return d.borderRadius }
+func (d *Div) ScrollX() float32          { return d.scrollX }
+func (d *Div) ScrollY() float32          { return d.scrollY }
+func (d *Div) IsScrollable() bool        { return d.scrollable }
 
-func (d *Div) SetBgColor(c uimath.Color)       { d.bgColor = c }
-func (d *Div) SetBorderColor(c uimath.Color)    { d.borderColor = c }
-func (d *Div) SetBorderWidth(w float32)          { d.borderWidth = w }
-func (d *Div) SetBorderRadius(r float32)         { d.borderRadius = r }
-func (d *Div) SetScrollable(v bool)              { d.scrollable = v }
+func (d *Div) SetBgColor(c uimath.Color)     { d.bgColor = c }
+func (d *Div) SetBorderColor(c uimath.Color) { d.borderColor = c }
+func (d *Div) SetBorderWidth(w float32)      { d.borderWidth = w }
+func (d *Div) SetBorderRadius(r float32)     { d.borderRadius = r }
+func (d *Div) SetScrollable(v bool)          { d.scrollable = v }
 
-func (d *Div) GradientStart() uimath.Color      { return d.gradientStart }
-func (d *Div) GradientEnd() uimath.Color        { return d.gradientEnd }
-func (d *Div) GradientAngle() float32           { return d.gradientAngle }
+func (d *Div) GradientStart() uimath.Color { return d.gradientStart }
+func (d *Div) GradientEnd() uimath.Color   { return d.gradientEnd }
+func (d *Div) GradientAngle() float32      { return d.gradientAngle }
 
 func (d *Div) SetGradient(start, end uimath.Color, angle float32) {
 	d.gradientStart = start
@@ -66,8 +66,8 @@ func (d *Div) SetBoxShadow(layers []css.BoxShadowLayer) {
 	d.shadows = layers
 }
 
-func (d *Div) ContentHeight() float32          { return d.contentHeight }
-func (d *Div) SetContentHeight(h float32)       { d.contentHeight = h }
+func (d *Div) ContentHeight() float32     { return d.contentHeight }
+func (d *Div) SetContentHeight(h float32) { d.contentHeight = h }
 
 func (d *Div) ScrollTo(x, y float32) {
 	d.scrollX = x

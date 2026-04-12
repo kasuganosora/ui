@@ -20,8 +20,8 @@ import (
 // Jieba implements Chinese word segmentation using the jieba algorithm.
 // It satisfies the font.Segmenter interface.
 type Jieba struct {
-	mu   sync.RWMutex
-	d    *dict
+	mu        sync.RWMutex
+	d         *dict
 	userDicts []*dict // user-added dictionaries
 }
 

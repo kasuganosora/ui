@@ -56,7 +56,7 @@ func newSession(srv *Server, conn *websocket.Conn) *Session {
 
 // run is the session's read loop. Blocks until the WebSocket closes.
 func (s *Session) run() {
-	defer s.conn.Close()
+	defer func() { _ = s.conn.Close() }()
 	for {
 		_, msg, err := s.conn.ReadMessage()
 		if err != nil {

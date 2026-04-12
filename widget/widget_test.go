@@ -1681,11 +1681,11 @@ type drawCounter struct {
 	count int
 }
 
-func (d *drawCounter) ElementID() core.ElementID  { return 0 }
-func (d *drawCounter) Style() layout.Style         { return layout.Style{} }
-func (d *drawCounter) SetStyle(layout.Style)       {}
-func (d *drawCounter) Children() []Widget           { return nil }
-func (d *drawCounter) Destroy()                     {}
+func (d *drawCounter) ElementID() core.ElementID { return 0 }
+func (d *drawCounter) Style() layout.Style       { return layout.Style{} }
+func (d *drawCounter) SetStyle(layout.Style)     {}
+func (d *drawCounter) Children() []Widget        { return nil }
+func (d *drawCounter) Destroy()                  {}
 func (d *drawCounter) Draw(buf *render.CommandBuffer) {
 	d.count++
 }
@@ -1727,22 +1727,36 @@ func TestCheckbox(t *testing.T) {
 	cfg := DefaultConfig()
 	cb := NewCheckbox(tree, "Accept", cfg)
 
-	if cb.Label() != "Accept" {t.Errorf("got '%s'", cb.Label())}
-	if cb.IsChecked() {t.Error("should not be checked")}
-	if cb.IsDisabled() {t.Error("should not be disabled")}
+	if cb.Label() != "Accept" {
+		t.Errorf("got '%s'", cb.Label())
+	}
+	if cb.IsChecked() {
+		t.Error("should not be checked")
+	}
+	if cb.IsDisabled() {
+		t.Error("should not be disabled")
+	}
 
 	cb.SetChecked(true)
-	if !cb.IsChecked() {t.Error("should be checked")}
+	if !cb.IsChecked() {
+		t.Error("should be checked")
+	}
 	cb.SetDisabled(true)
-	if !cb.IsDisabled() {t.Error("should be disabled")}
+	if !cb.IsDisabled() {
+		t.Error("should be disabled")
+	}
 	cb.SetLabel("New Label")
-	if cb.Label() != "New Label" {t.Errorf("got '%s'", cb.Label())}
+	if cb.Label() != "New Label" {
+		t.Errorf("got '%s'", cb.Label())
+	}
 }
 
 func TestCheckboxNilConfig(t *testing.T) {
 	tree := newTestTree()
 	cb := NewCheckbox(tree, "Test", nil)
-	if cb.Config() == nil {t.Error("nil config should default")}
+	if cb.Config() == nil {
+		t.Error("nil config should default")
+	}
 }
 
 func TestCheckboxClick(t *testing.T) {
@@ -1754,12 +1768,16 @@ func TestCheckboxClick(t *testing.T) {
 
 	dispatcher := core.NewDispatcher(tree)
 	dispatcher.Dispatch(cb.ElementID(), &event.Event{Type: event.MouseClick})
-	if !cb.IsChecked() || !changed {t.Error("click should toggle")}
+	if !cb.IsChecked() || !changed {
+		t.Error("click should toggle")
+	}
 
 	// Click when disabled: no toggle
 	cb.SetDisabled(true)
 	dispatcher.Dispatch(cb.ElementID(), &event.Event{Type: event.MouseClick})
-	if !cb.IsChecked() {t.Error("should stay checked when disabled")}
+	if !cb.IsChecked() {
+		t.Error("should stay checked when disabled")
+	}
 }
 
 func TestCheckboxDraw(t *testing.T) {
@@ -1801,16 +1819,28 @@ func TestRadio(t *testing.T) {
 	cfg := DefaultConfig()
 	r := NewRadio(tree, "Option A", cfg)
 
-	if r.Label() != "Option A" {t.Errorf("got '%s'", r.Label())}
-	if r.IsChecked() {t.Error("should not be checked")}
-	if r.IsDisabled() {t.Error("should not be disabled")}
+	if r.Label() != "Option A" {
+		t.Errorf("got '%s'", r.Label())
+	}
+	if r.IsChecked() {
+		t.Error("should not be checked")
+	}
+	if r.IsDisabled() {
+		t.Error("should not be disabled")
+	}
 
 	r.SetChecked(true)
-	if !r.IsChecked() {t.Error("should be checked")}
+	if !r.IsChecked() {
+		t.Error("should be checked")
+	}
 	r.SetLabel("Option B")
-	if r.Label() != "Option B" {t.Errorf("got '%s'", r.Label())}
+	if r.Label() != "Option B" {
+		t.Errorf("got '%s'", r.Label())
+	}
 	r.SetDisabled(true)
-	if !r.IsDisabled() {t.Error("should be disabled")}
+	if !r.IsDisabled() {
+		t.Error("should be disabled")
+	}
 	var called bool
 	r.OnChange(func(bool) { called = true })
 	_ = called
@@ -1830,18 +1860,28 @@ func TestRadioGroup(t *testing.T) {
 	group.OnChange(func(v string) { selected = v })
 
 	group.SetValue("A")
-	if !r1.IsChecked() || r2.IsChecked() {t.Error("only r1 should be checked")}
-	if group.Value() != "A" {t.Errorf("got '%s'", group.Value())}
+	if !r1.IsChecked() || r2.IsChecked() {
+		t.Error("only r1 should be checked")
+	}
+	if group.Value() != "A" {
+		t.Errorf("got '%s'", group.Value())
+	}
 
 	dispatcher := core.NewDispatcher(tree)
 	dispatcher.Dispatch(r2.ElementID(), &event.Event{Type: event.MouseClick})
-	if r1.IsChecked() || !r2.IsChecked() {t.Error("only r2 checked after click")}
-	if selected != "B" {t.Errorf("got '%s'", selected)}
+	if r1.IsChecked() || !r2.IsChecked() {
+		t.Error("only r2 checked after click")
+	}
+	if selected != "B" {
+		t.Errorf("got '%s'", selected)
+	}
 
 	// Click disabled radio
 	r1.SetDisabled(true)
 	dispatcher.Dispatch(r1.ElementID(), &event.Event{Type: event.MouseClick})
-	if r1.IsChecked() {t.Error("disabled radio should not check")}
+	if r1.IsChecked() {
+		t.Error("disabled radio should not check")
+	}
 }
 
 func TestRadioDraw(t *testing.T) {
@@ -1884,10 +1924,16 @@ func TestSwitch(t *testing.T) {
 	cfg := DefaultConfig()
 	sw := NewSwitch(tree, cfg)
 
-	if sw.Value() {t.Error("should not be checked")}
-	if sw.IsDisabled() {t.Error("should not be disabled")}
+	if sw.Value() {
+		t.Error("should not be checked")
+	}
+	if sw.IsDisabled() {
+		t.Error("should not be disabled")
+	}
 	sw.SetValue(true)
-	if !sw.Value() {t.Error("should be checked")}
+	if !sw.Value() {
+		t.Error("should be checked")
+	}
 
 	var toggled bool
 	sw.OnChange(func(checked bool) { toggled = checked })
@@ -1895,11 +1941,15 @@ func TestSwitch(t *testing.T) {
 
 	dispatcher := core.NewDispatcher(tree)
 	dispatcher.Dispatch(sw.ElementID(), &event.Event{Type: event.MouseClick})
-	if !sw.Value() || !toggled {t.Error("click should toggle")}
+	if !sw.Value() || !toggled {
+		t.Error("click should toggle")
+	}
 
 	sw.SetDisabled(true)
 	dispatcher.Dispatch(sw.ElementID(), &event.Event{Type: event.MouseClick})
-	if !sw.Value() {t.Error("should stay checked when disabled")}
+	if !sw.Value() {
+		t.Error("should stay checked when disabled")
+	}
 }
 
 func TestSwitchDraw(t *testing.T) {
@@ -1933,8 +1983,12 @@ func TestImage(t *testing.T) {
 	cfg := DefaultConfig()
 	img := NewImage(tree, 42, cfg)
 
-	if img.Texture() != 42 {t.Errorf("got %d", img.Texture())}
-	if img.Fit() != ImageFitFill {t.Error("default fit should be fill")}
+	if img.Texture() != 42 {
+		t.Errorf("got %d", img.Texture())
+	}
+	if img.Fit() != ImageFitFill {
+		t.Error("default fit should be fill")
+	}
 
 	img.SetTexture(100)
 	img.SetFit(ImageFitContain)
@@ -1966,7 +2020,9 @@ func TestImageDraw(t *testing.T) {
 
 	// Nil config
 	img4 := NewImage(tree, 42, nil)
-	if img4.Config() == nil {t.Error("nil config should default")}
+	if img4.Config() == nil {
+		t.Error("nil config should default")
+	}
 }
 
 // --- Tag ---
@@ -1976,9 +2032,13 @@ func TestTag(t *testing.T) {
 	cfg := DefaultConfig()
 	tag := NewTag(tree, "New", cfg)
 
-	if tag.Content() != "New" {t.Errorf("got '%s'", tag.Content())}
+	if tag.Content() != "New" {
+		t.Errorf("got '%s'", tag.Content())
+	}
 	tag.SetTheme(TagThemeSuccess)
-	if tag.Theme() != TagThemeSuccess {t.Error("expected TagThemeSuccess")}
+	if tag.Theme() != TagThemeSuccess {
+		t.Error("expected TagThemeSuccess")
+	}
 	tag.SetContent("Updated")
 	tag.SetColor(uimath.ColorHex("#ff0000"))
 }
@@ -2020,16 +2080,26 @@ func TestProgress(t *testing.T) {
 	cfg := DefaultConfig()
 	p := NewProgress(tree, cfg)
 
-	if p.Percent() != 0 {t.Errorf("got %f", p.Percent())}
+	if p.Percent() != 0 {
+		t.Errorf("got %f", p.Percent())
+	}
 	p.SetPercent(75)
-	if p.Percent() != 75 {t.Errorf("got %f", p.Percent())}
+	if p.Percent() != 75 {
+		t.Errorf("got %f", p.Percent())
+	}
 	p.SetPercent(150) // clamp
-	if p.Percent() != 100 {t.Errorf("got %f", p.Percent())}
+	if p.Percent() != 100 {
+		t.Errorf("got %f", p.Percent())
+	}
 	p.SetPercent(-10) // clamp
-	if p.Percent() != 0 {t.Errorf("got %f", p.Percent())}
+	if p.Percent() != 0 {
+		t.Errorf("got %f", p.Percent())
+	}
 
 	p.SetStatus(ProgressSuccess)
-	if p.Status() != ProgressSuccess {t.Error("expected ProgressSuccess")}
+	if p.Status() != ProgressSuccess {
+		t.Error("expected ProgressSuccess")
+	}
 }
 
 func TestProgressDraw(t *testing.T) {
@@ -2067,7 +2137,9 @@ func TestLoading(t *testing.T) {
 	tree := newTestTree()
 	l := NewLoading(tree, nil)
 	l.SetText("Loading...")
-	if l.Text() != "Loading..." {t.Errorf("got '%s'", l.Text())}
+	if l.Text() != "Loading..." {
+		t.Errorf("got '%s'", l.Text())
+	}
 }
 
 func TestLoadingDraw(t *testing.T) {
@@ -2093,9 +2165,13 @@ func TestLoadingDraw(t *testing.T) {
 func TestEmpty(t *testing.T) {
 	tree := newTestTree()
 	e := NewEmpty(tree, nil)
-	if e.Description() != "暂无数据" {t.Errorf("got '%s'", e.Description())}
+	if e.Description() != "暂无数据" {
+		t.Errorf("got '%s'", e.Description())
+	}
 	e.SetDescription("No data")
-	if e.Description() != "No data" {t.Errorf("got '%s'", e.Description())}
+	if e.Description() != "No data" {
+		t.Errorf("got '%s'", e.Description())
+	}
 }
 
 func TestEmptyDraw(t *testing.T) {
@@ -2131,9 +2207,13 @@ func TestTabs(t *testing.T) {
 	}
 	tabs := NewTabs(tree, items, cfg)
 
-	if tabs.Value() != "tab1" {t.Errorf("got '%s'", tabs.Value())}
+	if tabs.Value() != "tab1" {
+		t.Errorf("got '%s'", tabs.Value())
+	}
 	tabs.SetValue("tab2")
-	if tabs.Value() != "tab2" {t.Errorf("got '%s'", tabs.Value())}
+	if tabs.Value() != "tab2" {
+		t.Errorf("got '%s'", tabs.Value())
+	}
 
 	var changed string
 	tabs.OnChange(func(key string) { changed = key })
@@ -2181,13 +2261,21 @@ func TestDialog(t *testing.T) {
 	cfg := DefaultConfig()
 	d := NewDialog(tree, "Confirm", cfg)
 
-	if d.Header() != "Confirm" {t.Errorf("got '%s'", d.Header())}
-	if d.IsVisible() {t.Error("should not be visible")}
+	if d.Header() != "Confirm" {
+		t.Errorf("got '%s'", d.Header())
+	}
+	if d.IsVisible() {
+		t.Error("should not be visible")
+	}
 
 	d.Open()
-	if !d.IsVisible() {t.Error("should be visible")}
+	if !d.IsVisible() {
+		t.Error("should be visible")
+	}
 	d.Close()
-	if d.IsVisible() {t.Error("should not be visible")}
+	if d.IsVisible() {
+		t.Error("should not be visible")
+	}
 
 	d.SetHeader("Delete?")
 	d.SetWidth(600)
@@ -2232,14 +2320,22 @@ func TestMessage(t *testing.T) {
 	cfg := DefaultConfig()
 	m := NewMessage(tree, "OK", cfg)
 
-	if m.Content() != "OK" {t.Errorf("got '%s'", m.Content())}
-	if m.Theme() != MessageThemeInfo {t.Error("expected MessageThemeInfo")}
-	if !m.IsVisible() {t.Error("should be visible")}
+	if m.Content() != "OK" {
+		t.Errorf("got '%s'", m.Content())
+	}
+	if m.Theme() != MessageThemeInfo {
+		t.Error("expected MessageThemeInfo")
+	}
+	if !m.IsVisible() {
+		t.Error("should be visible")
+	}
 
 	m.SetTheme(MessageThemeSuccess)
 	m.SetContent("Done!")
 	m.SetVisible(false)
-	if m.IsVisible() {t.Error("should not be visible")}
+	if m.IsVisible() {
+		t.Error("should not be visible")
+	}
 }
 
 func TestMessageDraw(t *testing.T) {
@@ -2284,19 +2380,33 @@ func TestSelect(t *testing.T) {
 	}
 	s := NewSelect(tree, opts, cfg)
 
-	if s.Value() != "" {t.Error("should have no value")}
-	if s.Placeholder() != "请选择" {t.Errorf("got '%s'", s.Placeholder())}
-	if s.IsDisabled() {t.Error("should not be disabled")}
-	if s.IsOpen() {t.Error("should not be open")}
-	if len(s.Options()) != 3 {t.Errorf("got %d", len(s.Options()))}
+	if s.Value() != "" {
+		t.Error("should have no value")
+	}
+	if s.Placeholder() != "请选择" {
+		t.Errorf("got '%s'", s.Placeholder())
+	}
+	if s.IsDisabled() {
+		t.Error("should not be disabled")
+	}
+	if s.IsOpen() {
+		t.Error("should not be open")
+	}
+	if len(s.Options()) != 3 {
+		t.Errorf("got %d", len(s.Options()))
+	}
 
 	s.SetValue("banana")
-	if s.Value() != "banana" {t.Errorf("got '%s'", s.Value())}
+	if s.Value() != "banana" {
+		t.Errorf("got '%s'", s.Value())
+	}
 	s.SetPlaceholder("Choose...")
 	s.SetDisabled(true)
 
 	s.SetOptions([]SelectOption{{Label: "X", Value: "x"}})
-	if len(s.Options()) != 1 {t.Errorf("got %d", len(s.Options()))}
+	if len(s.Options()) != 1 {
+		t.Errorf("got %d", len(s.Options()))
+	}
 
 	var changed string
 	s.OnChange(func(v string) { changed = v })
@@ -2334,12 +2444,16 @@ func TestSelectDraw(t *testing.T) {
 	dispatcher := core.NewDispatcher(tree)
 	s2.SetDisabled(false)
 	dispatcher.Dispatch(s2.ElementID(), &event.Event{Type: event.MouseClick})
-	if !s2.IsOpen() {t.Error("should be open after click")}
+	if !s2.IsOpen() {
+		t.Error("should be open after click")
+	}
 	s2.Draw(buf)
 
 	// Close
 	dispatcher.Dispatch(s2.ElementID(), &event.Event{Type: event.MouseClick})
-	if s2.IsOpen() {t.Error("should be closed after second click")}
+	if s2.IsOpen() {
+		t.Error("should be closed after second click")
+	}
 
 	// No bounds
 	s3 := NewSelect(tree, opts, cfg)
@@ -2357,20 +2471,34 @@ func TestTextArea(t *testing.T) {
 	cfg := DefaultConfig()
 	ta := NewTextArea(tree, cfg)
 
-	if ta.Value() != "" {t.Error("should be empty")}
-	if ta.Rows() != 4 {t.Errorf("got %d", ta.Rows())}
-	if ta.Placeholder() != "" {t.Error("should have no placeholder")}
+	if ta.Value() != "" {
+		t.Error("should be empty")
+	}
+	if ta.Rows() != 4 {
+		t.Errorf("got %d", ta.Rows())
+	}
+	if ta.Placeholder() != "" {
+		t.Error("should have no placeholder")
+	}
 
 	ta.SetValue("Hello\nWorld")
-	if ta.Value() != "Hello\nWorld" {t.Errorf("got '%s'", ta.Value())}
+	if ta.Value() != "Hello\nWorld" {
+		t.Errorf("got '%s'", ta.Value())
+	}
 	ta.SetPlaceholder("Enter text...")
 	ta.SetRows(6)
-	if ta.Rows() != 6 {t.Errorf("got %d", ta.Rows())}
+	if ta.Rows() != 6 {
+		t.Errorf("got %d", ta.Rows())
+	}
 	ta.SetRows(0) // should clamp to 1
-	if ta.Rows() != 1 {t.Errorf("got %d", ta.Rows())}
+	if ta.Rows() != 1 {
+		t.Errorf("got %d", ta.Rows())
+	}
 
 	ta.SetDisabled(true)
-	if !ta.IsDisabled() {t.Error("should be disabled")}
+	if !ta.IsDisabled() {
+		t.Error("should be disabled")
+	}
 
 	var changed string
 	ta.OnChange(func(v string) { changed = v })
@@ -2388,19 +2516,27 @@ func TestTextAreaEditing(t *testing.T) {
 	// Type characters
 	dispatcher.Dispatch(ta.ElementID(), &event.Event{Type: event.KeyPress, Char: 'H'})
 	dispatcher.Dispatch(ta.ElementID(), &event.Event{Type: event.KeyPress, Char: 'i'})
-	if ta.Value() != "Hi" {t.Errorf("got '%s'", ta.Value())}
+	if ta.Value() != "Hi" {
+		t.Errorf("got '%s'", ta.Value())
+	}
 
 	// Enter for newline
 	dispatcher.Dispatch(ta.ElementID(), &event.Event{Type: event.KeyDown, Key: event.KeyEnter})
-	if ta.Value() != "Hi\n" {t.Errorf("got '%s'", ta.Value())}
+	if ta.Value() != "Hi\n" {
+		t.Errorf("got '%s'", ta.Value())
+	}
 
 	// Type on second line
 	dispatcher.Dispatch(ta.ElementID(), &event.Event{Type: event.KeyPress, Char: 'X'})
-	if ta.Value() != "Hi\nX" {t.Errorf("got '%s'", ta.Value())}
+	if ta.Value() != "Hi\nX" {
+		t.Errorf("got '%s'", ta.Value())
+	}
 
 	// Backspace
 	dispatcher.Dispatch(ta.ElementID(), &event.Event{Type: event.KeyDown, Key: event.KeyBackspace})
-	if ta.Value() != "Hi\n" {t.Errorf("got '%s'", ta.Value())}
+	if ta.Value() != "Hi\n" {
+		t.Errorf("got '%s'", ta.Value())
+	}
 
 	// Delete (forward)
 	dispatcher.Dispatch(ta.ElementID(), &event.Event{Type: event.KeyDown, Key: event.KeyHome})
@@ -2432,7 +2568,9 @@ func TestTextAreaEditing(t *testing.T) {
 	// Disabled
 	ta.SetDisabled(true)
 	dispatcher.Dispatch(ta.ElementID(), &event.Event{Type: event.KeyPress, Char: 'Z'})
-	if ta.Value() != "" {t.Errorf("should not type when disabled, got '%s'", ta.Value())}
+	if ta.Value() != "" {
+		t.Errorf("should not type when disabled, got '%s'", ta.Value())
+	}
 }
 
 func TestTextAreaIME(t *testing.T) {
@@ -2443,12 +2581,16 @@ func TestTextAreaIME(t *testing.T) {
 
 	dispatcher := core.NewDispatcher(tree)
 	dispatcher.Dispatch(ta.ElementID(), &event.Event{Type: event.IMECompositionEnd, Text: "你好"})
-	if ta.Value() != "你好" {t.Errorf("got '%s'", ta.Value())}
+	if ta.Value() != "你好" {
+		t.Errorf("got '%s'", ta.Value())
+	}
 
 	// Disabled
 	ta.SetDisabled(true)
 	dispatcher.Dispatch(ta.ElementID(), &event.Event{Type: event.IMECompositionEnd, Text: "世界"})
-	if ta.Value() != "你好" {t.Errorf("should not insert when disabled, got '%s'", ta.Value())}
+	if ta.Value() != "你好" {
+		t.Errorf("should not insert when disabled, got '%s'", ta.Value())
+	}
 }
 
 func TestTextAreaMouse(t *testing.T) {
@@ -2515,27 +2657,49 @@ func TestTextAreaLineHelpers(t *testing.T) {
 
 	// visualLines
 	vl := ta.visualLines(contentW)
-	if len(vl) != 3 {t.Errorf("expected 3 visual lines, got %d", len(vl))}
+	if len(vl) != 3 {
+		t.Errorf("expected 3 visual lines, got %d", len(vl))
+	}
 
 	// runeOffsetToVisualLineCol
 	line, col := ta.runeOffsetToVisualLineCol(0, contentW)
-	if line != 0 || col != 0 {t.Errorf("got %d,%d", line, col)}
+	if line != 0 || col != 0 {
+		t.Errorf("got %d,%d", line, col)
+	}
 	line, col = ta.runeOffsetToVisualLineCol(3, contentW) // after "AB\n"
-	if line != 1 || col != 0 {t.Errorf("got %d,%d", line, col)}
+	if line != 1 || col != 0 {
+		t.Errorf("got %d,%d", line, col)
+	}
 	line, col = ta.runeOffsetToVisualLineCol(5, contentW) // "CD" on line 1
-	if line != 1 || col != 2 {t.Errorf("got %d,%d", line, col)}
+	if line != 1 || col != 2 {
+		t.Errorf("got %d,%d", line, col)
+	}
 
 	// visualLineColToRuneOffset
-	if ta.visualLineColToRuneOffset(0, 0, contentW) != 0 {t.Error("bad offset")}
-	if ta.visualLineColToRuneOffset(1, 0, contentW) != 3 {t.Error("bad offset")}
-	if ta.visualLineColToRuneOffset(2, 1, contentW) != 7 {t.Error("bad offset")}
+	if ta.visualLineColToRuneOffset(0, 0, contentW) != 0 {
+		t.Error("bad offset")
+	}
+	if ta.visualLineColToRuneOffset(1, 0, contentW) != 3 {
+		t.Error("bad offset")
+	}
+	if ta.visualLineColToRuneOffset(2, 1, contentW) != 7 {
+		t.Error("bad offset")
+	}
 	// Clamping
-	if ta.visualLineColToRuneOffset(99, 0, contentW) != 6 {t.Errorf("got %d", ta.visualLineColToRuneOffset(99, 0, contentW))}
-	if ta.visualLineColToRuneOffset(0, 99, contentW) != 2 {t.Errorf("got %d", ta.visualLineColToRuneOffset(0, 99, contentW))}
+	if ta.visualLineColToRuneOffset(99, 0, contentW) != 6 {
+		t.Errorf("got %d", ta.visualLineColToRuneOffset(99, 0, contentW))
+	}
+	if ta.visualLineColToRuneOffset(0, 99, contentW) != 2 {
+		t.Errorf("got %d", ta.visualLineColToRuneOffset(0, 99, contentW))
+	}
 
 	// lineStart / lineEnd
-	if ta.lineStart(4) != 3 {t.Errorf("got %d", ta.lineStart(4))} // pos 4 = line 1
-	if ta.lineEnd(4) != 5 {t.Errorf("got %d", ta.lineEnd(4))}
+	if ta.lineStart(4) != 3 {
+		t.Errorf("got %d", ta.lineStart(4))
+	} // pos 4 = line 1
+	if ta.lineEnd(4) != 5 {
+		t.Errorf("got %d", ta.lineEnd(4))
+	}
 }
 
 func TestTextAreaDrawSelection(t *testing.T) {
@@ -2561,10 +2725,14 @@ func TestForm(t *testing.T) {
 	cfg := DefaultConfig()
 	form := NewForm(tree, cfg)
 
-	if form.Layout() != FormLayoutHorizontal {t.Error("expected horizontal")}
+	if form.Layout() != FormLayoutHorizontal {
+		t.Error("expected horizontal")
+	}
 	form.SetLayout(FormLayoutVertical)
 	form.SetLabelWidth(120)
-	if form.LabelWidth() != 120 {t.Errorf("got %f", form.LabelWidth())}
+	if form.LabelWidth() != 120 {
+		t.Errorf("got %f", form.LabelWidth())
+	}
 
 	buf := render.NewCommandBuffer()
 	form.Draw(buf)
@@ -2576,13 +2744,21 @@ func TestFormItem(t *testing.T) {
 
 	inp := NewInput(tree, cfg)
 	fi := NewFormItem(tree, "Name", inp, cfg)
-	if fi.Label() != "Name" {t.Errorf("got '%s'", fi.Label())}
-	if fi.Control() != inp {t.Error("control mismatch")}
+	if fi.Label() != "Name" {
+		t.Errorf("got '%s'", fi.Label())
+	}
+	if fi.Control() != inp {
+		t.Error("control mismatch")
+	}
 	fi.SetLabel("Email")
 	fi.SetRequired(true)
-	if !fi.IsRequired() {t.Error("should be required")}
+	if !fi.IsRequired() {
+		t.Error("should be required")
+	}
 	fi.SetError("Required field")
-	if fi.Error() != "Required field" {t.Errorf("got '%s'", fi.Error())}
+	if fi.Error() != "Required field" {
+		t.Errorf("got '%s'", fi.Error())
+	}
 }
 
 func TestFormItemDraw(t *testing.T) {
@@ -2784,10 +2960,14 @@ func TestTextAreaHitTestWithTextRenderer(t *testing.T) {
 
 	// Hit test at various positions
 	pos := ta.hitTestChar(10+8+30, 10+8+5) // first line
-	if pos < 0 || pos > 5 {t.Errorf("unexpected pos %d", pos)}
+	if pos < 0 || pos > 5 {
+		t.Errorf("unexpected pos %d", pos)
+	}
 
 	pos = ta.hitTestChar(10+8+30, 10+8+25) // second line
-	if pos < 5 {t.Errorf("unexpected pos %d for second line", pos)}
+	if pos < 5 {
+		t.Errorf("unexpected pos %d for second line", pos)
+	}
 }
 
 func TestRadioClickWithoutGroup(t *testing.T) {
@@ -2799,8 +2979,12 @@ func TestRadioClickWithoutGroup(t *testing.T) {
 
 	dispatcher := core.NewDispatcher(tree)
 	dispatcher.Dispatch(r.ElementID(), &event.Event{Type: event.MouseClick})
-	if !r.IsChecked() {t.Error("should be checked")}
-	if !called {t.Error("onChange should be called")}
+	if !r.IsChecked() {
+		t.Error("should be checked")
+	}
+	if !called {
+		t.Error("onChange should be called")
+	}
 }
 
 func TestSelectClickToggle(t *testing.T) {
@@ -2817,16 +3001,22 @@ func TestSelectClickToggle(t *testing.T) {
 
 	// Open
 	dispatcher.Dispatch(s.ElementID(), &event.Event{Type: event.MouseClick})
-	if !s.IsOpen() {t.Error("should be open")}
+	if !s.IsOpen() {
+		t.Error("should be open")
+	}
 
 	// Close
 	dispatcher.Dispatch(s.ElementID(), &event.Event{Type: event.MouseClick})
-	if s.IsOpen() {t.Error("should be closed")}
+	if s.IsOpen() {
+		t.Error("should be closed")
+	}
 
 	// Disabled: no toggle
 	s.SetDisabled(true)
 	dispatcher.Dispatch(s.ElementID(), &event.Event{Type: event.MouseClick})
-	if s.IsOpen() {t.Error("should stay closed when disabled")}
+	if s.IsOpen() {
+		t.Error("should stay closed when disabled")
+	}
 
 	s.Destroy()
 }
@@ -2858,7 +3048,9 @@ func TestTextAreaDeleteForwardAtEnd(t *testing.T) {
 	ta.SetValue("AB")
 	ta.cursorPos = 2
 	ta.deleteForward() // at end, should be no-op
-	if ta.Value() != "AB" {t.Errorf("got '%s'", ta.Value())}
+	if ta.Value() != "AB" {
+		t.Errorf("got '%s'", ta.Value())
+	}
 }
 
 func TestTextAreaBackspaceAtStart(t *testing.T) {
@@ -2868,7 +3060,9 @@ func TestTextAreaBackspaceAtStart(t *testing.T) {
 	ta.SetValue("AB")
 	ta.cursorPos = 0
 	ta.deleteBack() // at start, should be no-op
-	if ta.Value() != "AB" {t.Errorf("got '%s'", ta.Value())}
+	if ta.Value() != "AB" {
+		t.Errorf("got '%s'", ta.Value())
+	}
 }
 
 func TestTextAreaSelectedText(t *testing.T) {
@@ -2878,17 +3072,23 @@ func TestTextAreaSelectedText(t *testing.T) {
 	ta.SetValue("Hello World")
 
 	// No selection
-	if ta.selectedText() != "" {t.Error("expected empty")}
+	if ta.selectedText() != "" {
+		t.Error("expected empty")
+	}
 
 	// With selection
 	ta.selAnchor = 0
 	ta.cursorPos = 5
-	if ta.selectedText() != "Hello" {t.Errorf("got '%s'", ta.selectedText())}
+	if ta.selectedText() != "Hello" {
+		t.Errorf("got '%s'", ta.selectedText())
+	}
 
 	// Reverse selection
 	ta.selAnchor = 5
 	ta.cursorPos = 0
-	if ta.selectedText() != "Hello" {t.Errorf("got '%s'", ta.selectedText())}
+	if ta.selectedText() != "Hello" {
+		t.Errorf("got '%s'", ta.selectedText())
+	}
 }
 
 func TestTextAreaEmptyLines(t *testing.T) {
@@ -2898,8 +3098,12 @@ func TestTextAreaEmptyLines(t *testing.T) {
 	ta.SetValue("")
 	setBounds(tree, ta, 0, 0, 400, 200)
 	vl := ta.visualLines(ta.contentWidth())
-	if len(vl) != 1 {t.Errorf("expected 1, got %d", len(vl))}
-	if vl[0].text != "" {t.Errorf("expected empty string, got '%s'", vl[0].text)}
+	if len(vl) != 1 {
+		t.Errorf("expected 1, got %d", len(vl))
+	}
+	if vl[0].text != "" {
+		t.Errorf("expected empty string, got '%s'", vl[0].text)
+	}
 }
 
 // ==================== Coverage boost tests ====================
@@ -2910,46 +3114,49 @@ type mockPlatform struct {
 	clipboard string
 }
 
-func (m *mockPlatform) Init() error                  { return nil }
+func (m *mockPlatform) Init() error { return nil }
 func (m *mockPlatform) CreateWindow(_ platform.WindowOptions) (platform.Window, error) {
 	return nil, nil
 }
-func (m *mockPlatform) PollEvents() []event.Event    { return nil }
-func (m *mockPlatform) ProcessMessages()             {}
-func (m *mockPlatform) GetClipboardText() string     { return m.clipboard }
-func (m *mockPlatform) SetClipboardText(text string) { m.clipboard = text }
+func (m *mockPlatform) PollEvents() []event.Event     { return nil }
+func (m *mockPlatform) ProcessMessages()              {}
+func (m *mockPlatform) GetClipboardText() string      { return m.clipboard }
+func (m *mockPlatform) SetClipboardText(text string)  { m.clipboard = text }
 func (m *mockPlatform) GetPrimaryMonitorDPI() float32 { return 1.0 }
 func (m *mockPlatform) GetSystemLocale() string       { return "en-US" }
 func (m *mockPlatform) Terminate()                    {}
 
 type mockWindow struct {
-	imeRect     uimath.Rect
-	menuResult  int
+	imeRect    uimath.Rect
+	menuResult int
 }
 
-func (m *mockWindow) Size() (int, int)             { return 800, 600 }
-func (m *mockWindow) SetSize(int, int)             {}
-func (m *mockWindow) FramebufferSize() (int, int)  { return 800, 600 }
-func (m *mockWindow) Position() (int, int)         { return 0, 0 }
-func (m *mockWindow) SetPosition(int, int)         {}
-func (m *mockWindow) SetTitle(string)              {}
-func (m *mockWindow) SetFullscreen(bool)           {}
-func (m *mockWindow) IsFullscreen() bool           { return false }
-func (m *mockWindow) ShouldClose() bool            { return false }
-func (m *mockWindow) SetShouldClose(bool)          {}
-func (m *mockWindow) NativeHandle() uintptr        { return 0 }
-func (m *mockWindow) DPIScale() float32            { return 1.0 }
-func (m *mockWindow) SetVisible(bool)              {}
-func (m *mockWindow) ShowDeferred()                {}
-func (m *mockWindow) SetMinSize(int, int)          {}
-func (m *mockWindow) SetMaxSize(int, int)          {}
+func (m *mockWindow) Size() (int, int)               { return 800, 600 }
+func (m *mockWindow) SetSize(int, int)               {}
+func (m *mockWindow) FramebufferSize() (int, int)    { return 800, 600 }
+func (m *mockWindow) Position() (int, int)           { return 0, 0 }
+func (m *mockWindow) SetPosition(int, int)           {}
+func (m *mockWindow) SetTitle(string)                {}
+func (m *mockWindow) SetFullscreen(bool)             {}
+func (m *mockWindow) IsFullscreen() bool             { return false }
+func (m *mockWindow) ShouldClose() bool              { return false }
+func (m *mockWindow) SetShouldClose(bool)            {}
+func (m *mockWindow) NativeHandle() uintptr          { return 0 }
+func (m *mockWindow) DPIScale() float32              { return 1.0 }
+func (m *mockWindow) SetVisible(bool)                {}
+func (m *mockWindow) ShowDeferred()                  {}
+func (m *mockWindow) SetMinSize(int, int)            {}
+func (m *mockWindow) SetMaxSize(int, int)            {}
 func (m *mockWindow) SetCursor(platform.CursorShape) {}
-func (m *mockWindow) SetIMEPosition(r uimath.Rect)  { m.imeRect = r }
+func (m *mockWindow) SetIMEPosition(r uimath.Rect)   { m.imeRect = r }
 func (m *mockWindow) ShowContextMenu(_, _ int, _ []platform.ContextMenuItem) int {
 	return m.menuResult
 }
 func (m *mockWindow) ClientToScreen(x, y int) (int, int) { return x, y }
-func (m *mockWindow) Destroy()                    {}
+func (m *mockWindow) IsTransparent() bool                { return false }
+func (m *mockWindow) SetTopMost(bool)                    {}
+func (m *mockWindow) SetHitTestFunc(func(int, int) bool) {}
+func (m *mockWindow) Destroy()                           {}
 
 func cfgWithPlatform() (*Config, *mockPlatform, *mockWindow) {
 	cfg := DefaultConfig()
@@ -4112,7 +4319,7 @@ func TestTextDrawLongText(t *testing.T) {
 func TestTextDrawTallText(t *testing.T) {
 	tree := newTestTree()
 	txt := NewText(tree, "X", nil)
-	txt.SetFontSize(100) // very large font
+	txt.SetFontSize(100)                // very large font
 	setBounds(tree, txt, 0, 0, 200, 10) // small height
 
 	buf := render.NewCommandBuffer()

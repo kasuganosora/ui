@@ -38,9 +38,9 @@ func NewTree(tree *core.Tree, cfg *Config) *Tree {
 	}
 }
 
-func (t *Tree) Roots() []*TreeNode         { return t.roots }
-func (t *Tree) SetIndent(i float32)        { t.indent = i }
-func (t *Tree) SetItemHeight(h float32)    { t.itemHeight = h }
+func (t *Tree) Roots() []*TreeNode          { return t.roots }
+func (t *Tree) SetIndent(i float32)         { t.indent = i }
+func (t *Tree) SetItemHeight(h float32)     { t.itemHeight = h }
 func (t *Tree) OnSelect(fn func(*TreeNode)) { t.onSelect = fn }
 func (t *Tree) OnExpand(fn func(*TreeNode)) { t.onExpand = fn }
 

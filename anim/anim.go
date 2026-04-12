@@ -11,11 +11,11 @@ type Easing func(t float32) float32
 
 // Standard easing functions.
 var (
-	Linear      Easing = func(t float32) float32 { return t }
-	EaseIn      Easing = func(t float32) float32 { return t * t }
-	EaseOut     Easing = func(t float32) float32 { return t * (2 - t) }
-	EaseInOut   Easing = easeInOut
-	EaseInCubic Easing = func(t float32) float32 { return t * t * t }
+	Linear       Easing = func(t float32) float32 { return t }
+	EaseIn       Easing = func(t float32) float32 { return t * t }
+	EaseOut      Easing = func(t float32) float32 { return t * (2 - t) }
+	EaseInOut    Easing = easeInOut
+	EaseInCubic  Easing = func(t float32) float32 { return t * t * t }
 	EaseOutCubic Easing = func(t float32) float32 {
 		t--
 		return t*t*t + 1
@@ -84,20 +84,20 @@ const (
 type FillMode uint8
 
 const (
-	FillNone     FillMode = iota // Revert to original value
-	FillForwards                 // Keep final value
-	FillBackwards                // Apply initial value during delay
-	FillBoth                     // Forwards + Backwards
+	FillNone      FillMode = iota // Revert to original value
+	FillForwards                  // Keep final value
+	FillBackwards                 // Apply initial value during delay
+	FillBoth                      // Forwards + Backwards
 )
 
 // Direction controls playback direction.
 type Direction uint8
 
 const (
-	DirNormal    Direction = iota
+	DirNormal Direction = iota
 	DirReverse
-	DirAlternate           // Normal then reverse
-	DirAlternateReverse    // Reverse then normal
+	DirAlternate        // Normal then reverse
+	DirAlternateReverse // Reverse then normal
 )
 
 // Animation is a single property animation from start to end values.
@@ -110,7 +110,7 @@ type Animation struct {
 	Easing    Easing
 	Fill      FillMode
 	Direction Direction
-	Repeat    int     // 0 = play once, -1 = infinite, N = repeat N times
+	Repeat    int // 0 = play once, -1 = infinite, N = repeat N times
 
 	elapsed   float32
 	state     State
@@ -244,7 +244,7 @@ func (a *Animation) tick(dt float32) {
 type Keyframe struct {
 	Offset float32 // 0.0 to 1.0 (percentage of duration)
 	Value  float32
-	Easing Easing  // Easing to next keyframe (nil = linear)
+	Easing Easing // Easing to next keyframe (nil = linear)
 }
 
 // KeyframeAnimation interpolates through multiple keyframes.
@@ -301,8 +301,8 @@ func (ka *KeyframeAnimation) Value() float32 {
 	return prev.Value + (next.Value-prev.Value)*local
 }
 
-func (ka *KeyframeAnimation) State() State   { return ka.state }
-func (ka *KeyframeAnimation) IsFinished() bool { return ka.state == StateFinished }
+func (ka *KeyframeAnimation) State() State              { return ka.state }
+func (ka *KeyframeAnimation) IsFinished() bool          { return ka.state == StateFinished }
 func (ka *KeyframeAnimation) OnUpdate(fn func(float32)) { ka.onUpdate = fn }
 func (ka *KeyframeAnimation) OnFinish(fn func())        { ka.onFinish = fn }
 

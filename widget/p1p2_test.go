@@ -462,9 +462,7 @@ func TestColorPickerWidgetFull(t *testing.T) {
 		t.Error("expected red")
 	}
 	cp.SetPresets([]uimath.Color{uimath.ColorRed, uimath.ColorWhite})
-	if !cp.IsOpen() {
-		// might default to closed
-	}
+	// might default to closed
 	changed := false
 	cp.OnChange(func(c uimath.Color) { changed = true })
 	cp.SelectColor(uimath.ColorWhite)
@@ -915,7 +913,7 @@ type mockNav struct {
 	focusable bool
 }
 
-func (m *mockNav) NavFocusable() bool          { return m.focusable }
+func (m *mockNav) NavFocusable() bool             { return m.focusable }
 func (m *mockNav) Draw(buf *render.CommandBuffer) {}
 
 func TestGamepadNavigatorFull(t *testing.T) {
@@ -1274,7 +1272,7 @@ func TestMenuWidgetFull(t *testing.T) {
 	}
 	m.ToggleExpanded("a")
 	m.ToggleExpanded("a") // toggle back
-	m.SelectItem("c") // disabled
+	m.SelectItem("c")     // disabled
 	drawAndVerify(t, tree, m, false)
 }
 

@@ -70,23 +70,23 @@ func NewWatermark(tree *core.Tree, text string, cfg *Config) *Watermark {
 	}
 }
 
-func (w *Watermark) SetText(t string)                    { w.text = t }
-func (w *Watermark) SetX(v float32)                      { w.x = v }
-func (w *Watermark) SetY(v float32)                      { w.y = v }
-func (w *Watermark) SetColor(c uimath.Color)             { w.color = c }
-func (w *Watermark) SetAlpha(a float32)                  { w.alpha = a }
-func (w *Watermark) SetHeight(h float32)                 { w.height = h }
-func (w *Watermark) SetWidth(v float32)                  { w.width = v }
-func (w *Watermark) SetIsRepeat(v bool)                  { w.isRepeat = v }
-func (w *Watermark) SetLayout(l WatermarkLayout)         { w.layout = l }
-func (w *Watermark) SetLineSpace(v float32)              { w.lineSpace = v }
-func (w *Watermark) SetMovable(v bool)                   { w.movable = v }
-func (w *Watermark) SetMoveInterval(ms int)              { w.moveInterval = ms }
-func (w *Watermark) SetOffset(o [2]float32)              { w.offset = o }
-func (w *Watermark) SetRemovable(v bool)                 { w.removable = v }
-func (w *Watermark) SetRotate(deg float32)               { w.rotate = deg }
-func (w *Watermark) SetWatermarkContent(c interface{})   { w.watermarkContent = c }
-func (w *Watermark) SetZIndex(z int)                     { w.zIndex = z }
+func (w *Watermark) SetText(t string)                  { w.text = t }
+func (w *Watermark) SetX(v float32)                    { w.x = v }
+func (w *Watermark) SetY(v float32)                    { w.y = v }
+func (w *Watermark) SetColor(c uimath.Color)           { w.color = c }
+func (w *Watermark) SetAlpha(a float32)                { w.alpha = a }
+func (w *Watermark) SetHeight(h float32)               { w.height = h }
+func (w *Watermark) SetWidth(v float32)                { w.width = v }
+func (w *Watermark) SetIsRepeat(v bool)                { w.isRepeat = v }
+func (w *Watermark) SetLayout(l WatermarkLayout)       { w.layout = l }
+func (w *Watermark) SetLineSpace(v float32)            { w.lineSpace = v }
+func (w *Watermark) SetMovable(v bool)                 { w.movable = v }
+func (w *Watermark) SetMoveInterval(ms int)            { w.moveInterval = ms }
+func (w *Watermark) SetOffset(o [2]float32)            { w.offset = o }
+func (w *Watermark) SetRemovable(v bool)               { w.removable = v }
+func (w *Watermark) SetRotate(deg float32)             { w.rotate = deg }
+func (w *Watermark) SetWatermarkContent(c interface{}) { w.watermarkContent = c }
+func (w *Watermark) SetZIndex(z int)                   { w.zIndex = z }
 
 func (w *Watermark) Draw(buf *render.CommandBuffer) {
 	bounds := w.Bounds()

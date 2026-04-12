@@ -841,7 +841,7 @@ func (p *htmlParser) parseElement(parent containerWidget, ancestors []css.Elemen
 		pg := widget.NewProgress(p.tree, p.cfg)
 		if v, ok := attrs["percent"]; ok {
 			if n, err := parsePx(v); err == nil {
-				pg.SetPercent(n)
+				pg.SetPercentage(n)
 			}
 		}
 		p.registerWidgetWithAttrs(pg, tag, id, classes, inlineStyle, ancestors, attrs)
@@ -944,7 +944,7 @@ func (p *htmlParser) parseElement(parent containerWidget, ancestors []css.Elemen
 			av.SetContent(v)
 		}
 		if v, ok := attrs["image"]; ok {
-			av.SetImage(v)
+			av.SetImagePath(v)
 		}
 		p.registerWidget(av, tag, id, classes, inlineStyle, ancestors)
 		parent.AppendChild(av)
@@ -1158,7 +1158,7 @@ func (p *htmlParser) parseElement(parent containerWidget, ancestors []css.Elemen
 	case "collapse":
 		cl := widget.NewCollapse(p.tree, p.cfg)
 		if _, ok := attrs["accordion"]; ok {
-			cl.SetAccordion(true)
+			cl.SetExpandMutex(true)
 		}
 		if _, ok := attrs["expand-mutex"]; ok {
 			cl.SetExpandMutex(true)

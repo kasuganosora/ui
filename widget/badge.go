@@ -23,9 +23,9 @@ const BadgeShapeRibbon BadgeShape = 2
 type Badge struct {
 	Base
 	count    int
-	content  string     // text content (overrides count display, e.g. "new")
-	dot      bool       // dot-only mode (small colored dot, no text)
-	maxCount int        // max count before showing "99+"
+	content  string // text content (overrides count display, e.g. "new")
+	dot      bool   // dot-only mode (small colored dot, no text)
+	maxCount int    // max count before showing "99+"
 	color    uimath.Color
 	showZero bool       // show badge when count is 0
 	shape    BadgeShape // circle, round (pill), or ribbon
@@ -46,16 +46,16 @@ func NewBadge(tree *core.Tree, cfg *Config) *Badge {
 	}
 }
 
-func (b *Badge) Count() int                  { return b.count }
-func (b *Badge) SetCount(c int)              { b.count = c }
-func (b *Badge) SetContent(c string)         { b.content = c }
-func (b *Badge) SetDot(d bool)               { b.dot = d }
-func (b *Badge) SetMaxCount(m int)           { b.maxCount = m }
-func (b *Badge) SetColor(c uimath.Color)     { b.color = c }
-func (b *Badge) SetShowZero(v bool)          { b.showZero = v }
-func (b *Badge) SetShape(s BadgeShape)       { b.shape = s }
-func (b *Badge) SetSize(s Size)              { b.size = s }
-func (b *Badge) SetOffset(dx, dy float32)    { b.offset = [2]float32{dx, dy} }
+func (b *Badge) Count() int               { return b.count }
+func (b *Badge) SetCount(c int)           { b.count = c }
+func (b *Badge) SetContent(c string)      { b.content = c }
+func (b *Badge) SetDot(d bool)            { b.dot = d }
+func (b *Badge) SetMaxCount(m int)        { b.maxCount = m }
+func (b *Badge) SetColor(c uimath.Color)  { b.color = c }
+func (b *Badge) SetShowZero(v bool)       { b.showZero = v }
+func (b *Badge) SetShape(s BadgeShape)    { b.shape = s }
+func (b *Badge) SetSize(s Size)           { b.size = s }
+func (b *Badge) SetOffset(dx, dy float32) { b.offset = [2]float32{dx, dy} }
 
 func (b *Badge) Draw(buf *render.CommandBuffer) {
 	b.DrawChildren(buf)

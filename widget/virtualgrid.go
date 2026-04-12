@@ -9,12 +9,12 @@ import (
 // VirtualGrid renders only visible cells in a large grid.
 type VirtualGrid struct {
 	Base
-	cols      int
-	rowCount  int
-	cellW     float32
-	cellH     float32
-	gap       float32
-	scrollY   float32
+	cols       int
+	rowCount   int
+	cellW      float32
+	cellH      float32
+	gap        float32
+	scrollY    float32
 	renderCell func(buf *render.CommandBuffer, row, col int, bounds uimath.Rect)
 }
 
@@ -32,14 +32,14 @@ func NewVirtualGrid(tree *core.Tree, cols, rowCount int, cfg *Config) *VirtualGr
 	}
 }
 
-func (vg *VirtualGrid) Cols() int              { return vg.cols }
-func (vg *VirtualGrid) RowCount() int          { return vg.rowCount }
-func (vg *VirtualGrid) SetCols(c int)          { vg.cols = c }
-func (vg *VirtualGrid) SetRowCount(r int)      { vg.rowCount = r }
+func (vg *VirtualGrid) Cols() int                { return vg.cols }
+func (vg *VirtualGrid) RowCount() int            { return vg.rowCount }
+func (vg *VirtualGrid) SetCols(c int)            { vg.cols = c }
+func (vg *VirtualGrid) SetRowCount(r int)        { vg.rowCount = r }
 func (vg *VirtualGrid) SetCellSize(w, h float32) { vg.cellW = w; vg.cellH = h }
-func (vg *VirtualGrid) SetGap(g float32)       { vg.gap = g }
-func (vg *VirtualGrid) SetScrollY(y float32)   { vg.scrollY = y }
-func (vg *VirtualGrid) ScrollY() float32       { return vg.scrollY }
+func (vg *VirtualGrid) SetGap(g float32)         { vg.gap = g }
+func (vg *VirtualGrid) SetScrollY(y float32)     { vg.scrollY = y }
+func (vg *VirtualGrid) ScrollY() float32         { return vg.scrollY }
 
 func (vg *VirtualGrid) SetRenderCell(fn func(*render.CommandBuffer, int, int, uimath.Rect)) {
 	vg.renderCell = fn

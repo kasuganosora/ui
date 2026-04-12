@@ -10,10 +10,10 @@ import (
 )
 
 // helpers
-func p3tree() *core.Tree            { return core.NewTree() }
-func p3cfg() *Config                { return DefaultConfig() }
-func p3cfgText() *Config            { return cfgWithTextRenderer() }
-func p3buf() *render.CommandBuffer  { return render.NewCommandBuffer() }
+func p3tree() *core.Tree           { return core.NewTree() }
+func p3cfg() *Config               { return DefaultConfig() }
+func p3cfgText() *Config           { return cfgWithTextRenderer() }
+func p3buf() *render.CommandBuffer { return render.NewCommandBuffer() }
 func p3lay(tree *core.Tree, w Widget, x, y, ww, hh float32) {
 	tree.SetLayout(w.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(x, y, ww, hh)})
 }
@@ -429,7 +429,7 @@ type mockNavWidget struct {
 	focusable bool
 }
 
-func (m *mockNavWidget) NavFocusable() bool          { return m.focusable }
+func (m *mockNavWidget) NavFocusable() bool         { return m.focusable }
 func (m *mockNavWidget) Draw(*render.CommandBuffer) {}
 
 func newMockNav(tree *core.Tree, focusable bool) *mockNavWidget {

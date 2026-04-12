@@ -44,7 +44,7 @@ func TestStart_Stop(t *testing.T) {
 func TestStop_NilHttpSrv(t *testing.T) {
 	srv := NewServer(Options{})
 	// Stop with nil httpSrv is a no-op (returns nil)
-	if err := srv.Stop(nil); err != nil {
+	if err := srv.Stop(context.TODO()); err != nil {
 		t.Errorf("Stop with nil httpSrv should return nil, got %v", err)
 	}
 }
@@ -63,7 +63,7 @@ func TestHTTP_JsonList_EmptyHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("want 200, got %d", resp.StatusCode)
 	}
@@ -80,7 +80,7 @@ func TestHTTP_JsonVersion_EmptyHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("want 200, got %d", resp.StatusCode)
 	}
@@ -90,18 +90,18 @@ func TestHTTP_JsonVersion_EmptyHost(t *testing.T) {
 
 func TestDeclaredStyleProps_WithAllConstraints(t *testing.T) {
 	st := layout.Style{
-		Width:     pxVal(100),
-		Height:    pxVal(200),
-		MinWidth:  pxVal(50),
-		MinHeight: pxVal(30),
-		MaxWidth:  pxVal(300),
-		MaxHeight: pxVal(400),
-		FlexBasis: pxVal(80),
-		FlexGrow:  2,
-		FlexShrink: 1,
-		Overflow:  layout.OverflowScroll,
-		FontSize:  16,
-		WhiteSpace: layout.WhiteSpacePre,
+		Width:        pxVal(100),
+		Height:       pxVal(200),
+		MinWidth:     pxVal(50),
+		MinHeight:    pxVal(30),
+		MaxWidth:     pxVal(300),
+		MaxHeight:    pxVal(400),
+		FlexBasis:    pxVal(80),
+		FlexGrow:     2,
+		FlexShrink:   1,
+		Overflow:     layout.OverflowScroll,
+		FontSize:     16,
+		WhiteSpace:   layout.WhiteSpacePre,
 		TextOverflow: layout.TextOverflowEllipsis,
 	}
 	props := declaredStyleProps(st)
@@ -110,14 +110,14 @@ func TestDeclaredStyleProps_WithAllConstraints(t *testing.T) {
 		names[p.Name] = p.Value
 	}
 	checks := map[string]string{
-		"width":        "100.00px",
-		"height":       "200.00px",
-		"min-width":    "50.00px",
-		"max-height":   "400.00px",
-		"flex-basis":   "80.00px",
-		"overflow":     "scroll",
-		"font-size":    "16.00px",
-		"white-space":  "pre",
+		"width":         "100.00px",
+		"height":        "200.00px",
+		"min-width":     "50.00px",
+		"max-height":    "400.00px",
+		"flex-basis":    "80.00px",
+		"overflow":      "scroll",
+		"font-size":     "16.00px",
+		"white-space":   "pre",
 		"text-overflow": "ellipsis",
 	}
 	for k, want := range checks {
@@ -521,11 +521,11 @@ func newCoverageFontEngine() *coverageFontEngine {
 	}
 	return e
 }
-func (e *coverageFontEngine) LoadFont([]byte) (font.ID, error)              { return 1, nil }
-func (e *coverageFontEngine) LoadFontFile(string) (font.ID, error)          { return 1, nil }
-func (e *coverageFontEngine) UnloadFont(font.ID)                            {}
-func (e *coverageFontEngine) SetDPIScale(float32)                           {}
-func (e *coverageFontEngine) Destroy()                                      {}
+func (e *coverageFontEngine) LoadFont([]byte) (font.ID, error)                             { return 1, nil }
+func (e *coverageFontEngine) LoadFontFile(string) (font.ID, error)                         { return 1, nil }
+func (e *coverageFontEngine) UnloadFont(font.ID)                                           {}
+func (e *coverageFontEngine) SetDPIScale(float32)                                          {}
+func (e *coverageFontEngine) Destroy()                                                     {}
 func (e *coverageFontEngine) Kerning(font.ID, font.GlyphID, font.GlyphID, float32) float32 { return 0 }
 func (e *coverageFontEngine) FontMetrics(_ font.ID, size float32) font.Metrics {
 	return font.Metrics{Ascent: size * 0.8, Descent: size * 0.2, LineHeight: size * 1.2, UnitsPerEm: 1000}

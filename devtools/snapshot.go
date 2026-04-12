@@ -26,8 +26,8 @@ type NodeSnapshot struct {
 
 	// From core.Element
 	ElemType core.ElementType
-	HTMLTag  string   // original HTML tag (e.g. "span", "p", "h1"); empty for programmatic widgets
-	IDAttr   string   // HTML id attribute value (e.g. "my-button"); empty if not set
+	HTMLTag  string // original HTML tag (e.g. "span", "p", "h1"); empty for programmatic widgets
+	IDAttr   string // HTML id attribute value (e.g. "my-button"); empty if not set
 	Classes  []string
 	Text     string // text content (set by widget via element property "text")
 

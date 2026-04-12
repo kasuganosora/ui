@@ -41,9 +41,9 @@ func NewQuestTracker(tree *core.Tree, cfg *widget.Config) *QuestTracker {
 	}
 }
 
-func (qt *QuestTracker) Quests() []Quest       { return qt.quests }
-func (qt *QuestTracker) SetWidth(w float32)    { qt.width = w }
-func (qt *QuestTracker) SetMaxQuests(m int)    { qt.maxQuests = m }
+func (qt *QuestTracker) Quests() []Quest    { return qt.quests }
+func (qt *QuestTracker) SetWidth(w float32) { qt.width = w }
+func (qt *QuestTracker) SetMaxQuests(m int) { qt.maxQuests = m }
 
 func (qt *QuestTracker) AddQuest(q Quest) {
 	qt.quests = append(qt.quests, q)

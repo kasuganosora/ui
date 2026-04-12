@@ -18,15 +18,15 @@ type MinimapMarker struct {
 // Minimap displays a small overhead map with markers.
 type Minimap struct {
 	widget.Base
-	texture    render.TextureHandle
-	size       float32
-	circular   bool
-	playerX    float32
-	playerY    float32
-	playerRot  float32
-	zoom       float32
-	markers    []MinimapMarker
-	borderW    float32
+	texture   render.TextureHandle
+	size      float32
+	circular  bool
+	playerX   float32
+	playerY   float32
+	playerRot float32
+	zoom      float32
+	markers   []MinimapMarker
+	borderW   float32
 }
 
 func NewMinimap(tree *core.Tree, cfg *widget.Config) *Minimap {
@@ -34,11 +34,11 @@ func NewMinimap(tree *core.Tree, cfg *widget.Config) *Minimap {
 		cfg = widget.DefaultConfig()
 	}
 	return &Minimap{
-		Base:    widget.NewBase(tree, core.TypeCustom, cfg),
-		size:    180,
+		Base:     widget.NewBase(tree, core.TypeCustom, cfg),
+		size:     180,
 		circular: true,
-		zoom:    1,
-		borderW: 2,
+		zoom:     1,
+		borderW:  2,
 	}
 }
 

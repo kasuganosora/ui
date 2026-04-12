@@ -24,10 +24,10 @@ type MenuBarSubItem struct {
 // MenuBar is a horizontal application menu bar.
 type MenuBar struct {
 	Base
-	items    []MenuBarItem
+	items     []MenuBarItem
 	activeIdx int
-	open     bool
-	height   float32
+	open      bool
+	height    float32
 }
 
 func NewMenuBar(tree *core.Tree, cfg *Config) *MenuBar {
@@ -41,9 +41,9 @@ func NewMenuBar(tree *core.Tree, cfg *Config) *MenuBar {
 	}
 }
 
-func (mb *MenuBar) Items() []MenuBarItem   { return mb.items }
-func (mb *MenuBar) SetHeight(h float32)    { mb.height = h }
-func (mb *MenuBar) IsOpen() bool           { return mb.open }
+func (mb *MenuBar) Items() []MenuBarItem { return mb.items }
+func (mb *MenuBar) SetHeight(h float32)  { mb.height = h }
+func (mb *MenuBar) IsOpen() bool         { return mb.open }
 
 func (mb *MenuBar) AddItem(item MenuBarItem) {
 	mb.items = append(mb.items, item)

@@ -20,7 +20,7 @@ type Loading struct {
 	Base
 	text         string
 	start        time.Time
-	delay        int    // milliseconds before showing
+	delay        int // milliseconds before showing
 	fullscreen   bool
 	indicator    bool
 	inheritColor bool
@@ -48,14 +48,14 @@ func NewLoading(tree *core.Tree, cfg *Config) *Loading {
 	return l
 }
 
-func (l *Loading) Text() string              { return l.text }
-func (l *Loading) SetText(t string)          { l.text = t }
-func (l *Loading) SetDelay(ms int)           { l.delay = ms }
-func (l *Loading) SetFullscreen(v bool)      { l.fullscreen = v }
-func (l *Loading) SetIndicator(v bool)       { l.indicator = v }
-func (l *Loading) SetInheritColor(v bool)    { l.inheritColor = v }
-func (l *Loading) SetLoading(v bool)         { l.loading = v }
-func (l *Loading) SetSize(s string)          { l.size = s }
+func (l *Loading) Text() string           { return l.text }
+func (l *Loading) SetText(t string)       { l.text = t }
+func (l *Loading) SetDelay(ms int)        { l.delay = ms }
+func (l *Loading) SetFullscreen(v bool)   { l.fullscreen = v }
+func (l *Loading) SetIndicator(v bool)    { l.indicator = v }
+func (l *Loading) SetInheritColor(v bool) { l.inheritColor = v }
+func (l *Loading) SetLoading(v bool)      { l.loading = v }
+func (l *Loading) SetSize(s string)       { l.size = s }
 
 func (l *Loading) Draw(buf *render.CommandBuffer) {
 	bounds := l.Bounds()
@@ -88,7 +88,7 @@ func (l *Loading) Draw(buf *render.CommandBuffer) {
 		// Bounce: active during first half, using sin curve
 		bounce := float32(0)
 		if t < 0.5 {
-			bounce = float32(math.Sin(float64(t) * 2 * math.Pi)) * 6
+			bounce = float32(math.Sin(float64(t)*2*math.Pi)) * 6
 		}
 		// Opacity: brighter when bouncing
 		opacity := float32(0.35)

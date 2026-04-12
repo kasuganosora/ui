@@ -228,7 +228,7 @@ func TestCastBarDrawNotVisible(t *testing.T) {
 	cb := NewCastBar(newTree(), newCfg())
 	buf := render.NewCommandBuffer()
 	cb.Draw(buf)
-	if buf.Len() != 0 || buf.Len() != 0 {
+	if buf.Len() != 0 {
 		t.Error("expected no commands when not visible")
 	}
 }
@@ -413,7 +413,7 @@ func TestItemTooltipNotVisible(t *testing.T) {
 	tt := NewItemTooltip(newTree(), newCfg())
 	buf := render.NewCommandBuffer()
 	tt.Draw(buf)
-	if buf.Len() != 0 || buf.Len() != 0 {
+	if buf.Len() != 0 {
 		t.Error("expected no commands when not visible")
 	}
 }

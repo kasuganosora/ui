@@ -559,7 +559,7 @@ func main() {
 		Addr:    "127.0.0.1:9222",
 		AppName: "GoUI Feed Timeline",
 	})
-	go dt.Start()
+	go func() { _ = dt.Start() }()
 
 	app, err := ui.NewApp(ui.AppOptions{
 		Title:    "GoUI Feed Timeline",
@@ -581,7 +581,7 @@ func main() {
 	cfg.PrimaryColor = uimath.ColorHex("#1D9BF0")
 	cfg.FocusBorderColor = uimath.ColorHex("#1D9BF0")
 	cfg.DisabledColor = uimath.ColorHex("#536471") // placeholder color
-	cfg.NetClient = net.Default                     // enable remote avatar loading
+	cfg.NetClient = net.Default                    // enable remote avatar loading
 
 	doc := app.LoadHTML(feedHTML + "<style>" + feedCSS + "</style>")
 	tree := app.Tree()
@@ -708,7 +708,7 @@ func main() {
 		}
 		html := tweetHTML(td, t, retweetedBy)
 		root := ui.LoadHTMLWithCSS(tree, cfg, html, feedCSS)
-		var tw widget.Widget = root
+		tw := root
 		if len(root.Children()) > 0 {
 			tw = root.Children()[0]
 		}

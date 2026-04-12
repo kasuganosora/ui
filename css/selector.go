@@ -27,11 +27,11 @@ const (
 
 // CompoundSelector is a sequence of simple selectors that must all match.
 type CompoundSelector struct {
-	Tag          string   // "" means any
-	ID           string   // without #
-	Classes      []string // without .
-	PseudoClass  []string // e.g. "hover", "focus", "first-child"
-	Universal    bool     // *
+	Tag         string   // "" means any
+	ID          string   // without #
+	Classes     []string // without .
+	PseudoClass []string // e.g. "hover", "focus", "first-child"
+	Universal   bool     // *
 }
 
 // Specificity is (inline, ids, classes, tags) used for cascade ordering.
@@ -209,11 +209,12 @@ func (p *selectorParser) parseCompound() *CompoundSelector {
 				p.advance()
 			}
 			next := p.peek()
-			if next.Type == TokenIdent {
+			switch next.Type {
+			case TokenIdent:
 				cs.PseudoClass = append(cs.PseudoClass, next.Value)
 				p.advance()
 				matched = true
-			} else if next.Type == TokenFunction {
+			case TokenFunction:
 				// e.g. :nth-child(2n+1)
 				fname := next.Value
 				p.advance()
@@ -255,7 +256,7 @@ type ElementInfo struct {
 	Active   bool
 	Disabled bool
 	// For structural pseudo-classes
-	ChildIndex int // 0-based index among siblings
+	ChildIndex   int // 0-based index among siblings
 	SiblingCount int
 }
 

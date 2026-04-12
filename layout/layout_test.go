@@ -402,7 +402,7 @@ func TestFlexJustifyCenter(t *testing.T) {
 	root := e.AddNode(Style{
 		Display: DisplayFlex, FlexDirection: FlexDirectionRow,
 		JustifyContent: JustifyCenter,
-		Width: Px(300), Height: Px(100),
+		Width:          Px(300), Height: Px(100),
 	})
 	a := e.AddNode(Style{FlexBasis: Px(50)})
 	b := e.AddNode(Style{FlexBasis: Px(50)})
@@ -420,7 +420,7 @@ func TestFlexJustifySpaceBetween(t *testing.T) {
 	root := e.AddNode(Style{
 		Display: DisplayFlex, FlexDirection: FlexDirectionRow,
 		JustifyContent: JustifySpaceBetween,
-		Width: Px(300), Height: Px(100),
+		Width:          Px(300), Height: Px(100),
 	})
 	a := e.AddNode(Style{FlexBasis: Px(50)})
 	b := e.AddNode(Style{FlexBasis: Px(50)})
@@ -440,7 +440,7 @@ func TestFlexJustifyFlexEnd(t *testing.T) {
 	root := e.AddNode(Style{
 		Display: DisplayFlex, FlexDirection: FlexDirectionRow,
 		JustifyContent: JustifyFlexEnd,
-		Width: Px(300), Height: Px(100),
+		Width:          Px(300), Height: Px(100),
 	})
 	a := e.AddNode(Style{FlexBasis: Px(100)})
 	e.SetChildren(root, []NodeID{a})
@@ -455,7 +455,7 @@ func TestFlexJustifySpaceEvenly(t *testing.T) {
 	root := e.AddNode(Style{
 		Display: DisplayFlex, FlexDirection: FlexDirectionRow,
 		JustifyContent: JustifySpaceEvenly,
-		Width: Px(300), Height: Px(100),
+		Width:          Px(300), Height: Px(100),
 	})
 	a := e.AddNode(Style{FlexBasis: Px(50)})
 	b := e.AddNode(Style{FlexBasis: Px(50)})
@@ -475,7 +475,7 @@ func TestFlexAlignCenter(t *testing.T) {
 	root := e.AddNode(Style{
 		Display: DisplayFlex, FlexDirection: FlexDirectionRow,
 		AlignItems: AlignCenter,
-		Width: Px(300), Height: Px(100),
+		Width:      Px(300), Height: Px(100),
 	})
 	a := e.AddNode(Style{FlexBasis: Px(100), Height: Px(40)})
 	e.SetChildren(root, []NodeID{a})
@@ -491,7 +491,7 @@ func TestFlexAlignFlexEnd(t *testing.T) {
 	root := e.AddNode(Style{
 		Display: DisplayFlex, FlexDirection: FlexDirectionRow,
 		AlignItems: AlignFlexEnd,
-		Width: Px(300), Height: Px(100),
+		Width:      Px(300), Height: Px(100),
 	})
 	a := e.AddNode(Style{FlexBasis: Px(100), Height: Px(40)})
 	e.SetChildren(root, []NodeID{a})
@@ -506,7 +506,7 @@ func TestFlexAlignStretch(t *testing.T) {
 	root := e.AddNode(Style{
 		Display: DisplayFlex, FlexDirection: FlexDirectionRow,
 		AlignItems: AlignStretch,
-		Width: Px(300), Height: Px(100),
+		Width:      Px(300), Height: Px(100),
 	})
 	a := e.AddNode(Style{FlexBasis: Px(100)}) // no explicit height
 	e.SetChildren(root, []NodeID{a})
@@ -557,7 +557,7 @@ func TestFlexWrap(t *testing.T) {
 	root := e.AddNode(Style{
 		Display: DisplayFlex, FlexDirection: FlexDirectionRow,
 		FlexWrap: FlexWrapWrap,
-		Width: Px(200), Height: Px(200),
+		Width:    Px(200), Height: Px(200),
 	})
 	a := e.AddNode(Style{FlexBasis: Px(120)})
 	b := e.AddNode(Style{FlexBasis: Px(120)})
@@ -630,7 +630,7 @@ func TestAbsoluteInferWidth(t *testing.T) {
 	child := e.AddNode(Style{
 		Display:  DisplayBlock,
 		Position: PositionAbsolute,
-		Left: Px(50), Right: Px(50),
+		Left:     Px(50), Right: Px(50),
 		Top: Px(0), Height: Px(100),
 	})
 	e.SetChildren(root, []NodeID{child})
@@ -647,7 +647,7 @@ func TestAbsoluteInferHeight(t *testing.T) {
 	child := e.AddNode(Style{
 		Display:  DisplayBlock,
 		Position: PositionAbsolute,
-		Top: Px(20), Bottom: Px(30),
+		Top:      Px(20), Bottom: Px(30),
 		Left: Px(0), Width: Px(100),
 	})
 	e.SetChildren(root, []NodeID{child})
@@ -837,12 +837,12 @@ func TestRelativePositionMultipleChildrenInFlex(t *testing.T) {
 	})
 	c1 := e.AddNode(Style{
 		Position: PositionRelative,
-		Top: Px(5), Left: Px(3),
+		Top:      Px(5), Left: Px(3),
 		Width: Px(100), Height: Px(50),
 	})
 	c2 := e.AddNode(Style{
 		Position: PositionRelative,
-		Bottom: Px(5), Right: Px(3),
+		Bottom:   Px(5), Right: Px(3),
 		Width: Px(100), Height: Px(50),
 	})
 	c3 := e.AddNode(Style{Width: Px(100), Height: Px(50)})
@@ -864,14 +864,14 @@ func TestRelativePositionAbsoluteChildIgnored(t *testing.T) {
 	absChild := e.AddNode(Style{
 		Display:  DisplayBlock,
 		Position: PositionAbsolute,
-		Left: Px(10), Top: Px(10),
+		Left:     Px(10), Top: Px(10),
 		Width: Px(50), Height: Px(50),
 	})
 	relChild := e.AddNode(Style{
 		Display:  DisplayBlock,
 		Position: PositionRelative,
-		Left: Px(5),
-		Width: Px(100), Height: Px(30),
+		Left:     Px(5),
+		Width:    Px(100), Height: Px(30),
 	})
 	e.SetChildren(root, []NodeID{absChild, relChild})
 	e.AddRoot(root)
@@ -1192,7 +1192,7 @@ func TestFixedPositionInFlex(t *testing.T) {
 	a := e.AddNode(Style{FlexBasis: Px(200)})
 	fixed := e.AddNode(Style{
 		Position: PositionFixed,
-		Left: Px(0), Top: Px(0),
+		Left:     Px(0), Top: Px(0),
 		Width: Px(600), Height: Px(40),
 	})
 	b := e.AddNode(Style{FlexBasis: Px(200)})

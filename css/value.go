@@ -20,9 +20,10 @@ func ResolveVar(value string, vars map[string]string) string {
 		depth := 1
 		end := idx + 4
 		for end < len(value) && depth > 0 {
-			if value[end] == '(' {
+			switch value[end] {
+			case '(':
 				depth++
-			} else if value[end] == ')' {
+			case ')':
 				depth--
 			}
 			if depth > 0 {

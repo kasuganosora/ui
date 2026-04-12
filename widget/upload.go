@@ -41,11 +41,11 @@ func NewUpload(tree *core.Tree, cfg *Config) *Upload {
 	return u
 }
 
-func (u *Upload) Files() []UploadFile        { return u.files }
-func (u *Upload) SetMultiple(m bool)          { u.multiple = m }
-func (u *Upload) SetAccept(a string)          { u.accept = a }
-func (u *Upload) SetDrag(d bool)              { u.drag = d }
-func (u *Upload) SetMaxCount(m int)           { u.maxCount = m }
+func (u *Upload) Files() []UploadFile            { return u.files }
+func (u *Upload) SetMultiple(m bool)             { u.multiple = m }
+func (u *Upload) SetAccept(a string)             { u.accept = a }
+func (u *Upload) SetDrag(d bool)                 { u.drag = d }
+func (u *Upload) SetMaxCount(m int)              { u.maxCount = m }
 func (u *Upload) OnUpload(fn func([]UploadFile)) { u.onUpload = fn }
 
 func (u *Upload) AddFile(f UploadFile) {

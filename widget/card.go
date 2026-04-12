@@ -28,8 +28,8 @@ type Card struct {
 	bordered       bool
 	shadow         bool // show shadow (useful for borderless cards)
 	bgColor        uimath.Color
-	actions        Widget // header right-side actions
-	footer         Widget // footer content
+	actions        Widget   // header right-side actions
+	footer         Widget   // footer content
 	footerActions  []Widget // footer action items (like, comment, share icons)
 	hoverShadow    bool
 	headerBordered bool // divider between header and body
@@ -77,7 +77,7 @@ func (c *Card) SetSubtitle(s string) {
 }
 func (c *Card) SetDescription(d string)    { c.description = d }
 func (c *Card) SetBordered(b bool)         { c.bordered = b }
-func (c *Card) SetShadow(v bool)          { c.shadow = v }
+func (c *Card) SetShadow(v bool)           { c.shadow = v }
 func (c *Card) SetBgColor(cl uimath.Color) { c.bgColor = cl }
 func (c *Card) SetActions(w Widget)        { c.actions = w }
 func (c *Card) SetFooter(w Widget)         { c.footer = w; c.updatePadding() }
@@ -271,7 +271,6 @@ func (c *Card) Draw(buf *render.CommandBuffer) {
 			}, 1, 1)
 		}
 
-		y += headerH
 	}
 
 	// Body (children)

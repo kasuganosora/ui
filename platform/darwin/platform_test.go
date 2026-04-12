@@ -49,10 +49,10 @@ func TestConvertModifiers(t *testing.T) {
 			want:  event.Modifiers{Shift: true, Ctrl: true},
 		},
 		{
-			name:  "all modifiers",
-			flags: NSEventModifierFlagShift | NSEventModifierFlagControl | 
-			       NSEventModifierFlagOption | NSEventModifierFlagCommand,
-			want:  event.Modifiers{Shift: true, Ctrl: true, Alt: true, Super: true},
+			name: "all modifiers",
+			flags: NSEventModifierFlagShift | NSEventModifierFlagControl |
+				NSEventModifierFlagOption | NSEventModifierFlagCommand,
+			want: event.Modifiers{Shift: true, Ctrl: true, Alt: true, Super: true},
 		},
 		{
 			name:  "caps lock (ignored)",
@@ -310,22 +310,22 @@ func TestPushEvent(t *testing.T) {
 	skipIfNotDarwin(t)
 
 	p := &Platform{}
-	
+
 	// Push one event
 	evt1 := event.Event{Type: event.MouseDown}
 	p.pushEvent(evt1)
-	
+
 	if len(p.events) != 1 {
 		t.Fatalf("Expected 1 event, got %d", len(p.events))
 	}
 	if p.events[0].Type != event.MouseDown {
 		t.Errorf("Expected MouseDown, got %v", p.events[0].Type)
 	}
-	
+
 	// Push another event
 	evt2 := event.Event{Type: event.KeyPress}
 	p.pushEvent(evt2)
-	
+
 	if len(p.events) != 2 {
 		t.Fatalf("Expected 2 events, got %d", len(p.events))
 	}
@@ -340,7 +340,7 @@ func TestCurrentTimestamp(t *testing.T) {
 	p := &Platform{
 		timebase: 1000000, // 1 second
 	}
-	
+
 	ts := p.currentTimestamp()
 	// Should be a positive number (current time - timebase)
 	if ts == 0 {
@@ -350,9 +350,9 @@ func TestCurrentTimestamp(t *testing.T) {
 
 // Benchmark tests
 func BenchmarkConvertModifiers(b *testing.B) {
-	flags := uint64(NSEventModifierFlagShift | NSEventModifierFlagControl | 
-	                NSEventModifierFlagOption | NSEventModifierFlagCommand)
-	
+	flags := uint64(NSEventModifierFlagShift | NSEventModifierFlagControl |
+		NSEventModifierFlagOption | NSEventModifierFlagCommand)
+
 	for i := 0; i < b.N; i++ {
 		_ = convertModifiers(flags)
 	}
@@ -367,7 +367,7 @@ func BenchmarkTranslateKeyCode(b *testing.B) {
 func BenchmarkPushEvent(b *testing.B) {
 	p := &Platform{}
 	evt := event.Event{Type: event.MouseMove, X: 100, Y: 200}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p.pushEvent(evt)

@@ -41,7 +41,7 @@ type HUDElement struct {
 type HUDAnchor uint8
 
 const (
-	AnchorTopLeft     HUDAnchor = iota
+	AnchorTopLeft HUDAnchor = iota
 	AnchorTopCenter
 	AnchorTopRight
 	AnchorMiddleLeft
@@ -205,13 +205,13 @@ func (h *HUD) Draw(buf *render.CommandBuffer) {
 // HealthBar displays a horizontal resource bar (HP, MP, XP, etc.).
 type HealthBar struct {
 	widget.Base
-	current    float32
-	max        float32
-	barColor   uimath.Color
-	bgColor    uimath.Color
-	showText   bool
-	width      float32
-	height     float32
+	current  float32
+	max      float32
+	barColor uimath.Color
+	bgColor  uimath.Color
+	showText bool
+	width    float32
+	height   float32
 }
 
 // NewHealthBar creates a resource bar.
@@ -230,11 +230,11 @@ func NewHealthBar(tree *core.Tree, cfg *widget.Config) *HealthBar {
 	}
 }
 
-func (hb *HealthBar) Current() float32        { return hb.current }
-func (hb *HealthBar) Max() float32             { return hb.max }
+func (hb *HealthBar) Current() float32 { return hb.current }
+func (hb *HealthBar) Max() float32     { return hb.max }
 
-func (hb *HealthBar) SetCurrent(v float32)     { hb.current = v }
-func (hb *HealthBar) SetMax(v float32)          { hb.max = v }
+func (hb *HealthBar) SetCurrent(v float32)       { hb.current = v }
+func (hb *HealthBar) SetMax(v float32)           { hb.max = v }
 func (hb *HealthBar) SetBarColor(c uimath.Color) { hb.barColor = c }
 func (hb *HealthBar) SetBgColor(c uimath.Color)  { hb.bgColor = c }
 func (hb *HealthBar) SetShowText(v bool)         { hb.showText = v }
@@ -295,10 +295,10 @@ func (hb *HealthBar) Draw(buf *render.CommandBuffer) {
 // Hotbar is a row of action slots (abilities, items).
 type Hotbar struct {
 	widget.Base
-	slots     []HotbarSlot
-	slotSize  float32
-	gap       float32
-	selected  int
+	slots    []HotbarSlot
+	slotSize float32
+	gap      float32
+	selected int
 }
 
 // HotbarSlot represents a single slot in the hotbar.
@@ -328,11 +328,11 @@ func NewHotbar(tree *core.Tree, numSlots int, cfg *widget.Config) *Hotbar {
 	}
 }
 
-func (h *Hotbar) SlotCount() int           { return len(h.slots) }
-func (h *Hotbar) Selected() int             { return h.selected }
-func (h *Hotbar) SetSelected(i int)         { h.selected = i }
-func (h *Hotbar) SetSlotSize(s float32)     { h.slotSize = s }
-func (h *Hotbar) SetGap(g float32)          { h.gap = g }
+func (h *Hotbar) SlotCount() int        { return len(h.slots) }
+func (h *Hotbar) Selected() int         { return h.selected }
+func (h *Hotbar) SetSelected(i int)     { h.selected = i }
+func (h *Hotbar) SetSlotSize(s float32) { h.slotSize = s }
+func (h *Hotbar) SetGap(g float32)      { h.gap = g }
 
 func (h *Hotbar) SetSlot(index int, slot HotbarSlot) {
 	if index >= 0 && index < len(h.slots) {
@@ -408,8 +408,8 @@ func NewCooldownMask(tree *core.Tree, cfg *widget.Config) *CooldownMask {
 	}
 }
 
-func (cm *CooldownMask) SetRatio(r float32)  { cm.ratio = r }
-func (cm *CooldownMask) Ratio() float32       { return cm.ratio }
+func (cm *CooldownMask) SetRatio(r float32) { cm.ratio = r }
+func (cm *CooldownMask) Ratio() float32     { return cm.ratio }
 
 func (cm *CooldownMask) Draw(buf *render.CommandBuffer) {
 	if cm.ratio <= 0 {

@@ -46,8 +46,8 @@ func NewCanvas(tree *core.Tree, width, height int, backend render.Backend, cfg *
 	return c
 }
 
-func (c *Canvas) Width() int                    { return c.width }
-func (c *Canvas) Height() int                   { return c.height }
+func (c *Canvas) Width() int                     { return c.width }
+func (c *Canvas) Height() int                    { return c.height }
 func (c *Canvas) GetContext2D() *CanvasContext2D { return c.ctx }
 
 // Pixels returns the raw RGBA pixel buffer (read-only view).
@@ -143,8 +143,8 @@ type LineJoin uint8
 
 const (
 	LineJoinMiter LineJoin = iota // "miter"
-	LineJoinRound                // "round"
-	LineJoinBevel                // "bevel"
+	LineJoinRound                 // "round"
+	LineJoinBevel                 // "bevel"
 )
 
 // TextAlign for canvas text drawing.
@@ -162,7 +162,7 @@ const (
 type CanvasTextBaseline uint8
 
 const (
-	CanvasTextBaselineAlphabetic  CanvasTextBaseline = iota // default
+	CanvasTextBaselineAlphabetic CanvasTextBaseline = iota // default
 	CanvasTextBaselineTop
 	CanvasTextBaselineHanging
 	CanvasTextBaselineMiddle
@@ -286,36 +286,36 @@ func gradientStyle(g *CanvasGradient) canvasStyle {
 // ---------------------------------------------------------------------------
 
 type drawState struct {
-	fillStyle    canvasStyle
-	strokeStyle  canvasStyle
-	lineWidth    float64
-	lineCap      LineCap
-	lineJoin     LineJoin
-	miterLimit   float64
-	globalAlpha  float64
-	compositeOp  CompositeOp
-	fontSize     float64
-	textAlign    CanvasTextAlign
-	textBaseline CanvasTextBaseline
-	transform    affineMatrix
+	fillStyle                  canvasStyle
+	strokeStyle                canvasStyle
+	lineWidth                  float64
+	lineCap                    LineCap
+	lineJoin                   LineJoin
+	miterLimit                 float64
+	globalAlpha                float64
+	compositeOp                CompositeOp
+	fontSize                   float64
+	textAlign                  CanvasTextAlign
+	textBaseline               CanvasTextBaseline
+	transform                  affineMatrix
 	clipX, clipY, clipW, clipH int // clip rect (-1 = no clip)
 }
 
 func defaultDrawState() drawState {
 	return drawState{
-		fillStyle:   solidStyle(uimath.Color{R: 0, G: 0, B: 0, A: 1}),
-		strokeStyle: solidStyle(uimath.Color{R: 0, G: 0, B: 0, A: 1}),
-		lineWidth:   1,
-		lineCap:     LineCapButt,
-		lineJoin:    LineJoinMiter,
-		miterLimit:  10,
-		globalAlpha: 1,
-		compositeOp: CompositeSourceOver,
-		fontSize:    10,
-		textAlign:   CanvasTextAlignStart,
+		fillStyle:    solidStyle(uimath.Color{R: 0, G: 0, B: 0, A: 1}),
+		strokeStyle:  solidStyle(uimath.Color{R: 0, G: 0, B: 0, A: 1}),
+		lineWidth:    1,
+		lineCap:      LineCapButt,
+		lineJoin:     LineJoinMiter,
+		miterLimit:   10,
+		globalAlpha:  1,
+		compositeOp:  CompositeSourceOver,
+		fontSize:     10,
+		textAlign:    CanvasTextAlignStart,
 		textBaseline: CanvasTextBaselineAlphabetic,
-		transform:   identityMatrix(),
-		clipX:       -1,
+		transform:    identityMatrix(),
+		clipX:        -1,
 	}
 }
 
@@ -368,10 +368,10 @@ type pathSeg struct {
 // ---------------------------------------------------------------------------
 
 type CanvasContext2D struct {
-	canvas    *Canvas
-	state     drawState
-	stateStack []drawState
-	path      []pathSeg
+	canvas       *Canvas
+	state        drawState
+	stateStack   []drawState
+	path         []pathSeg
 	pathX, pathY float64 // current point
 }
 
@@ -454,13 +454,13 @@ func (ctx *CanvasContext2D) FillColor() uimath.Color   { return ctx.state.fillSt
 func (ctx *CanvasContext2D) StrokeColor() uimath.Color { return ctx.state.strokeStyle.color }
 
 func (ctx *CanvasContext2D) SetLineWidth(w float64)  { ctx.state.lineWidth = w }
-func (ctx *CanvasContext2D) LineWidth() float64       { return ctx.state.lineWidth }
-func (ctx *CanvasContext2D) SetLineCap(c LineCap)     { ctx.state.lineCap = c }
-func (ctx *CanvasContext2D) LineCap() LineCap         { return ctx.state.lineCap }
-func (ctx *CanvasContext2D) SetLineJoin(j LineJoin)   { ctx.state.lineJoin = j }
-func (ctx *CanvasContext2D) LineJoin() LineJoin        { return ctx.state.lineJoin }
-func (ctx *CanvasContext2D) SetMiterLimit(m float64)  { ctx.state.miterLimit = m }
-func (ctx *CanvasContext2D) MiterLimit() float64      { return ctx.state.miterLimit }
+func (ctx *CanvasContext2D) LineWidth() float64      { return ctx.state.lineWidth }
+func (ctx *CanvasContext2D) SetLineCap(c LineCap)    { ctx.state.lineCap = c }
+func (ctx *CanvasContext2D) LineCap() LineCap        { return ctx.state.lineCap }
+func (ctx *CanvasContext2D) SetLineJoin(j LineJoin)  { ctx.state.lineJoin = j }
+func (ctx *CanvasContext2D) LineJoin() LineJoin      { return ctx.state.lineJoin }
+func (ctx *CanvasContext2D) SetMiterLimit(m float64) { ctx.state.miterLimit = m }
+func (ctx *CanvasContext2D) MiterLimit() float64     { return ctx.state.miterLimit }
 
 func (ctx *CanvasContext2D) SetGlobalAlpha(a float64) { ctx.state.globalAlpha = a }
 func (ctx *CanvasContext2D) GlobalAlpha() float64     { return ctx.state.globalAlpha }
@@ -468,12 +468,12 @@ func (ctx *CanvasContext2D) GlobalAlpha() float64     { return ctx.state.globalA
 func (ctx *CanvasContext2D) SetGlobalCompositeOperation(op CompositeOp) { ctx.state.compositeOp = op }
 func (ctx *CanvasContext2D) GlobalCompositeOperation() CompositeOp      { return ctx.state.compositeOp }
 
-func (ctx *CanvasContext2D) SetFont(size float64)              { ctx.state.fontSize = size }
-func (ctx *CanvasContext2D) Font() float64                     { return ctx.state.fontSize }
-func (ctx *CanvasContext2D) SetTextAlign(a CanvasTextAlign)    { ctx.state.textAlign = a }
-func (ctx *CanvasContext2D) TextAlign() CanvasTextAlign        { return ctx.state.textAlign }
+func (ctx *CanvasContext2D) SetFont(size float64)                 { ctx.state.fontSize = size }
+func (ctx *CanvasContext2D) Font() float64                        { return ctx.state.fontSize }
+func (ctx *CanvasContext2D) SetTextAlign(a CanvasTextAlign)       { ctx.state.textAlign = a }
+func (ctx *CanvasContext2D) TextAlign() CanvasTextAlign           { return ctx.state.textAlign }
 func (ctx *CanvasContext2D) SetTextBaseline(b CanvasTextBaseline) { ctx.state.textBaseline = b }
-func (ctx *CanvasContext2D) TextBaseline() CanvasTextBaseline  { return ctx.state.textBaseline }
+func (ctx *CanvasContext2D) TextBaseline() CanvasTextBaseline     { return ctx.state.textBaseline }
 
 // --- Rectangles ---
 

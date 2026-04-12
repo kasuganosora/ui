@@ -128,7 +128,7 @@ func (e *testEnv) renderFrames(root widget.Widget, n int) {
 		e.textRenderer.BeginFrame()
 		e.buf.Reset()
 		root.Draw(e.buf)
-		e.textRenderer.Upload()
+		_ = e.textRenderer.Upload()
 		e.backend.Submit(e.buf)
 		e.backend.EndFrame()
 	}
@@ -144,7 +144,7 @@ func (e *testEnv) screenshot(t *testing.T, name string) (string, *image.RGBA) {
 	}
 
 	dir := filepath.Join("testdata", "screenshots")
-	os.MkdirAll(dir, 0755)
+	_ = os.MkdirAll(dir, 0755)
 
 	path := filepath.Join(dir, name+".png")
 	if err := capture.SavePNG(img, path); err != nil {
@@ -196,39 +196,6 @@ func verifyAllVisibleHaveBounds(t *testing.T, tree *core.Tree, maxDepth int) {
 		return true
 	})
 }
-
-func verifyNoOverlappingSiblings(t *testing.T, tree *core.Tree) {
-	t.Helper()
-	tree.Walk(tree.Root(), func(id core.ElementID, _ int) bool {
-		elem := tree.Get(id)
-		if elem == nil {
-			return true
-		}
-		children := elem.ChildIDs()
-		for i := 0; i < len(children); i++ {
-			for j := i + 1; j < len(children); j++ {
-				ci := tree.Get(children[i])
-				cj := tree.Get(children[j])
-				if ci == nil || cj == nil {
-					continue
-				}
-				bi := ci.Layout().Bounds
-				bj := cj.Layout().Bounds
-				if bi.Width == 0 || bi.Height == 0 || bj.Width == 0 || bj.Height == 0 {
-					continue
-				}
-				if bi.X == bj.X && bi.Y == bj.Y && bi.Width == bj.Width && bi.Height == bj.Height {
-					t.Errorf("siblings %d (%s) and %d (%s) have identical bounds",
-						children[i], ci.Type(), children[j], cj.Type())
-				}
-			}
-		}
-		return true
-	})
-}
-
-// --- Pixel inspection helpers ---
-
 func verifyNotUniform(t *testing.T, img *image.RGBA, label string) {
 	t.Helper()
 	bounds := img.Bounds()
@@ -257,24 +224,6 @@ func verifyRegionNotBlack(t *testing.T, img *image.RGBA, label string, rx, ry, r
 	}
 	t.Errorf("%s: region (%d,%d %dx%d) is entirely black", label, rx, ry, rw, rh)
 }
-
-func verifyRegionHasColor(t *testing.T, img *image.RGBA, label string, rx, ry, rw, rh int, wantR, wantG, wantB, tolerance uint8) {
-	t.Helper()
-	bounds := img.Bounds()
-	for y := ry; y < ry+rh && y < bounds.Dy(); y += max(1, rh/10) {
-		for x := rx; x < rx+rw && x < bounds.Dx(); x += max(1, rw/10) {
-			c := img.RGBAAt(x, y)
-			if absDiffU8(c.R, wantR) <= tolerance &&
-				absDiffU8(c.G, wantG) <= tolerance &&
-				absDiffU8(c.B, wantB) <= tolerance {
-				return
-			}
-		}
-	}
-	t.Errorf("%s: region (%d,%d %dx%d) does not contain expected color (#%02x%02x%02x +/-%d)",
-		label, rx, ry, rw, rh, wantR, wantG, wantB, tolerance)
-}
-
 func countDistinctColors(img *image.RGBA, rx, ry, rw, rh int) int {
 	colors := make(map[uint32]struct{})
 	bounds := img.Bounds()
@@ -287,16 +236,6 @@ func countDistinctColors(img *image.RGBA, rx, ry, rw, rh int) int {
 	}
 	return len(colors)
 }
-
-func absDiffU8(a, b uint8) uint8 {
-	if a > b {
-		return a - b
-	}
-	return b - a
-}
-
-// --- Visual Tests ---
-
 func TestVisualDemoFullUI(t *testing.T) {
 	env := newTestEnv(t, 1280, 800)
 	defer env.close()
@@ -438,7 +377,7 @@ func TestVisualMessageLoop(t *testing.T) {
 			env.textRenderer.BeginFrame()
 			env.buf.Reset()
 			root.Draw(env.buf)
-			env.textRenderer.Upload()
+			_ = env.textRenderer.Upload()
 			env.backend.Submit(env.buf)
 			env.backend.EndFrame()
 		}
@@ -654,7 +593,7 @@ func TestVisualFontSpecimen(t *testing.T) {
 			curY += m.Ascent + m.Descent + 6
 		}
 
-		env.textRenderer.Upload()
+		_ = env.textRenderer.Upload()
 		env.backend.Submit(env.buf)
 		env.backend.EndFrame()
 	}
@@ -700,7 +639,7 @@ func TestVisualListWidget(t *testing.T) {
 	env.textRenderer.BeginFrame()
 	env.buf.Reset()
 	l.Draw(env.buf)
-	env.textRenderer.Upload()
+	_ = env.textRenderer.Upload()
 	env.backend.Submit(env.buf)
 	env.backend.EndFrame()
 	_, img := env.screenshot(t, "list_widget")

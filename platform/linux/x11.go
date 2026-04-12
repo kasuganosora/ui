@@ -43,7 +43,6 @@ var (
 	fnXChangeProperty       uintptr
 	fnXGetWindowProperty    uintptr
 	fnXFree                 uintptr
-	fnXMoveResizeWindow     uintptr
 )
 
 func init() {
@@ -86,7 +85,6 @@ func init() {
 	fnXChangeProperty = sym("XChangeProperty")
 	fnXGetWindowProperty = sym("XGetWindowProperty")
 	fnXFree = sym("XFree")
-	fnXMoveResizeWindow = sym("XMoveResizeWindow")
 }
 
 // ---- X11 type definitions ----
@@ -120,21 +118,21 @@ type XEvent [24]int64
 
 // XConfigureEvent is the configure notification sub-struct within XEvent.
 type XConfigureEvent struct {
-	Type, Serial int64
-	SendEvent    Bool
-	Display      Display
-	Event, Window XWindow
+	Type, Serial        int64
+	SendEvent           Bool
+	Display             Display
+	Event, Window       XWindow
 	X, Y, Width, Height int32
-	BorderWidth int32
-	Above       XWindow
-	OverrideRedirect Bool
+	BorderWidth         int32
+	Above               XWindow
+	OverrideRedirect    Bool
 }
 
 // XKeyEvent is the key press/release sub-struct within XEvent.
 type XKeyEvent struct {
-	Type, Serial int64
-	SendEvent    Bool
-	Display      Display
+	Type, Serial            int64
+	SendEvent               Bool
+	Display                 Display
 	Window, Root, Subwindow XWindow
 	Time                    Time
 	X, Y, XRoot, YRoot      int32
@@ -144,9 +142,9 @@ type XKeyEvent struct {
 
 // XButtonEvent is the button press/release sub-struct within XEvent.
 type XButtonEvent struct {
-	Type, Serial int64
-	SendEvent    Bool
-	Display      Display
+	Type, Serial            int64
+	SendEvent               Bool
+	Display                 Display
 	Window, Root, Subwindow XWindow
 	Time                    Time
 	X, Y, XRoot, YRoot      int32
@@ -156,9 +154,9 @@ type XButtonEvent struct {
 
 // XMotionEvent is the pointer motion sub-struct within XEvent.
 type XMotionEvent struct {
-	Type, Serial int64
-	SendEvent    Bool
-	Display      Display
+	Type, Serial            int64
+	SendEvent               Bool
+	Display                 Display
 	Window, Root, Subwindow XWindow
 	Time                    Time
 	X, Y, XRoot, YRoot      int32
@@ -172,10 +170,10 @@ type XClientMessageEvent struct {
 	Type, Serial int64
 	SendEvent    Bool
 	Display      Display
-	Window      XWindow
-	MessageType Atom
-	Format      int32
-	Data        [5]int64
+	Window       XWindow
+	MessageType  Atom
+	Format       int32
+	Data         [5]int64
 }
 
 // XFocusChangeEvent is the focus in/out sub-struct within XEvent.
@@ -190,7 +188,7 @@ type XFocusChangeEvent struct {
 // XWindowAttributes holds window geometry and attributes.
 type XWindowAttributes struct {
 	X, Y, Width, Height, BorderWidth, Depth int32
-	_                                        [64]int64
+	_                                       [64]int64
 }
 
 // ---- X11 event type constants ----
@@ -448,58 +446,58 @@ func XFree(data unsafe.Pointer) {
 
 // X11 keysym constants (selected subset).
 const (
-	xkBackSpace  = 0xFF08
-	xkTab        = 0xFF09
-	xkReturn     = 0xFF0D
-	xkEscape     = 0xFF1B
-	xkDelete     = 0xFFFF
-	xkHome       = 0xFF50
-	xkLeft       = 0xFF51
-	xkUp         = 0xFF52
-	xkRight      = 0xFF53
-	xkDown       = 0xFF54
-	xkPageUp     = 0xFF55
-	xkPageDown   = 0xFF56
-	xkEnd        = 0xFF57
-	xkInsert     = 0xFF63
-	xkF1         = 0xFFBE
-	xkF2         = 0xFFBF
-	xkF3         = 0xFFC0
-	xkF4         = 0xFFC1
-	xkF5         = 0xFFC2
-	xkF6         = 0xFFC3
-	xkF7         = 0xFFC4
-	xkF8         = 0xFFC5
-	xkF9         = 0xFFC6
-	xkF10        = 0xFFC7
-	xkF11        = 0xFFC8
-	xkF12        = 0xFFC9
-	xkShiftL     = 0xFFE1
-	xkShiftR     = 0xFFE2
-	xkControlL   = 0xFFE3
-	xkControlR   = 0xFFE4
-	xkCapsLock   = 0xFFE5
-	xkAltL       = 0xFFE9
-	xkAltR       = 0xFFEA
-	xkSuperL     = 0xFFEB
-	xkSuperR     = 0xFFEC
-	xkNumLock    = 0xFF7F
-	xkScrollLock = 0xFF14
+	xkBackSpace   = 0xFF08
+	xkTab         = 0xFF09
+	xkReturn      = 0xFF0D
+	xkEscape      = 0xFF1B
+	xkDelete      = 0xFFFF
+	xkHome        = 0xFF50
+	xkLeft        = 0xFF51
+	xkUp          = 0xFF52
+	xkRight       = 0xFF53
+	xkDown        = 0xFF54
+	xkPageUp      = 0xFF55
+	xkPageDown    = 0xFF56
+	xkEnd         = 0xFF57
+	xkInsert      = 0xFF63
+	xkF1          = 0xFFBE
+	xkF2          = 0xFFBF
+	xkF3          = 0xFFC0
+	xkF4          = 0xFFC1
+	xkF5          = 0xFFC2
+	xkF6          = 0xFFC3
+	xkF7          = 0xFFC4
+	xkF8          = 0xFFC5
+	xkF9          = 0xFFC6
+	xkF10         = 0xFFC7
+	xkF11         = 0xFFC8
+	xkF12         = 0xFFC9
+	xkShiftL      = 0xFFE1
+	xkShiftR      = 0xFFE2
+	xkControlL    = 0xFFE3
+	xkControlR    = 0xFFE4
+	xkCapsLock    = 0xFFE5
+	xkAltL        = 0xFFE9
+	xkAltR        = 0xFFEA
+	xkSuperL      = 0xFFEB
+	xkSuperR      = 0xFFEC
+	xkNumLock     = 0xFF7F
+	xkScrollLock  = 0xFF14
 	xkPrintScreen = 0xFF61
-	xkPause      = 0xFF13
-	xkMenu       = 0xFF67
-	xkSpace      = 0x0020
-	xkApostrophe = 0x0027
-	xkComma      = 0x002C
-	xkMinus      = 0x002D
-	xkPeriod     = 0x002E
-	xkSlash      = 0x002F
-	xkSemicolon  = 0x003B
-	xkEqual      = 0x003D
-	xkBracketL   = 0x005B
-	xkBackslash  = 0x005C
-	xkBracketR   = 0x005D
-	xkGrave      = 0x0060
+	xkPause       = 0xFF13
+	xkMenu        = 0xFF67
+	xkSpace       = 0x0020
+	xkApostrophe  = 0x0027
+	xkComma       = 0x002C
+	xkMinus       = 0x002D
+	xkPeriod      = 0x002E
+	xkSlash       = 0x002F
+	xkSemicolon   = 0x003B
+	xkEqual       = 0x003D
+	xkBracketL    = 0x005B
+	xkBackslash   = 0x005C
+	xkBracketR    = 0x005D
+	xkGrave       = 0x0060
 	// Numpad
 	xkKP0        = 0xFFB0
 	xkKP9        = 0xFFB9

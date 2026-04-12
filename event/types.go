@@ -7,10 +7,10 @@ type Type uint16
 
 const (
 	// Mouse events
-	MouseMove       Type = iota + 1
-	MouseDown            // MouseButton in Button field
-	MouseUp              // MouseButton in Button field
-	MouseClick           // Synthetic click (down + up on same element)
+	MouseMove  Type = iota + 1
+	MouseDown       // MouseButton in Button field
+	MouseUp         // MouseButton in Button field
+	MouseClick      // Synthetic click (down + up on same element)
 	MouseDoubleClick
 	MouseWheel
 	MouseEnter
@@ -244,11 +244,11 @@ type Event struct {
 	Text      string // For IME events: composition/commit text
 
 	// IME fields
-	IMECompositionText string         // Current composition string
-	IMECursorPos       int            // Cursor position within composition
-	IMECandidates      []string       // Candidate list
-	IMECandidateIndex  int            // Selected candidate index
-	IMECaretRect       uimath.Rect    // Caret position for candidate window
+	IMECompositionText string      // Current composition string
+	IMECursorPos       int         // Cursor position within composition
+	IMECandidates      []string    // Candidate list
+	IMECandidateIndex  int         // Selected candidate index
+	IMECaretRect       uimath.Rect // Caret position for candidate window
 
 	// Touch fields
 	TouchID    int

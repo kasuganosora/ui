@@ -70,23 +70,23 @@ func NewSlider(tree *core.Tree, cfg *Config) *Slider {
 	return s
 }
 
-func (s *Slider) Value() float32                  { return s.value }
-func (s *Slider) Min() float32                    { return s.min }
-func (s *Slider) Max() float32                    { return s.max }
-func (s *Slider) SetMin(v float32)                { s.min = v }
-func (s *Slider) SetMax(v float32)                { s.max = v }
-func (s *Slider) SetStep(v float32)               { s.step = v }
-func (s *Slider) SetDisabled(d bool)              { s.disabled = d }
-func (s *Slider) SetShowTooltip(v bool)           { s.showTooltip = v }
-func (s *Slider) SetLayout(l SliderLayout)        { s.layout = l }
-func (s *Slider) Layout() SliderLayout            { return s.layout }
-func (s *Slider) SetRange(v bool)                 { s.rangeMode = v }
-func (s *Slider) Range() bool                     { return s.rangeMode }
-func (s *Slider) SetShowStep(v bool)              { s.showStep = v }
-func (s *Slider) ShowStep() bool                  { return s.showStep }
-func (s *Slider) SetMarks(m map[float32]string)   { s.marks = m }
-func (s *Slider) OnChange(fn func(float32))       { s.onChange = fn }
-func (s *Slider) OnChangeEnd(fn func(float32))    { s.onChangeEnd = fn }
+func (s *Slider) Value() float32                { return s.value }
+func (s *Slider) Min() float32                  { return s.min }
+func (s *Slider) Max() float32                  { return s.max }
+func (s *Slider) SetMin(v float32)              { s.min = v }
+func (s *Slider) SetMax(v float32)              { s.max = v }
+func (s *Slider) SetStep(v float32)             { s.step = v }
+func (s *Slider) SetDisabled(d bool)            { s.disabled = d }
+func (s *Slider) SetShowTooltip(v bool)         { s.showTooltip = v }
+func (s *Slider) SetLayout(l SliderLayout)      { s.layout = l }
+func (s *Slider) Layout() SliderLayout          { return s.layout }
+func (s *Slider) SetRange(v bool)               { s.rangeMode = v }
+func (s *Slider) Range() bool                   { return s.rangeMode }
+func (s *Slider) SetShowStep(v bool)            { s.showStep = v }
+func (s *Slider) ShowStep() bool                { return s.showStep }
+func (s *Slider) SetMarks(m map[float32]string) { s.marks = m }
+func (s *Slider) OnChange(fn func(float32))     { s.onChange = fn }
+func (s *Slider) OnChangeEnd(fn func(float32))  { s.onChangeEnd = fn }
 
 func (s *Slider) SetValue(v float32) {
 	if v < s.min {

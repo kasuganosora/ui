@@ -29,7 +29,7 @@ const (
 type ProgressStatus uint8
 
 const (
-	ProgressNormal  ProgressStatus = iota
+	ProgressNormal ProgressStatus = iota
 	ProgressSuccess
 	ProgressError
 	ProgressActive
@@ -44,7 +44,7 @@ type Progress struct {
 	percentage  float32 // 0-100
 	status      ProgressStatus
 	theme       ProgressTheme
-	label       string  // custom label; if empty and showLabel, shows percentage
+	label       string // custom label; if empty and showLabel, shows percentage
 	showLabel   bool
 	strokeWidth float32 // track/bar thickness
 	size        float32 // circle diameter (default 120)
@@ -115,13 +115,6 @@ func (p *Progress) barColor() uimath.Color {
 	default:
 		return p.config.PrimaryColor
 	}
-}
-
-func (p *Progress) bgColor() uimath.Color {
-	if p.trackColor != "" {
-		return uimath.ColorHex(p.trackColor)
-	}
-	return uimath.ColorHex("#f3f3f3")
 }
 
 func (p *Progress) labelText() string {

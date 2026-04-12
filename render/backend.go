@@ -77,7 +77,7 @@ type TextureDesc struct {
 type TextureFormat uint8
 
 const (
-	TextureFormatR8     TextureFormat = iota // Single channel, 8 bits (SDF glyphs)
-	TextureFormatRGBA8                       // 4 channels, 8 bits each (color images)
-	TextureFormatBGRA8                       // 4 channels, BGRA order
+	TextureFormatR8    TextureFormat = iota // Single channel, 8 bits (SDF glyphs)
+	TextureFormatRGBA8                      // 4 channels, 8 bits each (color images)
+	TextureFormatBGRA8                      // 4 channels, BGRA order
 )

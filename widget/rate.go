@@ -28,11 +28,11 @@ func NewRate(tree *core.Tree, cfg *Config) *Rate {
 		cfg = DefaultConfig()
 	}
 	r := &Rate{
-		Base:     NewBase(tree, core.TypeCustom, cfg),
-		count:    5,
-		size:     24,
-		gap:      4,
-		color:    [2]uimath.Color{uimath.ColorHex("#e37318"), cfg.BorderColor},
+		Base:  NewBase(tree, core.TypeCustom, cfg),
+		count: 5,
+		size:  24,
+		gap:   4,
+		color: [2]uimath.Color{uimath.ColorHex("#e37318"), cfg.BorderColor},
 	}
 	tree.AddHandler(r.id, event.MouseClick, func(e *event.Event) {
 		if r.disabled {
@@ -65,17 +65,17 @@ func NewRate(tree *core.Tree, cfg *Config) *Rate {
 	return r
 }
 
-func (r *Rate) Value() float32                     { return r.value }
-func (r *Rate) SetCount(c int)                     { r.count = c }
-func (r *Rate) SetSize(s float32)                  { r.size = s }
-func (r *Rate) SetDisabled(d bool)                 { r.disabled = d }
-func (r *Rate) SetAllowHalf(v bool)                { r.allowHalf = v }
-func (r *Rate) SetClearable(v bool)                { r.clearable = v }
-func (r *Rate) Clearable() bool                    { return r.clearable }
-func (r *Rate) SetTexts(t []string)                { r.texts = t }
-func (r *Rate) SetShowText(v bool)                 { r.showText = v }
-func (r *Rate) SetColor(c [2]uimath.Color)         { r.color = c }
-func (r *Rate) OnChange(fn func(float32))          { r.onChange = fn }
+func (r *Rate) Value() float32             { return r.value }
+func (r *Rate) SetCount(c int)             { r.count = c }
+func (r *Rate) SetSize(s float32)          { r.size = s }
+func (r *Rate) SetDisabled(d bool)         { r.disabled = d }
+func (r *Rate) SetAllowHalf(v bool)        { r.allowHalf = v }
+func (r *Rate) SetClearable(v bool)        { r.clearable = v }
+func (r *Rate) Clearable() bool            { return r.clearable }
+func (r *Rate) SetTexts(t []string)        { r.texts = t }
+func (r *Rate) SetShowText(v bool)         { r.showText = v }
+func (r *Rate) SetColor(c [2]uimath.Color) { r.color = c }
+func (r *Rate) OnChange(fn func(float32))  { r.onChange = fn }
 
 func (r *Rate) SetValue(v float32) {
 	if v < 0 {

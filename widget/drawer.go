@@ -11,7 +11,7 @@ import (
 type DrawerPlacement uint8
 
 const (
-	DrawerRight  DrawerPlacement = iota
+	DrawerRight DrawerPlacement = iota
 	DrawerLeft
 	DrawerTop
 	DrawerBottom
@@ -159,13 +159,14 @@ func (d *Drawer) Close() {
 // drawerSize parses the size string to a float32 pixel value.
 func (d *Drawer) drawerSize() float32 {
 	size := float32(378)
-	if d.size == "small" {
+	switch d.size {
+	case "small":
 		size = 300
-	} else if d.size == "medium" {
+	case "medium":
 		size = 378
-	} else if d.size == "large" {
+	case "large":
 		size = 520
-	} else {
+	default:
 		var v float32
 		n := 0
 		for _, c := range d.size {

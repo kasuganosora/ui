@@ -72,7 +72,7 @@ func platformNewFontEngine() font.Engine {
 // PingFang SC is the system Chinese font shipped with macOS 10.11+.
 func platformDefaultFont() string {
 	paths := []string{
-		"/System/Library/Fonts/PingFang.ttc",     // macOS 10.11+ (PingFang SC)
+		"/System/Library/Fonts/PingFang.ttc",      // macOS 10.11+ (PingFang SC)
 		"/Library/Fonts/Arial Unicode.ttf",        // older macOS fallback
 		"/System/Library/Fonts/STHeiti Light.ttc", // Snow Leopard / early Lion
 	}

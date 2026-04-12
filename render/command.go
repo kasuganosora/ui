@@ -66,11 +66,11 @@ type GlyphInstance struct {
 
 // ImageCmd describes an image draw.
 type ImageCmd struct {
-	Texture  TextureHandle
-	SrcRect  uimath.Rect // Region in texture (UV space or pixels)
-	DstRect  uimath.Rect // Destination on screen
-	Tint     uimath.Color
-	Corners  uimath.Corners // Corner radii for rounded image
+	Texture TextureHandle
+	SrcRect uimath.Rect // Region in texture (UV space or pixels)
+	DstRect uimath.Rect // Destination on screen
+	Tint    uimath.Color
+	Corners uimath.Corners // Corner radii for rounded image
 }
 
 // ShadowCmd describes a CSS box-shadow layer.

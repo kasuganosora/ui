@@ -67,8 +67,8 @@ func CSSLayout(tree *core.Tree, root widget.Widget, w, h float32, cfg ...*widget
 //     not maps — O(1) slice access vs O(1) amortized hash + cache misses
 type CSSLayoutCache struct {
 	engine       *layout.Engine
-	widgets      []widget.Widget      // indexed by NodeID (0-based sequential)
-	nodeChildren [][]layout.NodeID    // indexed by NodeID
+	widgets      []widget.Widget   // indexed by NodeID (0-based sequential)
+	nodeChildren [][]layout.NodeID // indexed by NodeID
 	rootNode     layout.NodeID
 	lastW, lastH float32
 	valid        bool

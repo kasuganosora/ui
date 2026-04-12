@@ -61,24 +61,24 @@ func NewWindow(tree *core.Tree, title string, cfg *widget.Config) *Window {
 
 // --- Getters / Setters -------------------------------------------------------
 
-func (w *Window) Title() string                    { return w.title }
-func (w *Window) SetTitle(t string)                { w.title = t }
-func (w *Window) TitleH() float32                  { return w.titleH }
-func (w *Window) SetTitleH(h float32)              { w.titleH = h }
-func (w *Window) SetSize(width, height float32)    { w.width = width; w.height = height }
-func (w *Window) Visible() bool                    { return w.visible }
-func (w *Window) SetVisible(v bool)                { w.visible = v }
-func (w *Window) ShowClose() bool                  { return w.showClose }
-func (w *Window) SetShowClose(v bool)              { w.showClose = v }
-func (w *Window) OnClose(fn func())                { w.onClose = fn }
-func (w *Window) SetShadow(v bool)                 { w.shadow = v }
-func (w *Window) SetBgColor(c uimath.Color)        { w.bgColor = c }
-func (w *Window) SetBorderColor(c uimath.Color)    { w.borderColor = c }
-func (w *Window) SetBorderWidth(v float32)          { w.borderWidth = v }
-func (w *Window) SetTitleColor(c uimath.Color)      { w.titleColor = c }
-func (w *Window) SetTitleBg(c uimath.Color)         { w.titleBg = c }
-func (w *Window) Chromeless() bool                   { return w.chromeless }
-func (w *Window) SetChromeless(v bool)               { w.chromeless = v }
+func (w *Window) Title() string                 { return w.title }
+func (w *Window) SetTitle(t string)             { w.title = t }
+func (w *Window) TitleH() float32               { return w.titleH }
+func (w *Window) SetTitleH(h float32)           { w.titleH = h }
+func (w *Window) SetSize(width, height float32) { w.width = width; w.height = height }
+func (w *Window) Visible() bool                 { return w.visible }
+func (w *Window) SetVisible(v bool)             { w.visible = v }
+func (w *Window) ShowClose() bool               { return w.showClose }
+func (w *Window) SetShowClose(v bool)           { w.showClose = v }
+func (w *Window) OnClose(fn func())             { w.onClose = fn }
+func (w *Window) SetShadow(v bool)              { w.shadow = v }
+func (w *Window) SetBgColor(c uimath.Color)     { w.bgColor = c }
+func (w *Window) SetBorderColor(c uimath.Color) { w.borderColor = c }
+func (w *Window) SetBorderWidth(v float32)      { w.borderWidth = v }
+func (w *Window) SetTitleColor(c uimath.Color)  { w.titleColor = c }
+func (w *Window) SetTitleBg(c uimath.Color)     { w.titleBg = c }
+func (w *Window) Chromeless() bool              { return w.chromeless }
+func (w *Window) SetChromeless(v bool)          { w.chromeless = v }
 
 // --- Draw --------------------------------------------------------------------
 
@@ -209,7 +209,7 @@ type WindowManager struct {
 
 	// Edge snapping
 	snapEnabled  bool
-	snapDistance  float32
+	snapDistance float32
 }
 
 // NewWindowManager creates a window manager.
@@ -352,7 +352,7 @@ func (wm *WindowManager) HandleMouseMove(x, y float32) {
 	if wm.snapEnabled {
 		// Get viewport dimensions from root element layout
 		var vpW, vpH float32
-		rootElem := wm.tree.Get(wm.root.(widget.Widget).ElementID())
+		rootElem := wm.tree.Get(wm.root.ElementID())
 		if rootElem != nil {
 			rb := rootElem.Layout().Bounds
 			vpW, vpH = rb.Width, rb.Height

@@ -788,4 +788,3 @@ func max4(a, b, c, d float64) float64 {
 	}
 	return m
 }
-

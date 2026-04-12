@@ -74,7 +74,7 @@ func TestAtlasAccessor(t *testing.T) {
 func TestNewWithSDF(t *testing.T) {
 	engine := newMockEngine()
 	mgr := font.NewManager(engine)
-	mgr.Register("Test", font.WeightRegular, font.StyleNormal, nil)
+	_, _ = mgr.Register("Test", font.WeightRegular, font.StyleNormal, nil)
 	a := atlas.New(atlas.Options{Width: 128, Height: 128})
 
 	r := New(Options{Manager: mgr, Atlas: a, SDF: true})

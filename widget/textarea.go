@@ -37,11 +37,11 @@ type TextArea struct {
 	autosizeMinRows   int
 	autosizeMaxRows   int
 
-	onChange  func(value string)
-	onBlur   func(value string)
-	onFocus  func(value string)
-	onKeydown func(value string, key event.Key)
-	onKeyup   func(value string, key event.Key)
+	onChange   func(value string)
+	onBlur     func(value string)
+	onFocus    func(value string)
+	onKeydown  func(value string, key event.Key)
+	onKeyup    func(value string, key event.Key)
 	onValidate func(error string)
 }
 
@@ -310,18 +310,18 @@ func (ta *TextArea) SetRows(rows int) {
 
 func (ta *TextArea) OnChange(fn func(string)) { ta.onChange = fn }
 
-func (ta *TextArea) SetStatus(s Status)       { ta.status = s }
-func (ta *TextArea) SetMaxLength(n int)        { ta.maxLength = n }
-func (ta *TextArea) SetTips(t string)          { ta.tips = t }
-func (ta *TextArea) SetShowLimitNumber(s bool) { ta.showLimitNumber = s }
-func (ta *TextArea) Readonly() bool            { return ta.readonly }
-func (ta *TextArea) SetReadonly(r bool)        { ta.readonly = r }
-func (ta *TextArea) AllowInputOverMax() bool   { return ta.allowInputOverMax }
+func (ta *TextArea) SetStatus(s Status)          { ta.status = s }
+func (ta *TextArea) SetMaxLength(n int)          { ta.maxLength = n }
+func (ta *TextArea) SetTips(t string)            { ta.tips = t }
+func (ta *TextArea) SetShowLimitNumber(s bool)   { ta.showLimitNumber = s }
+func (ta *TextArea) Readonly() bool              { return ta.readonly }
+func (ta *TextArea) SetReadonly(r bool)          { ta.readonly = r }
+func (ta *TextArea) AllowInputOverMax() bool     { return ta.allowInputOverMax }
 func (ta *TextArea) SetAllowInputOverMax(v bool) { ta.allowInputOverMax = v }
-func (ta *TextArea) Autosize() bool            { return ta.autosize }
-func (ta *TextArea) SetAutosize(v bool)        { ta.autosize = v }
-func (ta *TextArea) AutosizeMinRows() int      { return ta.autosizeMinRows }
-func (ta *TextArea) AutosizeMaxRows() int      { return ta.autosizeMaxRows }
+func (ta *TextArea) Autosize() bool              { return ta.autosize }
+func (ta *TextArea) SetAutosize(v bool)          { ta.autosize = v }
+func (ta *TextArea) AutosizeMinRows() int        { return ta.autosizeMinRows }
+func (ta *TextArea) AutosizeMaxRows() int        { return ta.autosizeMaxRows }
 func (ta *TextArea) SetAutosizeRows(minRows, maxRows int) {
 	ta.autosizeMinRows = minRows
 	ta.autosizeMaxRows = maxRows
@@ -366,11 +366,11 @@ func (ta *TextArea) UpdateAutosizeHeight() {
 }
 
 // Event setters
-func (ta *TextArea) OnBlur(fn func(string))                { ta.onBlur = fn }
-func (ta *TextArea) OnFocus(fn func(string))               { ta.onFocus = fn }
-func (ta *TextArea) OnKeydown(fn func(string, event.Key))  { ta.onKeydown = fn }
-func (ta *TextArea) OnKeyup(fn func(string, event.Key))    { ta.onKeyup = fn }
-func (ta *TextArea) OnValidate(fn func(string))            { ta.onValidate = fn }
+func (ta *TextArea) OnBlur(fn func(string))               { ta.onBlur = fn }
+func (ta *TextArea) OnFocus(fn func(string))              { ta.onFocus = fn }
+func (ta *TextArea) OnKeydown(fn func(string, event.Key)) { ta.onKeydown = fn }
+func (ta *TextArea) OnKeyup(fn func(string, event.Key))   { ta.onKeyup = fn }
+func (ta *TextArea) OnValidate(fn func(string))           { ta.onValidate = fn }
 
 // --- Internal helpers ---
 
