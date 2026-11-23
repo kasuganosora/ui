@@ -97,6 +97,34 @@ func TestUI_InjectClick(t *testing.T) {
 	}
 }
 
+func TestInjectMouseClickActivatesOnce(t *testing.T) {
+	ui, err := NewUI(UIOptions{Width: 400, Height: 300})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ui.Destroy()
+	btn := widget.NewButton(ui.Tree(), "go", ui.Config())
+	ui.SetRoot(btn)
+	ui.Tree().SetLayout(ui.Tree().Root(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 400, 300)})
+	ui.Tree().SetLayout(btn.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(10, 10, 80, 32)})
+	n := 0
+	btn.OnClick(func() { n++ })
+	ui.InjectMouseClick(20, 20, event.MouseButtonLeft)
+	ui.Frame(0.016)
+	if n != 1 {
+		t.Fatalf("activations %d", n)
+	}
+	other := widget.NewButton(ui.Tree(), "other", ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), other.ElementID())
+	ui.Tree().SetLayout(other.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(120, 10, 80, 32)})
+	ui.InjectEvent(event.Event{Type: event.MouseDown, GlobalX: 20, GlobalY: 20})
+	ui.InjectEvent(event.Event{Type: event.MouseUp, GlobalX: 140, GlobalY: 20})
+	ui.Frame(0.016)
+	if n != 1 {
+		t.Fatalf("up on another control synthesized a click, activations %d", n)
+	}
+}
+
 func TestUI_InjectMouseMove(t *testing.T) {
 	ui, err := NewUI(UIOptions{Width: 400, Height: 300})
 	if err != nil {

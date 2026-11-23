@@ -5,6 +5,10 @@ import (
 	"github.com/kasuganosora/ui/event"
 )
 
+func targetPhase(e *event.Event) bool {
+	return e == nil || e.Phase == event.PhaseTarget || e.Phase == event.PhaseNone
+}
+
 func bindActivate(tree *core.Tree, id core.ElementID, allow func() bool, act func()) {
 	tree.SetFocusable(id, true)
 	tree.AddHandler(id, event.KeyDown, func(e *event.Event) {
@@ -27,7 +31,7 @@ func bindActivate(tree *core.Tree, id core.ElementID, allow func() bool, act fun
 	})
 }
 
-func bindArrows(tree *core.Tree, id core.ElementID, fn func(event.Key)) {
+func bindArrows(tree *core.Tree, id core.ElementID, fn func(event.Key) bool) {
 	tree.SetFocusable(id, true)
 	tree.AddHandler(id, event.KeyDown, func(e *event.Event) {
 		if e.Phase == event.PhaseCapture {
@@ -35,8 +39,9 @@ func bindArrows(tree *core.Tree, id core.ElementID, fn func(event.Key)) {
 		}
 		switch e.Key {
 		case event.KeyArrowLeft, event.KeyArrowRight, event.KeyArrowUp, event.KeyArrowDown, event.KeyEnter, event.KeySpace, event.KeyEscape, event.KeyHome, event.KeyEnd:
-			fn(e.Key)
-			e.StopPropagation()
+			if fn(e.Key) {
+				e.StopPropagation()
+			}
 		}
 	})
 }

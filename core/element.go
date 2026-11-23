@@ -134,6 +134,13 @@ type Tree struct {
 	scopes      []ElementID
 	keyFallback ElementID
 	notifying   bool
+	focusQ      []focusNote
+}
+
+type focusNote struct {
+	blurred []ElementID
+	id      ElementID
+	on      bool
 }
 
 // NewTree creates a new element tree.
@@ -363,6 +370,9 @@ func (t *Tree) SetEnabled(id ElementID, enabled bool) {
 // SetFocused sets the focused state. Only one element should be focused at a time.
 // When setting focus to true, any previously focused element is automatically unfocused.
 func (t *Tree) SetFocused(id ElementID, focused bool) {
+	if focused && !t.ChainAllows(id) {
+		return
+	}
 	var blurred []ElementID
 	if focused {
 		for eid, elem := range t.elements {
@@ -385,21 +395,29 @@ func (t *Tree) SetFocused(id ElementID, focused bool) {
 }
 
 func (t *Tree) notifyFocus(blurred []ElementID, id ElementID, focused bool) {
+	t.focusQ = append(t.focusQ, focusNote{blurred: blurred, id: id, on: focused})
 	if t.notifying {
 		return
 	}
 	t.notifying = true
 	defer func() { t.notifying = false }()
-	d := NewDispatcher(t)
-	for _, bid := range blurred {
-		if bid == id && focused {
-			continue
+	steps := 0
+	for len(t.focusQ) > 0 && steps < 32 {
+		n := t.focusQ[0]
+		t.focusQ = t.focusQ[1:]
+		steps++
+		d := NewDispatcher(t)
+		for _, bid := range n.blurred {
+			if bid == n.id && n.on {
+				continue
+			}
+			d.DispatchToTarget(bid, &event.Event{Type: event.Blur})
 		}
-		d.DispatchToTarget(bid, &event.Event{Type: event.Blur})
+		if n.on && t.elements[n.id] != nil {
+			d.DispatchToTarget(n.id, &event.Event{Type: event.Focus})
+		}
 	}
-	if focused && t.elements[id] != nil {
-		d.DispatchToTarget(id, &event.Event{Type: event.Focus})
-	}
+	t.focusQ = nil
 }
 
 // ClearFocus removes focus from all elements.
@@ -503,20 +521,44 @@ func (t *Tree) SetOverlay(id ElementID, on bool) {
 	}
 }
 
-// HitTest finds the deepest visible element at the given point.
-// The topmost visible overlay that contains the point wins.
+// HitTest finds the element at the given point. A regular hit and the
+// last eligible overlay are compared by tree order, so a dialog opened
+// after a popup covers that popup, while a popup opened inside the
+// dialog still receives hits outside its parent box. Disabled or hidden
+// ancestors are not hittable.
 func (t *Tree) HitTest(x, y float32) ElementID {
-	if id := t.hitOverlay(x, y); id != InvalidElementID {
-		return id
+	regular := t.hitTestRecursive(t.root, x, y)
+	overlay := t.hitOverlay(x, y)
+	if overlay == InvalidElementID {
+		return regular
 	}
-	return t.hitTestRecursive(t.root, x, y)
+	if regular == InvalidElementID {
+		return overlay
+	}
+	if t.walkOrder(overlay) > t.walkOrder(regular) {
+		return overlay
+	}
+	return regular
+}
+
+func (t *Tree) walkOrder(id ElementID) int {
+	n := 0
+	found := 0
+	t.Walk(t.root, func(cur ElementID, _ int) bool {
+		n++
+		if cur == id {
+			found = n
+		}
+		return true
+	})
+	return found
 }
 
 func (t *Tree) hitOverlay(x, y float32) ElementID {
 	var hit ElementID
 	t.Walk(t.root, func(id ElementID, _ int) bool {
 		elem := t.elements[id]
-		if elem == nil || !elem.overlay || !elem.visible || !t.ancestorsVisible(id) {
+		if elem == nil || !elem.overlay || !t.ChainAllows(id) {
 			return true
 		}
 		if elem.layout.Bounds.Contains(uimath.Vec2{X: x, Y: y}) {
@@ -540,7 +582,7 @@ func (t *Tree) ancestorsVisible(id ElementID) bool {
 
 func (t *Tree) hitTestRecursive(id ElementID, x, y float32) ElementID {
 	elem := t.elements[id]
-	if elem == nil || !elem.visible {
+	if elem == nil || !t.ChainAllows(id) {
 		return InvalidElementID
 	}
 	b := elem.layout.Bounds

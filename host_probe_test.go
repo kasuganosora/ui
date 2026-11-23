@@ -7,6 +7,7 @@ import (
 	"github.com/kasuganosora/ui/core"
 	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
+	"github.com/kasuganosora/ui/render"
 	"github.com/kasuganosora/ui/widget"
 )
 
@@ -224,5 +225,194 @@ func TestEmbeddedDrawerCaptureAndTooltipFocus(t *testing.T) {
 	ui.HandleEvent(&event.Event{Type: event.MouseMove, GlobalX: 20, GlobalY: 250})
 	if dr.IsVisible() {
 		t.Fatal("drag outside the drawer did not close it")
+	}
+}
+
+func TestOutOfOrderDialogCloseKeepsUpperScope(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(400, 300)
+	out := widget.NewButton(ui.Tree(), "out", ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), out.ElementID())
+	place(ui.Tree(), out.ElementID(), 8, 8, 40, 24)
+	ui.HandleEvent(&event.Event{Type: event.MouseDown, GlobalX: 12, GlobalY: 12})
+	ui.HandleEvent(&event.Event{Type: event.MouseUp, GlobalX: 12, GlobalY: 12})
+	a := widget.NewDialog(ui.Tree(), "A", ui.Config())
+	b := widget.NewDialog(ui.Tree(), "B", ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), a.ElementID())
+	ui.Tree().AppendChild(ui.Tree().Root(), b.ElementID())
+	place(ui.Tree(), a.ElementID(), 0, 0, 400, 300)
+	place(ui.Tree(), b.ElementID(), 0, 0, 400, 300)
+	a.Open()
+	b.Open()
+	a.Close()
+	if ui.Tree().FocusScope() != b.ElementID() {
+		t.Fatalf("scope %d want %d", ui.Tree().FocusScope(), b.ElementID())
+	}
+	if !ui.Tree().InScope(ui.Tree().Focused(), b.ElementID()) {
+		t.Fatalf("focus %d left dialog B", ui.Tree().Focused())
+	}
+	mb := widget.NewMessageBox(ui.Tree(), "m", "c", ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), mb.ElementID())
+	place(ui.Tree(), mb.ElementID(), 0, 0, 400, 300)
+	mb.Open()
+	a.Open()
+	a.Close()
+	if ui.Tree().FocusScope() != mb.ElementID() || !ui.Tree().InScope(ui.Tree().Focused(), mb.ElementID()) {
+		t.Fatalf("message box scope %d focus %d", ui.Tree().FocusScope(), ui.Tree().Focused())
+	}
+}
+
+func TestSecondEscapeClosesDialogAfterSelect(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(500, 400)
+	d := widget.NewDialog(ui.Tree(), "D", ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), d.ElementID())
+	place(ui.Tree(), d.ElementID(), 0, 0, 500, 400)
+	sel := widget.NewSelect(ui.Tree(), []widget.SelectOption{{Label: "One", Value: "1"}}, ui.Config())
+	ui.Tree().AppendChild(d.ElementID(), sel.ElementID())
+	place(ui.Tree(), sel.ElementID(), 30, 30, 140, 32)
+	d.Open()
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: 40, GlobalY: 40})
+	if !sel.IsOpen() {
+		t.Fatal("select closed")
+	}
+	ui.HandleEvent(&event.Event{Type: event.KeyDown, Key: event.KeyEscape})
+	if sel.IsOpen() || !d.IsVisible() {
+		t.Fatalf("first escape select %v dialog %v", sel.IsOpen(), d.IsVisible())
+	}
+	ui.HandleEvent(&event.Event{Type: event.KeyDown, Key: event.KeyEscape})
+	if d.IsVisible() {
+		t.Fatal("second escape did not close the dialog")
+	}
+}
+
+func TestSelectOptionClickAndEmptyBackdrop(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(400, 300)
+	sel := widget.NewSelect(ui.Tree(), []widget.SelectOption{{Label: "One", Value: "1"}, {Label: "Two", Value: "2"}}, ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), sel.ElementID())
+	place(ui.Tree(), sel.ElementID(), 10, 10, 160, 32)
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: 20, GlobalY: 20})
+	sel.Draw(render.NewCommandBuffer())
+	optY := float32(10 + 32 + 4 + 8)
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: 20, GlobalY: optY})
+	if sel.Value() != "1" || sel.IsOpen() {
+		t.Fatalf("direct click value %q open %v", sel.Value(), sel.IsOpen())
+	}
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: 20, GlobalY: 20})
+	sel.Draw(render.NewCommandBuffer())
+	ui.HandleEvent(&event.Event{Type: event.MouseDown, GlobalX: 20, GlobalY: optY})
+	ui.HandleEvent(&event.Event{Type: event.MouseUp, GlobalX: 20, GlobalY: optY})
+	if sel.Value() != "1" || sel.IsOpen() {
+		t.Fatalf("down/up value %q open %v", sel.Value(), sel.IsOpen())
+	}
+	empty := widget.NewSelect(ui.Tree(), []widget.SelectOption{{Label: "Apple", Value: "a"}}, ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), empty.ElementID())
+	place(ui.Tree(), empty.ElementID(), 10, 180, 160, 32)
+	empty.SetFilterable(true)
+	empty.SetInputValue("zzz")
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: 20, GlobalY: 190})
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: 20, GlobalY: 230})
+	if empty.IsOpen() || empty.Value() != "" {
+		t.Fatalf("empty backdrop open %v value %q", empty.IsOpen(), empty.Value())
+	}
+}
+
+func TestLaterModalBlocksEarlierOverlay(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(400, 300)
+	dp := widget.NewDatePicker(ui.Tree(), ui.Config())
+	dp.SetDate(2026, 1, 1)
+	ui.Tree().AppendChild(ui.Tree().Root(), dp.ElementID())
+	place(ui.Tree(), dp.ElementID(), 10, 10, 200, 32)
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: 20, GlobalY: 20})
+	first := int(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).Weekday())
+	day := 15
+	col := (first + day - 1) % 7
+	row := (first + day - 1) / 7
+	x := float32(10) + float32(col)*32 + 16
+	y := float32(10+32+4+36) + float32(row)*32 + 16
+	dlg := widget.NewDialog(ui.Tree(), "cover", ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), dlg.ElementID())
+	place(ui.Tree(), dlg.ElementID(), 0, 0, 400, 300)
+	dlg.Open()
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: x, GlobalY: y})
+	if dp.Day() == 15 {
+		t.Fatal("date overlay received a click through the later modal")
+	}
+}
+
+func TestBlankClickClearsInputButNotItsOwnPress(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(300, 200)
+	in := widget.NewInput(ui.Tree(), ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), in.ElementID())
+	place(ui.Tree(), in.ElementID(), 10, 10, 120, 28)
+	ui.HandleEvent(&event.Event{Type: event.MouseDown, GlobalX: 20, GlobalY: 20})
+	ui.HandleEvent(&event.Event{Type: event.MouseUp, GlobalX: 20, GlobalY: 20})
+	if ui.Tree().Focused() != in.ElementID() {
+		t.Fatal("input click did not focus")
+	}
+	ui.HandleEvent(&event.Event{Type: event.IMECompositionUpdate, Text: "你"})
+	if ui.Tree().Focused() != in.ElementID() {
+		t.Fatal("IME cleared input focus")
+	}
+	ui.HandleEvent(&event.Event{Type: event.MouseDown, GlobalX: 250, GlobalY: 160})
+	ui.HandleEvent(&event.Event{Type: event.MouseUp, GlobalX: 250, GlobalY: 160})
+	if ui.Tree().Focused() != core.InvalidElementID {
+		t.Fatalf("blank click left focus %d", ui.Tree().Focused())
+	}
+}
+
+func TestTouchCancelAndWindowBlurClearDrawerDrag(t *testing.T) {
+	for _, kind := range []event.Type{event.TouchCancel, event.WindowBlur} {
+		ui := NewEmbeddedUI(nil)
+		ui.Resize(300, 400)
+		dr := widget.NewDrawer(ui.Tree(), "d", ui.Config())
+		ui.Tree().AppendChild(ui.Tree().Root(), dr.ElementID())
+		place(ui.Tree(), dr.ElementID(), 0, 200, 300, 200)
+		dr.Open()
+		ui.HandleEvent(&event.Event{Type: event.MouseDown, GlobalX: 40, GlobalY: 240})
+		ui.HandleEvent(&event.Event{Type: kind})
+		ui.HandleEvent(&event.Event{Type: event.MouseMove, GlobalX: 40, GlobalY: 390})
+		if !dr.IsVisible() {
+			t.Fatalf("%v left the drawer dragging and the move closed it", kind)
+		}
+	}
+}
+
+func TestEmbeddedDisabledAncestorBlocksChild(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(200, 120)
+	box := widget.NewDiv(ui.Tree(), ui.Config())
+	btn := widget.NewButton(ui.Tree(), "go", ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), box.ElementID())
+	ui.Tree().AppendChild(box.ElementID(), btn.ElementID())
+	place(ui.Tree(), box.ElementID(), 0, 0, 200, 80)
+	place(ui.Tree(), btn.ElementID(), 10, 10, 40, 24)
+	ui.Tree().SetEnabled(box.ElementID(), false)
+	clicks := 0
+	btn.OnClick(func() { clicks++ })
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: 20, GlobalY: 20})
+	ui.HandleEvent(&event.Event{Type: event.KeyDown, Key: event.KeyTab})
+	ui.Tree().SetFocused(btn.ElementID(), true)
+	if clicks != 0 || ui.Tree().Focused() == btn.ElementID() || ui.Tree().HitTest(20, 20) == btn.ElementID() {
+		t.Fatalf("clicks %d focus %d hit %d", clicks, ui.Tree().Focused(), ui.Tree().HitTest(20, 20))
+	}
+}
+
+func TestEmbeddedGamepadFallbackFocusesCurrent(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(200, 80)
+	gn := widget.NewGamepadNavigator(ui.Tree(), ui.Config())
+	a := widget.NewButton(ui.Tree(), "a", ui.Config())
+	b := widget.NewButton(ui.Tree(), "b", ui.Config())
+	gn.AddWidget(a)
+	gn.AddWidget(b)
+	ui.Tree().AppendChild(ui.Tree().Root(), gn.ElementID())
+	ui.Tree().SetKeyFallback(gn.ElementID())
+	ui.HandleEvent(&event.Event{Type: event.KeyDown, Key: event.KeyArrowDown})
+	if ui.Tree().Focused() != a.ElementID() {
+		t.Fatalf("fallback focused %d want %d", ui.Tree().Focused(), a.ElementID())
 	}
 }

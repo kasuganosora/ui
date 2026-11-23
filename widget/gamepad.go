@@ -158,6 +158,16 @@ func (gn *GamepadNavigator) Navigate(dir NavDirection) {
 	if !gn.enabled || len(gn.widgets) == 0 {
 		return
 	}
+	if gn.focusIndex >= 0 && gn.focusIndex < len(gn.widgets) {
+		cur := gn.widgets[gn.focusIndex]
+		if gn.canFocus(cur) && gn.tree.Focused() != cur.ElementID() {
+			gn.tree.SetFocused(cur.ElementID(), true)
+			if gn.onNavigate != nil {
+				gn.onNavigate(cur)
+			}
+			return
+		}
+	}
 
 	switch dir {
 	case NavDown, NavRight:
@@ -305,7 +315,7 @@ func (gn *GamepadNavigator) onGamepadAxis(e *event.Event) {
 }
 
 func (gn *GamepadNavigator) onKeyDown(e *event.Event) {
-	if !gn.enabled {
+	if !gn.enabled || e.Phase == event.PhaseCapture || e.Phase == event.PhaseBubble {
 		return
 	}
 	switch e.Key {

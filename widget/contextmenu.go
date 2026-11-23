@@ -34,9 +34,9 @@ func NewContextMenu(tree *core.Tree, cfg *Config) *ContextMenu {
 		Base:  NewBase(tree, core.TypeCustom, cfg),
 		width: 180,
 	}
-	bindArrows(tree, cm.id, func(k event.Key) {
+	bindArrows(tree, cm.id, func(k event.Key) bool {
 		if !cm.visible {
-			return
+			return false
 		}
 		switch k {
 		case event.KeyArrowDown:
@@ -48,6 +48,7 @@ func NewContextMenu(tree *core.Tree, cfg *Config) *ContextMenu {
 		case event.KeyEscape:
 			cm.Hide()
 		}
+		return true
 	})
 	return cm
 }

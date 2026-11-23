@@ -114,7 +114,13 @@ func NewList(tree *core.Tree, cfg *Config) *List {
 			}
 		}
 	})
-	bindArrows(tree, l.id, func(k event.Key) { l.onKey(k) })
+	bindArrows(tree, l.id, func(k event.Key) bool {
+		if k == event.KeyEscape {
+			return false
+		}
+		l.onKey(k)
+		return true
+	})
 
 	return l
 }

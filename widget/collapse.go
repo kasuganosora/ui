@@ -53,7 +53,13 @@ func NewCollapse(tree *core.Tree, cfg *Config) *Collapse {
 		expandIcon:       true,
 		cursor:           -1,
 	}
-	bindArrows(tree, c.id, func(k event.Key) { c.onKey(k) })
+	bindArrows(tree, c.id, func(k event.Key) bool {
+		if k == event.KeyEscape {
+			return false
+		}
+		c.onKey(k)
+		return true
+	})
 	return c
 }
 

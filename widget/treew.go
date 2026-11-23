@@ -43,7 +43,13 @@ func NewTree(tree *core.Tree, cfg *Config) *Tree {
 		itemHeight: 32,
 		cursor:     -1,
 	}
-	bindArrows(tree, tr.id, func(k event.Key) { tr.onKey(k) })
+	bindArrows(tree, tr.id, func(k event.Key) bool {
+		if k == event.KeyEscape {
+			return false
+		}
+		tr.onKey(k)
+		return true
+	})
 	tree.AddHandler(tr.id, event.MouseDown, func(e *event.Event) {
 		if n := tr.nodeAt(e.GlobalY); n != nil {
 			tr.dragKey = n.Key

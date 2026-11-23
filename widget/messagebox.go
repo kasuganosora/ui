@@ -90,15 +90,16 @@ func (mb *MessageBox) Open() {
 		mb.tree.SetFocusable(mb.id, true)
 		mb.scoped = true
 	}
-	mb.tree.SetFocused(mb.id, true)
 	mb.visible = true
 	mb.style.Display = layout.DisplayFlex
 	mb.tree.SetVisible(mb.id, true)
+	mb.tree.SetFocused(mb.id, true)
 	mb.tree.MarkDirty(mb.id)
 }
 
 func (mb *MessageBox) Close() {
 	was := mb.visible
+	focusWasInside := mb.tree.InScope(mb.tree.Focused(), mb.id)
 	mb.visible = false
 	mb.style.Display = layout.DisplayNone
 	mb.tree.SetVisible(mb.id, false)
@@ -107,8 +108,13 @@ func (mb *MessageBox) Close() {
 		mb.tree.PopFocusScopeOwned(mb.id)
 		mb.scoped = false
 	}
-	if was && mb.prior != core.InvalidElementID && mb.tree.Get(mb.prior) != nil {
-		mb.tree.SetFocused(mb.prior, true)
+	if was && focusWasInside {
+		scope := mb.tree.FocusScope()
+		if mb.prior != core.InvalidElementID && mb.tree.Get(mb.prior) != nil && mb.tree.InScope(mb.prior, scope) && mb.tree.ChainAllows(mb.prior) {
+			mb.tree.SetFocused(mb.prior, true)
+		} else if scope != core.InvalidElementID {
+			mb.tree.FocusNext(core.InvalidElementID)
+		}
 	}
 	mb.tree.MarkDirty(mb.id)
 }

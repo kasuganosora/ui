@@ -73,7 +73,13 @@ func NewMenu(tree *core.Tree, cfg *Config) *Menu {
 	tree.AddHandler(m.id, event.MouseMove, func(e *event.Event) {
 		m.handleHover(e.GlobalX, e.GlobalY)
 	})
-	bindArrows(tree, m.id, func(k event.Key) { m.onKey(k) })
+	bindArrows(tree, m.id, func(k event.Key) bool {
+		if k == event.KeyEscape {
+			return false
+		}
+		m.onKey(k)
+		return true
+	})
 	return m
 }
 

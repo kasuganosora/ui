@@ -39,6 +39,27 @@
 | P2 Enter 留下旧选中 | 已修 | Enter 会清掉其他 `Selected` |
 | P2 关闭的 Popover 仍可聚焦 | 已修 | 构造时不可聚焦，`Open` 才取焦点 |
 
+## 第二次审查（fc2d56fd 仍阻断基础）
+
+下面 10 项在修前对 `fc2d56fd` 是红的。修后走 embedded/headless 的 `HandleEvent`/`HitTest`，或 godot `InjectMouseClick`。里程碑 1–2 仍是 partial，表 2/3 仍 pending。
+
+| # | 结果 | 测试 |
+| --- | --- | --- |
+| 1 乱序关闭后焦点留在上层对话框 | 已修，host-verified | `TestOutOfOrderDialogCloseKeepsUpperScope`。`Dialog.Close` / `MessageBox.Close` 只在焦点确实在被关层内时恢复，且 prior 必须仍在当前作用域里、可见且启用 |
+| 2 第二次 Escape 关掉模态 | 已修，host-verified | `TestSecondEscapeClosesDialogAfterSelect`。`bindArrows` 只有真正处理了 Escape 才 `StopPropagation` |
+| 3 Select 选项点击和按下/抬起 | 已修，host-verified | `TestSelectOptionClickAndEmptyBackdrop` 前半。只在自身 target 阶段切换；`Draw` 之后直接 `MouseClick` 和 `MouseDown`+`MouseUp` 都选中第一项并关闭 |
+| 4 空结果点击只关一次 | 已修，host-verified | 同一测试后半。遮罩是 Select 的子节点，点击停止冒泡，不会再把下拉打开 |
+| 5 后开的模态挡住更早的日期/选择浮层 | 已修，host-verified | `TestLaterModalBlocksEarlierOverlay`。`HitTest` 按树序比较普通命中和浮层，后开的对话框赢；对话框内部、父盒之外的浮层仍按更后的树序命中 |
+| 6 按下+抬起只点一次，抬到别处不点 | 已修，host-verified | `TestInjectMouseClickActivatesOnce`。Godot 仍发送 Down+Up+Click；`HostInput` 丢掉紧跟合成点击的那一次显式 Click。A 上按下、B 上抬起不产生 Click |
+| 7 取消/失焦结束拖拽 | 已修，host-verified | `TestTouchCancelAndWindowBlurClearDrawerDrag`。`TouchCancel` 和 `WindowBlur` 对捕获目标发 `MouseUp` 且不合成 Click |
+| 8 禁用祖先挡住子节点 | 已修，host-verified | `TestEmbeddedDisabledAncestorBlocksChild`，dispatcher 对照是 `TestDisabledAncestorBlocksChild`。命中、Tab、程序 `SetFocused`、鼠标和键盘派发都看整条祖先链 |
+| 9 焦点重入最终只通知 B 一次 | 已修 | `TestFocusReentryDeliversSecondFocus`。`SetFocused` 在通知期间把后续焦点排队，上限 32 步，不再直接丢掉 |
+| 10 手柄第一次方向键停在当前项 | 已修，host-verified | `TestEmbeddedGamepadFallbackFocusesCurrent`，对照 `TestGamepadFirstDirectionFocusesCurrent`。硬件 `GamepadButtonDown` 仍没有接到 app/embedded/godot，这是接受的平台边界；方向键 fallback 走 `SetKeyFallback` + `RouteKey` |
+
+空白处点击：点到没有可聚焦祖先、而且不在当前焦点控件内部时，`HostInput` 清掉焦点。点在已聚焦输入框内部不会清，随后的 IME 仍经 `RouteKey` 送给它。`TestBlankClickClearsInputButNotItsOwnPress`。
+
+`Form.Reset` 覆盖 Input、TextArea、Checkbox、Select、Slider 这五类，其余类型仍未接。树拖拽仍只交换同一父节点。
+
 ## 表 1 / 1 附 / 1b
 
 没有整表标成完成。只有上面写了 host-verified 的路径算宿主集成已测。其余行为仍是 `partial`：单测或 dispatcher 通过，但没有再走一遍 app/embedded/headless/godot 的 `HandleEvent`。

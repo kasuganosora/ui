@@ -424,3 +424,57 @@ func TestRangePointerRadioResetDestroyAndSelectEmpty(t *testing.T) {
 		t.Fatal("gamepad left the dialog scope")
 	}
 }
+
+func TestFocusReentryDeliversSecondFocus(t *testing.T) {
+	tree := core.NewTree()
+	a := NewButton(tree, "a", nil)
+	b := NewButton(tree, "b", nil)
+	n := 0
+	tree.AddHandler(a.ElementID(), event.Focus, func(*event.Event) {
+		tree.SetFocused(b.ElementID(), true)
+	})
+	tree.AddHandler(b.ElementID(), event.Focus, func(*event.Event) { n++ })
+	tree.SetFocused(a.ElementID(), true)
+	if tree.Focused() != b.ElementID() || n != 1 {
+		t.Fatalf("focus %d notifications %d", tree.Focused(), n)
+	}
+}
+
+func TestDisabledAncestorBlocksChild(t *testing.T) {
+	tree := core.NewTree()
+	box := NewDiv(tree, nil)
+	btn := NewButton(tree, "go", nil)
+	tree.AppendChild(tree.Root(), box.ElementID())
+	tree.AppendChild(box.ElementID(), btn.ElementID())
+	bounds(tree, tree.Root(), 0, 0, 200, 100)
+	bounds(tree, box.ElementID(), 0, 0, 200, 80)
+	bounds(tree, btn.ElementID(), 10, 10, 40, 24)
+	tree.SetEnabled(box.ElementID(), false)
+	clicks := 0
+	btn.OnClick(func() { clicks++ })
+	core.NewDispatcher(tree).Dispatch(btn.ElementID(), &event.Event{Type: event.MouseClick, GlobalX: 20, GlobalY: 20})
+	if clicks != 0 {
+		t.Fatal("click reached a child of a disabled ancestor")
+	}
+	tree.SetFocused(btn.ElementID(), true)
+	if tree.Focused() == btn.ElementID() {
+		t.Fatal("programmatic focus entered a disabled ancestor")
+	}
+	if tree.HitTest(20, 20) == btn.ElementID() {
+		t.Fatal("hit test returned a child of a disabled ancestor")
+	}
+}
+
+func TestGamepadFirstDirectionFocusesCurrent(t *testing.T) {
+	tree := core.NewTree()
+	gn := NewGamepadNavigator(tree, nil)
+	a := NewButton(tree, "a", nil)
+	b := NewButton(tree, "b", nil)
+	gn.AddWidget(a)
+	gn.AddWidget(b)
+	tree.AppendChild(tree.Root(), gn.ElementID())
+	core.NewDispatcher(tree).Dispatch(gn.ElementID(), &event.Event{Type: event.KeyDown, Key: event.KeyArrowDown})
+	if tree.Focused() != a.ElementID() {
+		t.Fatalf("first direction focused %d want %d", tree.Focused(), a.ElementID())
+	}
+}

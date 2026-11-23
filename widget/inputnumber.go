@@ -89,9 +89,12 @@ func NewInputNumber(tree *core.Tree, cfg *Config) *InputNumber {
 		text:          "0",
 	}
 	tree.AddHandler(n.id, event.MouseClick, func(e *event.Event) {})
-	bindArrows(tree, n.id, func(k event.Key) {
+	bindArrows(tree, n.id, func(k event.Key) bool {
+		if k == event.KeyEscape {
+			return false
+		}
 		if n.disabled {
-			return
+			return true
 		}
 		switch k {
 		case event.KeyArrowUp, event.KeyArrowRight:
@@ -99,6 +102,7 @@ func NewInputNumber(tree *core.Tree, cfg *Config) *InputNumber {
 		case event.KeyArrowDown, event.KeyArrowLeft:
 			n.Decrement()
 		}
+		return true
 	})
 	return n
 }

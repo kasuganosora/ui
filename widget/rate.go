@@ -34,9 +34,12 @@ func NewRate(tree *core.Tree, cfg *Config) *Rate {
 		gap:   4,
 		color: [2]uimath.Color{uimath.ColorHex("#e37318"), cfg.BorderColor},
 	}
-	bindArrows(tree, r.id, func(k event.Key) {
+	bindArrows(tree, r.id, func(k event.Key) bool {
+		if k == event.KeyEscape {
+			return false
+		}
 		if r.disabled {
-			return
+			return true
 		}
 		switch k {
 		case event.KeyArrowRight, event.KeyArrowUp:
@@ -44,6 +47,7 @@ func NewRate(tree *core.Tree, cfg *Config) *Rate {
 		case event.KeyArrowLeft, event.KeyArrowDown:
 			r.SetValue(r.value - 1)
 		}
+		return true
 	})
 	tree.AddHandler(r.id, event.MouseClick, func(e *event.Event) {
 		if r.disabled {

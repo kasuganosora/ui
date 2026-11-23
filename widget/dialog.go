@@ -207,6 +207,7 @@ func (d *Dialog) Open() {
 
 func (d *Dialog) Close() {
 	was := d.visible
+	focusWasInside := d.tree.InScope(d.tree.Focused(), d.id)
 	d.visible = false
 	d.style.Display = layout.DisplayNone
 	d.tree.SetVisible(d.id, false)
@@ -220,8 +221,20 @@ func (d *Dialog) Close() {
 		d.tree.PopFocusScopeOwned(d.id)
 		d.scoped = false
 	}
-	if was && d.prior != core.InvalidElementID && d.tree.Get(d.prior) != nil {
-		d.tree.SetFocused(d.prior, true)
+	if was && focusWasInside {
+		d.restoreFocus()
+	}
+}
+
+func (d *Dialog) restoreFocus() {
+	scope := d.tree.FocusScope()
+	prior := d.prior
+	if prior != core.InvalidElementID && d.tree.Get(prior) != nil && d.tree.InScope(prior, scope) && d.tree.ChainAllows(prior) {
+		d.tree.SetFocused(prior, true)
+		return
+	}
+	if scope != core.InvalidElementID {
+		d.tree.FocusNext(core.InvalidElementID)
 	}
 }
 

@@ -40,9 +40,16 @@ func NewMenuBar(tree *core.Tree, cfg *Config) *MenuBar {
 		activeIdx: -1,
 		height:    32,
 	}
-	bindArrows(tree, mb.id, func(k event.Key) {
+	bindArrows(tree, mb.id, func(k event.Key) bool {
+		if k == event.KeyEscape {
+			if !mb.open {
+				return false
+			}
+			mb.open = false
+			return true
+		}
 		if len(mb.items) == 0 {
-			return
+			return true
 		}
 		switch k {
 		case event.KeyArrowRight, event.KeyArrowDown:
@@ -59,18 +66,17 @@ func NewMenuBar(tree *core.Tree, cfg *Config) *MenuBar {
 			mb.open = true
 		case event.KeyEnter, event.KeySpace:
 			if mb.activeIdx < 0 || mb.activeIdx >= len(mb.items) {
-				return
+				return true
 			}
 			for _, sub := range mb.items[mb.activeIdx].SubItems {
 				if sub.Disabled || sub.Divider || sub.OnClick == nil {
 					continue
 				}
 				sub.OnClick()
-				return
+				return true
 			}
-		case event.KeyEscape:
-			mb.open = false
 		}
+		return true
 	})
 	return mb
 }

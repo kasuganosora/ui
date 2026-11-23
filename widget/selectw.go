@@ -81,7 +81,7 @@ func NewSelect(tree *core.Tree, options []SelectOption, cfg *Config) *Select {
 
 	// Toggle dropdown on click
 	s.tree.AddHandler(s.id, event.MouseClick, func(e *event.Event) {
-		if s.disabled || s.readonly {
+		if !targetPhase(e) || s.disabled || s.readonly {
 			return
 		}
 		s.open = !s.open
@@ -94,9 +94,9 @@ func NewSelect(tree *core.Tree, options []SelectOption, cfg *Config) *Select {
 			s.onPopupVisibleChange(s.open)
 		}
 	})
-	bindArrows(tree, s.id, func(k event.Key) {
+	bindArrows(tree, s.id, func(k event.Key) bool {
 		if s.disabled || s.readonly {
-			return
+			return false
 		}
 		switch k {
 		case event.KeyArrowDown, event.KeyArrowUp:
@@ -104,7 +104,7 @@ func NewSelect(tree *core.Tree, options []SelectOption, cfg *Config) *Select {
 				s.open = true
 				s.highlight = 0
 				s.createOptionElements()
-				return
+				return true
 			}
 			if k == event.KeyArrowDown {
 				s.highlight++
@@ -117,17 +117,24 @@ func NewSelect(tree *core.Tree, options []SelectOption, cfg *Config) *Select {
 			if s.highlight >= len(s.shown) && len(s.shown) > 0 {
 				s.highlight = len(s.shown) - 1
 			}
+			return true
 		case event.KeyEnter:
 			if !s.open {
 				s.open = true
 				s.createOptionElements()
-				return
+				return true
 			}
 			s.chooseShown(s.highlight)
+			return true
 		case event.KeyEscape:
+			if !s.open {
+				return false
+			}
 			s.open = false
 			s.destroyOptionElements()
+			return true
 		}
+		return false
 	})
 
 	return s
@@ -295,6 +302,10 @@ func (s *Select) createOptionElements() {
 		Bounds: uimath.NewRect(0, 0, 1e6, 1e6),
 	})
 	s.tree.AddHandler(s.backdropID, event.MouseClick, func(e *event.Event) {
+		if !targetPhase(e) {
+			return
+		}
+		e.StopPropagation()
 		s.open = false
 		s.destroyOptionElements()
 	})
@@ -310,6 +321,10 @@ func (s *Select) createOptionElements() {
 		if !opt.Disabled {
 			idx := i
 			s.tree.AddHandler(eid, event.MouseClick, func(e *event.Event) {
+				if !targetPhase(e) {
+					return
+				}
+				e.StopPropagation()
 				s.chooseShown(idx)
 			})
 		}

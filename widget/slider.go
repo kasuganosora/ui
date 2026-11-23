@@ -69,7 +69,10 @@ func NewSlider(tree *core.Tree, cfg *Config) *Slider {
 			}
 		}
 	})
-	bindArrows(tree, s.id, func(k event.Key) {
+	bindArrows(tree, s.id, func(k event.Key) bool {
+		if k == event.KeyEscape {
+			return false
+		}
 		dir := float32(0)
 		if k == event.KeyArrowRight || k == event.KeyArrowUp {
 			dir = 1
@@ -77,7 +80,7 @@ func NewSlider(tree *core.Tree, cfg *Config) *Slider {
 			dir = -1
 		}
 		if dir == 0 || s.disabled {
-			return
+			return true
 		}
 		step := s.step
 		if step == 0 {
@@ -85,9 +88,10 @@ func NewSlider(tree *core.Tree, cfg *Config) *Slider {
 		}
 		if s.rangeMode {
 			s.SetRangeValues(s.lo+dir*step, s.hi)
-			return
+			return true
 		}
 		s.SetValue(s.value + dir*step)
+		return true
 	})
 	return s
 }

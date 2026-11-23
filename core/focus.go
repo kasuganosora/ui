@@ -69,6 +69,21 @@ func (t *Tree) InScope(id, root ElementID) bool {
 	return t.within(id, root)
 }
 
+// ChainAllows reports whether id and every ancestor are visible and enabled.
+func (t *Tree) ChainAllows(id ElementID) bool {
+	if id == InvalidElementID {
+		return false
+	}
+	for id != InvalidElementID {
+		elem := t.elements[id]
+		if elem == nil || !elem.visible || !elem.enabled {
+			return false
+		}
+		id = elem.parent
+	}
+	return true
+}
+
 // FocusNext moves focus to the next tab stop after from and returns it.
 func (t *Tree) FocusNext(from ElementID) ElementID {
 	return t.moveFocus(from, 1)
@@ -149,7 +164,7 @@ func (t *Tree) tabStops() []ElementID {
 		if scope != InvalidElementID && !t.within(id, scope) {
 			return true
 		}
-		if elem.focusable && elem.visible && elem.enabled {
+		if elem.focusable && t.ChainAllows(id) {
 			out = append(out, id)
 		}
 		return true
