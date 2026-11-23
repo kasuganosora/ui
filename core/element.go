@@ -44,10 +44,11 @@ type Element struct {
 	layout LayoutResult
 
 	// State flags
-	visible bool
-	enabled bool
-	focused bool
-	hovered bool
+	visible   bool
+	enabled   bool
+	focused   bool
+	focusable bool
+	hovered   bool
 	dirty   DirtyFlags
 
 	// Event handlers
@@ -128,6 +129,8 @@ type Tree struct {
 	elements map[ElementID]*Element
 	root     ElementID
 	nextID   ElementID
+	focused  ElementID
+	scopes   []ElementID
 }
 
 // NewTree creates a new element tree.
@@ -284,6 +287,9 @@ func (t *Tree) DestroyElement(id ElementID) {
 	}
 	// Recursively destroy children
 	t.destroyRecursive(id)
+	if t.focused != InvalidElementID && t.elements[t.focused] == nil {
+		t.focused = InvalidElementID
+	}
 }
 
 func (t *Tree) destroyRecursive(id ElementID) {
@@ -360,6 +366,9 @@ func (t *Tree) SetFocused(id ElementID, focused bool) {
 				t.markDirty(eid, DirtyPaint)
 			}
 		}
+		t.focused = id
+	} else if t.focused == id {
+		t.focused = InvalidElementID
 	}
 	if elem := t.elements[id]; elem != nil {
 		elem.focused = focused
@@ -375,6 +384,7 @@ func (t *Tree) ClearFocus() {
 			t.markDirty(eid, DirtyPaint)
 		}
 	}
+	t.focused = InvalidElementID
 }
 
 // SetHovered sets the hovered state.
