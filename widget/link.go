@@ -31,6 +31,11 @@ func NewLink(tree *core.Tree, text, href string, cfg *Config) *Link {
 			l.onClick(l.href)
 		}
 	})
+	bindActivate(tree, l.id, func() bool { return !l.disabled }, func() {
+		if l.onClick != nil {
+			l.onClick(l.href)
+		}
+	})
 	return l
 }
 

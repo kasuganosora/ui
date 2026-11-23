@@ -2,6 +2,7 @@ package widget
 
 import (
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 )
@@ -27,6 +28,44 @@ func NewAutoComplete(tree *core.Tree, cfg *Config) *AutoComplete {
 		selected: -1,
 	}
 	ac.filterFn = defaultAutoFilter
+	tree.SetFocusable(ac.id, true)
+	tree.AddHandler(ac.id, event.KeyDown, func(e *event.Event) {
+		if !ac.open {
+			return
+		}
+		switch e.Key {
+		case event.KeyArrowDown:
+			ac.selected++
+			if ac.selected >= len(ac.filtered) {
+				ac.selected = len(ac.filtered) - 1
+			}
+			e.StopPropagation()
+		case event.KeyArrowUp:
+			if ac.selected > 0 {
+				ac.selected--
+			}
+			e.StopPropagation()
+		case event.KeyEnter:
+			if ac.selected < 0 && len(ac.filtered) > 0 {
+				ac.selected = 0
+			}
+			ac.SelectItem(ac.selected)
+			e.StopPropagation()
+		}
+	})
+	tree.AddHandler(ac.id, event.MouseClick, func(e *event.Event) {
+		if !ac.open {
+			return
+		}
+		b := ac.Bounds()
+		itemH := float32(32)
+		dy := b.Y + b.Height + 4
+		if e.GlobalY < dy {
+			return
+		}
+		ac.SelectItem(int((e.GlobalY - dy) / itemH))
+		e.StopPropagation()
+	})
 	return ac
 }
 

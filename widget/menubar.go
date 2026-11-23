@@ -2,6 +2,7 @@ package widget
 
 import (
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 )
@@ -34,11 +35,44 @@ func NewMenuBar(tree *core.Tree, cfg *Config) *MenuBar {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	return &MenuBar{
+	mb := &MenuBar{
 		Base:      NewBase(tree, core.TypeCustom, cfg),
 		activeIdx: -1,
 		height:    32,
 	}
+	bindArrows(tree, mb.id, func(k event.Key) {
+		if len(mb.items) == 0 {
+			return
+		}
+		switch k {
+		case event.KeyArrowRight, event.KeyArrowDown:
+			if mb.activeIdx < 0 {
+				mb.activeIdx = 0
+			} else if mb.activeIdx < len(mb.items)-1 {
+				mb.activeIdx++
+			}
+			mb.open = true
+		case event.KeyArrowLeft, event.KeyArrowUp:
+			if mb.activeIdx > 0 {
+				mb.activeIdx--
+			}
+			mb.open = true
+		case event.KeyEnter, event.KeySpace:
+			if mb.activeIdx < 0 || mb.activeIdx >= len(mb.items) {
+				return
+			}
+			for _, sub := range mb.items[mb.activeIdx].SubItems {
+				if sub.Disabled || sub.Divider || sub.OnClick == nil {
+					continue
+				}
+				sub.OnClick()
+				return
+			}
+		case event.KeyEscape:
+			mb.open = false
+		}
+	})
+	return mb
 }
 
 func (mb *MenuBar) Items() []MenuBarItem { return mb.items }

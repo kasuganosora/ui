@@ -30,6 +30,8 @@ type MessageBox struct {
 	onOK       func()
 	onCancel   func()
 	showCancel bool
+	prior      core.ElementID
+	scoped     bool
 }
 
 // NewMessageBox creates a message box dialog.
@@ -53,6 +55,16 @@ func NewMessageBox(tree *core.Tree, title, content string, cfg *Config) *Message
 			mb.onCancel()
 		}
 	})
+	tree.AddHandler(mb.id, event.KeyDown, func(e *event.Event) {
+		if e.Key != event.KeyEscape || !mb.visible {
+			return
+		}
+		if mb.onCancel != nil {
+			mb.onCancel()
+		}
+		mb.Close()
+		e.StopPropagation()
+	})
 
 	return mb
 }
@@ -71,14 +83,29 @@ func (mb *MessageBox) OnOK(fn func())              { mb.onOK = fn }
 func (mb *MessageBox) OnCancel(fn func())          { mb.onCancel = fn }
 
 func (mb *MessageBox) Open() {
+	if !mb.visible {
+		mb.prior = mb.tree.Focused()
+		mb.tree.PushFocusScope(mb.id)
+		mb.tree.SetFocusable(mb.id, true)
+		mb.scoped = true
+	}
+	mb.tree.SetFocused(mb.id, true)
 	mb.visible = true
 	mb.style.Display = layout.DisplayFlex
 	mb.tree.MarkDirty(mb.id)
 }
 
 func (mb *MessageBox) Close() {
+	was := mb.visible
 	mb.visible = false
 	mb.style.Display = layout.DisplayNone
+	if mb.scoped {
+		mb.tree.PopFocusScope()
+		mb.scoped = false
+	}
+	if was && mb.prior != core.InvalidElementID && mb.tree.Get(mb.prior) != nil {
+		mb.tree.SetFocused(mb.prior, true)
+	}
 	mb.tree.MarkDirty(mb.id)
 }
 

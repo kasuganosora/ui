@@ -215,6 +215,66 @@ func NewRadioGroup() *RadioGroup {
 func (g *RadioGroup) Add(r *Radio) {
 	r.group = g
 	g.radios = append(g.radios, r)
+	r.tree.AddHandler(r.id, event.KeyDown, func(e *event.Event) {
+		switch e.Key {
+		case event.KeyArrowDown, event.KeyArrowRight:
+			g.move(r, 1)
+			e.StopPropagation()
+		case event.KeyArrowUp, event.KeyArrowLeft:
+			g.move(r, -1)
+			e.StopPropagation()
+		case event.KeySpace, event.KeyEnter:
+			g.Select(r)
+			g.syncTabStops()
+			e.StopPropagation()
+		}
+	})
+	g.syncTabStops()
+}
+
+func (g *RadioGroup) move(from *Radio, dir int) {
+	if len(g.radios) == 0 || g.disabled || g.readonly {
+		return
+	}
+	idx := 0
+	for i, r := range g.radios {
+		if r == from {
+			idx = i
+			break
+		}
+	}
+	for step := 0; step < len(g.radios); step++ {
+		idx = (idx + dir + len(g.radios)) % len(g.radios)
+		next := g.radios[idx]
+		if next.disabled {
+			continue
+		}
+		g.Select(next)
+		g.syncTabStops()
+		next.tree.SetFocused(next.id, true)
+		return
+	}
+}
+
+func (g *RadioGroup) syncTabStops() {
+	chosen := -1
+	for i, r := range g.radios {
+		if r.checked && !r.disabled {
+			chosen = i
+			break
+		}
+	}
+	if chosen < 0 {
+		for i, r := range g.radios {
+			if !r.disabled {
+				chosen = i
+				break
+			}
+		}
+	}
+	for i, r := range g.radios {
+		r.tree.SetFocusable(r.id, i == chosen)
+	}
 }
 
 // Value returns the label of the currently selected radio.

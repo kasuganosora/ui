@@ -72,6 +72,15 @@ func NewPopconfirm(tree *core.Tree, title string, cfg *Config) *Popconfirm {
 	})
 
 	// Cancel button handler
+	tree.AddHandler(p.id, event.KeyDown, func(e *event.Event) {
+		if e.Key == event.KeyEscape && p.visible {
+			p.visible = false
+			if p.onCancel != nil {
+				p.onCancel()
+			}
+			e.StopPropagation()
+		}
+	})
 	tree.AddHandler(p.cancelEl, event.MouseClick, func(e *event.Event) {
 		p.visible = false
 		if p.onCancel != nil {

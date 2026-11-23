@@ -65,6 +65,14 @@ func NewTooltip(tree *core.Tree, text string, anchorID core.ElementID, cfg *Conf
 	tree.AddHandler(anchorID, event.MouseLeave, func(e *event.Event) {
 		t.Hide()
 	})
+	if anchorID != core.InvalidElementID {
+		tree.AddHandler(anchorID, event.Focus, func(e *event.Event) { t.Show() })
+		tree.AddHandler(anchorID, event.KeyDown, func(e *event.Event) {
+			if e.Key == event.KeyEscape {
+				t.Hide()
+			}
+		})
+	}
 
 	return t
 }

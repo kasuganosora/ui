@@ -49,7 +49,7 @@ type Element struct {
 	focused   bool
 	focusable bool
 	hovered   bool
-	dirty   DirtyFlags
+	dirty     DirtyFlags
 
 	// Event handlers
 	handlers map[event.Type][]EventHandler

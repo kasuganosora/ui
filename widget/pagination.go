@@ -104,6 +104,22 @@ func NewPagination(tree *core.Tree, cfg *Config) *Pagination {
 		}
 	})
 
+	bindArrows(tree, p.id, func(k event.Key) {
+		if p.disabled {
+			return
+		}
+		switch k {
+		case event.KeyArrowRight, event.KeyArrowDown:
+			if p.current < p.TotalPages() {
+				p.GoTo(p.current + 1)
+			}
+		case event.KeyArrowLeft, event.KeyArrowUp:
+			if p.current > 1 {
+				p.GoTo(p.current - 1)
+			}
+		}
+	})
+
 	return p
 }
 

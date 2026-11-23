@@ -10,12 +10,15 @@ import (
 // ImageViewer displays an image with zoom and pan.
 type ImageViewer struct {
 	Base
-	texture render.TextureHandle
-	zoom    float32
-	panX    float32
-	panY    float32
-	visible bool
-	onClose func()
+	texture  render.TextureHandle
+	zoom     float32
+	panX     float32
+	panY     float32
+	visible  bool
+	onClose  func()
+	dragging bool
+	lastX    float32
+	lastY    float32
 }
 
 func NewImageViewer(tree *core.Tree, cfg *Config) *ImageViewer {
@@ -27,11 +30,23 @@ func NewImageViewer(tree *core.Tree, cfg *Config) *ImageViewer {
 		zoom:    1,
 		visible: true,
 	}
-	tree.AddHandler(iv.id, event.MouseClick, func(e *event.Event) {
-		// Double click could reset zoom
+	tree.AddHandler(iv.id, event.MouseDown, func(e *event.Event) {
+		iv.dragging = true
+		iv.lastX, iv.lastY = e.GlobalX, e.GlobalY
+	})
+	tree.AddHandler(iv.id, event.MouseUp, func(e *event.Event) { iv.dragging = false })
+	tree.AddHandler(iv.id, event.MouseMove, func(e *event.Event) {
+		if !iv.dragging {
+			return
+		}
+		iv.panX += e.GlobalX - iv.lastX
+		iv.panY += e.GlobalY - iv.lastY
+		iv.lastX, iv.lastY = e.GlobalX, e.GlobalY
 	})
 	return iv
 }
+
+func (iv *ImageViewer) Pan() (float32, float32) { return iv.panX, iv.panY }
 
 func (iv *ImageViewer) Texture() render.TextureHandle     { return iv.texture }
 func (iv *ImageViewer) Zoom() float32                     { return iv.zoom }

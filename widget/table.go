@@ -1,6 +1,8 @@
 package widget
 
 import (
+	"sort"
+
 	"github.com/kasuganosora/ui/core"
 	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
@@ -65,6 +67,12 @@ type Table struct {
 	onCellClick  func(ctx CellEventContext) // called on cell click
 	onPageChange func(pageInfo PageInfo)    // called on page change
 	onSortChange func(sort SortInfo)        // called on sort change
+
+	sortKey  string
+	sortDesc bool
+	pageSize int
+	page     int
+	scrollY  float32
 }
 
 // SortInfo describes a column sort state.
@@ -138,6 +146,116 @@ func (t *Table) OnPageChange(fn func(pageInfo PageInfo)) { t.onPageChange = fn }
 // OnSortChange sets the callback for sort change events.
 func (t *Table) OnSortChange(fn func(sort SortInfo)) { t.onSortChange = fn }
 
+func (t *Table) SetScrollY(y float32) {
+	if y < 0 {
+		y = 0
+	}
+	t.scrollY = y
+}
+
+func (t *Table) SetPageSize(n int) {
+	if n < 0 {
+		n = 0
+	}
+	t.pageSize = n
+	t.page = 0
+}
+
+func (t *Table) NextPage() {
+	if t.pageSize <= 0 || len(t.rows) == 0 {
+		return
+	}
+	pages := (len(t.rows) + t.pageSize - 1) / t.pageSize
+	if t.page+1 >= pages {
+		return
+	}
+	prev := t.page
+	t.page++
+	if t.onPageChange != nil {
+		t.onPageChange(PageInfo{Current: t.page, Previous: prev, PageSize: t.pageSize})
+	}
+}
+
+func (t *Table) visibleSpan() (start, end int) {
+	n := len(t.rows)
+	if n == 0 {
+		return 0, 0
+	}
+	if t.pageSize > 0 {
+		start = t.page * t.pageSize
+		if start > n {
+			start = n
+		}
+		end = start + t.pageSize
+		if end > n {
+			end = n
+		}
+		return start, end
+	}
+	viewH := t.Bounds().Height - t.headerH
+	if viewH < t.rowHeight {
+		viewH = t.rowHeight
+	}
+	count := int(viewH/t.rowHeight) + 1
+	if count < 1 {
+		count = 1
+	}
+	start = int(t.scrollY / t.rowHeight)
+	if start < 0 {
+		start = 0
+	}
+	if start > n {
+		start = n
+	}
+	end = start + count
+	if end > n {
+		end = n
+	}
+	return start, end
+}
+
+func (t *Table) sortAt(gx float32) {
+	widths := t.colWidths()
+	x := t.Bounds().X
+	col := -1
+	for i, w := range widths {
+		if gx >= x && gx < x+w {
+			col = i
+			break
+		}
+		x += w
+	}
+	if col < 0 || col >= len(t.columns) || !t.columns[col].Sorter {
+		return
+	}
+	key := t.columns[col].ColKey
+	if key == "" {
+		key = t.columns[col].Title
+	}
+	if t.sortKey == key {
+		t.sortDesc = !t.sortDesc
+	} else {
+		t.sortKey = key
+		t.sortDesc = false
+	}
+	sort.SliceStable(t.rows, func(i, j int) bool {
+		ai, aj := "", ""
+		if col < len(t.rows[i]) {
+			ai = t.rows[i][col]
+		}
+		if col < len(t.rows[j]) {
+			aj = t.rows[j][col]
+		}
+		if t.sortDesc {
+			return ai > aj
+		}
+		return ai < aj
+	})
+	if t.onSortChange != nil {
+		t.onSortChange(SortInfo{SortBy: key, Descending: t.sortDesc})
+	}
+}
+
 func (t *Table) TotalHeight() float32 {
 	return t.headerH + float32(len(t.rows))*t.rowHeight
 }
@@ -162,12 +280,16 @@ func (t *Table) ClearRows() {
 
 func (t *Table) handleClick(gx, gy float32) {
 	bounds := t.Bounds()
-	ry := gy - bounds.Y - t.headerH
-	if ry < 0 {
+	if gy < bounds.Y+t.headerH {
+		if gy >= bounds.Y {
+			t.sortAt(gx)
+		}
 		return
 	}
-	rowIdx := int(ry / t.rowHeight)
-	if rowIdx < 0 || rowIdx >= len(t.rows) {
+	start, end := t.visibleSpan()
+	local := int((gy - bounds.Y - t.headerH) / t.rowHeight)
+	rowIdx := start + local
+	if rowIdx < start || rowIdx >= end || rowIdx >= len(t.rows) {
 		return
 	}
 	if t.onRowClick != nil {
@@ -305,10 +427,13 @@ func (t *Table) Draw(buf *render.CommandBuffer) {
 		FillColor: cfg.BorderColor,
 	}, 2, 1)
 
-	// --- Data Rows ---
-	for ri, row := range t.rows {
-		ry := bounds.Y + t.headerH + float32(ri)*t.rowHeight
-		if ry+t.rowHeight > bounds.Y+bounds.Height {
+	// --- Data Rows (only the visible window) ---
+	start, end := t.visibleSpan()
+	for ri := start; ri < end; ri++ {
+		row := t.rows[ri]
+		local := ri - start
+		ry := bounds.Y + t.headerH + float32(local)*t.rowHeight
+		if t.pageSize == 0 && ry >= bounds.Y+bounds.Height {
 			break
 		}
 

@@ -1,6 +1,8 @@
 package widget
 
 import (
+	"strings"
+
 	"github.com/kasuganosora/ui/core"
 	"github.com/kasuganosora/ui/event"
 	"github.com/kasuganosora/ui/layout"
@@ -43,6 +45,8 @@ type Select struct {
 
 	optionIDs  []core.ElementID
 	backdropID core.ElementID
+	shown      []SelectOption
+	highlight  int
 
 	onChange             func(value string)
 	onBlur               func(value string)
@@ -88,6 +92,41 @@ func NewSelect(tree *core.Tree, options []SelectOption, cfg *Config) *Select {
 		}
 		if s.onPopupVisibleChange != nil {
 			s.onPopupVisibleChange(s.open)
+		}
+	})
+	bindArrows(tree, s.id, func(k event.Key) {
+		if s.disabled || s.readonly {
+			return
+		}
+		switch k {
+		case event.KeyArrowDown, event.KeyArrowUp:
+			if !s.open {
+				s.open = true
+				s.highlight = 0
+				s.createOptionElements()
+				return
+			}
+			if k == event.KeyArrowDown {
+				s.highlight++
+			} else {
+				s.highlight--
+			}
+			if s.highlight < 0 {
+				s.highlight = 0
+			}
+			if s.highlight >= len(s.shown) && len(s.shown) > 0 {
+				s.highlight = len(s.shown) - 1
+			}
+		case event.KeyEnter:
+			if !s.open {
+				s.open = true
+				s.createOptionElements()
+				return
+			}
+			s.chooseShown(s.highlight)
+		case event.KeyEscape:
+			s.open = false
+			s.destroyOptionElements()
 		}
 	})
 
@@ -159,11 +198,71 @@ func (s *Select) SetShowArrow(v bool)      { s.showArrow = v }
 func (s *Select) Empty() string            { return s.empty }
 func (s *Select) SetEmpty(e string)        { s.empty = e }
 func (s *Select) InputValue() string       { return s.inputValue }
-func (s *Select) SetInputValue(v string)   { s.inputValue = v }
-func (s *Select) PopupVisible() bool       { return s.popupVisible }
-func (s *Select) SetPopupVisible(v bool)   { s.popupVisible = v }
-func (s *Select) SelectLabel() string      { return s.label }
-func (s *Select) SetLabel(l string)        { s.label = l }
+func (s *Select) SetInputValue(v string) {
+	s.inputValue = v
+	if s.open {
+		s.highlight = 0
+		s.createOptionElements()
+	}
+}
+
+func (s *Select) visibleOptions() []SelectOption {
+	if !s.filterable || strings.TrimSpace(s.inputValue) == "" {
+		out := make([]SelectOption, len(s.options))
+		copy(out, s.options)
+		return out
+	}
+	q := strings.ToLower(s.inputValue)
+	var out []SelectOption
+	for _, opt := range s.options {
+		if strings.Contains(strings.ToLower(opt.Label), q) || strings.Contains(strings.ToLower(opt.Value), q) {
+			out = append(out, opt)
+		}
+	}
+	return out
+}
+
+func (s *Select) chooseShown(i int) {
+	if i < 0 || i >= len(s.shown) {
+		return
+	}
+	opt := s.shown[i]
+	if opt.Disabled {
+		return
+	}
+	if s.multiple {
+		found := -1
+		for n, v := range s.selectedValues {
+			if v == opt.Value {
+				found = n
+				break
+			}
+		}
+		if found >= 0 {
+			s.selectedValues = append(s.selectedValues[:found], s.selectedValues[found+1:]...)
+		} else {
+			s.selectedValues = append(s.selectedValues, opt.Value)
+		}
+		s.value = ""
+		if len(s.selectedValues) > 0 {
+			s.value = s.selectedValues[0]
+		}
+		if s.onChange != nil {
+			s.onChange(s.value)
+		}
+		return
+	}
+	s.value = opt.Value
+	s.open = false
+	s.destroyOptionElements()
+	if s.onChange != nil {
+		s.onChange(s.value)
+	}
+}
+func (s *Select) PopupVisible() bool     { return s.popupVisible }
+func (s *Select) SetPopupVisible(v bool) { s.popupVisible = v }
+func (s *Select) SelectLabel() string    { return s.label }
+func (s *Select) SetLabel(l string)      { s.label = l }
 
 // Event setters
 func (s *Select) OnBlur(fn func(string))             { s.onBlur = fn }
@@ -200,7 +299,8 @@ func (s *Select) createOptionElements() {
 		s.destroyOptionElements()
 	})
 
-	for i, opt := range s.options {
+	s.shown = s.visibleOptions()
+	for i, opt := range s.shown {
 		eid := s.tree.CreateElement(core.TypeCustom)
 		s.tree.SetProperty(eid, "text", opt.Label)
 		s.tree.AppendChild(rootID, eid)
@@ -209,12 +309,7 @@ func (s *Select) createOptionElements() {
 		if !opt.Disabled {
 			idx := i
 			s.tree.AddHandler(eid, event.MouseClick, func(e *event.Event) {
-				s.value = s.options[idx].Value
-				s.open = false
-				s.destroyOptionElements()
-				if s.onChange != nil {
-					s.onChange(s.value)
-				}
+				s.chooseShown(idx)
 			})
 		}
 	}
@@ -391,7 +486,11 @@ func (s *Select) Draw(buf *render.CommandBuffer) {
 func (s *Select) drawDropdown(buf *render.CommandBuffer, triggerBounds uimath.Rect) {
 	cfg := s.config
 	optH := cfg.InputHeight
-	dropH := optH * float32(len(s.options))
+	opts := s.shown
+	if len(opts) == 0 {
+		opts = s.options
+	}
+	dropH := optH * float32(len(opts))
 	if dropH > 200 {
 		dropH = 200
 	}
@@ -419,7 +518,7 @@ func (s *Select) drawDropdown(buf *render.CommandBuffer, triggerBounds uimath.Re
 
 	// Options — also update element bounds for hit testing
 	y := dropY
-	for i, opt := range s.options {
+	for i, opt := range opts {
 		optRect := uimath.NewRect(triggerBounds.X, y, triggerBounds.Width, optH)
 
 		// Set layout bounds on option element so hit test can find it

@@ -14,6 +14,8 @@ type Swiper struct {
 	autoplay bool
 	showDots bool
 	onChange func(int)
+	interval float32
+	accum    float32
 }
 
 func NewSwiper(tree *core.Tree, cfg *Config) *Swiper {
@@ -23,6 +25,7 @@ func NewSwiper(tree *core.Tree, cfg *Config) *Swiper {
 	return &Swiper{
 		Base:     NewBase(tree, core.TypeCustom, cfg),
 		showDots: true,
+		interval: 3,
 	}
 }
 
@@ -32,6 +35,28 @@ func (s *Swiper) SetCurrent(c int)      { s.current = c }
 func (s *Swiper) SetAutoplay(a bool)    { s.autoplay = a }
 func (s *Swiper) SetShowDots(d bool)    { s.showDots = d }
 func (s *Swiper) OnChange(fn func(int)) { s.onChange = fn }
+
+func (s *Swiper) SetInterval(seconds float32) {
+	if seconds <= 0 {
+		seconds = 3
+	}
+	s.interval = seconds
+}
+
+func (s *Swiper) Tick(dt float32) {
+	if !s.autoplay || len(s.panels) == 0 || dt <= 0 {
+		return
+	}
+	step := s.interval
+	if step <= 0 {
+		step = 3
+	}
+	s.accum += dt
+	for s.accum >= step {
+		s.accum -= step
+		s.Next()
+	}
+}
 
 func (s *Swiper) AddPanel(w Widget) {
 	s.panels = append(s.panels, w)

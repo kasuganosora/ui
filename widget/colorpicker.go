@@ -14,6 +14,7 @@ type ColorPicker struct {
 	presets  []uimath.Color
 	open     bool
 	onChange func(uimath.Color)
+	cells    hitCells
 }
 
 func NewColorPicker(tree *core.Tree, cfg *Config) *ColorPicker {
@@ -30,10 +31,68 @@ func NewColorPicker(tree *core.Tree, cfg *Config) *ColorPicker {
 			uimath.ColorHex("#2f54eb"), uimath.ColorHex("#722ed1"), uimath.ColorHex("#eb2f96"),
 		},
 	}
+	cp.cells = hitCells{tree: tree, parent: cp.id}
 	tree.AddHandler(cp.id, event.MouseClick, func(e *event.Event) {
-		cp.open = !cp.open
+		cp.onClick(e.GlobalX, e.GlobalY)
 	})
 	return cp
+}
+
+func (cp *ColorPicker) onClick(x, y float32) {
+	b := cp.Bounds()
+	sw := b.Height
+	if sw > b.Width {
+		sw = b.Width
+	}
+	if cp.open {
+		const cols = 6
+		swSize := float32(24)
+		gap := float32(4)
+		pad := float32(8)
+		panelX := b.X
+		panelY := b.Y + sw + 4
+		for i := range cp.presets {
+			r := i / cols
+			col := i % cols
+			sx := panelX + pad + float32(col)*(swSize+gap)
+			sy := panelY + pad + float32(r)*(swSize+gap)
+			if x >= sx && y >= sy && x < sx+swSize && y < sy+swSize {
+				cp.SelectColor(cp.presets[i])
+				cp.cells.clear()
+				return
+			}
+		}
+	}
+	if pointIn(x, y, uimath.NewRect(b.X, b.Y, sw, sw)) {
+		cp.open = !cp.open
+		if cp.open {
+			cp.placeCells(sw)
+		} else {
+			cp.cells.clear()
+		}
+	}
+}
+
+func (cp *ColorPicker) placeCells(sw float32) {
+	b := cp.Bounds()
+	const cols = 6
+	swSize := float32(24)
+	gap := float32(4)
+	pad := float32(8)
+	panelX := b.X
+	panelY := b.Y + sw + 4
+	rects := make([]uimath.Rect, len(cp.presets))
+	for i := range cp.presets {
+		r := i / cols
+		col := i % cols
+		rects[i] = uimath.NewRect(panelX+pad+float32(col)*(swSize+gap), panelY+pad+float32(r)*(swSize+gap), swSize, swSize)
+	}
+	cp.cells.set(rects, func(i int) {
+		if i >= 0 && i < len(cp.presets) {
+			cp.SelectColor(cp.presets[i])
+			cp.cells.clear()
+		}
+	})
 }
 
 func (cp *ColorPicker) Value() uimath.Color            { return cp.value }

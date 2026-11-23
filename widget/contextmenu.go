@@ -2,6 +2,7 @@ package widget
 
 import (
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 )
@@ -18,20 +19,64 @@ type ContextMenuItem struct {
 // ContextMenu is a right-click context menu.
 type ContextMenu struct {
 	Base
-	items   []ContextMenuItem
-	visible bool
-	x, y    float32
-	width   float32
+	items     []ContextMenuItem
+	visible   bool
+	x, y      float32
+	width     float32
+	highlight int
 }
 
 func NewContextMenu(tree *core.Tree, cfg *Config) *ContextMenu {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	return &ContextMenu{
+	cm := &ContextMenu{
 		Base:  NewBase(tree, core.TypeCustom, cfg),
 		width: 180,
 	}
+	bindArrows(tree, cm.id, func(k event.Key) {
+		if !cm.visible {
+			return
+		}
+		switch k {
+		case event.KeyArrowDown:
+			cm.highlight = cm.nextItem(1)
+		case event.KeyArrowUp:
+			cm.highlight = cm.nextItem(-1)
+		case event.KeyEnter, event.KeySpace:
+			cm.activate(cm.highlight)
+		case event.KeyEscape:
+			cm.Hide()
+		}
+	})
+	return cm
+}
+
+func (cm *ContextMenu) nextItem(dir int) int {
+	if len(cm.items) == 0 {
+		return 0
+	}
+	i := cm.highlight
+	for step := 0; step < len(cm.items); step++ {
+		i = (i + dir + len(cm.items)) % len(cm.items)
+		if cm.items[i].Divider || cm.items[i].Disabled {
+			continue
+		}
+		return i
+	}
+	return cm.highlight
+}
+
+func (cm *ContextMenu) activate(i int) {
+	if i < 0 || i >= len(cm.items) {
+		return
+	}
+	item := cm.items[i]
+	if item.Divider || item.Disabled || item.OnClick == nil {
+		return
+	}
+	item.OnClick()
+	cm.Hide()
 }
 
 func (cm *ContextMenu) IsVisible() bool    { return cm.visible }

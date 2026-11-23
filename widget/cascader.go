@@ -21,6 +21,7 @@ type Cascader struct {
 	selected []string // path of selected values
 	open     bool
 	onChange func([]string)
+	cells    hitCells
 }
 
 func NewCascader(tree *core.Tree, cfg *Config) *Cascader {
@@ -30,10 +31,71 @@ func NewCascader(tree *core.Tree, cfg *Config) *Cascader {
 	c := &Cascader{
 		Base: NewBase(tree, core.TypeCustom, cfg),
 	}
+	c.cells = hitCells{tree: tree, parent: c.id}
 	tree.AddHandler(c.id, event.MouseClick, func(e *event.Event) {
-		c.open = !c.open
+		c.onClick(e.GlobalX, e.GlobalY)
 	})
 	return c
+}
+
+func (c *Cascader) onClick(x, y float32) {
+	b := c.Bounds()
+	if c.open {
+		if path, leaf, ok := c.hit(x, y); ok {
+			c.selected = path
+			if leaf {
+				c.open = false
+				c.cells.clear()
+				if c.onChange != nil {
+					c.onChange(append([]string(nil), path...))
+				}
+			}
+			return
+		}
+	}
+	if pointIn(x, y, b) {
+		c.open = !c.open
+		if !c.open {
+			c.cells.clear()
+		}
+	}
+}
+
+func (c *Cascader) hit(x, y float32) (path []string, leaf bool, ok bool) {
+	b := c.Bounds()
+	panelW := float32(150)
+	itemH := float32(32)
+	dy := b.Y + b.Height + 4
+	opts := c.options
+	var prefix []string
+	for level := 0; opts != nil; level++ {
+		dx := b.X + float32(level)*panelW
+		if x >= dx && x < dx+panelW && y >= dy {
+			i := int((y - dy) / itemH)
+			if i < 0 || i >= len(opts) {
+				return nil, false, false
+			}
+			opt := opts[i]
+			path = append(append([]string{}, prefix...), opt.Value)
+			return path, len(opt.Children) == 0, true
+		}
+		if level >= len(c.selected) {
+			break
+		}
+		var next []*CascaderOption
+		for _, opt := range opts {
+			if opt.Value == c.selected[level] {
+				next = opt.Children
+				prefix = append(prefix, opt.Value)
+				break
+			}
+		}
+		if next == nil {
+			break
+		}
+		opts = next
+	}
+	return nil, false, false
 }
 
 func (c *Cascader) Options() []*CascaderOption { return c.options }

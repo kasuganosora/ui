@@ -46,6 +46,13 @@ func NewPopover(tree *core.Tree, cfg *Config) *Popover {
 			p.visible = !p.visible
 		}
 	})
+	tree.SetFocusable(p.id, true)
+	tree.AddHandler(p.id, event.KeyDown, func(e *event.Event) {
+		if e.Key == event.KeyEscape && p.visible {
+			p.Close()
+			e.StopPropagation()
+		}
+	})
 	return p
 }
 

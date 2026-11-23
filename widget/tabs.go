@@ -100,6 +100,38 @@ func NewTabs(tree *core.Tree, list []TabPanel, cfg *Config) *Tabs {
 			t.tree.MarkDirty(t.id)
 		})
 	}
+	bindArrows(tree, t.id, func(k event.Key) {
+		dir := 0
+		switch k {
+		case event.KeyArrowRight, event.KeyArrowDown:
+			dir = 1
+		case event.KeyArrowLeft, event.KeyArrowUp:
+			dir = -1
+		default:
+			return
+		}
+		if len(t.list) == 0 || t.disabled {
+			return
+		}
+		idx := 0
+		for i, p := range t.list {
+			if p.Value == t.value {
+				idx = i
+				break
+			}
+		}
+		for step := 0; step < len(t.list); step++ {
+			idx = (idx + dir + len(t.list)) % len(t.list)
+			if t.list[idx].Disabled {
+				continue
+			}
+			t.value = t.list[idx].Value
+			if t.onChange != nil {
+				t.onChange(t.value)
+			}
+			return
+		}
+	})
 
 	return t
 }

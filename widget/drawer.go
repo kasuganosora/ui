@@ -48,6 +48,8 @@ type Drawer struct {
 	closeOnEscKeydown   bool
 	showOverlay         bool
 	mode                DrawerMode
+	dragging            bool
+	dragY               float32
 	body                Widget
 
 	closeID   core.ElementID
@@ -112,6 +114,33 @@ func NewDrawer(tree *core.Tree, title string, cfg *Config) *Drawer {
 	tree.AddHandler(d.cancelID, event.MouseClick, func(e *event.Event) {
 		if d.onCancel != nil {
 			d.onCancel()
+		}
+	})
+	tree.AddHandler(d.id, event.MouseDown, func(e *event.Event) {
+		if !d.visible {
+			return
+		}
+		d.dragging = true
+		d.dragY = e.GlobalY
+	})
+	tree.AddHandler(d.id, event.MouseUp, func(e *event.Event) { d.dragging = false })
+	tree.AddHandler(d.id, event.MouseMove, func(e *event.Event) {
+		if !d.dragging || !d.visible {
+			return
+		}
+		h := d.Bounds().Height
+		if h <= 0 {
+			h = 100
+		}
+		if e.GlobalY-d.dragY > h*0.3 {
+			d.dragging = false
+			d.Close()
+		}
+	})
+	tree.AddHandler(d.id, event.KeyDown, func(e *event.Event) {
+		if e.Key == event.KeyEscape && d.visible && d.closeOnEscKeydown {
+			d.Close()
+			e.StopPropagation()
 		}
 	})
 

@@ -60,6 +60,7 @@ type Button struct {
 	loading bool
 
 	onClick func()
+	icon    string
 }
 
 // NewButton creates a button with the given label.
@@ -92,6 +93,11 @@ func NewButton(tree *core.Tree, label string, cfg *Config) *Button {
 	})
 	b.tree.AddHandler(b.id, event.MouseClick, func(e *event.Event) {
 		if !b.disabled && !b.loading && b.onClick != nil {
+			b.onClick()
+		}
+	})
+	bindActivate(tree, b.id, func() bool { return !b.disabled && !b.loading }, func() {
+		if b.onClick != nil {
 			b.onClick()
 		}
 	})
@@ -136,6 +142,9 @@ func (b *Button) SetDisabled(d bool) {
 func (b *Button) OnClick(fn func()) {
 	b.onClick = fn
 }
+
+func (b *Button) SetIcon(name string) { b.icon = name }
+func (b *Button) Icon() string        { return b.icon }
 
 func (b *Button) Theme() ButtonTheme { return b.theme }
 func (b *Button) Size() Size         { return b.size }

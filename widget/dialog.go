@@ -67,6 +67,9 @@ type Dialog struct {
 	closeID   core.ElementID // close X button element
 	confirmID core.ElementID // confirm button element
 	cancelID  core.ElementID // cancel button element
+
+	prior  core.ElementID
+	scoped bool
 }
 
 // NewDialog creates a dialog.
@@ -122,6 +125,19 @@ func NewDialog(tree *core.Tree, title string, cfg *Config) *Dialog {
 			d.onCancel()
 		}
 	})
+	tree.AddHandler(d.id, event.KeyDown, func(e *event.Event) {
+		if e.Key != event.KeyEscape || !d.visible || !d.closeOnEscKeydown {
+			return
+		}
+		if d.onEscKeydown != nil {
+			d.onEscKeydown()
+		}
+		d.Close()
+		if d.onClose != nil {
+			d.onClose()
+		}
+		e.StopPropagation()
+	})
 
 	return d
 }
@@ -153,13 +169,30 @@ func (d *Dialog) SetPlacement(p DialogPlacement)    { d.placement = p }
 func (d *Dialog) SetMode(m DialogMode)              { d.mode = m }
 
 func (d *Dialog) Open() {
+	if !d.visible {
+		d.prior = d.tree.Focused()
+		d.tree.PushFocusScope(d.id)
+		d.scoped = true
+	}
 	d.visible = true
 	d.style.Display = layout.DisplayFlex
+	d.tree.SetFocusable(d.confirmID, true)
+	d.tree.SetFocusable(d.cancelID, true)
+	d.tree.SetFocusable(d.closeID, true)
+	d.tree.SetFocused(d.confirmID, true)
 }
 
 func (d *Dialog) Close() {
+	was := d.visible
 	d.visible = false
 	d.style.Display = layout.DisplayNone
+	if d.scoped {
+		d.tree.PopFocusScope()
+		d.scoped = false
+	}
+	if was && d.prior != core.InvalidElementID && d.tree.Get(d.prior) != nil {
+		d.tree.SetFocused(d.prior, true)
+	}
 }
 
 func (d *Dialog) Draw(buf *render.CommandBuffer) {

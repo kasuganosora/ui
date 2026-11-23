@@ -26,9 +26,43 @@ func NewTreeSelect(tree *core.Tree, cfg *Config) *TreeSelect {
 		dropH: 200,
 	}
 	tree.AddHandler(ts.id, event.MouseClick, func(e *event.Event) {
-		ts.open = !ts.open
+		b := ts.Bounds()
+		if ts.open {
+			itemH := float32(28)
+			dy := b.Y + b.Height + 4
+			if e.GlobalY >= dy {
+				i := int((e.GlobalY - dy) / itemH)
+				flat := flattenOpen(ts.roots)
+				if i >= 0 && i < len(flat) {
+					ts.selected = flat[i].Key
+					ts.open = false
+					if ts.onChange != nil {
+						ts.onChange(ts.selected)
+					}
+					return
+				}
+			}
+		}
+		if pointIn(e.GlobalX, e.GlobalY, b) {
+			ts.open = !ts.open
+		}
 	})
 	return ts
+}
+
+func flattenOpen(nodes []*TreeNode) []*TreeNode {
+	var out []*TreeNode
+	var walk func([]*TreeNode)
+	walk = func(ns []*TreeNode) {
+		for _, n := range ns {
+			out = append(out, n)
+			if n.Expanded {
+				walk(n.Children)
+			}
+		}
+	}
+	walk(nodes)
+	return out
 }
 
 func (ts *TreeSelect) Selected() string         { return ts.selected }

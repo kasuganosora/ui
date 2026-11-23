@@ -574,10 +574,24 @@ func NewVirtualList(tree *core.Tree, cfg *Config) *VirtualList {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	return &VirtualList{
+	vl := &VirtualList{
 		Base:       NewBase(tree, core.TypeDiv, cfg),
 		itemHeight: 40,
 	}
+	tree.AddHandler(vl.id, event.MouseWheel, func(e *event.Event) {
+		vl.scrollY += e.WheelDY
+		if vl.scrollY < 0 {
+			vl.scrollY = 0
+		}
+		max := vl.ContentHeight() - vl.Bounds().Height
+		if max < 0 {
+			max = 0
+		}
+		if vl.scrollY > max {
+			vl.scrollY = max
+		}
+	})
+	return vl
 }
 
 func (vl *VirtualList) SetItemCount(n int)      { vl.itemCount = n }

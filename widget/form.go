@@ -16,10 +16,16 @@ const (
 )
 
 // Form is a container for FormItem widgets.
+type formRule struct {
+	item *FormItem
+	fn   func() string
+}
+
 type Form struct {
 	Base
 	layout     FormLayout
 	labelWidth float32
+	rules      []formRule
 }
 
 // NewForm creates a form container.
@@ -45,6 +51,51 @@ func (f *Form) SetLabelWidth(w float32) { f.labelWidth = w }
 
 func (f *Form) Draw(buf *render.CommandBuffer) {
 	f.DrawChildren(buf)
+}
+
+func (f *Form) AddRule(item *FormItem, fn func() string) {
+	if item == nil || fn == nil {
+		return
+	}
+	f.rules = append(f.rules, formRule{item: item, fn: fn})
+}
+
+func (f *Form) Validate() bool {
+	ok := true
+	for _, rule := range f.rules {
+		msg := rule.fn()
+		rule.item.SetError(msg)
+		if msg != "" {
+			ok = false
+		}
+	}
+	return ok
+}
+
+func (f *Form) Reset() {
+	seen := map[*FormItem]bool{}
+	for _, rule := range f.rules {
+		seen[rule.item] = true
+		rule.item.SetError("")
+		resetControl(rule.item.Control())
+	}
+	for _, child := range f.Children() {
+		item, ok := child.(*FormItem)
+		if !ok || seen[item] {
+			continue
+		}
+		item.SetError("")
+		resetControl(item.Control())
+	}
+}
+
+func resetControl(w Widget) {
+	switch c := w.(type) {
+	case *Input:
+		c.SetValue("")
+	case *TextArea:
+		c.SetValue("")
+	}
 }
 
 // FormItem wraps a label and a control widget.

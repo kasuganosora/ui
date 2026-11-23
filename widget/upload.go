@@ -24,6 +24,7 @@ type Upload struct {
 	drag     bool
 	maxCount int
 	onUpload func([]UploadFile)
+	picker   func() ([]UploadFile, error)
 }
 
 func NewUpload(tree *core.Tree, cfg *Config) *Upload {
@@ -36,7 +37,22 @@ func NewUpload(tree *core.Tree, cfg *Config) *Upload {
 		drag:     true,
 	}
 	tree.AddHandler(u.id, event.MouseClick, func(e *event.Event) {
-		// In a real implementation, this would open a file dialog
+		if u.picker == nil {
+			return
+		}
+		files, err := u.picker()
+		if err != nil || len(files) == 0 {
+			return
+		}
+		for _, f := range files {
+			if u.maxCount > 0 && len(u.files) >= u.maxCount {
+				break
+			}
+			u.files = append(u.files, f)
+		}
+		if u.onUpload != nil {
+			u.onUpload(append([]UploadFile(nil), u.files...))
+		}
 	})
 	return u
 }
@@ -47,6 +63,8 @@ func (u *Upload) SetAccept(a string)             { u.accept = a }
 func (u *Upload) SetDrag(d bool)                 { u.drag = d }
 func (u *Upload) SetMaxCount(m int)              { u.maxCount = m }
 func (u *Upload) OnUpload(fn func([]UploadFile)) { u.onUpload = fn }
+
+func (u *Upload) SetOpenPicker(fn func() ([]UploadFile, error)) { u.picker = fn }
 
 func (u *Upload) AddFile(f UploadFile) {
 	if u.maxCount > 0 && len(u.files) >= u.maxCount {

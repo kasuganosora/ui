@@ -2,6 +2,7 @@ package widget
 
 import (
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 )
@@ -20,13 +21,25 @@ func NewCalendar(tree *core.Tree, cfg *Config) *Calendar {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	return &Calendar{
+	c := &Calendar{
 		Base:     NewBase(tree, core.TypeCustom, cfg),
 		year:     2026,
 		month:    1,
 		selected: 1,
 		cellSize: 36,
 	}
+	tree.AddHandler(c.id, event.MouseClick, func(e *event.Event) {
+		b := c.Bounds()
+		cs := c.cellSize
+		originY := b.Y + 40 + cs
+		if day, ok := dayAt(b.X, originY, cs, c.firstDayOfWeek(), c.daysInMonth(), e.GlobalX, e.GlobalY); ok {
+			c.selected = day
+			if c.onSelect != nil {
+				c.onSelect(c.year, c.month, day)
+			}
+		}
+	})
+	return c
 }
 
 func (c *Calendar) Year() int                       { return c.year }
@@ -68,13 +81,7 @@ func (c *Calendar) daysInMonth() int {
 }
 
 func (c *Calendar) firstDayOfWeek() int {
-	y := c.year
-	m := c.month
-	if m < 3 {
-		m += 12
-		y--
-	}
-	return (1 + (13*(m+1))/5 + y + y/4 - y/100 + y/400) % 7
+	return weekdayIndex(c.year, c.month, 1)
 }
 
 func (c *Calendar) Draw(buf *render.CommandBuffer) {
