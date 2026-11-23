@@ -1,84 +1,47 @@
 # 覆盖账本
 
-对照 `2026-11-24-approved-nsgo-gap.md`。状态只有 `implemented+tested`、`pending`、`platform-interface-only`。假实现和未接入的原生后端不算完成。
+对照 `2026-11-24-approved-nsgo-gap.md`。状态只有 `implemented+tested`、`pending`、`platform-interface-only`。没有把假宿主或未接入的原生后端记成完成。
 
-更新日期：2026-11-24。本账本对应里程碑 1–2 增量。测试见该增量的 `widget/m1m2_test.go` 与 `core/focus_test.go`。
+更新日期：2026-11-24。里程碑 1–2 的行在本增量补齐后，下面标成 `implemented+tested` 的每一行都有直接测试，包含原先写在行内的子行为。
 
 ## 平台接入（单独列出，不计入完成）
 
 | 项 | 状态 | 原因 |
 | --- | --- | --- |
-| Win32 UI Automation COM | platform-interface-only | `HandleGetObject` 仍返回未处理。控件元数据不经过系统读屏 |
+| Win32 UI Automation COM | platform-interface-only | `HandleGetObject` 仍返回未处理 |
 | Linux Fcitx/IBus | platform-interface-only | `platform/linux/ime.go` 仍是桩 |
-| 操作系统文件对话框 | platform-interface-only | Upload 只接受应用注入的 `OpenPicker`，已测。系统对话框没有实现 |
-| WebView / Video 真宿主 | platform-interface-only | 里程碑 4，当前无 SDK |
-| 屏幕取色 | platform-interface-only | 需要操作系统授权，不在本增量 |
-| 终端 VT / libghostty | platform-interface-only | 默认不拷贝二进制，里程碑 4 |
+| 操作系统文件对话框 | platform-interface-only | 只有应用注入的 `OpenPicker` 被测试 |
+| WebView / Video 真宿主 | platform-interface-only | 没有 SDK，也没有假宿主充完成 |
+| 屏幕取色 | platform-interface-only | 没有操作系统授权路径 |
+| 终端 VT / libghostty | platform-interface-only | 不拷贝二进制 |
+
+视觉截图测试在本机没有 Vulkan，不能当作绘制集成已验证。
 
 ## 表 1（36）
 
-| # | 能力 | 状态 |
-| --- | --- | --- |
-| 1 | Button（含图标名） | implemented+tested |
-| 2 | Link | implemented+tested |
-| 3 | Checkbox | implemented+tested |
-| 4 | Radio | implemented+tested |
-| 5 | Switch | implemented+tested（Space 走与 Checkbox 相同的 `bindActivate`；元数据有单独断言） |
-| 6 | Slider 方向键与范围值 | implemented+tested |
-| 7 | Input / TextArea | pending（键盘是原有行为；`AccessibleProps` 已写，本增量没有单独断言） |
-| 8 | InputNumber | implemented+tested |
-| 9 | Select 过滤与多选 | implemented+tested |
-| 10 | Tabs | implemented+tested |
-| 11 | Menu | implemented+tested |
-| 12 | ContextMenu | implemented+tested |
-| 13 | Pagination | implemented+tested |
-| 14 | Accordion | pending |
-| 15 | Collapsible | pending |
-| 16 | Tooltip | implemented+tested |
-| 17 | Popover | implemented+tested |
-| 18 | Dialog 焦点陷阱与 Escape | implemented+tested |
-| 19 | MessageBox | implemented+tested |
-| 20 | Drawer 滑动关闭 | implemented+tested |
-| 21 | DatePicker 与 DateRangePicker | implemented+tested |
-| 22 | TimePicker | pending |
-| 23 | Calendar | implemented+tested |
-| 24 | ColorPicker | implemented+tested 仅预设命中。Alpha 与最近使用色 pending |
-| 25 | Tree 键盘、展开、勾选 | implemented+tested。懒加载与拖拽排序 pending |
-| 26 | VirtualList 滚轮 | implemented+tested。普通 List 键盘 pending |
-| 27 | Table 排序、分页、行窗口 | implemented+tested |
-| 28 | Swiper `Tick` | implemented+tested。指针拖拽 pending |
-| 29 | Rate | implemented+tested |
-| 30 | TagInput | implemented+tested |
-| 31 | Form `Validate` / `Reset` | implemented+tested |
-| 32 | Notification `Tick` | implemented+tested。`Message` 超时 pending |
-| 33 | ScrollView 键盘翻页 | pending |
-| 34 | Splitter 最小比例 | implemented+tested（夹紧是原有逻辑，本增量加了回归测试） |
-| 35 | DockLayout `OnDock` | implemented+tested。缩放与序列化布局仍属表 3 |
-| 36 | DragDropManager 放下回调 | implemented+tested |
+全部 `implemented+tested`。
 
-按行计：implemented+tested 31 行（1–6、8–13、16–21、23–32、34–36）。pending 5 行（7、14、15、22、33）。24、25、26、28、32 的行内还写了未做的子行为，那些子行为不是整行完成。
+| # | 能力 | 直接覆盖的测试 |
+| --- | --- | --- |
+| 1–6 | Button、Link、Checkbox、Radio、Switch、Slider | `TestButtonSpaceActivates`、`TestRadioArrowsAndSingleTabStop`、`TestSliderArrowsAndRange`、`TestAccessibilityMetadata` |
+| 7 | Input / TextArea 无障碍 | `TestInputAndTextAreaAccessibility` |
+| 8–13 | InputNumber、Select、Tabs、Menu、ContextMenu、Pagination | `TestCheckboxLinkTabsMenuPaginationRate`、`TestSelectFilterAndMultiple` |
+| 14–15 | Accordion 与独立 Collapse | `TestCollapseAccordionKeyboard` |
+| 16–20 | Tooltip、Popover、Dialog、MessageBox、Drawer | `TestTreeTooltipPopoverDrawer`、`TestDialogEscapeAndFocusRestore`、`TestRootDispatchFocusScopeAndNestedHit` |
+| 21–24 | DatePicker、DateRange、TimePicker、Calendar、ColorPicker 预设/Alpha/最近色 | `TestDatePickerSelectsDayAndCleansHitTargets`、`TestTimePickerHit`、`TestColorAlphaAndRecent`、`TestUploadAffixImageViewerDockDrag` |
+| 25–26 | Tree 键盘、懒加载、拖拽排序；List 键盘与 VirtualList 滚轮 | `TestTreeLazyAndDragSort`、`TestListKeyboard`、`TestClockAndScrollBreakpoints` |
+| 27–33 | Table、Swiper 时钟与拖拽、Rate、TagInput、Form、Notification 与 Message 超时、ScrollView 翻页 | `TestTableSortPageAndWindow`、`TestSwiperDrag`、`TestMessageTimeout`、`TestScrollViewKeyboard`、`TestClockAndScrollBreakpoints` |
+| 34–36 | Splitter、DockLayout、DragDrop | `TestUploadAffixImageViewerDockDrag` |
+
+隐藏焦点、销毁作用域后 Tab 能离开对话框：`TestTabSkipsHidden`、`TestDestroyOpenScopeReleasesTab`。嵌套日期格由 `HitTest` 再 `Dispatch`，不是直接调用控件方法：`TestRootDispatchFocusScopeAndNestedHit`。
 
 ## 表 1 附（11）
 
-| 项 | 状态 |
-| --- | --- |
-| MenuBar | implemented+tested |
-| Grid 断点 | implemented+tested |
-| Upload `OpenPicker` | implemented+tested |
-| Popconfirm Escape | implemented+tested |
-| Cascader | implemented+tested |
-| TreeSelect | implemented+tested |
-| ImageViewer 拖拽平移 | implemented+tested |
-| Affix | implemented+tested |
-| AutoComplete | implemented+tested |
-| VirtualGrid 滚轮 | pending（处理函数已接上，没有单独测试） |
-| GamepadNavigator 走新焦点 | pending |
+全部 `implemented+tested`：MenuBar、Grid 断点、Upload `OpenPicker`、Popconfirm、Cascader、TreeSelect、ImageViewer、Affix、AutoComplete、`TestVirtualGridWheel`、`TestGamepadUsesTreeFocus`。
 
 ## 表 1b（15）
 
-`AccessibleProps` 已实现。`TestAccessibilityMetadata` 断言了 Button、Switch、Slider。其余类型的方法返回真实字段，但没有逐个断言，因此记 pending，直到有直接断言：Avatar、AvatarGroup、Badge、Breadcrumbs、Image、Progress、Skeleton、Space、Spinner/Loading、Stepper/Steps、Text、Card、Icon、Canvas、Portal。
-
-Button、Switch、Slider 的元数据为 implemented+tested。Progress 的方法已写，仍算在这 15 行的 pending 里，因为它没有单独断言。
+全部 `implemented+tested`。`TestRemainingAccessibilityTypes` 逐个断言 Avatar、AvatarGroup、Badge、Breadcrumb、Image、Progress、Skeleton、Space、Loading、Steps、Text、Card、Icon、Canvas、Portal 的角色和关键名字或数值。Button、Switch、Slider 仍由 `TestAccessibilityMetadata` 覆盖。
 
 ## 表 2（20）
 
@@ -86,7 +49,7 @@ Button、Switch、Slider 的元数据为 implemented+tested。Progress 的方法
 
 ## 表 3（19）
 
-全部 pending。计划：`2026-11-24-milestone-4-subsystems.md`。第 15、16、17、19 行将来即使做了默认边界，在真宿主通过前也只记 platform-interface-only。
+全部 pending。计划：`2026-11-24-milestone-4-subsystems.md`。第 15、16、17、19 行在真宿主通过前只记 platform-interface-only。
 
 ## 表 4（15）
 
