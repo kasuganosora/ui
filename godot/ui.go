@@ -64,6 +64,7 @@ type UI struct {
 
 	// Event state
 	lastHoverTarget core.ElementID
+	input           core.HostInput
 }
 
 // NewUI creates a new headless UI instance.
@@ -124,6 +125,7 @@ func NewUI(opts UIOptions) (*UI, error) {
 	// Widget tree
 	u.tree = core.NewTree()
 	u.dispatch = core.NewDispatcher(u.tree)
+	u.input = core.HostInput{Tree: u.tree}
 	u.cfg = widget.DefaultConfig()
 	u.cfg.TextRenderer = &textDrawer{
 		renderer:        u.textRenderer,
@@ -317,48 +319,7 @@ func (u *UI) Destroy() {
 
 // handleEvent routes an event to the widget tree.
 func (u *UI) handleEvent(evt *event.Event) {
-	switch evt.Type {
-	case event.MouseMove, event.MouseDown, event.MouseUp, event.MouseClick:
-		target := u.tree.HitTest(evt.GlobalX, evt.GlobalY)
-
-		// Hover tracking
-		if evt.Type == event.MouseMove {
-			u.tree.Walk(u.tree.Root(), func(id core.ElementID, _ int) bool {
-				u.tree.SetHovered(id, id == target)
-				return true
-			})
-			if target != u.lastHoverTarget {
-				if u.lastHoverTarget != core.InvalidElementID {
-					u.dispatch.Dispatch(u.lastHoverTarget, &event.Event{Type: event.MouseLeave})
-				}
-				if target != core.InvalidElementID {
-					u.dispatch.Dispatch(target, &event.Event{Type: event.MouseEnter})
-				}
-				u.lastHoverTarget = target
-			}
-		}
-
-		if target != core.InvalidElementID {
-			u.dispatch.Dispatch(target, evt)
-		}
-
-	case event.MouseWheel:
-		// Dispatch to hovered element
-		target := u.tree.HitTest(evt.GlobalX, evt.GlobalY)
-		if target != core.InvalidElementID {
-			u.dispatch.Dispatch(target, evt)
-		}
-
-	case event.KeyDown, event.KeyUp, event.KeyPress:
-		// Route to focused element
-		u.tree.Walk(u.tree.Root(), func(id core.ElementID, _ int) bool {
-			if e := u.tree.Get(id); e != nil && e.IsFocused() {
-				u.dispatch.Dispatch(id, evt)
-				return false
-			}
-			return true
-		})
-	}
+	u.input.Handle(evt)
 }
 
 // --- Mock font engine (copied from app.go to avoid circular import) ---

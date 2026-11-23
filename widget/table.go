@@ -146,6 +146,8 @@ func (t *Table) OnPageChange(fn func(pageInfo PageInfo)) { t.onPageChange = fn }
 // OnSortChange sets the callback for sort change events.
 func (t *Table) OnSortChange(fn func(sort SortInfo)) { t.onSortChange = fn }
 
+func (t *Table) HoveredRow() int { return t.hoveredRow }
+
 func (t *Table) SetScrollY(y float32) {
 	if y < 0 {
 		y = 0
@@ -318,8 +320,9 @@ func (t *Table) updateHover(globalY float32) {
 	ry := globalY - bounds.Y - t.headerH
 	newHovered := -1
 	if ry >= 0 {
-		idx := int(ry / t.rowHeight)
-		if idx >= 0 && idx < len(t.rows) {
+		start, end := t.visibleSpan()
+		idx := start + int(ry/t.rowHeight)
+		if idx >= start && idx < end {
 			newHovered = idx
 		}
 	}

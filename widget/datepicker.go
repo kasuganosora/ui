@@ -37,6 +37,11 @@ func NewDatePicker(tree *core.Tree, cfg *Config) *DatePicker {
 	return dp
 }
 
+func (dp *DatePicker) Destroy() {
+	dp.cells.clear()
+	dp.Base.Destroy()
+}
+
 func (dp *DatePicker) onClick(x, y float32) {
 	b := dp.Bounds()
 	if dp.open {
@@ -71,7 +76,7 @@ func (dp *DatePicker) placeCells() {
 		row := (first + d - 1) / 7
 		rects = append(rects, uimath.NewRect(b.X+float32(col)*cell, b.Y+b.Height+4+36+float32(row)*cell, cell, cell))
 	}
-	dp.cells.set(rects, func(i int) {
+	dp.cells.set(rects, func(i int, _ *event.Event) {
 		dp.day = i + 1
 		dp.open = false
 		dp.cells.clear()
@@ -202,6 +207,7 @@ type TimePicker struct {
 	showSec  bool
 	open     bool
 	onChange func(h, m, s int)
+	cells    hitCells
 }
 
 func NewTimePicker(tree *core.Tree, cfg *Config) *TimePicker {
@@ -247,7 +253,44 @@ func (tp *TimePicker) onClick(x, y float32) {
 	}
 	if pointIn(x, y, b) {
 		tp.open = !tp.open
+		if tp.open {
+			tp.placeCells()
+		} else {
+			tp.cells.clear()
+		}
 	}
+}
+
+func (tp *TimePicker) placeCells() {
+	b := tp.Bounds()
+	originY := b.Y + b.Height + 4
+	cell := float32(28)
+	var rects []uimath.Rect
+	for h := 0; h < 24; h++ {
+		col := h / 6
+		row := h % 6
+		rects = append(rects, uimath.NewRect(b.X+float32(col)*cell, originY+float32(row)*cell, cell, cell))
+	}
+	mins := []int{0, 15, 30, 45}
+	minY := originY + 6*cell + 8
+	for i := range mins {
+		rects = append(rects, uimath.NewRect(b.X+float32(i)*40, minY, 40, 28))
+	}
+	if tp.cells.tree == nil {
+		tp.cells = hitCells{tree: tp.tree, parent: tp.id}
+	}
+	tp.cells.set(rects, func(i int, _ *event.Event) {
+		if i < 24 {
+			tp.hour = i
+			return
+		}
+		tp.minute = mins[i-24]
+		tp.open = false
+		tp.cells.clear()
+		if tp.onChange != nil {
+			tp.onChange(tp.hour, tp.minute, tp.second)
+		}
+	})
 }
 
 func (tp *TimePicker) Hour() int    { return tp.hour }

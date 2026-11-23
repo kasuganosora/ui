@@ -109,9 +109,13 @@ func (c *Collapse) SetExpandOnRowClick(b bool)                   { c.expandOnRow
 func (c *Collapse) SetExpandIcon(v bool)                         { c.expandIcon = v }
 func (c *Collapse) SetExpandIconPlacement(p ExpandIconPlacement) { c.expandIconPlacement = p }
 func (c *Collapse) SetDefaultExpandAll(v bool)                   { c.defaultExpandAll = v }
-func (c *Collapse) SetDisabled(v bool)                           { c.disabled = v }
-func (c *Collapse) OnChange(fn func([]string))                   { c.onChange = fn }
-func (c *Collapse) IsActive(key string) bool                     { return c.activeKeys[key] }
+func (c *Collapse) SetDisabled(v bool) {
+	c.disabled = v
+	c.tree.SetEnabled(c.id, !v)
+	c.tree.SetFocusable(c.id, !v)
+}
+func (c *Collapse) OnChange(fn func([]string)) { c.onChange = fn }
+func (c *Collapse) IsActive(key string) bool   { return c.activeKeys[key] }
 
 // Deprecated: Use SetExpandMutex instead.
 func (c *Collapse) SetAccordion(a bool) { c.expandMutex = a }

@@ -49,16 +49,92 @@ func (c *Cascader) onClick(x, y float32) {
 				if c.onChange != nil {
 					c.onChange(append([]string(nil), path...))
 				}
+			} else {
+				c.placeCells()
 			}
 			return
 		}
 	}
 	if pointIn(x, y, b) {
 		c.open = !c.open
-		if !c.open {
+		if c.open {
+			c.placeCells()
+		} else {
 			c.cells.clear()
 		}
 	}
+}
+
+func (c *Cascader) placeCells() {
+	if c.cells.tree == nil {
+		c.cells = hitCells{tree: c.tree, parent: c.id}
+	}
+	b := c.Bounds()
+	panelW := float32(150)
+	itemH := float32(32)
+	dy := b.Y + b.Height + 4
+	opts := c.options
+	var rects []uimath.Rect
+	var picked [][]string
+	var prefix []string
+	for level := 0; opts != nil; level++ {
+		dx := b.X + float32(level)*panelW
+		for i, opt := range opts {
+			rects = append(rects, uimath.NewRect(dx, dy+float32(i)*itemH, panelW, itemH))
+			path := append(append([]string{}, prefix...), opt.Value)
+			picked = append(picked, path)
+		}
+		if level >= len(c.selected) {
+			break
+		}
+		var next []*CascaderOption
+		for _, opt := range opts {
+			if opt.Value == c.selected[level] {
+				next = opt.Children
+				prefix = append(prefix, opt.Value)
+				break
+			}
+		}
+		if next == nil {
+			break
+		}
+		opts = next
+	}
+	c.cells.set(rects, func(i int, _ *event.Event) {
+		if i < 0 || i >= len(picked) {
+			return
+		}
+		c.selected = picked[i]
+		leaf := true
+		opts := c.options
+		for _, v := range c.selected {
+			var found *CascaderOption
+			for _, opt := range opts {
+				if opt.Value == v {
+					found = opt
+					break
+				}
+			}
+			if found == nil {
+				break
+			}
+			if len(found.Children) > 0 && v != c.selected[len(c.selected)-1] {
+				opts = found.Children
+				continue
+			}
+			leaf = len(found.Children) == 0
+			opts = found.Children
+		}
+		if leaf {
+			c.open = false
+			c.cells.clear()
+			if c.onChange != nil {
+				c.onChange(append([]string{}, c.selected...))
+			}
+			return
+		}
+		c.placeCells()
+	})
 }
 
 func (c *Cascader) hit(x, y float32) (path []string, leaf bool, ok bool) {

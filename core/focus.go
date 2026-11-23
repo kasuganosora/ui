@@ -37,6 +37,38 @@ func (t *Tree) PopFocusScope() {
 	t.scopes = t.scopes[:len(t.scopes)-1]
 }
 
+// PopFocusScopeOwned removes the scope opened by root, even when another
+// scope was pushed later.
+func (t *Tree) PopFocusScopeOwned(root ElementID) {
+	kept := t.scopes[:0]
+	for _, scope := range t.scopes {
+		if scope != root {
+			kept = append(kept, scope)
+		}
+	}
+	t.scopes = kept
+}
+
+// FocusScope returns the innermost tab scope, or InvalidElementID.
+func (t *Tree) FocusScope() ElementID {
+	if len(t.scopes) == 0 {
+		return InvalidElementID
+	}
+	return t.scopes[len(t.scopes)-1]
+}
+
+// SetKeyFallback delivers keys here when nothing is focused.
+func (t *Tree) SetKeyFallback(id ElementID) { t.keyFallback = id }
+
+// InScope reports whether id is root or a descendant of root.
+// A zero root means every element is in scope.
+func (t *Tree) InScope(id, root ElementID) bool {
+	if root == InvalidElementID {
+		return true
+	}
+	return t.within(id, root)
+}
+
 // FocusNext moves focus to the next tab stop after from and returns it.
 func (t *Tree) FocusNext(from ElementID) ElementID {
 	return t.moveFocus(from, 1)
@@ -68,6 +100,9 @@ func (t *Tree) RouteKey(evt *event.Event) {
 		return
 	}
 	target := t.Focused()
+	if target == InvalidElementID {
+		target = t.keyFallback
+	}
 	if target == InvalidElementID {
 		target = t.root
 	}

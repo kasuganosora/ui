@@ -155,6 +155,9 @@ func (t *Tree) onKey(k event.Key) {
 			t.cursor = 0
 		}
 		if t.cursor >= 0 && t.cursor < len(nodes) {
+			for _, n := range t.flat() {
+				n.Selected = false
+			}
 			t.selected = nodes[t.cursor].Key
 			nodes[t.cursor].Selected = true
 			if t.onSelect != nil {

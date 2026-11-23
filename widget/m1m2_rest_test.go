@@ -309,3 +309,118 @@ func TestRootDispatchFocusScopeAndNestedHit(t *testing.T) {
 		t.Fatalf("day %d open %v", dp.Day(), dp.IsOpen())
 	}
 }
+
+func TestRangePointerRadioResetDestroyAndSelectEmpty(t *testing.T) {
+	tree := core.NewTree()
+	s := NewSlider(tree, nil)
+	s.SetMin(0)
+	s.SetMax(10)
+	s.SetRangeValues(2, 8)
+	bounds(tree, s.ElementID(), 0, 0, 100, 20)
+	core.NewDispatcher(tree).Dispatch(s.ElementID(), &event.Event{Type: event.MouseDown, GlobalX: 90, GlobalY: 10})
+	lo, hi := s.RangeValues()
+	if lo != 2 || hi < 8.5 {
+		t.Fatalf("range %v %v value %v", lo, hi, s.Value())
+	}
+
+	g := NewRadioGroup()
+	a := NewRadio(tree, "a", nil)
+	b := NewRadio(tree, "b", nil)
+	g.Add(a)
+	g.Add(b)
+	g.SetValue("b")
+	if tree.IsFocusable(a.ElementID()) || !tree.IsFocusable(b.ElementID()) {
+		t.Fatal("setvalue did not move the tab stop")
+	}
+
+	beforePicker := tree.ElementCount()
+	dp := NewDatePicker(tree, nil)
+	bounds(tree, dp.ElementID(), 0, 0, 200, 32)
+	click(tree, dp.ElementID(), 10, 10)
+	if tree.ElementCount() < beforePicker+10 {
+		t.Fatal("expected day cells")
+	}
+	dp.Destroy()
+	if tree.ElementCount() != beforePicker {
+		t.Fatalf("cells leaked, count %d want %d", tree.ElementCount(), beforePicker)
+	}
+
+	sel := NewSelect(tree, []SelectOption{{Label: "Apple", Value: "a"}}, nil)
+	sel.SetFilterable(true)
+	sel.SetInputValue("zzz")
+	bounds(tree, sel.ElementID(), 0, 0, 120, 32)
+	click(tree, sel.ElementID(), 10, 10)
+	click(tree, sel.ElementID(), 10, 40)
+	if sel.Value() != "" {
+		t.Fatalf("empty filter selected %q", sel.Value())
+	}
+
+	tb := NewTable(tree, []TableColumn{{Title: "N", ColKey: "n", Width: 80}}, nil)
+	rows := make([][]string, 20)
+	for i := range rows {
+		rows[i] = []string{"r"}
+	}
+	tb.SetRows(rows)
+	bounds(tree, tb.ElementID(), 0, 0, 100, 200)
+	tb.SetScrollY(5 * 48)
+	core.NewDispatcher(tree).Dispatch(tb.ElementID(), &event.Event{Type: event.MouseMove, GlobalX: 10, GlobalY: 48 + 4})
+	if tb.HoveredRow() != 5 {
+		t.Fatalf("hover %d", tb.HoveredRow())
+	}
+
+	box := NewCheckbox(tree, "c", nil)
+	box.SetChecked(true)
+	item := NewFormItem(tree, "C", box, nil)
+	form := NewForm(tree, nil)
+	form.AppendChild(item)
+	form.Reset()
+	if box.IsChecked() {
+		t.Fatal("reset left checkbox checked")
+	}
+
+	tr := NewTree(tree, nil)
+	n1 := &TreeNode{Key: "a", Label: "A", Selected: true}
+	n2 := &TreeNode{Key: "b", Label: "B"}
+	tr.SetRoots([]*TreeNode{n1, n2})
+	tree.SetFocused(tr.ElementID(), true)
+	key(tree, tr.ElementID(), event.KeyArrowDown)
+	key(tree, tr.ElementID(), event.KeyArrowDown)
+	key(tree, tr.ElementID(), event.KeyEnter)
+	if n1.Selected || !n2.Selected {
+		t.Fatal("enter left the previous selection")
+	}
+
+	pop := NewPopover(tree, nil)
+	if tree.IsFocusable(pop.ElementID()) {
+		t.Fatal("closed popover is focusable")
+	}
+	pop.Open()
+	if tree.Focused() != pop.ElementID() {
+		t.Fatal("open did not take focus")
+	}
+
+	l := NewList(tree, nil)
+	l.SetSelectable(true)
+	l.SetItemHeight(30)
+	l.SetItems([]ListItem{{Value: "a", Title: "A"}, {Value: "b", Title: "B"}})
+	bounds(tree, l.ElementID(), 0, 100, 100, 80)
+	core.NewDispatcher(tree).Dispatch(l.ElementID(), &event.Event{Type: event.MouseClick, Y: 0, GlobalX: 10, GlobalY: 140})
+	if l.SelectedValue() != "b" {
+		t.Fatalf("list used local Y, selected %q", l.SelectedValue())
+	}
+
+	gn := NewGamepadNavigator(tree, nil)
+	in := NewButton(tree, "in", nil)
+	out := NewButton(tree, "out", nil)
+	dlg := NewDialog(tree, "d", nil)
+	tree.AppendChild(tree.Root(), out.ElementID())
+	tree.AppendChild(tree.Root(), dlg.ElementID())
+	tree.AppendChild(dlg.ElementID(), in.ElementID())
+	gn.AddWidget(out)
+	gn.AddWidget(in)
+	dlg.Open()
+	gn.Navigate(NavDown)
+	if tree.Focused() == out.ElementID() {
+		t.Fatal("gamepad left the dialog scope")
+	}
+}

@@ -95,6 +95,12 @@ func resetControl(w Widget) {
 		c.SetValue("")
 	case *TextArea:
 		c.SetValue("")
+	case *Checkbox:
+		c.SetChecked(false)
+	case *Select:
+		c.SetValue("")
+	case *Slider:
+		c.SetValue(c.Min())
 	}
 }
 

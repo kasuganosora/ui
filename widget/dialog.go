@@ -89,6 +89,7 @@ func NewDialog(tree *core.Tree, title string, cfg *Config) *Dialog {
 		showOverlay:         true,
 	}
 	d.style.Display = layout.DisplayNone
+	tree.SetVisible(d.id, false)
 
 	// Click on backdrop closes dialog
 	d.tree.AddHandler(d.id, event.MouseClick, func(e *event.Event) {
@@ -126,7 +127,7 @@ func NewDialog(tree *core.Tree, title string, cfg *Config) *Dialog {
 		}
 	})
 	tree.AddHandler(d.id, event.KeyDown, func(e *event.Event) {
-		if e.Key != event.KeyEscape || !d.visible || !d.closeOnEscKeydown {
+		if e.Phase == event.PhaseCapture || e.Key != event.KeyEscape || !d.visible || !d.closeOnEscKeydown {
 			return
 		}
 		if d.onEscKeydown != nil {
@@ -138,6 +139,27 @@ func NewDialog(tree *core.Tree, title string, cfg *Config) *Dialog {
 		}
 		e.StopPropagation()
 	})
+	activate := func(fn func()) func(*event.Event) {
+		return func(e *event.Event) {
+			if e.Phase == event.PhaseCapture || (e.Key != event.KeyEnter && e.Key != event.KeySpace) {
+				return
+			}
+			if fn != nil {
+				fn()
+			}
+			e.StopPropagation()
+		}
+	}
+	tree.AddHandler(d.confirmID, event.KeyDown, activate(func() {
+		if d.onConfirm != nil {
+			d.onConfirm()
+		}
+	}))
+	tree.AddHandler(d.cancelID, event.KeyDown, activate(func() {
+		if d.onCancel != nil {
+			d.onCancel()
+		}
+	}))
 
 	return d
 }
@@ -176,6 +198,7 @@ func (d *Dialog) Open() {
 	}
 	d.visible = true
 	d.style.Display = layout.DisplayFlex
+	d.tree.SetVisible(d.id, true)
 	d.tree.SetFocusable(d.confirmID, true)
 	d.tree.SetFocusable(d.cancelID, true)
 	d.tree.SetFocusable(d.closeID, true)
@@ -186,8 +209,15 @@ func (d *Dialog) Close() {
 	was := d.visible
 	d.visible = false
 	d.style.Display = layout.DisplayNone
+	d.tree.SetVisible(d.id, false)
+	d.tree.SetFocusable(d.confirmID, false)
+	d.tree.SetFocusable(d.cancelID, false)
+	d.tree.SetFocusable(d.closeID, false)
+	if d.tree.Focused() == d.confirmID || d.tree.Focused() == d.cancelID || d.tree.Focused() == d.closeID || d.tree.Focused() == d.id {
+		d.tree.ClearFocus()
+	}
 	if d.scoped {
-		d.tree.PopFocusScope()
+		d.tree.PopFocusScopeOwned(d.id)
 		d.scoped = false
 	}
 	if was && d.prior != core.InvalidElementID && d.tree.Get(d.prior) != nil {

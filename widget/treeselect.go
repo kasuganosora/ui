@@ -15,6 +15,7 @@ type TreeSelect struct {
 	open     bool
 	dropH    float32
 	onChange func(string)
+	cells    hitCells
 }
 
 func NewTreeSelect(tree *core.Tree, cfg *Config) *TreeSelect {
@@ -45,9 +46,39 @@ func NewTreeSelect(tree *core.Tree, cfg *Config) *TreeSelect {
 		}
 		if pointIn(e.GlobalX, e.GlobalY, b) {
 			ts.open = !ts.open
+			if ts.open {
+				ts.placeCells()
+			} else {
+				ts.cells.clear()
+			}
 		}
 	})
 	return ts
+}
+
+func (ts *TreeSelect) placeCells() {
+	if ts.cells.tree == nil {
+		ts.cells = hitCells{tree: ts.tree, parent: ts.id}
+	}
+	b := ts.Bounds()
+	itemH := float32(28)
+	dy := b.Y + b.Height + 4
+	flat := flattenOpen(ts.roots)
+	rects := make([]uimath.Rect, len(flat))
+	for i := range flat {
+		rects[i] = uimath.NewRect(b.X, dy+float32(i)*itemH, b.Width, itemH)
+	}
+	ts.cells.set(rects, func(i int, _ *event.Event) {
+		if i < 0 || i >= len(flat) {
+			return
+		}
+		ts.selected = flat[i].Key
+		ts.open = false
+		ts.cells.clear()
+		if ts.onChange != nil {
+			ts.onChange(ts.selected)
+		}
+	})
 }
 
 func flattenOpen(nodes []*TreeNode) []*TreeNode {

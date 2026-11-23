@@ -24,23 +24,20 @@ func (h *hitCells) clear() {
 	h.ids = nil
 }
 
-func (h *hitCells) set(rects []uimath.Rect, fn func(i int)) {
+func (h *hitCells) set(rects []uimath.Rect, fn func(i int, e *event.Event)) {
 	h.clear()
 	if h.tree == nil || h.parent == core.InvalidElementID {
 		return
 	}
 	for i, r := range rects {
 		id := h.tree.CreateElement(core.TypeCustom)
-		parent := h.tree.Root()
-		if parent == core.InvalidElementID {
-			parent = h.parent
-		}
-		h.tree.AppendChild(parent, id)
+		h.tree.AppendChild(h.parent, id)
+		h.tree.SetOverlay(id, true)
 		h.tree.SetLayout(id, core.LayoutResult{Bounds: r})
 		idx := i
 		h.tree.AddHandler(id, event.MouseClick, func(e *event.Event) {
 			if fn != nil {
-				fn(idx)
+				fn(idx, e)
 			}
 			e.StopPropagation()
 		})

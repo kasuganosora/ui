@@ -48,6 +48,7 @@ func NewMessageBox(tree *core.Tree, title, content string, cfg *Config) *Message
 		showCancel: false,
 	}
 	mb.style.Display = layout.DisplayNone
+	tree.SetVisible(mb.id, false)
 
 	// Click backdrop to close
 	tree.AddHandler(mb.id, event.MouseClick, func(e *event.Event) {
@@ -56,7 +57,7 @@ func NewMessageBox(tree *core.Tree, title, content string, cfg *Config) *Message
 		}
 	})
 	tree.AddHandler(mb.id, event.KeyDown, func(e *event.Event) {
-		if e.Key != event.KeyEscape || !mb.visible {
+		if e.Phase == event.PhaseCapture || e.Key != event.KeyEscape || !mb.visible {
 			return
 		}
 		if mb.onCancel != nil {
@@ -92,6 +93,7 @@ func (mb *MessageBox) Open() {
 	mb.tree.SetFocused(mb.id, true)
 	mb.visible = true
 	mb.style.Display = layout.DisplayFlex
+	mb.tree.SetVisible(mb.id, true)
 	mb.tree.MarkDirty(mb.id)
 }
 
@@ -99,8 +101,10 @@ func (mb *MessageBox) Close() {
 	was := mb.visible
 	mb.visible = false
 	mb.style.Display = layout.DisplayNone
+	mb.tree.SetVisible(mb.id, false)
+	mb.tree.SetFocusable(mb.id, false)
 	if mb.scoped {
-		mb.tree.PopFocusScope()
+		mb.tree.PopFocusScopeOwned(mb.id)
 		mb.scoped = false
 	}
 	if was && mb.prior != core.InvalidElementID && mb.tree.Get(mb.prior) != nil {

@@ -48,6 +48,7 @@ type Element struct {
 	enabled   bool
 	focused   bool
 	focusable bool
+	overlay   bool
 	hovered   bool
 	dirty     DirtyFlags
 
@@ -126,11 +127,13 @@ func (e *Element) TextContent() string {
 // Tree is the aggregate root for the element tree.
 // All element mutations must go through Tree methods.
 type Tree struct {
-	elements map[ElementID]*Element
-	root     ElementID
-	nextID   ElementID
-	focused  ElementID
-	scopes   []ElementID
+	elements    map[ElementID]*Element
+	root        ElementID
+	nextID      ElementID
+	focused     ElementID
+	scopes      []ElementID
+	keyFallback ElementID
+	notifying   bool
 }
 
 // NewTree creates a new element tree.
@@ -360,32 +363,57 @@ func (t *Tree) SetEnabled(id ElementID, enabled bool) {
 // SetFocused sets the focused state. Only one element should be focused at a time.
 // When setting focus to true, any previously focused element is automatically unfocused.
 func (t *Tree) SetFocused(id ElementID, focused bool) {
+	var blurred []ElementID
 	if focused {
 		for eid, elem := range t.elements {
 			if elem != nil && elem.focused && eid != id {
 				elem.focused = false
+				blurred = append(blurred, eid)
 				t.markDirty(eid, DirtyPaint)
 			}
 		}
 		t.focused = id
 	} else if t.focused == id {
 		t.focused = InvalidElementID
+		blurred = append(blurred, id)
 	}
 	if elem := t.elements[id]; elem != nil {
 		elem.focused = focused
 		t.markDirty(id, DirtyPaint)
 	}
+	t.notifyFocus(blurred, id, focused)
+}
+
+func (t *Tree) notifyFocus(blurred []ElementID, id ElementID, focused bool) {
+	if t.notifying {
+		return
+	}
+	t.notifying = true
+	defer func() { t.notifying = false }()
+	d := NewDispatcher(t)
+	for _, bid := range blurred {
+		if bid == id && focused {
+			continue
+		}
+		d.DispatchToTarget(bid, &event.Event{Type: event.Blur})
+	}
+	if focused && t.elements[id] != nil {
+		d.DispatchToTarget(id, &event.Event{Type: event.Focus})
+	}
 }
 
 // ClearFocus removes focus from all elements.
 func (t *Tree) ClearFocus() {
+	var blurred []ElementID
 	for eid, elem := range t.elements {
 		if elem != nil && elem.focused {
 			elem.focused = false
+			blurred = append(blurred, eid)
 			t.markDirty(eid, DirtyPaint)
 		}
 	}
 	t.focused = InvalidElementID
+	t.notifyFocus(blurred, InvalidElementID, false)
 }
 
 // SetHovered sets the hovered state.
@@ -467,9 +495,47 @@ func (t *Tree) ElementCount() int {
 	return len(t.elements)
 }
 
+// SetOverlay marks an element as a popup hit target. Overlay hits are
+// tested before the normal tree so a popup can extend outside its parent.
+func (t *Tree) SetOverlay(id ElementID, on bool) {
+	if elem := t.elements[id]; elem != nil {
+		elem.overlay = on
+	}
+}
+
 // HitTest finds the deepest visible element at the given point.
+// The topmost visible overlay that contains the point wins.
 func (t *Tree) HitTest(x, y float32) ElementID {
+	if id := t.hitOverlay(x, y); id != InvalidElementID {
+		return id
+	}
 	return t.hitTestRecursive(t.root, x, y)
+}
+
+func (t *Tree) hitOverlay(x, y float32) ElementID {
+	var hit ElementID
+	t.Walk(t.root, func(id ElementID, _ int) bool {
+		elem := t.elements[id]
+		if elem == nil || !elem.overlay || !elem.visible || !t.ancestorsVisible(id) {
+			return true
+		}
+		if elem.layout.Bounds.Contains(uimath.Vec2{X: x, Y: y}) {
+			hit = id
+		}
+		return true
+	})
+	return hit
+}
+
+func (t *Tree) ancestorsVisible(id ElementID) bool {
+	for id != InvalidElementID {
+		elem := t.elements[id]
+		if elem == nil || !elem.visible {
+			return false
+		}
+		id = elem.parent
+	}
+	return true
 }
 
 func (t *Tree) hitTestRecursive(id ElementID, x, y float32) ElementID {

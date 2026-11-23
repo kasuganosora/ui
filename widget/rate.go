@@ -76,10 +76,14 @@ func NewRate(tree *core.Tree, cfg *Config) *Rate {
 	return r
 }
 
-func (r *Rate) Value() float32             { return r.value }
-func (r *Rate) SetCount(c int)             { r.count = c }
-func (r *Rate) SetSize(s float32)          { r.size = s }
-func (r *Rate) SetDisabled(d bool)         { r.disabled = d }
+func (r *Rate) Value() float32    { return r.value }
+func (r *Rate) SetCount(c int)    { r.count = c }
+func (r *Rate) SetSize(s float32) { r.size = s }
+func (r *Rate) SetDisabled(d bool) {
+	r.disabled = d
+	r.tree.SetEnabled(r.id, !d)
+	r.tree.SetFocusable(r.id, !d)
+}
 func (r *Rate) SetAllowHalf(v bool)        { r.allowHalf = v }
 func (r *Rate) SetClearable(v bool)        { r.clearable = v }
 func (r *Rate) Clearable() bool            { return r.clearable }

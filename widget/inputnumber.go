@@ -103,17 +103,21 @@ func NewInputNumber(tree *core.Tree, cfg *Config) *InputNumber {
 	return n
 }
 
-func (n *InputNumber) Value() float64                 { return n.value }
-func (n *InputNumber) Min() float64                   { return n.min }
-func (n *InputNumber) Max() float64                   { return n.max }
-func (n *InputNumber) Step() float64                  { return n.step }
-func (n *InputNumber) Theme() InputNumberTheme        { return n.theme }
-func (n *InputNumber) DecimalPlaces() int             { return n.decimalPlaces }
-func (n *InputNumber) Text() string                   { return n.text }
-func (n *InputNumber) SetMin(v float64)               { n.min = v }
-func (n *InputNumber) SetMax(v float64)               { n.max = v }
-func (n *InputNumber) SetStep(v float64)              { n.step = v }
-func (n *InputNumber) SetDisabled(d bool)             { n.disabled = d }
+func (n *InputNumber) Value() float64          { return n.value }
+func (n *InputNumber) Min() float64            { return n.min }
+func (n *InputNumber) Max() float64            { return n.max }
+func (n *InputNumber) Step() float64           { return n.step }
+func (n *InputNumber) Theme() InputNumberTheme { return n.theme }
+func (n *InputNumber) DecimalPlaces() int      { return n.decimalPlaces }
+func (n *InputNumber) Text() string            { return n.text }
+func (n *InputNumber) SetMin(v float64)        { n.min = v }
+func (n *InputNumber) SetMax(v float64)        { n.max = v }
+func (n *InputNumber) SetStep(v float64)       { n.step = v }
+func (n *InputNumber) SetDisabled(d bool) {
+	n.disabled = d
+	n.tree.SetEnabled(n.id, !d)
+	n.tree.SetFocusable(n.id, !d)
+}
 func (n *InputNumber) SetTheme(t InputNumberTheme)    { n.theme = t }
 func (n *InputNumber) SetDecimalPlaces(d int)         { n.decimalPlaces = d }
 func (n *InputNumber) SetSize(s Size)                 { n.size = s }

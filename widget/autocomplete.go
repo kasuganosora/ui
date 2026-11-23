@@ -17,6 +17,7 @@ type AutoComplete struct {
 	selected    int
 	onSelect    func(string)
 	filterFn    func(input string, options []string) []string
+	cells       hitCells
 }
 
 func NewAutoComplete(tree *core.Tree, cfg *Config) *AutoComplete {
@@ -85,6 +86,25 @@ func (ac *AutoComplete) SetText(t string) {
 	ac.filtered = ac.filterFn(t, ac.suggestions)
 	ac.open = len(ac.filtered) > 0 && t != ""
 	ac.selected = -1
+	if ac.open {
+		ac.placeCells()
+	} else {
+		ac.cells.clear()
+	}
+}
+
+func (ac *AutoComplete) placeCells() {
+	if ac.cells.tree == nil {
+		ac.cells = hitCells{tree: ac.tree, parent: ac.id}
+	}
+	b := ac.Bounds()
+	itemH := float32(32)
+	dy := b.Y + b.Height + 4
+	rects := make([]uimath.Rect, len(ac.filtered))
+	for i := range ac.filtered {
+		rects[i] = uimath.NewRect(b.X, dy+float32(i)*itemH, b.Width, itemH)
+	}
+	ac.cells.set(rects, func(i int, _ *event.Event) { ac.SelectItem(i) })
 }
 
 func (ac *AutoComplete) SetFilterFn(fn func(string, []string) []string) {
@@ -95,6 +115,7 @@ func (ac *AutoComplete) SelectItem(index int) {
 	if index >= 0 && index < len(ac.filtered) {
 		ac.text = ac.filtered[index]
 		ac.open = false
+		ac.cells.clear()
 		if ac.onSelect != nil {
 			ac.onSelect(ac.text)
 		}

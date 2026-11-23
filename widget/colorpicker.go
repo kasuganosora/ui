@@ -102,10 +102,28 @@ func (cp *ColorPicker) placeCells(sw float32) {
 		col := i % cols
 		rects[i] = uimath.NewRect(panelX+pad+float32(col)*(swSize+gap), panelY+pad+float32(r)*(swSize+gap), swSize, swSize)
 	}
-	cp.cells.set(rects, func(i int) {
+	panelW := float32(cols)*swSize + float32(cols-1)*gap + pad*2
+	if cp.alphaEnabled {
+		rects = append(rects, uimath.NewRect(b.X, cp.AlphaBarY(), panelW, 16))
+	}
+	cp.cells.set(rects, func(i int, e *event.Event) {
 		if i >= 0 && i < len(cp.presets) {
 			cp.SelectColor(cp.presets[i])
 			cp.cells.clear()
+			return
+		}
+		if e != nil && panelW > 0 {
+			a := (e.GlobalX - b.X) / panelW
+			if a < 0 {
+				a = 0
+			}
+			if a > 1 {
+				a = 1
+			}
+			cp.value.A = a
+			if cp.onChange != nil {
+				cp.onChange(cp.value)
+			}
 		}
 	})
 }

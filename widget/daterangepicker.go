@@ -15,6 +15,7 @@ type DateRangePicker struct {
 	open                            bool
 	onChange                        func(sy, sm, sd, ey, em, ed int)
 	picking                         bool
+	cells                           hitCells
 }
 
 func NewDateRangePicker(tree *core.Tree, cfg *Config) *DateRangePicker {
@@ -26,6 +27,7 @@ func NewDateRangePicker(tree *core.Tree, cfg *Config) *DateRangePicker {
 		startYear: 2026, startMonth: 1, startDay: 1,
 		endYear: 2026, endMonth: 1, endDay: 31,
 	}
+	drp.cells = hitCells{tree: tree, parent: drp.id}
 	tree.AddHandler(drp.id, event.MouseClick, func(e *event.Event) {
 		b := drp.Bounds()
 		if drp.open {
@@ -52,9 +54,48 @@ func NewDateRangePicker(tree *core.Tree, cfg *Config) *DateRangePicker {
 		}
 		if pointIn(e.GlobalX, e.GlobalY, b) {
 			drp.open = !drp.open
+			if drp.open {
+				drp.placeCells()
+			} else {
+				drp.cells.clear()
+			}
 		}
 	})
 	return drp
+}
+
+func (drp *DateRangePicker) placeCells() {
+	b := drp.Bounds()
+	cell := float32(32)
+	first := weekdayIndex(drp.startYear, drp.startMonth, 1)
+	days := daysIn(drp.startYear, drp.startMonth)
+	rects := make([]uimath.Rect, 0, days)
+	for d := 1; d <= days; d++ {
+		col := (first + d - 1) % 7
+		row := (first + d - 1) / 7
+		rects = append(rects, uimath.NewRect(b.X+float32(col)*cell, b.Y+b.Height+4+36+float32(row)*cell, cell, cell))
+	}
+	drp.cells.set(rects, func(i int, _ *event.Event) {
+		day := i + 1
+		if !drp.picking {
+			drp.startDay = day
+			drp.picking = true
+			return
+		}
+		ey, em, ed := drp.startYear, drp.startMonth, day
+		if !dateOrder(drp.startYear, drp.startMonth, drp.startDay, ey, em, ed) {
+			drp.endYear, drp.endMonth, drp.endDay = drp.startYear, drp.startMonth, drp.startDay
+			drp.startDay = day
+		} else {
+			drp.endYear, drp.endMonth, drp.endDay = ey, em, ed
+		}
+		drp.picking = false
+		drp.open = false
+		drp.cells.clear()
+		if drp.onChange != nil {
+			drp.onChange(drp.startYear, drp.startMonth, drp.startDay, drp.endYear, drp.endMonth, drp.endDay)
+		}
+	})
 }
 
 func daysIn(year, month int) int {

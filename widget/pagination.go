@@ -123,15 +123,19 @@ func NewPagination(tree *core.Tree, cfg *Config) *Pagination {
 	return p
 }
 
-func (p *Pagination) Current() int                           { return p.current }
-func (p *Pagination) Total() int                             { return p.total }
-func (p *Pagination) PageSize() int                          { return p.pageSize }
-func (p *Pagination) SetCurrent(c int)                       { p.current = c }
-func (p *Pagination) SetTotal(t int)                         { p.total = t }
-func (p *Pagination) SetPageSize(s int)                      { p.pageSize = s }
-func (p *Pagination) SetSize(s Size)                         { p.size = s }
-func (p *Pagination) SetTheme(t PaginationTheme)             { p.theme = t }
-func (p *Pagination) SetDisabled(d bool)                     { p.disabled = d }
+func (p *Pagination) Current() int               { return p.current }
+func (p *Pagination) Total() int                 { return p.total }
+func (p *Pagination) PageSize() int              { return p.pageSize }
+func (p *Pagination) SetCurrent(c int)           { p.current = c }
+func (p *Pagination) SetTotal(t int)             { p.total = t }
+func (p *Pagination) SetPageSize(s int)          { p.pageSize = s }
+func (p *Pagination) SetSize(s Size)             { p.size = s }
+func (p *Pagination) SetTheme(t PaginationTheme) { p.theme = t }
+func (p *Pagination) SetDisabled(d bool) {
+	p.disabled = d
+	p.tree.SetEnabled(p.id, !d)
+	p.tree.SetFocusable(p.id, !d)
+}
 func (p *Pagination) SetFoldedMaxPageBtn(n int)              { p.foldedMaxPageBtn = n }
 func (p *Pagination) SetMaxPageBtn(n int)                    { p.maxPageBtn = n }
 func (p *Pagination) SetPageEllipsisMode(m PageEllipsisMode) { p.pageEllipsisMode = m }

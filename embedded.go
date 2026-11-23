@@ -18,6 +18,7 @@ type EmbeddedUI struct {
 	width      float32
 	height     float32
 	layers     *LayerManager
+	input      core.HostInput
 }
 
 // NewEmbeddedUI creates a new embedded UI instance.
@@ -33,6 +34,7 @@ func NewEmbeddedUI(cfg *widget.Config) *EmbeddedUI {
 		config:     cfg,
 		buf:        render.NewCommandBuffer(),
 		layers:     NewLayerManager(),
+		input:      core.HostInput{Tree: tree},
 	}
 }
 
@@ -66,21 +68,7 @@ func (e *EmbeddedUI) Resize(width, height float32) {
 // HandleEvent dispatches an event to the UI.
 // The host calls this with translated events from its input system.
 func (e *EmbeddedUI) HandleEvent(evt *event.Event) {
-	if evt.Type.IsMouse() {
-		target := e.tree.HitTest(evt.GlobalX, evt.GlobalY)
-		if target != core.InvalidElementID {
-			e.dispatcher.Dispatch(target, evt)
-		}
-	} else if evt.Type.IsKeyboard() || evt.Type.IsIME() {
-		// Send to focused element
-		e.tree.Walk(e.tree.Root(), func(id core.ElementID, _ int) bool {
-			if elem := e.tree.Get(id); elem != nil && elem.IsFocused() {
-				e.dispatcher.Dispatch(id, evt)
-				return false
-			}
-			return true
-		})
-	}
+	e.input.Handle(evt)
 }
 
 // NeedsRedraw returns true if the UI needs to be redrawn.

@@ -84,7 +84,7 @@ func NewList(tree *core.Tree, cfg *Config) *List {
 			return
 		}
 		bounds := l.Bounds()
-		idx := l.hitTestItem(e.Y - bounds.Y + l.scrollY)
+		idx := l.hitTestItem(e.GlobalY - bounds.Y + l.scrollY)
 		if idx != l.hoveredIndex {
 			l.hoveredIndex = idx
 			l.tree.MarkDirty(l.id)
@@ -100,7 +100,7 @@ func NewList(tree *core.Tree, cfg *Config) *List {
 	// Click handler for item selection
 	tree.AddHandler(l.id, event.MouseClick, func(e *event.Event) {
 		bounds := l.Bounds()
-		idx := l.hitTestItem(e.Y - bounds.Y + l.scrollY)
+		idx := l.hitTestItem(e.GlobalY - bounds.Y + l.scrollY)
 		if idx >= 0 && idx < len(l.items) {
 			if l.selectable && l.items[idx].Value != "" {
 				l.selectedValue = l.items[idx].Value

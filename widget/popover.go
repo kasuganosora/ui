@@ -46,7 +46,6 @@ func NewPopover(tree *core.Tree, cfg *Config) *Popover {
 			p.visible = !p.visible
 		}
 	})
-	tree.SetFocusable(p.id, true)
 	tree.AddHandler(p.id, event.KeyDown, func(e *event.Event) {
 		if e.Key == event.KeyEscape && p.visible {
 			p.Close()
@@ -71,8 +70,16 @@ func (p *Popover) SetAnchorRect(x, y, w, h float32) {
 	p.anchorH = h
 }
 
-func (p *Popover) Open() { p.visible = true }
+func (p *Popover) Open() {
+	p.visible = true
+	p.tree.SetFocusable(p.id, true)
+	p.tree.SetFocused(p.id, true)
+}
 func (p *Popover) Close() {
+	p.tree.SetFocusable(p.id, false)
+	if p.tree.Focused() == p.id {
+		p.tree.ClearFocus()
+	}
 	p.visible = false
 	if p.onClose != nil {
 		p.onClose()

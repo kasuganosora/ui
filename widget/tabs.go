@@ -167,7 +167,11 @@ func (t *Tabs) SetSize(s Size) { t.size = s }
 func (t *Tabs) Size() Size { return t.size }
 
 // SetDisabled disables or enables all tabs.
-func (t *Tabs) SetDisabled(v bool) { t.disabled = v }
+func (t *Tabs) SetDisabled(v bool) {
+	t.disabled = v
+	t.tree.SetEnabled(t.id, !v)
+	t.tree.SetFocusable(t.id, !v)
+}
 
 // IsDisabled returns whether all tabs are disabled.
 func (t *Tabs) IsDisabled() bool { return t.disabled }

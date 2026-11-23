@@ -136,7 +136,7 @@ func (b *Button) SetVariant(v ButtonVariant) { b.variant = v }
 
 func (b *Button) SetDisabled(d bool) {
 	b.disabled = d
-	b.tree.SetEnabled(b.id, !d)
+	b.syncFocusable()
 }
 
 func (b *Button) OnClick(fn func()) {
@@ -176,6 +176,12 @@ func (b *Button) SetGhost(g bool) {
 
 func (b *Button) SetLoading(l bool) {
 	b.loading = l
+	b.syncFocusable()
+}
+
+func (b *Button) syncFocusable() {
+	b.tree.SetEnabled(b.id, !b.disabled)
+	b.tree.SetFocusable(b.id, !b.disabled && !b.loading)
 }
 
 // themeBaseColor returns the base color for the current theme.

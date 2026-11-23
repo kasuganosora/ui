@@ -84,6 +84,7 @@ func NewGamepadNavigator(tree *core.Tree, cfg *Config) *GamepadNavigator {
 		focusIndex:  -1,
 		showFocus:   true,
 	}
+	tree.SetKeyFallback(gn.id)
 	tree.AddHandler(gn.id, event.GamepadButtonDown, gn.onGamepadButton)
 	tree.AddHandler(gn.id, event.GamepadAxis, gn.onGamepadAxis)
 	// Also support keyboard navigation
@@ -186,7 +187,10 @@ func (gn *GamepadNavigator) canFocus(w Navigable) bool {
 		return false
 	}
 	elem := gn.tree.Get(w.ElementID())
-	return elem != nil && elem.IsVisible() && elem.IsEnabled()
+	if elem == nil || !elem.IsVisible() || !elem.IsEnabled() {
+		return false
+	}
+	return gn.tree.InScope(w.ElementID(), gn.tree.FocusScope())
 }
 
 func (gn *GamepadNavigator) navigatePrev() {

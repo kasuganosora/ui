@@ -286,11 +286,11 @@ func (s *Select) selectedLabel() string {
 
 func (s *Select) createOptionElements() {
 	s.destroyOptionElements()
-	rootID := s.tree.Root()
 
 	// Create a fullscreen backdrop to capture clicks outside the dropdown
 	s.backdropID = s.tree.CreateElement(core.TypeCustom)
-	s.tree.AppendChild(rootID, s.backdropID)
+	s.tree.AppendChild(s.id, s.backdropID)
+	s.tree.SetOverlay(s.backdropID, true)
 	s.tree.SetLayout(s.backdropID, core.LayoutResult{
 		Bounds: uimath.NewRect(0, 0, 1e6, 1e6),
 	})
@@ -303,7 +303,8 @@ func (s *Select) createOptionElements() {
 	for i, opt := range s.shown {
 		eid := s.tree.CreateElement(core.TypeCustom)
 		s.tree.SetProperty(eid, "text", opt.Label)
-		s.tree.AppendChild(rootID, eid)
+		s.tree.AppendChild(s.id, eid)
+		s.tree.SetOverlay(eid, true)
 		s.optionIDs = append(s.optionIDs, eid)
 
 		if !opt.Disabled {
@@ -487,9 +488,6 @@ func (s *Select) drawDropdown(buf *render.CommandBuffer, triggerBounds uimath.Re
 	cfg := s.config
 	optH := cfg.InputHeight
 	opts := s.shown
-	if len(opts) == 0 {
-		opts = s.options
-	}
 	dropH := optH * float32(len(opts))
 	if dropH > 200 {
 		dropH = 200

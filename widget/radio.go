@@ -286,6 +286,7 @@ func (g *RadioGroup) SetValue(label string) {
 	for _, r := range g.radios {
 		r.checked = r.label == label
 	}
+	g.syncTabStops()
 }
 
 // OnChange sets a callback for when the selection changes.
