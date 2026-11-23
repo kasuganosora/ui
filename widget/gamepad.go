@@ -170,14 +170,23 @@ func (gn *GamepadNavigator) navigateNext() {
 	start := gn.focusIndex
 	for i := 1; i <= len(gn.widgets); i++ {
 		idx := (start + i) % len(gn.widgets)
-		if gn.widgets[idx].NavFocusable() {
+		if gn.canFocus(gn.widgets[idx]) {
 			gn.focusIndex = idx
+			gn.tree.SetFocused(gn.widgets[idx].ElementID(), true)
 			if gn.onNavigate != nil {
 				gn.onNavigate(gn.widgets[idx])
 			}
 			return
 		}
 	}
+}
+
+func (gn *GamepadNavigator) canFocus(w Navigable) bool {
+	if w == nil || !w.NavFocusable() {
+		return false
+	}
+	elem := gn.tree.Get(w.ElementID())
+	return elem != nil && elem.IsVisible() && elem.IsEnabled()
 }
 
 func (gn *GamepadNavigator) navigatePrev() {
@@ -187,8 +196,9 @@ func (gn *GamepadNavigator) navigatePrev() {
 	}
 	for i := 1; i <= len(gn.widgets); i++ {
 		idx := (start - i + len(gn.widgets)) % len(gn.widgets)
-		if gn.widgets[idx].NavFocusable() {
+		if gn.canFocus(gn.widgets[idx]) {
 			gn.focusIndex = idx
+			gn.tree.SetFocused(gn.widgets[idx].ElementID(), true)
 			if gn.onNavigate != nil {
 				gn.onNavigate(gn.widgets[idx])
 			}

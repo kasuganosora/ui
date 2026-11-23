@@ -122,6 +122,17 @@ func (t *Tree) tabStops() []ElementID {
 	return out
 }
 
+func (t *Tree) forgetScopes(id ElementID) {
+	kept := t.scopes[:0]
+	for _, scope := range t.scopes {
+		if scope == id || t.within(scope, id) {
+			continue
+		}
+		kept = append(kept, scope)
+	}
+	t.scopes = kept
+}
+
 func (t *Tree) within(id, scope ElementID) bool {
 	for id != InvalidElementID {
 		if id == scope {

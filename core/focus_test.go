@@ -75,6 +75,41 @@ func TestFocusScopeTrapsTab(t *testing.T) {
 	}
 }
 
+func TestTabSkipsHidden(t *testing.T) {
+	tree := NewTree()
+	a := tree.CreateElement(TypeButton)
+	b := tree.CreateElement(TypeButton)
+	tree.AppendChild(tree.Root(), a)
+	tree.AppendChild(tree.Root(), b)
+	tree.SetFocusable(a, true)
+	tree.SetFocusable(b, true)
+	tree.SetVisible(a, false)
+	tree.SetFocused(b, true)
+	tree.RouteKey(&event.Event{Type: event.KeyDown, Key: event.KeyTab})
+	if tree.Focused() != b {
+		t.Fatalf("hidden stop took focus: %d", tree.Focused())
+	}
+}
+
+func TestDestroyOpenScopeReleasesTab(t *testing.T) {
+	tree := NewTree()
+	outside := tree.CreateElement(TypeButton)
+	dialog := tree.CreateElement(TypeCustom)
+	inside := tree.CreateElement(TypeButton)
+	tree.AppendChild(tree.Root(), outside)
+	tree.AppendChild(tree.Root(), dialog)
+	tree.AppendChild(dialog, inside)
+	tree.SetFocusable(outside, true)
+	tree.SetFocusable(inside, true)
+	tree.SetFocused(inside, true)
+	tree.PushFocusScope(dialog)
+	tree.DestroyElement(dialog)
+	tree.RouteKey(&event.Event{Type: event.KeyDown, Key: event.KeyTab})
+	if tree.Focused() != outside {
+		t.Fatalf("scope survived destroy, focused %d want %d", tree.Focused(), outside)
+	}
+}
+
 func TestDestroyClearsFocus(t *testing.T) {
 	tree := NewTree()
 	a := tree.CreateElement(TypeButton)

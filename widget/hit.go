@@ -31,7 +31,11 @@ func (h *hitCells) set(rects []uimath.Rect, fn func(i int)) {
 	}
 	for i, r := range rects {
 		id := h.tree.CreateElement(core.TypeCustom)
-		h.tree.AppendChild(h.parent, id)
+		parent := h.tree.Root()
+		if parent == core.InvalidElementID {
+			parent = h.parent
+		}
+		h.tree.AppendChild(parent, id)
 		h.tree.SetLayout(id, core.LayoutResult{Bounds: r})
 		idx := i
 		h.tree.AddHandler(id, event.MouseClick, func(e *event.Event) {

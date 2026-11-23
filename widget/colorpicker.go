@@ -10,11 +10,13 @@ import (
 // ColorPicker allows selecting a color from a preset swatch grid.
 type ColorPicker struct {
 	Base
-	value    uimath.Color
-	presets  []uimath.Color
-	open     bool
-	onChange func(uimath.Color)
-	cells    hitCells
+	value        uimath.Color
+	presets      []uimath.Color
+	open         bool
+	onChange     func(uimath.Color)
+	cells        hitCells
+	alphaEnabled bool
+	recent       []uimath.Color
 }
 
 func NewColorPicker(tree *core.Tree, cfg *Config) *ColorPicker {
@@ -62,6 +64,19 @@ func (cp *ColorPicker) onClick(x, y float32) {
 				return
 			}
 		}
+		if cp.alphaEnabled {
+			barY := cp.AlphaBarY()
+			panelW := float32(6)*24 + float32(5)*4 + 16
+			if y >= barY && y < barY+16 && x >= b.X && x < b.X+panelW {
+				cp.value.A = (x - b.X) / panelW
+				cp.open = false
+				cp.cells.clear()
+				if cp.onChange != nil {
+					cp.onChange(cp.value)
+				}
+				return
+			}
+		}
 	}
 	if pointIn(x, y, uimath.NewRect(b.X, b.Y, sw, sw)) {
 		cp.open = !cp.open
@@ -102,11 +117,60 @@ func (cp *ColorPicker) OnChange(fn func(uimath.Color)) { cp.onChange = fn }
 func (cp *ColorPicker) IsOpen() bool                   { return cp.open }
 
 func (cp *ColorPicker) SelectColor(c uimath.Color) {
+	if cp.alphaEnabled {
+		c.A = cp.value.A
+		if c.A == 0 {
+			c.A = 1
+		}
+	}
 	cp.value = c
+	cp.remember(c)
 	cp.open = false
 	if cp.onChange != nil {
 		cp.onChange(c)
 	}
+}
+
+func (cp *ColorPicker) SetAlphaEnabled(v bool) { cp.alphaEnabled = v }
+
+func (cp *ColorPicker) Alpha() float32 { return cp.value.A }
+
+func (cp *ColorPicker) Recent() []uimath.Color {
+	out := make([]uimath.Color, len(cp.recent))
+	copy(out, cp.recent)
+	return out
+}
+
+func (cp *ColorPicker) AlphaBarY() float32 {
+	b := cp.Bounds()
+	sw := b.Height
+	if sw > b.Width {
+		sw = b.Width
+	}
+	return b.Y + sw + 4 + cp.presetPanelH() + 4
+}
+
+func (cp *ColorPicker) remember(c uimath.Color) {
+	next := []uimath.Color{c}
+	for _, old := range cp.recent {
+		if old == c || len(next) >= 8 {
+			continue
+		}
+		next = append(next, old)
+	}
+	cp.recent = next
+}
+
+func (cp *ColorPicker) presetPanelH() float32 {
+	const cols = 6
+	swSize := float32(24)
+	gap := float32(4)
+	pad := float32(8)
+	rows := (len(cp.presets) + cols - 1) / cols
+	if rows < 1 {
+		rows = 1
+	}
+	return float32(rows)*swSize + float32(rows-1)*gap + pad*2
 }
 
 func (cp *ColorPicker) Draw(buf *render.CommandBuffer) {

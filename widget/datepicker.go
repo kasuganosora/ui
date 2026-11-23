@@ -212,9 +212,42 @@ func NewTimePicker(tree *core.Tree, cfg *Config) *TimePicker {
 		Base: NewBase(tree, core.TypeCustom, cfg),
 	}
 	tree.AddHandler(tp.id, event.MouseClick, func(e *event.Event) {
-		tp.open = !tp.open
+		tp.onClick(e.GlobalX, e.GlobalY)
 	})
 	return tp
+}
+
+func (tp *TimePicker) onClick(x, y float32) {
+	b := tp.Bounds()
+	if tp.open {
+		originY := b.Y + b.Height + 4
+		cell := float32(28)
+		if y >= originY && y < originY+6*cell {
+			col := int((x - b.X) / cell)
+			row := int((y - originY) / cell)
+			hour := col*6 + row
+			if hour >= 0 && hour < 24 && col >= 0 && col < 4 {
+				tp.hour = hour
+				return
+			}
+		}
+		minY := originY + 6*cell + 8
+		if y >= minY && y < minY+28 {
+			mins := []int{0, 15, 30, 45}
+			i := int((x - b.X) / 40)
+			if i >= 0 && i < len(mins) {
+				tp.minute = mins[i]
+				tp.open = false
+				if tp.onChange != nil {
+					tp.onChange(tp.hour, tp.minute, tp.second)
+				}
+				return
+			}
+		}
+	}
+	if pointIn(x, y, b) {
+		tp.open = !tp.open
+	}
 }
 
 func (tp *TimePicker) Hour() int    { return tp.hour }

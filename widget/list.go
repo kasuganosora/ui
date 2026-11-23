@@ -20,6 +20,7 @@ type ListItem struct {
 	Avatar      string               // avatar text/initials (rendered as circle)
 	AvatarColor uimath.Color         // avatar background color (zero = default)
 	Image       render.TextureHandle // avatar image texture
+	Disabled    bool
 }
 
 // ListLayout controls whether items are arranged horizontally or vertically.
@@ -38,6 +39,7 @@ type List struct {
 	items         []ListItem
 	itemHeight    float32
 	scrollY       float32
+	cursor        int
 	bordered      bool
 	split         bool
 	stripe        bool
@@ -70,6 +72,7 @@ func NewList(tree *core.Tree, cfg *Config) *List {
 		hoverable:    true,
 		hoveredIndex: -1,
 		size:         SizeMedium,
+		cursor:       -1,
 	}
 	l.style.Display = layout.DisplayFlex
 	l.style.FlexDirection = layout.FlexDirectionColumn
@@ -111,8 +114,56 @@ func NewList(tree *core.Tree, cfg *Config) *List {
 			}
 		}
 	})
+	bindArrows(tree, l.id, func(k event.Key) { l.onKey(k) })
 
 	return l
+}
+
+func (l *List) onKey(k event.Key) {
+	if !l.selectable || len(l.items) == 0 {
+		return
+	}
+	switch k {
+	case event.KeyArrowDown, event.KeyArrowRight:
+		l.cursor = l.nextEnabled(l.cursor, 1)
+		if l.cursor >= 0 {
+			l.selectedValue = l.items[l.cursor].Value
+		}
+	case event.KeyArrowUp, event.KeyArrowLeft:
+		l.cursor = l.nextEnabled(l.cursor, -1)
+		if l.cursor >= 0 {
+			l.selectedValue = l.items[l.cursor].Value
+		}
+	case event.KeyEnter, event.KeySpace:
+		if l.cursor < 0 {
+			l.cursor = l.nextEnabled(-1, 1)
+		}
+		if l.cursor >= 0 && l.onChange != nil {
+			l.selectedValue = l.items[l.cursor].Value
+			l.onChange(l.selectedValue)
+		}
+	}
+}
+
+func (l *List) nextEnabled(from, dir int) int {
+	if len(l.items) == 0 {
+		return -1
+	}
+	i := from
+	for step := 0; step < len(l.items); step++ {
+		if dir > 0 {
+			i++
+		} else {
+			i--
+		}
+		if i < 0 || i >= len(l.items) {
+			return from
+		}
+		if !l.items[i].Disabled {
+			return i
+		}
+	}
+	return from
 }
 
 func (l *List) SetItems(items []ListItem) {

@@ -54,11 +54,19 @@ func (s *Switch) AccessibleProps() accessibility.Props {
 }
 
 func (i *Input) AccessibleProps() accessibility.Props {
-	return accessibility.Props{Role: accessibility.RoleTextBox, Name: i.placeholder, Value: i.value, State: focusedState(i.Base)}
+	p := accessibility.Props{Role: accessibility.RoleTextBox, Name: i.placeholder, Value: i.value, State: focusedState(i.Base)}
+	if i.disabled {
+		p.State |= accessibility.StateDisabled
+	}
+	return p
 }
 
 func (t *TextArea) AccessibleProps() accessibility.Props {
-	return accessibility.Props{Role: accessibility.RoleTextArea, Name: t.placeholder, Value: t.value, State: focusedState(t.Base)}
+	p := accessibility.Props{Role: accessibility.RoleTextArea, Name: t.placeholder, Value: t.value, State: focusedState(t.Base)}
+	if t.disabled {
+		p.State |= accessibility.StateDisabled
+	}
+	return p
 }
 
 func (s *Slider) AccessibleProps() accessibility.Props {

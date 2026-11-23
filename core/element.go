@@ -285,6 +285,7 @@ func (t *Tree) DestroyElement(id ElementID) {
 	if elem.parent != InvalidElementID {
 		t.RemoveChild(elem.parent, id)
 	}
+	t.forgetScopes(id)
 	// Recursively destroy children
 	t.destroyRecursive(id)
 	if t.focused != InvalidElementID && t.elements[t.focused] == nil {

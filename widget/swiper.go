@@ -2,6 +2,7 @@ package widget
 
 import (
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 )
@@ -16,17 +17,38 @@ type Swiper struct {
 	onChange func(int)
 	interval float32
 	accum    float32
+	dragX    float32
+	dragging bool
 }
 
 func NewSwiper(tree *core.Tree, cfg *Config) *Swiper {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	return &Swiper{
+	s := &Swiper{
 		Base:     NewBase(tree, core.TypeCustom, cfg),
 		showDots: true,
 		interval: 3,
 	}
+	tree.AddHandler(s.id, event.MouseDown, func(e *event.Event) {
+		s.dragging = true
+		s.dragX = e.GlobalX
+	})
+	tree.AddHandler(s.id, event.MouseUp, func(e *event.Event) { s.dragging = false })
+	tree.AddHandler(s.id, event.MouseMove, func(e *event.Event) {
+		if !s.dragging || len(s.panels) == 0 {
+			return
+		}
+		dx := e.GlobalX - s.dragX
+		if dx <= -40 {
+			s.dragging = false
+			s.Next()
+		} else if dx >= 40 {
+			s.dragging = false
+			s.Prev()
+		}
+	})
+	return s
 }
 
 func (s *Swiper) Current() int          { return s.current }

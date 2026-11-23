@@ -146,6 +146,11 @@ func (b *Button) OnClick(fn func()) {
 func (b *Button) SetIcon(name string) { b.icon = name }
 func (b *Button) Icon() string        { return b.icon }
 
+func (b *Button) NavFocusable() bool {
+	elem := b.Element()
+	return elem != nil && elem.IsVisible() && elem.IsEnabled() && b.tree.IsFocusable(b.id) && !b.loading
+}
+
 func (b *Button) Theme() ButtonTheme { return b.theme }
 func (b *Button) Size() Size         { return b.size }
 func (b *Button) Shape() ButtonShape { return b.shape }

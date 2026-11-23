@@ -39,18 +39,55 @@ type Collapse struct {
 	disabled            bool
 	headerIDs           []core.ElementID // clickable header elements
 	onChange            func(keys []string)
+	cursor              int
 }
 
 func NewCollapse(tree *core.Tree, cfg *Config) *Collapse {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	return &Collapse{
+	c := &Collapse{
 		Base:             NewBase(tree, core.TypeDiv, cfg),
 		activeKeys:       make(map[string]bool),
 		expandOnRowClick: true,
 		expandIcon:       true,
+		cursor:           -1,
 	}
+	bindArrows(tree, c.id, func(k event.Key) { c.onKey(k) })
+	return c
+}
+
+func (c *Collapse) onKey(k event.Key) {
+	if c.disabled || len(c.panels) == 0 {
+		return
+	}
+	switch k {
+	case event.KeyArrowDown, event.KeyArrowRight:
+		c.cursor = c.nextPanel(c.cursor, 1)
+	case event.KeyArrowUp, event.KeyArrowLeft:
+		c.cursor = c.nextPanel(c.cursor, -1)
+	case event.KeyEnter, event.KeySpace:
+		if c.cursor < 0 {
+			c.cursor = c.nextPanel(-1, 1)
+		}
+		if c.cursor >= 0 && c.cursor < len(c.panels) {
+			c.Toggle(c.panels[c.cursor].Value)
+		}
+	}
+}
+
+func (c *Collapse) nextPanel(from, dir int) int {
+	i := from
+	for step := 0; step < len(c.panels); step++ {
+		i += dir
+		if i < 0 || i >= len(c.panels) {
+			return from
+		}
+		if !c.panels[i].Disabled {
+			return i
+		}
+	}
+	return from
 }
 
 func (c *Collapse) SetPanels(p []CollapsePanel) {
