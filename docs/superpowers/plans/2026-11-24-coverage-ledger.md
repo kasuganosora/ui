@@ -49,8 +49,8 @@
 | 2 第二次 Escape 关掉模态 | 已修，host-verified | `TestSecondEscapeClosesDialogAfterSelect`。`bindArrows` 只有真正处理了 Escape 才 `StopPropagation` |
 | 3 Select 选项点击和按下/抬起 | 已修，host-verified | `TestSelectOptionClickAndEmptyBackdrop` 前半。只在自身 target 阶段切换；`Draw` 之后直接 `MouseClick` 和 `MouseDown`+`MouseUp` 都选中第一项并关闭 |
 | 4 空结果点击只关一次 | 已修，host-verified | 同一测试后半。遮罩是 Select 的子节点，点击停止冒泡，不会再把下拉打开 |
-| 5 后开的模态挡住更早的日期/选择浮层 | 已修，host-verified | `TestLaterModalBlocksEarlierOverlay`。`HitTest` 按树序比较普通命中和浮层，后开的对话框赢；对话框内部、父盒之外的浮层仍按更后的树序命中 |
-| 6 按下+抬起只点一次，抬到别处不点 | 已修，host-verified | `TestInjectMouseClickActivatesOnce`。Godot 仍发送 Down+Up+Click；`HostInput` 丢掉紧跟合成点击的那一次显式 Click。A 上按下、B 上抬起不产生 Click |
+| 5 后开的模态挡住更早的日期/选择浮层 | 已修，host-verified | 打开时 `PushLayer`，不依赖插入顺序。`TestEarlyDialogOpenedLateBlocksDate` 先建对话框再打开；`TestDialogOpenOrderBeatsConstructionOrder` 反转两个对话框的打开顺序；`TestSelectBackdropShieldedByLaterDialog`；`TestInnerDateStaysAboveOwnDialog` 内部浮层仍在自己的模态之上。关闭后回到上一层。`TestLaterModalBlocksEarlierOverlay` 只覆盖“后插入”这一种顺序，不能单独当证据。绘制和命中共用层号：`TestLaterOpenedDialogPaintsAboveEarlierDate`、`TestInnerDatePaintsAboveOwnDialog`，软件光栅 `TestSoftwarePaintsOpenedDialogAboveDate` |
+| 6 按下+抬起只点一次，抬到别处不点 | 已修，host-verified | 约定在生产者：`InjectMouseClick` 只发 Down+Up，宿主对同一目标合成一次 Click。单独的 `MouseClick` 总会送达，包括换目标和跨帧。`TestInjectMouseClickActivatesOnce`、`TestStandaloneClickAfterDownUp`、`TestDownUpFrameThenStandaloneClick`。A 上按下、B 上抬起不产生 Click |
 | 7 取消/失焦结束拖拽 | 已修，host-verified | `TestTouchCancelAndWindowBlurClearDrawerDrag`。`TouchCancel` 和 `WindowBlur` 对捕获目标发 `MouseUp` 且不合成 Click |
 | 8 禁用祖先挡住子节点 | 已修，host-verified | `TestEmbeddedDisabledAncestorBlocksChild`，dispatcher 对照是 `TestDisabledAncestorBlocksChild`。命中、Tab、程序 `SetFocused`、鼠标和键盘派发都看整条祖先链 |
 | 9 焦点重入最终只通知 B 一次 | 已修 | `TestFocusReentryDeliversSecondFocus`。`SetFocused` 在通知期间把后续焦点排队，上限 32 步，不再直接丢掉 |

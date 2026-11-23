@@ -3,7 +3,18 @@ package widget
 import (
 	"github.com/kasuganosora/ui/core"
 	"github.com/kasuganosora/ui/event"
+	"github.com/kasuganosora/ui/render"
 )
+
+func withLayer(buf *render.CommandBuffer, tree *core.Tree, id core.ElementID) func() {
+	prev := buf.LayerBase()
+	var rank int32
+	if tree != nil {
+		rank = tree.LayerRank(id)
+	}
+	buf.SetLayerBase(rank * 10000)
+	return func() { buf.SetLayerBase(prev) }
+}
 
 func targetPhase(e *event.Event) bool {
 	return e == nil || e.Phase == event.PhaseTarget || e.Phase == event.PhaseNone

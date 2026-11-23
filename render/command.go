@@ -109,6 +109,7 @@ type CommandBuffer struct {
 	clipIdx     int
 	shadowArena []ShadowCmd
 	shadowIdx   int
+	layerBase   int32
 }
 
 // NewCommandBuffer creates an empty command buffer.
@@ -134,6 +135,25 @@ func (cb *CommandBuffer) Reset() {
 	cb.imageIdx = 0
 	cb.clipIdx = 0
 	cb.shadowIdx = 0
+	cb.layerBase = 0
+}
+
+// SetLayerBase offsets later commands into the overlay list. A non-zero base
+// is one modal layer: every command drawn while it is set shares that layer,
+// and a larger base paints above an earlier one. Draw order inside one base
+// stays stable.
+func (cb *CommandBuffer) SetLayerBase(z int32) { cb.layerBase = z }
+
+// LayerBase returns the active layer offset.
+func (cb *CommandBuffer) LayerBase() int32 { return cb.layerBase }
+
+func (cb *CommandBuffer) place(cmd Command) {
+	if cb.layerBase != 0 {
+		cmd.ZOrder += cb.layerBase
+		cb.overlays = append(cb.overlays, cmd)
+		return
+	}
+	cb.commands = append(cb.commands, cmd)
 }
 
 // acquireRect returns a pointer to a RectCmd in the arena.
@@ -186,7 +206,7 @@ func (cb *CommandBuffer) acquireShadow() *ShadowCmd {
 func (cb *CommandBuffer) DrawRect(cmd RectCmd, zOrder int32, opacity float32) {
 	rc := cb.acquireRect()
 	*rc = cmd
-	cb.commands = append(cb.commands, Command{
+	cb.place(Command{
 		Type:    CmdRect,
 		ZOrder:  zOrder,
 		Opacity: opacity,
@@ -198,7 +218,7 @@ func (cb *CommandBuffer) DrawRect(cmd RectCmd, zOrder int32, opacity float32) {
 func (cb *CommandBuffer) DrawText(cmd TextCmd, zOrder int32, opacity float32) {
 	tc := cb.acquireText()
 	*tc = cmd
-	cb.commands = append(cb.commands, Command{
+	cb.place(Command{
 		Type:    CmdText,
 		ZOrder:  zOrder,
 		Opacity: opacity,
@@ -210,7 +230,7 @@ func (cb *CommandBuffer) DrawText(cmd TextCmd, zOrder int32, opacity float32) {
 func (cb *CommandBuffer) DrawImage(cmd ImageCmd, zOrder int32, opacity float32) {
 	ic := cb.acquireImage()
 	*ic = cmd
-	cb.commands = append(cb.commands, Command{
+	cb.place(Command{
 		Type:    CmdImage,
 		ZOrder:  zOrder,
 		Opacity: opacity,
@@ -224,7 +244,7 @@ func (cb *CommandBuffer) DrawImage(cmd ImageCmd, zOrder int32, opacity float32) 
 func (cb *CommandBuffer) DrawShadow(cmd ShadowCmd, zOrder int32, opacity float32) {
 	sc := cb.acquireShadow()
 	*sc = cmd
-	cb.commands = append(cb.commands, Command{
+	cb.place(Command{
 		Type:    CmdShadow,
 		ZOrder:  zOrder,
 		Opacity: opacity,
@@ -249,7 +269,7 @@ func (cb *CommandBuffer) PushClip(bounds uimath.Rect) {
 	cb.clipStack = append(cb.clipStack, bounds)
 	cc := cb.acquireClip()
 	cc.Bounds = bounds
-	cb.commands = append(cb.commands, Command{
+	cb.place(Command{
 		Type: CmdClip,
 		Clip: cc,
 	})
@@ -266,7 +286,7 @@ func (cb *CommandBuffer) PopClip() {
 	} else {
 		cc.Bounds = uimath.NewRect(0, 0, 1e6, 1e6)
 	}
-	cb.commands = append(cb.commands, Command{
+	cb.place(Command{
 		Type: CmdClip,
 		Clip: cc,
 	})
@@ -279,7 +299,7 @@ func (cb *CommandBuffer) DrawOverlay(cmd RectCmd, zOrder int32, opacity float32)
 	*rc = cmd
 	cb.overlays = append(cb.overlays, Command{
 		Type:    CmdRect,
-		ZOrder:  zOrder,
+		ZOrder:  zOrder + cb.layerBase,
 		Opacity: opacity,
 		Rect:    rc,
 	})
@@ -291,7 +311,7 @@ func (cb *CommandBuffer) DrawOverlayTextCmd(cmd TextCmd, zOrder int32, opacity f
 	*tc = cmd
 	cb.overlays = append(cb.overlays, Command{
 		Type:    CmdText,
-		ZOrder:  zOrder,
+		ZOrder:  zOrder + cb.layerBase,
 		Opacity: opacity,
 		Text:    tc,
 	})

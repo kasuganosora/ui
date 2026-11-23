@@ -203,6 +203,14 @@ func (d *Dialog) Open() {
 	d.tree.SetFocusable(d.cancelID, true)
 	d.tree.SetFocusable(d.closeID, true)
 	d.tree.SetFocused(d.confirmID, true)
+	d.promoteLayer()
+}
+
+func (d *Dialog) promoteLayer() {
+	d.tree.PushLayer(d.id)
+	if elem := d.tree.Get(d.id); elem != nil && elem.ParentID() != core.InvalidElementID {
+		d.tree.BringChildToFront(elem.ParentID(), d.id)
+	}
 }
 
 func (d *Dialog) Close() {
@@ -221,6 +229,7 @@ func (d *Dialog) Close() {
 		d.tree.PopFocusScopeOwned(d.id)
 		d.scoped = false
 	}
+	d.tree.PopLayer(d.id)
 	if was && focusWasInside {
 		d.restoreFocus()
 	}
@@ -242,6 +251,7 @@ func (d *Dialog) Draw(buf *render.CommandBuffer) {
 	if !d.visible {
 		return
 	}
+	defer withLayer(buf, d.tree, d.id)()
 	bounds := d.Bounds()
 	if bounds.IsEmpty() {
 		return

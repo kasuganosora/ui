@@ -155,6 +155,7 @@ func containsPrefix(s, prefix string) bool {
 }
 
 func (ac *AutoComplete) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, ac.tree, ac.id)()
 	bounds := ac.Bounds()
 	if bounds.IsEmpty() {
 		return

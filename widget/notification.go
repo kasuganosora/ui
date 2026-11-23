@@ -137,6 +137,7 @@ func notificationIconInfo(t NotificationTheme) (string, string) {
 }
 
 func (n *Notification) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, n.tree, n.id)()
 	if !n.visible {
 		return
 	}

@@ -122,6 +122,7 @@ func (ts *TreeSelect) selectedLabel() string {
 }
 
 func (ts *TreeSelect) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, ts.tree, ts.id)()
 	bounds := ts.Bounds()
 	if bounds.IsEmpty() {
 		return

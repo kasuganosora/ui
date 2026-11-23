@@ -108,6 +108,7 @@ func (cm *ContextMenu) Hide() {
 }
 
 func (cm *ContextMenu) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, cm.tree, cm.id)()
 	if !cm.visible || len(cm.items) == 0 {
 		return
 	}

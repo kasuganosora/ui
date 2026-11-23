@@ -172,6 +172,7 @@ func (p *Popconfirm) drawArrow(buf *render.CommandBuffer, popBounds uimath.Rect,
 }
 
 func (p *Popconfirm) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, p.tree, p.id)()
 	if !p.visible {
 		return
 	}

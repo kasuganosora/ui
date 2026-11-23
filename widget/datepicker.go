@@ -114,6 +114,7 @@ func (dp *DatePicker) firstDayOfWeek() int {
 }
 
 func (dp *DatePicker) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, dp.tree, dp.id)()
 	bounds := dp.Bounds()
 	if bounds.IsEmpty() {
 		return
@@ -307,6 +308,7 @@ func (tp *TimePicker) SetOpen(o bool)                  { tp.open = o }
 func (tp *TimePicker) OnChange(fn func(int, int, int)) { tp.onChange = fn }
 
 func (tp *TimePicker) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, tp.tree, tp.id)()
 	bounds := tp.Bounds()
 	if bounds.IsEmpty() {
 		return

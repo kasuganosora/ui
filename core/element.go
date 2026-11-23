@@ -135,6 +135,14 @@ type Tree struct {
 	keyFallback ElementID
 	notifying   bool
 	focusQ      []focusNote
+	layers      []modalLayer
+	layerSeq    int32
+	hitOrder    map[ElementID]int
+}
+
+type modalLayer struct {
+	id   ElementID
+	rank int32
 }
 
 type focusNote struct {
@@ -527,18 +535,36 @@ func (t *Tree) SetOverlay(id ElementID, on bool) {
 // dialog still receives hits outside its parent box. Disabled or hidden
 // ancestors are not hittable.
 func (t *Tree) HitTest(x, y float32) ElementID {
-	regular := t.hitTestRecursive(t.root, x, y)
-	overlay := t.hitOverlay(x, y)
-	if overlay == InvalidElementID {
-		return regular
+	t.hitOrder = make(map[ElementID]int)
+	n := 0
+	t.Walk(t.root, func(id ElementID, _ int) bool {
+		n++
+		t.hitOrder[id] = n
+		return true
+	})
+	defer func() { t.hitOrder = nil }()
+	return t.preferHit(t.hitTestRecursive(t.root, x, y), t.hitOverlay(x, y))
+}
+
+func (t *Tree) preferHit(a, b ElementID) ElementID {
+	if a == InvalidElementID {
+		return b
 	}
-	if regular == InvalidElementID {
-		return overlay
+	if b == InvalidElementID {
+		return a
 	}
-	if t.walkOrder(overlay) > t.walkOrder(regular) {
-		return overlay
+	ra, rb := t.LayerRank(a), t.LayerRank(b)
+	if ra != rb {
+		if ra > rb {
+			return a
+		}
+		return b
 	}
-	return regular
+	ao, bo := t.hitOrder[a], t.hitOrder[b]
+	if bo > ao {
+		return b
+	}
+	return a
 }
 
 func (t *Tree) walkOrder(id ElementID) int {
@@ -562,7 +588,7 @@ func (t *Tree) hitOverlay(x, y float32) ElementID {
 			return true
 		}
 		if elem.layout.Bounds.Contains(uimath.Vec2{X: x, Y: y}) {
-			hit = id
+			hit = t.preferHit(hit, id)
 		}
 		return true
 	})
@@ -593,12 +619,12 @@ func (t *Tree) hitTestRecursive(id ElementID, x, y float32) ElementID {
 	if elem.hitTestFn != nil && !elem.hitTestFn(x-b.X, y-b.Y) {
 		return InvalidElementID
 	}
-	// Check children in reverse order (last drawn = on top)
+	best := InvalidElementID
 	for i := len(elem.children) - 1; i >= 0; i-- {
-		hit := t.hitTestRecursive(elem.children[i], x, y)
-		if hit != InvalidElementID {
-			return hit
-		}
+		best = t.preferHit(best, t.hitTestRecursive(elem.children[i], x, y))
+	}
+	if best != InvalidElementID {
+		return t.preferHit(best, id)
 	}
 	return id
 }

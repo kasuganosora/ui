@@ -68,6 +68,7 @@ func (w *SubWindow) Close() {
 }
 
 func (w *SubWindow) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, w.tree, w.id)()
 	if !w.visible {
 		return
 	}

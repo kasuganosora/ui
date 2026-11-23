@@ -69,6 +69,49 @@ func (t *Tree) InScope(id, root ElementID) bool {
 	return t.within(id, root)
 }
 
+// PushLayer records id as the top modal layer. Construction order does not
+// matter; a later PushLayer paints and hits above earlier layers. Descendants
+// share the layer, so a popup owned by the modal stays above that modal and
+// below a modal opened afterwards.
+func (t *Tree) PushLayer(id ElementID) {
+	if id == InvalidElementID {
+		return
+	}
+	t.PopLayer(id)
+	t.layerSeq++
+	t.layers = append(t.layers, modalLayer{id: id, rank: t.layerSeq})
+}
+
+// PopLayer removes the layer owned by id. Earlier layers stay in place.
+func (t *Tree) PopLayer(id ElementID) {
+	kept := t.layers[:0]
+	for _, layer := range t.layers {
+		if layer.id != id {
+			kept = append(kept, layer)
+		}
+	}
+	t.layers = kept
+}
+
+// LayerRank returns the rank of the nearest modal layer at id or an ancestor.
+// Zero means the element is not inside an open modal layer.
+func (t *Tree) LayerRank(id ElementID) int32 {
+	best := int32(0)
+	for id != InvalidElementID {
+		for _, layer := range t.layers {
+			if layer.id == id && layer.rank > best {
+				best = layer.rank
+			}
+		}
+		elem := t.elements[id]
+		if elem == nil {
+			break
+		}
+		id = elem.parent
+	}
+	return best
+}
+
 // ChainAllows reports whether id and every ancestor are visible and enabled.
 func (t *Tree) ChainAllows(id ElementID) bool {
 	if id == InvalidElementID {

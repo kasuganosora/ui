@@ -87,6 +87,7 @@ func (p *Popover) Close() {
 }
 
 func (p *Popover) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, p.tree, p.id)()
 	if !p.visible {
 		return
 	}

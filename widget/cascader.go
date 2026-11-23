@@ -207,6 +207,7 @@ func (c *Cascader) selectedLabel() string {
 }
 
 func (c *Cascader) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, c.tree, c.id)()
 	bounds := c.Bounds()
 	if bounds.IsEmpty() {
 		return

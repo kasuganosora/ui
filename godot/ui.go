@@ -243,7 +243,10 @@ func (u *UI) InjectMouseMove(x, y float32) {
 	})
 }
 
-// InjectMouseClick injects a mouse click at the given logical pixel coordinates.
+// InjectMouseClick injects one click at the given logical pixel coordinates.
+// It sends MouseDown and MouseUp only. HostInput synthesizes the single
+// MouseClick when both land on the same target. A later explicit MouseClick
+// is a separate gesture and is not swallowed.
 func (u *UI) InjectMouseClick(x, y float32, button event.MouseButton) {
 	u.plat.InjectEvent(event.Event{
 		Type:    event.MouseDown,
@@ -252,11 +255,6 @@ func (u *UI) InjectMouseClick(x, y float32, button event.MouseButton) {
 	})
 	u.plat.InjectEvent(event.Event{
 		Type:    event.MouseUp,
-		GlobalX: x, GlobalY: y,
-		Button: button,
-	})
-	u.plat.InjectEvent(event.Event{
-		Type:    event.MouseClick,
 		GlobalX: x, GlobalY: y,
 		Button: button,
 	})

@@ -416,3 +416,130 @@ func TestEmbeddedGamepadFallbackFocusesCurrent(t *testing.T) {
 		t.Fatalf("fallback focused %d want %d", ui.Tree().Focused(), a.ElementID())
 	}
 }
+
+func dateCell(x, y float32, day int) (float32, float32) {
+	first := int(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).Weekday())
+	col := (first + day - 1) % 7
+	row := (first + day - 1) / 7
+	return x + float32(col)*32 + 16, y + 32 + 4 + 36 + float32(row)*32 + 16
+}
+
+func TestEarlyDialogOpenedLateBlocksDate(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(800, 600)
+	dlg := widget.NewDialog(ui.Tree(), "early", ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), dlg.ElementID())
+	place(ui.Tree(), dlg.ElementID(), 0, 0, 800, 600)
+	dp := widget.NewDatePicker(ui.Tree(), ui.Config())
+	dp.SetDate(2026, 1, 1)
+	ui.Tree().AppendChild(ui.Tree().Root(), dp.ElementID())
+	place(ui.Tree(), dp.ElementID(), 10, 10, 200, 32)
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: 20, GlobalY: 20})
+	dlg.Open()
+	x, y := dateCell(10, 10, 15)
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: x, GlobalY: y})
+	if dp.Day() == 15 {
+		t.Fatal("date cell won over a dialog that was constructed first and opened later")
+	}
+	dlg.Close()
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: x, GlobalY: y})
+	if dp.Day() != 15 {
+		t.Fatal("closing the dialog did not return the date layer")
+	}
+	dlg.Open()
+	x, y = dateCell(10, 10, 16)
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: x, GlobalY: y})
+	if dp.Day() != 15 {
+		t.Fatal("reopening the dialog let the date change again")
+	}
+}
+
+func TestDialogOpenOrderBeatsConstructionOrder(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(800, 600)
+	a := widget.NewDialog(ui.Tree(), "A", ui.Config())
+	b := widget.NewDialog(ui.Tree(), "B", ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), a.ElementID())
+	ui.Tree().AppendChild(ui.Tree().Root(), b.ElementID())
+	place(ui.Tree(), a.ElementID(), 0, 0, 800, 600)
+	place(ui.Tree(), b.ElementID(), 0, 0, 800, 600)
+	b.Open()
+	a.Open()
+	hit := ui.Tree().HitTest(400, 300)
+	if !ui.Tree().InScope(hit, a.ElementID()) {
+		t.Fatalf("later opened A lost to earlier constructed B, hit %d", hit)
+	}
+	a.Close()
+	hit = ui.Tree().HitTest(400, 300)
+	if !ui.Tree().InScope(hit, b.ElementID()) {
+		t.Fatalf("closing A did not reveal B, hit %d", hit)
+	}
+}
+
+func TestSelectBackdropShieldedByLaterDialog(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(800, 600)
+	dlg := widget.NewDialog(ui.Tree(), "cover", ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), dlg.ElementID())
+	place(ui.Tree(), dlg.ElementID(), 0, 0, 800, 600)
+	sel := widget.NewSelect(ui.Tree(), []widget.SelectOption{{Label: "One", Value: "1"}}, ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), sel.ElementID())
+	place(ui.Tree(), sel.ElementID(), 10, 10, 160, 32)
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: 20, GlobalY: 20})
+	if !sel.IsOpen() {
+		t.Fatal("select did not open")
+	}
+	dlg.Open()
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: 400, GlobalY: 400})
+	if !sel.IsOpen() {
+		t.Fatal("select backdrop closed through the later dialog")
+	}
+}
+
+func TestInnerDateStaysAboveOwnDialog(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(800, 600)
+	dlg := widget.NewDialog(ui.Tree(), "host", ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), dlg.ElementID())
+	place(ui.Tree(), dlg.ElementID(), 0, 0, 800, 600)
+	dp := widget.NewDatePicker(ui.Tree(), ui.Config())
+	dp.SetDate(2026, 1, 1)
+	ui.Tree().AppendChild(dlg.ElementID(), dp.ElementID())
+	place(ui.Tree(), dp.ElementID(), 30, 40, 200, 32)
+	sel := widget.NewSelect(ui.Tree(), []widget.SelectOption{{Label: "One", Value: "1"}}, ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), sel.ElementID())
+	place(ui.Tree(), sel.ElementID(), 10, 520, 160, 32)
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: 20, GlobalY: 530})
+	dlg.Open()
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: 40, GlobalY: 50})
+	if !dp.IsOpen() || !sel.IsOpen() {
+		t.Fatalf("setup date %v select %v", dp.IsOpen(), sel.IsOpen())
+	}
+	x, y := dateCell(30, 40, 15)
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: x, GlobalY: y})
+	if dp.Day() != 15 || !sel.IsOpen() {
+		t.Fatalf("inner date day %d select open %v", dp.Day(), sel.IsOpen())
+	}
+}
+
+func TestStandaloneClickAfterDownUp(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(300, 80)
+	a := widget.NewButton(ui.Tree(), "a", ui.Config())
+	b := widget.NewButton(ui.Tree(), "b", ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), a.ElementID())
+	ui.Tree().AppendChild(ui.Tree().Root(), b.ElementID())
+	place(ui.Tree(), a.ElementID(), 10, 10, 80, 32)
+	place(ui.Tree(), b.ElementID(), 120, 10, 80, 32)
+	na, nb := 0, 0
+	a.OnClick(func() { na++ })
+	b.OnClick(func() { nb++ })
+	ui.HandleEvent(&event.Event{Type: event.MouseDown, GlobalX: 20, GlobalY: 20})
+	ui.HandleEvent(&event.Event{Type: event.MouseUp, GlobalX: 20, GlobalY: 20})
+	ui.HandleEvent(&event.Event{Type: event.MouseClick, GlobalX: 140, GlobalY: 20})
+	ui.HandleEvent(&event.Event{Type: event.MouseDown, GlobalX: 20, GlobalY: 20})
+	ui.HandleEvent(&event.Event{Type: event.MouseUp, GlobalX: 140, GlobalY: 20})
+	if na != 1 || nb != 1 {
+		t.Fatalf("activations a %d b %d", na, nb)
+	}
+}

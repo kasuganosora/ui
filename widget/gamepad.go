@@ -336,6 +336,7 @@ func (gn *GamepadNavigator) onKeyDown(e *event.Event) {
 
 // Draw renders the focus indicator on the currently focused widget.
 func (gn *GamepadNavigator) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, gn.tree, gn.id)()
 	if !gn.enabled || !gn.showFocus {
 		return
 	}

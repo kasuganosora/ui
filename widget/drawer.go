@@ -214,6 +214,7 @@ func (d *Drawer) drawerSize() float32 {
 }
 
 func (d *Drawer) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, d.tree, d.id)()
 	if !d.visible {
 		return
 	}

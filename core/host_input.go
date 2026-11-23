@@ -6,22 +6,24 @@ import "github.com/kasuganosora/ui/event"
 // headless, and Godot hosts. It owns pointer capture so a drag can leave
 // the widget that received the press, and it sends keys through RouteKey.
 type HostInput struct {
-	Tree         *Tree
-	pressed      eventTarget
-	hover        ElementID
-	swallowClick bool
+	Tree    *Tree
+	pressed eventTarget
+	hover   ElementID
 }
 
 type eventTarget = ElementID
 
-// Handle routes one host event. A press and release on the same target
-// synthesize one MouseClick. An explicit MouseClick is delivered once,
-// and the explicit click that follows that synthesized pair is ignored
-// so a host can send Down+Up+Click without activating twice. A release
-// on a different target produces no click. TouchCancel and WindowBlur
-// release capture with a MouseUp and no click. A press that does not
-// land on a focusable element clears focus, except when the press is
-// inside the element that already has focus so an input keeps IME.
+// Handle routes one host event.
+//
+// Click contract: a MouseDown and MouseUp on the same target synthesize
+// exactly one MouseClick. A MouseUp on a different target synthesizes
+// none. An explicit MouseClick is always delivered on its own, including
+// one that arrives in a later frame or on another target. Producers that
+// already send Down and Up must not also send Click; Godot's
+// InjectMouseClick follows that rule. TouchCancel and WindowBlur release
+// capture with a MouseUp and no click. A press that does not land on a
+// focusable element clears focus, except when the press is inside the
+// element that already has focus so an input keeps IME.
 func (h *HostInput) Handle(evt *event.Event) {
 	if h == nil || h.Tree == nil || evt == nil {
 		return
@@ -70,15 +72,10 @@ func (h *HostInput) pointer(evt *event.Event) {
 				click.Type = event.MouseClick
 				click.Phase = 0
 				d.Dispatch(target, &click)
-				h.swallowClick = true
 			}
 		}
 		h.pressed = InvalidElementID
 	case event.MouseClick:
-		if h.swallowClick {
-			h.swallowClick = false
-			return
-		}
 		h.acquireFocus(hit)
 		if hit != InvalidElementID {
 			d.Dispatch(hit, evt)
@@ -115,7 +112,6 @@ func (h *HostInput) releaseCapture() {
 		NewDispatcher(h.Tree).Dispatch(h.pressed, &event.Event{Type: event.MouseUp})
 	}
 	h.pressed = InvalidElementID
-	h.swallowClick = false
 }
 
 func (h *HostInput) acquireFocus(hit ElementID) {

@@ -94,6 +94,10 @@ func (mb *MessageBox) Open() {
 	mb.style.Display = layout.DisplayFlex
 	mb.tree.SetVisible(mb.id, true)
 	mb.tree.SetFocused(mb.id, true)
+	mb.tree.PushLayer(mb.id)
+	if elem := mb.tree.Get(mb.id); elem != nil && elem.ParentID() != core.InvalidElementID {
+		mb.tree.BringChildToFront(elem.ParentID(), mb.id)
+	}
 	mb.tree.MarkDirty(mb.id)
 }
 
@@ -104,6 +108,7 @@ func (mb *MessageBox) Close() {
 	mb.style.Display = layout.DisplayNone
 	mb.tree.SetVisible(mb.id, false)
 	mb.tree.SetFocusable(mb.id, false)
+	mb.tree.PopLayer(mb.id)
 	if mb.scoped {
 		mb.tree.PopFocusScopeOwned(mb.id)
 		mb.scoped = false
@@ -138,6 +143,7 @@ func (mb *MessageBox) Draw(buf *render.CommandBuffer) {
 	if !mb.visible {
 		return
 	}
+	defer withLayer(buf, mb.tree, mb.id)()
 	bounds := mb.Bounds()
 	if bounds.IsEmpty() {
 		return

@@ -345,6 +345,7 @@ func (s *Select) destroyOptionElements() {
 const selectArrowSize = float32(8)
 
 func (s *Select) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, s.tree, s.id)()
 	bounds := s.Bounds()
 	if bounds.IsEmpty() {
 		return

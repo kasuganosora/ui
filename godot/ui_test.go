@@ -125,6 +125,92 @@ func TestInjectMouseClickActivatesOnce(t *testing.T) {
 	}
 }
 
+func TestDownUpFrameThenStandaloneClick(t *testing.T) {
+	ui, err := NewUI(UIOptions{Width: 400, Height: 200})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ui.Destroy()
+	root := widget.NewDiv(ui.Tree(), ui.Config())
+	ui.SetRoot(root)
+	a := widget.NewButton(ui.Tree(), "a", ui.Config())
+	b := widget.NewButton(ui.Tree(), "b", ui.Config())
+	root.AppendChild(a)
+	root.AppendChild(b)
+	ui.Tree().SetLayout(a.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(10, 10, 80, 32)})
+	ui.Tree().SetLayout(b.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(120, 10, 80, 32)})
+	na, nb := 0, 0
+	a.OnClick(func() { na++ })
+	b.OnClick(func() { nb++ })
+	ui.InjectEvent(event.Event{Type: event.MouseDown, GlobalX: 20, GlobalY: 20})
+	ui.Frame(0.016)
+	ui.InjectEvent(event.Event{Type: event.MouseUp, GlobalX: 20, GlobalY: 20})
+	ui.Frame(0.016)
+	ui.InjectEvent(event.Event{Type: event.MouseClick, GlobalX: 140, GlobalY: 20})
+	ui.Frame(0.016)
+	ui.InjectMouseClick(20, 20, event.MouseButtonLeft)
+	ui.Frame(0.016)
+	if na != 2 || nb != 1 {
+		t.Fatalf("activations a %d b %d", na, nb)
+	}
+}
+
+func TestSoftwarePaintsOpenedDialogAboveDate(t *testing.T) {
+	ui, err := NewUI(UIOptions{Width: 800, Height: 600})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ui.Destroy()
+	root := widget.NewDiv(ui.Tree(), ui.Config())
+	ui.SetRoot(root)
+	dlg := widget.NewDialog(ui.Tree(), "early", ui.Config())
+	dp := widget.NewDatePicker(ui.Tree(), ui.Config())
+	dp.SetDate(2026, 1, 1)
+	root.AppendChild(dlg)
+	root.AppendChild(dp)
+	ui.Tree().SetLayout(dlg.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 800, 600)})
+	ui.Tree().SetLayout(dp.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(10, 10, 200, 32)})
+	dp.SetOpen(true)
+	dlg.Open()
+	ui.Frame(0.016)
+	r, _, _, _ := pixelAt(ui, 154, 162)
+	if r > 200 {
+		t.Fatalf("software raster left the date popup above the later dialog, red %d", r)
+	}
+
+	ui2, err := NewUI(UIOptions{Width: 800, Height: 600})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ui2.Destroy()
+	root2 := widget.NewDiv(ui2.Tree(), ui2.Config())
+	ui2.SetRoot(root2)
+	host := widget.NewDialog(ui2.Tree(), "host", ui2.Config())
+	inner := widget.NewDatePicker(ui2.Tree(), ui2.Config())
+	inner.SetDate(2026, 1, 1)
+	root2.AppendChild(host)
+	host.AppendChild(inner)
+	ui2.Tree().SetLayout(host.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, 800, 600)})
+	ui2.Tree().SetLayout(inner.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(30, 40, 200, 32)})
+	host.Open()
+	inner.SetOpen(true)
+	ui2.Frame(0.016)
+	r, _, _, _ = pixelAt(ui2, 30+4*32+16, 40+32+4+36+2*32+16)
+	if r < 240 {
+		t.Fatalf("software raster hid the dialog-owned calendar, red %d", r)
+	}
+}
+
+func pixelAt(ui *UI, x, y int) (byte, byte, byte, byte) {
+	w, h := ui.FramebufferSize()
+	px := ui.Pixels()
+	if x < 0 || y < 0 || x >= w || y >= h {
+		return 0, 0, 0, 0
+	}
+	i := (y*w + x) * 4
+	return px[i], px[i+1], px[i+2], px[i+3]
+}
+
 func TestUI_InjectMouseMove(t *testing.T) {
 	ui, err := NewUI(UIOptions{Width: 400, Height: 300})
 	if err != nil {

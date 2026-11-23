@@ -192,6 +192,7 @@ func (cp *ColorPicker) presetPanelH() float32 {
 }
 
 func (cp *ColorPicker) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, cp.tree, cp.id)()
 	bounds := cp.Bounds()
 	if bounds.IsEmpty() {
 		return

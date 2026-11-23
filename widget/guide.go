@@ -84,6 +84,7 @@ func (g *Guide) Finish() {
 }
 
 func (g *Guide) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, g.tree, g.id)()
 	if !g.visible || len(g.steps) == 0 || g.current >= len(g.steps) {
 		return
 	}
