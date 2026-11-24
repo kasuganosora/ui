@@ -137,6 +137,7 @@ type Tree struct {
 	focusQ      []focusNote
 	layers      []modalLayer
 	layerSeq    int32
+	transients  []ElementID
 	hitOrder    map[ElementID]int
 }
 

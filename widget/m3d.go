@@ -107,9 +107,12 @@ func (n *Nav) Draw(buf *render.CommandBuffer) {
 	}
 	buf.DrawRect(render.RectCmd{Bounds: uimath.NewRect(b.X, b.Y, b.Width, 32), FillColor: n.config.BgColor}, 1, 1)
 	n.tree.SetLayout(n.backID, core.LayoutResult{Bounds: uimath.NewRect(b.X+4, b.Y+4, 24, 24)})
+	n.tree.SetLayout(n.header.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(b.X+32, b.Y, b.Width-32, 32)})
 	n.header.Draw(buf)
 	if len(n.stack) > 0 && n.stack[len(n.stack)-1].body != nil {
-		n.stack[len(n.stack)-1].body.Draw(buf)
+		body := n.stack[len(n.stack)-1].body
+		n.tree.SetLayout(body.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(b.X, b.Y+32, b.Width, b.Height-32)})
+		body.Draw(buf)
 	}
 }
 
@@ -131,9 +134,22 @@ func (s *FormSection) Add(row *FormRow) {
 		s.AppendChild(row)
 	}
 }
+func (s *FormSection) layoutWithin(b uimath.Rect) {
+	s.tree.SetLayout(s.id, core.LayoutResult{Bounds: b})
+	y := b.Y + 28
+	for _, ch := range s.Children() {
+		row, ok := ch.(*FormRow)
+		if !ok {
+			continue
+		}
+		row.layoutWithin(uimath.NewRect(b.X+8, y, b.Width-16, 36))
+		y += 40
+	}
+}
 func (s *FormSection) Draw(buf *render.CommandBuffer) {
 	b := s.Bounds()
 	if !b.IsEmpty() {
+		s.layoutWithin(b)
 		buf.DrawRect(render.RectCmd{Bounds: b, BorderColor: s.config.BorderColor, BorderWidth: 1}, 1, 1)
 	}
 	s.DrawChildren(buf)
@@ -153,7 +169,27 @@ func (r *FormRow) Add(field *FormField) {
 		r.AppendChild(field)
 	}
 }
-func (r *FormRow) Draw(buf *render.CommandBuffer) { r.DrawChildren(buf) }
+func (r *FormRow) layoutWithin(b uimath.Rect) {
+	r.tree.SetLayout(r.id, core.LayoutResult{Bounds: b})
+	fields := r.Children()
+	if len(fields) == 0 {
+		return
+	}
+	w := b.Width / float32(len(fields))
+	for i, ch := range fields {
+		field, ok := ch.(*FormField)
+		if !ok {
+			continue
+		}
+		field.layoutWithin(uimath.NewRect(b.X+float32(i)*w, b.Y, w-4, b.Height))
+	}
+}
+func (r *FormRow) Draw(buf *render.CommandBuffer) {
+	if !r.Bounds().IsEmpty() {
+		r.layoutWithin(r.Bounds())
+	}
+	r.DrawChildren(buf)
+}
 
 // FormField is a label plus a control. It does not validate by itself.
 type FormField struct {
@@ -176,7 +212,23 @@ func (f *FormField) SetControl(w Widget) {
 		f.AppendChild(w)
 	}
 }
-func (f *FormField) Draw(buf *render.CommandBuffer) { f.DrawChildren(buf) }
+func (f *FormField) layoutWithin(b uimath.Rect) {
+	f.tree.SetLayout(f.id, core.LayoutResult{Bounds: b})
+	if f.control == nil {
+		return
+	}
+	labelW := float32(48)
+	if labelW > b.Width*0.4 {
+		labelW = b.Width * 0.4
+	}
+	f.tree.SetLayout(f.control.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(b.X+labelW, b.Y+4, b.Width-labelW-4, b.Height-8)})
+}
+func (f *FormField) Draw(buf *render.CommandBuffer) {
+	if !f.Bounds().IsEmpty() {
+		f.layoutWithin(f.Bounds())
+	}
+	f.DrawChildren(buf)
+}
 
 // PlainShell is a title bar plus a content slot.
 type PlainShell struct {
@@ -202,8 +254,12 @@ func (s *PlainShell) SetContent(w Widget) {
 func (s *PlainShell) Content() Widget { return s.content }
 func (s *PlainShell) Draw(buf *render.CommandBuffer) {
 	b := s.Bounds()
+	const header = float32(36)
 	if !b.IsEmpty() {
-		buf.DrawRect(render.RectCmd{Bounds: uimath.NewRect(b.X, b.Y, b.Width, 36), FillColor: s.config.PrimaryColor}, 1, 1)
+		buf.DrawRect(render.RectCmd{Bounds: uimath.NewRect(b.X, b.Y, b.Width, header), FillColor: s.config.PrimaryColor}, 1, 1)
+		if s.content != nil {
+			s.tree.SetLayout(s.content.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(b.X, b.Y+header, b.Width, b.Height-header)})
+		}
 	}
 	if s.content != nil {
 		s.content.Draw(buf)
@@ -220,8 +276,9 @@ type sideEntry struct {
 // Sidebar lists items and collapsible groups.
 type Sidebar struct {
 	Base
-	entries []sideEntry
-	index   int
+	entries  []sideEntry
+	index    int
+	onSelect func(int)
 }
 
 func NewSidebar(tree *core.Tree, cfg *Config) *Sidebar {
@@ -246,13 +303,14 @@ func NewSidebar(tree *core.Tree, cfg *Config) *Sidebar {
 		}
 		switch e.Key {
 		case event.KeyArrowDown:
-			s.index = vis[(pos+1)%len(vis)]
+			s.setIndex(vis[(pos+1)%len(vis)])
 		case event.KeyArrowUp:
-			s.index = vis[(pos-1+len(vis))%len(vis)]
+			s.setIndex(vis[(pos-1+len(vis))%len(vis)])
 		case event.KeyEnter, event.KeySpace:
 			if s.entries[s.index].group {
 				s.entries[s.index].open = !s.entries[s.index].open
 			}
+			s.notify()
 		default:
 			return
 		}
@@ -268,12 +326,23 @@ func NewSidebar(tree *core.Tree, cfg *Config) *Sidebar {
 		if i < 0 || i >= len(vis) {
 			return
 		}
-		s.index = vis[i]
+		s.setIndex(vis[i])
 		if s.entries[s.index].group {
 			s.entries[s.index].open = !s.entries[s.index].open
 		}
 	})
 	return s
+}
+
+func (s *Sidebar) OnSelect(fn func(int)) { s.onSelect = fn }
+func (s *Sidebar) setIndex(i int) {
+	s.index = i
+	s.notify()
+}
+func (s *Sidebar) notify() {
+	if s.onSelect != nil {
+		s.onSelect(s.index)
+	}
 }
 
 func (s *Sidebar) AddItem(label string) int {
@@ -347,6 +416,17 @@ func (s *SidebarShell) SetContent(w Widget) {
 }
 func (s *SidebarShell) Content() Widget { return s.content }
 func (s *SidebarShell) Draw(buf *render.CommandBuffer) {
+	b := s.Bounds()
+	sideW := float32(160)
+	if !b.IsEmpty() {
+		if sideW > b.Width*0.45 {
+			sideW = b.Width * 0.45
+		}
+		s.tree.SetLayout(s.side.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(b.X, b.Y, sideW, b.Height)})
+		if s.content != nil {
+			s.tree.SetLayout(s.content.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(b.X+sideW, b.Y, b.Width-sideW, b.Height)})
+		}
+	}
 	s.side.Draw(buf)
 	if s.content != nil {
 		s.content.Draw(buf)
@@ -435,17 +515,19 @@ func (t *TabShell) Draw(buf *render.CommandBuffer) {
 			buf.DrawRect(render.RectCmd{Bounds: uimath.NewRect(b.X+float32(i)*w, b.Y, w, 32), FillColor: fill}, 1, 1)
 		}
 	}
-	if t.cur >= 0 && t.cur < len(t.pages) && t.pages[t.cur] != nil {
-		t.pages[t.cur].Draw(buf)
+	if t.cur >= 0 && t.cur < len(t.pages) && t.pages[t.cur] != nil && !b.IsEmpty() {
+		page := t.pages[t.cur]
+		t.tree.SetLayout(page.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(b.X, b.Y+32, b.Width, b.Height-32)})
+		page.Draw(buf)
 	}
 }
 
 type settingsCat struct {
-	name string
-	rows []string
+	name    string
+	section *FormSection
 }
 
-// Settings shows a category list that opens that category's rows.
+// Settings pairs a sidebar with one FormSection per category.
 type Settings struct {
 	Base
 	cats []settingsCat
@@ -459,11 +541,23 @@ func NewSettings(tree *core.Tree, cfg *Config) *Settings {
 	}
 	s := &Settings{Base: NewBase(tree, core.TypeCustom, cfg), side: NewSidebar(tree, cfg)}
 	s.AppendChild(s.side)
+	s.side.OnSelect(func(i int) { s.OpenCategory(i) })
 	return s
 }
 func (s *Settings) AddCategory(name string, rows []string) {
-	s.cats = append(s.cats, settingsCat{name: name, rows: append([]string(nil), rows...)})
+	section := NewFormSection(s.tree, name, s.config)
+	for _, label := range rows {
+		row := NewFormRow(s.tree, s.config)
+		field := NewFormField(s.tree, label, s.config)
+		field.SetControl(NewInput(s.tree, s.config))
+		row.Add(field)
+		section.Add(row)
+	}
+	s.AppendChild(section)
+	s.tree.SetVisible(section.ElementID(), len(s.cats) == 0)
+	s.cats = append(s.cats, settingsCat{name: name, section: section})
 	s.side.AddItem(name)
+	s.layout()
 }
 func (s *Settings) Current() string {
 	if s.cur < 0 || s.cur >= len(s.cats) {
@@ -471,19 +565,71 @@ func (s *Settings) Current() string {
 	}
 	return s.cats[s.cur].name
 }
-func (s *Settings) Rows() []string {
+func (s *Settings) Section() *FormSection {
 	if s.cur < 0 || s.cur >= len(s.cats) {
 		return nil
 	}
-	return append([]string(nil), s.cats[s.cur].rows...)
+	return s.cats[s.cur].section
+}
+func (s *Settings) Control(row int) Widget {
+	sec := s.Section()
+	if sec == nil || row < 0 || row >= len(sec.Children()) {
+		return nil
+	}
+	for _, field := range sec.Children()[row].Children() {
+		if f, ok := field.(*FormField); ok {
+			return f.Control()
+		}
+	}
+	return nil
+}
+func (s *Settings) Rows() []string {
+	sec := s.Section()
+	if sec == nil {
+		return nil
+	}
+	var out []string
+	for _, row := range sec.Children() {
+		for _, field := range row.Children() {
+			if f, ok := field.(*FormField); ok {
+				out = append(out, f.Label())
+			}
+		}
+	}
+	return out
 }
 func (s *Settings) OpenCategory(i int) {
 	if i < 0 || i >= len(s.cats) {
 		return
 	}
 	s.cur = i
+	for n, cat := range s.cats {
+		s.tree.SetVisible(cat.section.ElementID(), n == i)
+	}
+	s.layout()
 }
-func (s *Settings) Draw(buf *render.CommandBuffer) { s.side.Draw(buf) }
+func (s *Settings) layout() {
+	b := s.Bounds()
+	if b.IsEmpty() {
+		return
+	}
+	sideW := float32(160)
+	if sideW > b.Width*0.4 {
+		sideW = b.Width * 0.4
+	}
+	s.tree.SetLayout(s.side.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(b.X, b.Y, sideW, b.Height)})
+	content := uimath.NewRect(b.X+sideW, b.Y, b.Width-sideW, b.Height)
+	if sec := s.Section(); sec != nil {
+		sec.layoutWithin(content)
+	}
+}
+func (s *Settings) Draw(buf *render.CommandBuffer) {
+	s.layout()
+	s.side.Draw(buf)
+	if sec := s.Section(); sec != nil {
+		sec.Draw(buf)
+	}
+}
 
 // SettingsDialog is a modal around Settings. Escape closes it and restores focus.
 type SettingsDialog struct {
@@ -502,24 +648,20 @@ func NewSettingsDialog(tree *core.Tree, cfg *Config) *SettingsDialog {
 	d.AppendChild(d.body)
 	tree.SetVisible(d.id, false)
 	tree.AddHandler(d.id, event.KeyDown, func(e *event.Event) {
-		if e.Phase == event.PhaseCapture || e.Key != event.KeyEscape || !d.open {
+		if e.Phase == event.PhaseCapture || !d.open {
 			return
 		}
-		d.Close()
+		switch e.Key {
+		case event.KeyEscape:
+			d.Close()
+		case event.KeyArrowDown:
+			d.body.OpenCategory(d.body.cur + 1)
+		case event.KeyArrowUp:
+			d.body.OpenCategory(d.body.cur - 1)
+		default:
+			return
+		}
 		e.StopPropagation()
-	})
-	tree.AddHandler(d.id, event.MouseClick, func(e *event.Event) {
-		if !targetPhase(e) || !d.open {
-			return
-		}
-		b := d.body.side.Bounds()
-		if b.Height <= 0 {
-			b = d.Bounds()
-		}
-		i := int((e.GlobalY - b.Y) / 28)
-		if i >= 0 && i < len(d.body.cats) {
-			d.body.OpenCategory(i)
-		}
 	})
 	return d
 }
@@ -539,6 +681,7 @@ func (d *SettingsDialog) Open() {
 	}
 	d.tree.SetFocusable(d.id, true)
 	d.tree.SetFocused(d.id, true)
+	d.layoutBody()
 }
 func (d *SettingsDialog) Close() {
 	inside := d.tree.InScope(d.tree.Focused(), d.id)
@@ -569,5 +712,15 @@ func (d *SettingsDialog) Draw(buf *render.CommandBuffer) {
 		return
 	}
 	buf.DrawRect(render.RectCmd{Bounds: b, FillColor: uimath.Color{A: 0.45}}, 10, 1)
+	d.layoutBody()
 	d.body.Draw(buf)
+}
+
+func (d *SettingsDialog) layoutBody() {
+	b := d.Bounds()
+	if b.IsEmpty() {
+		return
+	}
+	d.tree.SetLayout(d.body.ElementID(), core.LayoutResult{Bounds: b})
+	d.body.layout()
 }

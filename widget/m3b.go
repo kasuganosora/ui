@@ -265,11 +265,14 @@ func (h *HoverCard) SetOpen(v bool) {
 	h.open = v
 	h.clearPop()
 	if !v {
+		h.tree.PopTransient(h.id)
 		return
 	}
+	h.tree.PushTransient(h.id)
 	h.backdropID = h.tree.CreateElement(core.TypeCustom)
 	h.tree.AppendChild(h.id, h.backdropID)
 	h.tree.SetOverlay(h.backdropID, true)
+	h.tree.SetProperty(h.backdropID, "dismiss", true)
 	h.tree.SetLayout(h.backdropID, core.LayoutResult{Bounds: uimath.NewRect(0, 0, 1e6, 1e6)})
 	h.tree.AddHandler(h.backdropID, event.MouseClick, func(e *event.Event) {
 		if !targetPhase(e) {
@@ -295,6 +298,7 @@ func (h *HoverCard) clearPop() {
 	}
 }
 func (h *HoverCard) Destroy() {
+	h.tree.PopTransient(h.id)
 	h.clearPop()
 	h.open = false
 	h.Base.Destroy()
@@ -590,10 +594,12 @@ func NewCommand(tree *core.Tree, cfg *Config) *Command {
 		case event.KeyArrowDown:
 			if len(shown) > 0 {
 				c.index = (c.index + 1) % len(shown)
+				c.place()
 			}
 		case event.KeyArrowUp:
 			if len(shown) > 0 {
 				c.index = (c.index - 1 + len(shown)) % len(shown)
+				c.place()
 			}
 		case event.KeyEnter:
 			if len(shown) > 0 && c.onRun != nil {
@@ -633,14 +639,15 @@ func (c *Command) place() {
 		c.tree.DestroyElement(id)
 	}
 	c.rows = nil
-	b := c.Bounds()
-	y := b.Y + 32
-	for i, item := range c.Shown() {
+	start, end, items := c.window()
+	vis := 0
+	for i := start; i < end; i++ {
 		id := c.tree.CreateElement(core.TypeCustom)
 		c.tree.AppendChild(c.id, id)
-		c.tree.SetProperty(id, "text", item.label)
-		c.tree.SetLayout(id, core.LayoutResult{Bounds: uimath.NewRect(b.X, y+float32(i)*28, b.Width, 28)})
-		runID := item.id
+		c.tree.SetOverlay(id, true)
+		c.tree.SetProperty(id, "text", items[i].label)
+		c.tree.SetLayout(id, core.LayoutResult{Bounds: c.rowBounds(vis)})
+		runID := items[i].id
 		c.tree.AddHandler(id, event.MouseClick, func(e *event.Event) {
 			if !targetPhase(e) {
 				return
@@ -651,7 +658,32 @@ func (c *Command) place() {
 			}
 		})
 		c.rows = append(c.rows, id)
+		vis++
 	}
+}
+
+func (c *Command) window() (start, end int, items []commandHit) {
+	items = c.Shown()
+	const n = 6
+	if len(items) == 0 {
+		c.index = 0
+		return 0, 0, items
+	}
+	if c.index >= len(items) {
+		c.index = len(items) - 1
+	}
+	if c.index < 0 {
+		c.index = 0
+	}
+	start = 0
+	if c.index >= n {
+		start = c.index - n + 1
+	}
+	end = start + n
+	if end > len(items) {
+		end = len(items)
+	}
+	return start, end, items
 }
 func (c *Command) Destroy() {
 	for _, id := range c.rows {
@@ -659,12 +691,27 @@ func (c *Command) Destroy() {
 	}
 	c.Base.Destroy()
 }
+func (c *Command) rowBounds(i int) uimath.Rect {
+	b := c.Bounds()
+	return uimath.NewRect(b.X, b.Y+32+float32(i)*28, b.Width, 28)
+}
+
 func (c *Command) Draw(buf *render.CommandBuffer) {
 	b := c.Bounds()
 	if b.IsEmpty() {
 		return
 	}
 	buf.DrawRect(render.RectCmd{Bounds: uimath.NewRect(b.X, b.Y, b.Width, 28), FillColor: c.config.BgColor, BorderColor: c.config.BorderColor, BorderWidth: 1}, 1, 1)
+	start, end, _ := c.window()
+	vis := 0
+	for i := start; i < end; i++ {
+		fill := uimath.ColorWhite
+		if i == c.index {
+			fill = c.config.PrimaryColor
+		}
+		buf.DrawOverlay(render.RectCmd{Bounds: c.rowBounds(vis), FillColor: fill, BorderColor: c.config.BorderColor, BorderWidth: 1}, 40, 1)
+		vis++
+	}
 }
 
 // CommandDialog shows a Command in a modal layer and restores focus on Escape.

@@ -72,30 +72,32 @@
 
 | 行 | 类型 | 状态 | 测试 |
 | --- | --- | --- | --- |
-| 1 | Command / CommandDialog | host-verified | `TestCommandHostFilterAndRun`、`TestCommandDialogHostEscapeRestoresFocus`。打开推入层和作用域，Escape 关闭并还焦 |
-| 2 | OtpInput | host-verified | `TestOtpInputHostTypeBackspacePaste`。禁用后按键不进格 |
-| 3 | HoverCard | host-verified | `TestHoverCardHostDelayFocusEscape`。延迟、焦点、Escape、外部点击 |
+| 1 | Command / CommandDialog | host-verified | `TestCommandHostFilterAndRun`、`TestCommandDialogHostEscapeRestoresFocus`。`TestCommandRootClickRunsFilteredRow`：查询条只有 28px 时，选项是浮层，根上点击和软件光栅都能看到第一项。窗口最多 6 行，方向键滚动选中 |
+| 2 | OtpInput | host-verified | `TestOtpInputHostTypeBackspacePaste`。`TestOtpCompleteFiresOnce`：满长只完成一次，多余字符不再次回调，删掉再填会再完成 |
+| 3 | HoverCard | host-verified | `TestHoverCardHostDelayFocusEscape` 覆盖延迟和已聚焦时的 Escape。`TestHoverCardEscapeWithoutStealingFocus` 覆盖悬停打开后、焦点仍在输入框时的 Escape 和外部点击。悬停层走 `PushTransient`，不移动焦点 |
 | 4 | HoldToConfirm | host-verified | `TestHoldToConfirmHostHoldAndRelease`。提前松开不触发；禁用不再累计 |
 | 5 | Meter | host-verified | `TestMeterHostValueAndMarks`。类型不是 `Progress` |
 | 6 | Toolbar | host-verified | `TestToolbarHostArrowsDoNotActivate` |
 | 7 | ToggleGroup | host-verified | `TestToggleGroupHostSingleAndMulti` |
 | 8 | ToggleButton | host-verified | `TestToggleButtonHostSpace` |
-| 9 | ImageCompare | host-verified | `TestImageCompareHostDragAndKeys` |
+| 9 | ImageCompare | host-verified | `TestImageCompareHostDragAndKeys` 覆盖分割位置。`TestImageCompareClipsTwoImages` 用两张 `Image` 纹理做裁剪对比，没有纹理时仍只是色块 |
 | 10 | SuggestList | host-verified | `TestSuggestListHostDoesNotOwnInput` |
 | 11 | EmojiPicker | host-verified | `TestEmojiPickerHostSearchAndVirtualCells`。目录是手写 `emoji_catalog.go`，只画可见格 |
 | 12 | Combobox | host-verified | `TestComboboxHostEditAndChoose`。不改 `Select` / `AutoComplete` |
 | 13 | Scrollbar | host-verified | `TestScrollbarHostDrag` |
 | 14 | Nav / NavHeader | host-verified | `TestNavHostPushPopTitle` |
-| 15 | FormSection / FormRow / FormField | host-verified | `TestFormSectionHostRowsDoNotReplaceValidate`。校验仍是 `Form.Validate` |
-| 16 | PlainShell | partial | `TestPlainShellHostSlots` 只检查标题和内容槽，没有单独的宿主点击 |
+| 15 | FormSection / FormRow / FormField | host-verified | `TestFormSectionHostRowsDoNotReplaceValidate` 确认校验仍归 `Form.Validate`。`TestFormRowLaysOutFields` 确认一行两个字段有宽度且不重叠 |
+| 16 | PlainShell | host-verified | `TestPlainShellHostSlots` 检查槽。`TestPlainAndSidebarShellLayout` 把内容排在 36px 顶栏下面，并能命中 |
 | 17 | Sidebar | host-verified | `TestSidebarHostGroupsAndArrows` |
-| 18 | SidebarShell | partial | `TestSidebarShellHostSlots` 检查侧栏和内容槽 |
+| 18 | SidebarShell | host-verified | `TestSidebarShellHostSlots`。`TestPlainAndSidebarShellLayout` 左栏右内容，点击内容按钮能聚焦 |
 | 19 | TabShell | host-verified | `TestTabShellHostSwitch` |
-| 20 | Settings / SettingsDialog | host-verified | `TestSettingsHostCategoryAndDialog`。对话框使用层和作用域 |
+| 20 | Settings / SettingsDialog | host-verified | `TestSettingsHostCategoryAndDialog`。`TestSettingsCategoryOpensLiveRows`：分类拥有 `FormSection` 行和输入框，指针与方向键切换后控件可输入。对话框使用层和作用域 |
 
 ## 浮层排序
 
-`render.StableZOrder` 按 ZOrder 稳定排序。软件光栅、OpenGL、Vulkan、Metal、DX9、DX11 的浮层提交都调用它。`TestStableZOrderKeepsEqualRanksInInsertionOrder` 只检查这个纯函数，没有在 Metal 或 DirectX 上画出像素。不能把原生视觉当成已验证。
+`render.StableZOrder` 按 ZOrder 稳定排序。软件光栅、Vulkan、Metal、DX9、DX11 的浮层提交调用这个函数。OpenGL 在本地把主命令和浮层做同样的稳定排序，不经过该函数。`TestStableZOrderKeepsEqualRanksInInsertionOrder` 只检查纯函数。没有在 Metal 或 DirectX 上画出像素。
+
+HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKeepsChildrenAndFollowingMeter` 检查嵌套段落、后续 meter/togglebutton，以及带子节点的 `formsection` 不会吃掉下一个兄弟。
 
 ## 表 3（19）
 

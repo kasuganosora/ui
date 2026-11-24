@@ -112,6 +112,27 @@ func (t *Tree) LayerRank(id ElementID) int32 {
 	return best
 }
 
+// PushTransient registers id as an Escape target above the focused element.
+// Focus is left where it is. PopTransient removes that registration.
+func (t *Tree) PushTransient(id ElementID) {
+	if id == InvalidElementID {
+		return
+	}
+	t.PopTransient(id)
+	t.transients = append(t.transients, id)
+}
+
+// PopTransient removes id from the transient Escape stack.
+func (t *Tree) PopTransient(id ElementID) {
+	kept := t.transients[:0]
+	for _, cur := range t.transients {
+		if cur != id {
+			kept = append(kept, cur)
+		}
+	}
+	t.transients = kept
+}
+
 // ChainAllows reports whether id and every ancestor are visible and enabled.
 func (t *Tree) ChainAllows(id ElementID) bool {
 	if id == InvalidElementID {
@@ -156,6 +177,18 @@ func (t *Tree) RouteKey(evt *event.Event) {
 		}
 		evt.StopPropagation()
 		return
+	}
+	if evt.Type == event.KeyDown && evt.Key == event.KeyEscape {
+		for i := len(t.transients) - 1; i >= 0; i-- {
+			id := t.transients[i]
+			if !t.ChainAllows(id) {
+				continue
+			}
+			NewDispatcher(t).Dispatch(id, evt)
+			if evt.IsStopped() {
+				return
+			}
+		}
 	}
 	target := t.Focused()
 	if target == InvalidElementID {

@@ -449,7 +449,7 @@ func (p *htmlParser) parseElement(parent containerWidget, ancestors []css.Elemen
 	inlineStyle := attrs["style"]
 
 	// Self-closing / void elements
-	if p.parseMilestone3(tag, attrs, id, classes, inlineStyle, ancestors, parent) {
+	if p.parseMilestone3(tag, attrs, id, classes, inlineStyle, ancestors, parent, selfClose) {
 		return
 	}
 	switch tag {
@@ -1410,7 +1410,7 @@ func (p *htmlParser) parseElement(parent containerWidget, ancestors []css.Elemen
 }
 
 // registerWidget stores widget info for CSS application and indexes it for querying.
-func (p *htmlParser) parseMilestone3(tag string, attrs map[string]string, id string, classes []string, inlineStyle string, ancestors []css.ElementInfo, parent containerWidget) bool {
+func (p *htmlParser) parseMilestone3(tag string, attrs map[string]string, id string, classes []string, inlineStyle string, ancestors []css.ElementInfo, parent containerWidget, selfClose bool) bool {
 	var w widget.Widget
 	switch tag {
 	case "meter":
@@ -1453,7 +1453,7 @@ func (p *htmlParser) parseMilestone3(tag string, attrs map[string]string, id str
 		w = widget.NewCommandDialog(p.tree, p.cfg)
 	case "emojipicker":
 		w = widget.NewEmojiPicker(p.tree, p.cfg)
-	case "nav":
+	case "navstack":
 		w = widget.NewNav(p.tree, p.cfg)
 	case "formsection":
 		w = widget.NewFormSection(p.tree, attrs["title"], p.cfg)
@@ -1480,11 +1480,28 @@ func (p *htmlParser) parseMilestone3(tag string, attrs map[string]string, id str
 	}
 	p.registerWidget(w, tag, id, classes, inlineStyle, ancestors)
 	parent.AppendChild(w)
-	p.skipWhitespace()
-	if p.pos < len(p.src) && strings.HasPrefix(p.src[p.pos:], "</"+tag) {
-		p.readTextContent(tag)
+	if selfClose {
+		return true
 	}
+	if hostsChildren(tag) {
+		if box, ok := w.(containerWidget); ok {
+			childAncestors := append([]css.ElementInfo{{Tag: tag, ID: id, Classes: classes}}, ancestors...)
+			p.parseChildren(box, childAncestors)
+			p.skipClosingTag(tag)
+			return true
+		}
+	}
+	p.readTextContent(tag)
 	return true
+}
+
+func hostsChildren(tag string) bool {
+	switch tag {
+	case "navstack", "formsection", "formrow", "plainshell", "sidebarshell", "tabshell", "settings", "settingsdialog", "commanddialog":
+		return true
+	default:
+		return false
+	}
 }
 
 func (p *htmlParser) registerWidget(w widget.Widget, tag, id string, classes []string, inlineStyle string, ancestors []css.ElementInfo) {

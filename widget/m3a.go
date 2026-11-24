@@ -211,8 +211,10 @@ func (t *ToggleButton) Draw(buf *render.CommandBuffer) {
 // ImageCompare splits a frame from 0 to 100. Drag and arrows move it by the pointer or by 5.
 type ImageCompare struct {
 	Base
-	pos  float32
-	drag bool
+	pos    float32
+	drag   bool
+	before *Image
+	after  *Image
 }
 
 func NewImageCompare(tree *core.Tree, cfg *Config) *ImageCompare {
@@ -260,7 +262,11 @@ func (c *ImageCompare) disabled() bool {
 	elem := c.tree.Get(c.id)
 	return elem != nil && !elem.IsEnabled()
 }
-func (c *ImageCompare) Position() float32 { return c.pos }
+func (c *ImageCompare) SetBefore(img *Image) { c.before = img }
+func (c *ImageCompare) SetAfter(img *Image)  { c.after = img }
+func (c *ImageCompare) Before() *Image       { return c.before }
+func (c *ImageCompare) After() *Image        { return c.after }
+func (c *ImageCompare) Position() float32    { return c.pos }
 func (c *ImageCompare) SetPosition(p float32) {
 	if p < 0 {
 		p = 0
@@ -273,6 +279,21 @@ func (c *ImageCompare) SetPosition(p float32) {
 func (c *ImageCompare) Draw(buf *render.CommandBuffer) {
 	b := c.Bounds()
 	if b.IsEmpty() {
+		return
+	}
+	if c.before != nil || c.after != nil {
+		split := b.Width * c.pos / 100
+		if c.before != nil && c.before.Texture() != render.InvalidTexture {
+			buf.PushClip(uimath.NewRect(b.X, b.Y, split, b.Height))
+			buf.DrawImage(render.ImageCmd{Texture: c.before.Texture(), DstRect: b, Tint: uimath.ColorWhite}, 1, 1)
+			buf.PopClip()
+		}
+		if c.after != nil && c.after.Texture() != render.InvalidTexture {
+			buf.PushClip(uimath.NewRect(b.X+split, b.Y, b.Width-split, b.Height))
+			buf.DrawImage(render.ImageCmd{Texture: c.after.Texture(), DstRect: b, Tint: uimath.ColorWhite}, 1, 1)
+			buf.PopClip()
+		}
+		buf.DrawRect(render.RectCmd{Bounds: uimath.NewRect(b.X+split-1, b.Y, 2, b.Height), FillColor: uimath.ColorWhite}, 3, 1)
 		return
 	}
 	buf.DrawRect(render.RectCmd{Bounds: b, FillColor: c.config.BorderColor}, 1, 1)
@@ -341,6 +362,9 @@ func NewOtpInput(tree *core.Tree, length int, cfg *Config) *OtpInput {
 }
 
 func (o *OtpInput) insert(s string) {
+	if utf8.RuneCountInString(o.value) >= o.length {
+		return
+	}
 	for _, r := range s {
 		if utf8.RuneCountInString(o.value) >= o.length {
 			break

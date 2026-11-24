@@ -120,6 +120,9 @@ func (h *HostInput) acquireFocus(hit ElementID) {
 		if elem == nil {
 			return
 		}
+		if dismiss, _ := elem.properties["dismiss"].(bool); dismiss {
+			return
+		}
 		if elem.focusable && h.Tree.ChainAllows(id) {
 			h.Tree.SetFocused(id, true)
 			return
