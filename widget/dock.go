@@ -42,6 +42,7 @@ type DockLayout struct {
 	centerTabs   []string // panel IDs in center tab area
 	activeTab    int      // index into centerTabs
 	splitterSize float32
+	scale        float32
 	onDock       func(panelID string, pos DockPosition)
 	onUndock     func(panelID string)
 
@@ -60,6 +61,7 @@ func NewDockLayout(tree *core.Tree, cfg *Config) *DockLayout {
 	dl := &DockLayout{
 		Base:         NewBase(tree, core.TypeCustom, cfg),
 		splitterSize: 4,
+		scale:        1,
 	}
 	tree.AddHandler(dl.id, event.MouseDown, dl.onMouseDown)
 	tree.AddHandler(dl.id, event.MouseMove, dl.onMouseMove)
@@ -75,6 +77,70 @@ func (dl *DockLayout) ActiveTab() int { return dl.activeTab }
 
 // SetActiveTab sets the active center tab.
 func (dl *DockLayout) SetActiveTab(i int) { dl.activeTab = i }
+
+// ActiveID is the center tab that is selected.
+func (dl *DockLayout) ActiveID() string {
+	if dl.activeTab < 0 || dl.activeTab >= len(dl.centerTabs) {
+		return ""
+	}
+	return dl.centerTabs[dl.activeTab]
+}
+
+// SetScale multiplies docked sizes and floating rectangles. A non-positive
+// value leaves the current scale in place.
+func (dl *DockLayout) SetScale(s float32) bool {
+	if s <= 0 {
+		return false
+	}
+	dl.scale = s
+	return true
+}
+
+// Scale is the layout multiplier. It is 1 until SetScale changes it.
+func (dl *DockLayout) Scale() float32 { return dl.scaleOr1() }
+
+func (dl *DockLayout) scaleOr1() float32 {
+	if dl.scale <= 0 {
+		return 1
+	}
+	return dl.scale
+}
+
+func (dl *DockLayout) logicalSize(pos DockPosition) float32 {
+	for _, p := range dl.panels {
+		if p != nil && p.Visible && p.Position == pos {
+			return p.DockSize
+		}
+	}
+	return 0
+}
+
+// PanelScreen is the visible rectangle of a panel after scale.
+func (dl *DockLayout) PanelScreen(id string) uimath.Rect {
+	p := dl.FindPanel(id)
+	if p == nil || !p.Visible {
+		return uimath.Rect{}
+	}
+	s := dl.scaleOr1()
+	if p.Position == DockFloat {
+		return uimath.NewRect(p.FloatX*s, p.FloatY*s, p.FloatW*s, p.FloatH*s)
+	}
+	left, right, top, bottom, center := dl.computeRegions()
+	switch p.Position {
+	case DockLeft:
+		return left
+	case DockRight:
+		return right
+	case DockTop:
+		return top
+	case DockBottom:
+		return bottom
+	case DockCenter:
+		return center
+	default:
+		return uimath.Rect{}
+	}
+}
 
 // OnDock sets a callback for when a panel is docked.
 func (dl *DockLayout) OnDock(fn func(string, DockPosition)) { dl.onDock = fn }
@@ -193,15 +259,16 @@ func (dl *DockLayout) computeRegions() (left, right, top, bottom, center uimath.
 		if !p.Visible {
 			continue
 		}
+		s := dl.scaleOr1()
 		switch p.Position {
 		case DockLeft:
-			leftW = p.DockSize
+			leftW = p.DockSize * s
 		case DockRight:
-			rightW = p.DockSize
+			rightW = p.DockSize * s
 		case DockTop:
-			topH = p.DockSize
+			topH = p.DockSize * s
 		case DockBottom:
-			bottomH = p.DockSize
+			bottomH = p.DockSize * s
 		}
 	}
 
@@ -235,7 +302,7 @@ func (dl *DockLayout) onMouseDown(e *event.Event) {
 			dl.dragging = true
 			dl.dragSplitter = DockLeft
 			dl.dragStart = mx
-			dl.dragOrigSize = left.Width
+			dl.dragOrigSize = dl.logicalSize(DockLeft)
 			return
 		}
 	}
@@ -245,7 +312,7 @@ func (dl *DockLayout) onMouseDown(e *event.Event) {
 			dl.dragging = true
 			dl.dragSplitter = DockRight
 			dl.dragStart = mx
-			dl.dragOrigSize = right.Width
+			dl.dragOrigSize = dl.logicalSize(DockRight)
 			return
 		}
 	}
@@ -255,7 +322,7 @@ func (dl *DockLayout) onMouseDown(e *event.Event) {
 			dl.dragging = true
 			dl.dragSplitter = DockTop
 			dl.dragStart = my
-			dl.dragOrigSize = top.Height
+			dl.dragOrigSize = dl.logicalSize(DockTop)
 			return
 		}
 	}
@@ -265,7 +332,7 @@ func (dl *DockLayout) onMouseDown(e *event.Event) {
 			dl.dragging = true
 			dl.dragSplitter = DockBottom
 			dl.dragStart = my
-			dl.dragOrigSize = bottom.Height
+			dl.dragOrigSize = dl.logicalSize(DockBottom)
 			return
 		}
 	}
@@ -279,31 +346,24 @@ func (dl *DockLayout) onMouseMove(e *event.Event) {
 		if p.Position != dl.dragSplitter || !p.Visible {
 			continue
 		}
+		step := float32(1)
+		if dl.scaleOr1() != 0 {
+			step = 1 / dl.scaleOr1()
+		}
 		switch dl.dragSplitter {
 		case DockLeft:
-			delta := e.GlobalX - dl.dragStart
-			p.DockSize = dl.dragOrigSize + delta
-			if p.DockSize < 50 {
-				p.DockSize = 50
-			}
+			p.DockSize = dl.dragOrigSize + (e.GlobalX-dl.dragStart)*step
 		case DockRight:
-			delta := dl.dragStart - e.GlobalX
-			p.DockSize = dl.dragOrigSize + delta
-			if p.DockSize < 50 {
-				p.DockSize = 50
-			}
+			p.DockSize = dl.dragOrigSize + (dl.dragStart-e.GlobalX)*step
 		case DockTop:
-			delta := e.GlobalY - dl.dragStart
-			p.DockSize = dl.dragOrigSize + delta
-			if p.DockSize < 50 {
-				p.DockSize = 50
-			}
+			p.DockSize = dl.dragOrigSize + (e.GlobalY-dl.dragStart)*step
 		case DockBottom:
-			delta := dl.dragStart - e.GlobalY
-			p.DockSize = dl.dragOrigSize + delta
-			if p.DockSize < 50 {
-				p.DockSize = 50
-			}
+			p.DockSize = dl.dragOrigSize + (dl.dragStart-e.GlobalY)*step
+		default:
+			return
+		}
+		if p.DockSize < 50 {
+			p.DockSize = 50
 		}
 		break
 	}
@@ -385,6 +445,8 @@ func (dl *DockLayout) Draw(buf *render.CommandBuffer) {
 
 func (dl *DockLayout) drawDockedPanel(buf *render.CommandBuffer, p *DockPanel, region uimath.Rect, cfg *Config) {
 	headerH := float32(28)
+	buf.PushClip(region)
+	defer buf.PopClip()
 	// Background
 	buf.DrawRect(render.RectCmd{
 		Bounds:      region,
@@ -397,14 +459,13 @@ func (dl *DockLayout) drawDockedPanel(buf *render.CommandBuffer, p *DockPanel, r
 		Bounds:    uimath.NewRect(region.X, region.Y, region.Width, headerH),
 		FillColor: uimath.RGBA(0, 0, 0, 0.03),
 	}, 2, 1)
-	if cfg.TextRenderer != nil {
-		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, p.Title, region.X+cfg.SpaceSM, region.Y+(headerH-lh)/2, cfg.FontSizeSm, region.Width-cfg.SpaceSM*2, cfg.TextColor, 1)
-	}
+	emitText(cfg, buf, p.Title, region.X+cfg.SpaceSM, region.Y+6, cfg.FontSizeSm, region.Width-cfg.SpaceSM*2, cfg.TextColor, 1, 4)
 }
 
 func (dl *DockLayout) drawCenterTabs(buf *render.CommandBuffer, region uimath.Rect, cfg *Config) {
 	tabH := float32(28)
+	buf.PushClip(region)
+	defer buf.PopClip()
 	// Tab bar background
 	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(region.X, region.Y, region.Width, tabH),
@@ -435,10 +496,7 @@ func (dl *DockLayout) drawCenterTabs(buf *render.CommandBuffer, region uimath.Re
 				FillColor: cfg.PrimaryColor,
 			}, 4, 1)
 		}
-		if cfg.TextRenderer != nil {
-			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-			cfg.TextRenderer.DrawText(buf, p.Title, tabX+cfg.SpaceXS, region.Y+(tabH-lh)/2, cfg.FontSizeSm, tabW-cfg.SpaceXS*2, cfg.TextColor, 1)
-		}
+		emitText(cfg, buf, p.Title, tabX+cfg.SpaceXS, region.Y+6, cfg.FontSizeSm, tabW-cfg.SpaceXS*2, cfg.TextColor, 1, 4)
 		tabX += tabW
 	}
 
@@ -454,15 +512,18 @@ func (dl *DockLayout) drawCenterTabs(buf *render.CommandBuffer, region uimath.Re
 
 func (dl *DockLayout) drawFloating(buf *render.CommandBuffer, p *DockPanel, cfg *Config) {
 	headerH := float32(28)
+	s := dl.scaleOr1()
+	x, y := p.FloatX*s, p.FloatY*s
+	w, h := p.FloatW*s, p.FloatH*s
 	// Shadow
 	buf.DrawOverlay(render.RectCmd{
-		Bounds:    uimath.NewRect(p.FloatX+3, p.FloatY+3, p.FloatW, p.FloatH),
+		Bounds:    uimath.NewRect(x+3, y+3, w, h),
 		FillColor: uimath.RGBA(0, 0, 0, 0.15),
 		Corners:   uimath.CornersAll(cfg.BorderRadius),
 	}, 50, 1)
 	// Window body
 	buf.DrawOverlay(render.RectCmd{
-		Bounds:      uimath.NewRect(p.FloatX, p.FloatY, p.FloatW, p.FloatH),
+		Bounds:      uimath.NewRect(x, y, w, h),
 		FillColor:   cfg.BgColor,
 		BorderColor: cfg.BorderColor,
 		BorderWidth: 1,
@@ -470,7 +531,7 @@ func (dl *DockLayout) drawFloating(buf *render.CommandBuffer, p *DockPanel, cfg 
 	}, 51, 1)
 	// Title bar
 	buf.DrawOverlay(render.RectCmd{
-		Bounds:    uimath.NewRect(p.FloatX, p.FloatY, p.FloatW, headerH),
+		Bounds:    uimath.NewRect(x, y, w, headerH),
 		FillColor: uimath.RGBA(0, 0, 0, 0.03),
 		Corners: uimath.Corners{
 			TopLeft:  cfg.BorderRadius,
@@ -479,6 +540,6 @@ func (dl *DockLayout) drawFloating(buf *render.CommandBuffer, p *DockPanel, cfg 
 	}, 52, 1)
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, p.Title, p.FloatX+cfg.SpaceSM, p.FloatY+(headerH-lh)/2, cfg.FontSizeSm, p.FloatW-cfg.SpaceSM*2, cfg.TextColor, 1)
+		cfg.TextRenderer.DrawText(buf, p.Title, x+cfg.SpaceSM, y+(headerH-lh)/2, cfg.FontSizeSm, w-cfg.SpaceSM*2, cfg.TextColor, 1)
 	}
 }

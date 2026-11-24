@@ -115,11 +115,11 @@ HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKe
 | 8 diagram | host-verified，边界写明 | `TestDiagramBoxArrowLayout`：`box` 和 `->` 排成从左到右的层，标签是字形。`subgraph` 被忽略。视口外的节点不画，滚到视口里才画。不是 Mermaid，不依赖 limu |
 | 9 editor | host-verified，边界写明 | `TestEditorRuneCaretAndGlyphs` 覆盖符文光标、退格「你」、字形和视口滚动。`TestEditorDeleteSelectionPreservesNewlines`：选中中间行 `cd` 后退格得到 `ab\n\nef`。`TestEditorBoundaryEditsMatchRuneModel` 用符文切片对照：文档开头退格、文末 Delete、空粘贴都不改文本也不发 `OnChange`。首行、末行、反向选区、跨行、停在列 0、空选区、替换成 `X`、行首合并、Delete、Enter 和粘贴各只触发一次 `OnChange`。没有 chroma，没有自动换行 |
 | 10 diff | host-verified，边界写明 | `TestDiffViewSideBySide`：左右列各自裁剪，`old`/`new` 的字形不越过中线。`n` 从相同行跳到替换再跳到新增。点击用 `TextPos` 列偏移。视口外的变更不画。这是行级 LCS，不是词级差异，也不是三方合并 |
-| 11 richeditor | host-verified，边界写明 | `TestRichEditorMarksAndGlyphs`、`TestRichEditorMarkTable`。文档是 UTF-8 加符文区间标记。开头退格、文末 Delete、空粘贴不改文本也不发 `OnChange`。选中 `ab\ncd\nef` 里的 `cd` 得到 `ab\n\nef`，未选中的换行还在。插入和删除会平移、裁短或丢掉标记。粗体是同一字面再画一次，代码有底色但仍是字形，链接是主色字形。点击用测量宽度，视口外的行不画。没有图片、表格、HTML 粘贴，也不是 ProseMirror/Tiptap。不自动换行 |
+| 11 richeditor | host-verified，边界写明 | `TestRichEditorMarksAndGlyphs`、`TestRichEditorMarkTable`。文档是 UTF-8 加符文区间标记。开头退格、文末 Delete、空粘贴不改文本也不发 `OnChange`。选中 `ab\ncd\nef` 里的 `cd` 得到 `ab\n\nef`，未选中的换行还在。插入和删除会平移、裁短或丢掉标记。粗体是同一字面再画一次，代码有底色但仍是字形，链接是主色字形。点击用测量宽度，视口外的行不画。没有图片、表格、HTML 粘贴，也不是 ProseMirror/Tiptap。不自动换行。`RichEditor.Draw` 和 `Editor.Draw` 一样不读树上的可见性：父级决定要不要调用 `Draw`（`TabShell` 只画当前页，`LayerManager` 跳过不可见层），命中和焦点走 `ChainAllows`。这是现有约定，没有改 `Draw` |
 | 12 formula | host-verified，边界写明 | `TestFormulaLayoutGlyphsAndHit`。语法是四则、`frac`、`sup`、`sub`、`sqrt` 和括号。分子在分母上面，上标抬高，下标降低，根号内容是字形。点击分母得到 `den`。宽公式在视口外的原子不画，滚进来才画。源字符串本身不作为一条文本画出。字体用调用方的 `TextDrawer`。没有积分、矩阵或完整 TeX，也不嵌入 NewCMMath |
-| 13 chat | pending | 还没做。只做会话界面 |
-| 14 Dock 序列化 | pending | 还没做 |
-| 15 terminal | pending | 还没做。默认只做字节流视图和键盘路由，不是完整 VT |
+| 13 chat | host-verified，边界写明 | `TestChatMessagesGlyphsScrollAndSend`、`TestChatSendMatchesDraft`。消息和输入框是字形，自己的消息靠右，列表和输入框分开裁剪。空草稿和发送失败不改记录；失败时草稿还在。追加别人的消息不调用发送接口。视口外的消息不画。发送接口由宿主注入，控件里没有网络 |
+| 14 Dock 序列化 | host-verified，边界写明 | `TestDockRestoreGeometryAndIDs`。JSON 记下面板编号、停靠位置、尺寸、浮动矩形、页签顺序、当前页签和缩放。恢复后几何和编号一致，同编号的内容控件还在。重复编号、空编号、负数尺寸、未知当前页签、缩放不大于 0、坏 JSON 都拒绝，当前布局不动。标题是字形，画在表头填充上面。这是布局树，不是窗口管理器 |
+| 15 terminal | host-verified，边界写明 | `TestTerminalBytesKeysAndScroll`。`Write` 追加 UTF-8，半个符文先留着，拼齐再显示。`ESC [2J` 留在文本里，不清屏。按键只交给 `OnBytes`，不写进画面，也不启动进程。视口外的行不画。不是 VT，没有 libghostty，没有 PTY |
 | 16 WebView | pending | 还没做。将来只做到接口和假宿主 |
 | 17 Video | pending | 还没做。将来只做到接口和假宿主 |
 | 18 Shader | pending | 还没做。干净重写，不复制 Kage |

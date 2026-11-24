@@ -1503,6 +1503,12 @@ func (p *htmlParser) parseMilestone3(tag string, attrs map[string]string, id str
 		w = widget.NewRichEditor(p.tree, p.cfg)
 	case "formula":
 		w = widget.NewFormula(p.tree, p.cfg)
+	case "chat":
+		w = widget.NewChat(p.tree, p.cfg)
+	case "docklayout":
+		w = widget.NewDockLayout(p.tree, p.cfg)
+	case "terminal":
+		w = widget.NewTerminal(p.tree, p.cfg)
 	default:
 		return false
 	}
