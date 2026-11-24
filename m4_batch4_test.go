@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/kasuganosora/ui/core"
@@ -99,6 +100,307 @@ func TestEditorRuneCaretAndGlyphs(t *testing.T) {
 	if ui.Tree().Get(id) != nil {
 		t.Fatal("editor survived destroy")
 	}
+}
+
+func TestEditorBoundaryEditsMatchRuneModel(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(480, 240)
+	clip := &editorClip{}
+	ui.Config().Platform = clip
+	ed := widget.NewEditor(ui.Tree(), ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), ed.ElementID())
+	place(ui.Tree(), ed.ElementID(), 16, 20, 180, 80)
+	ui.Tree().SetFocused(ed.ElementID(), true)
+	var changes int
+	ed.OnChange(func(string) { changes++ })
+
+	scripts := []struct {
+		name string
+		text string
+		ops  string
+	}{
+		{"start ascii", "ab", "bs"},
+		{"start unicode", "你b", "bs"},
+		{"empty", "", "bs"},
+		{"repeat start", "ab", "end bs bs bs"},
+		{"delete eof", "ab", "end del"},
+		{"delete empty", "", "del"},
+		{"delete mid then eof", "ab", "right del del"},
+		{"line merge", "ab\ncd", "down bs"},
+		{"real selection", "ab", "shiftright bs"},
+		{"cleared selection at start", "ab", "shiftright shiftleft bs"},
+		{"empty paste", "ab", "paste:"},
+		{"paste", "ab", "paste:Z"},
+		{"type", "ab", "type:X"},
+		{"enter", "ab", "right enter"},
+		{"unicode backspace", "a你b", "right right bs"},
+	}
+	for _, sc := range scripts {
+		t.Run(sc.name, func(t *testing.T) {
+			ed.SetText(sc.text)
+			changes = 0
+			ref := newRuneDoc(sc.text)
+			for _, op := range strings.Fields(sc.ops) {
+				before := string(ref.text)
+				changed := ref.apply(op, clip)
+				ui.HandleEvent(editorOp(op, clip))
+				if string(ref.text) != ed.Text() {
+					t.Fatalf("after %s text %q want %q", op, ed.Text(), string(ref.text))
+				}
+				if runeOff(ed.Text(), ed.Caret().Line, ed.Caret().Col) != ref.caret || ed.SelectedText() != ref.selected() {
+					t.Fatalf("after %s caret %d sel %q want caret %d sel %q", op, runeOff(ed.Text(), ed.Caret().Line, ed.Caret().Col), ed.SelectedText(), ref.caret, ref.selected())
+				}
+				if changed == (ed.Text() == before) {
+					t.Fatalf("after %s change flag %v text %q before %q", op, changed, ed.Text(), before)
+				}
+			}
+			wantN := 0
+			tmp := newRuneDoc(sc.text)
+			for _, op := range strings.Fields(sc.ops) {
+				if tmp.apply(op, clip) {
+					wantN++
+				}
+			}
+			if changes != wantN {
+				t.Fatalf("OnChange %d want %d text %q", changes, wantN, ed.Text())
+			}
+		})
+	}
+}
+
+type runeDoc struct {
+	text   []rune
+	caret  int
+	anchor int
+}
+
+func newRuneDoc(s string) *runeDoc {
+	d := &runeDoc{text: []rune(s)}
+	return d
+}
+
+func (d *runeDoc) selected() string {
+	a, b := d.anchor, d.caret
+	if a > b {
+		a, b = b, a
+	}
+	if a < 0 {
+		a = 0
+	}
+	if b > len(d.text) {
+		b = len(d.text)
+	}
+	if a >= b {
+		return ""
+	}
+	return string(d.text[a:b])
+}
+
+func (d *runeDoc) apply(op string, clip *editorClip) bool {
+	switch {
+	case op == "bs":
+		return d.backspace()
+	case op == "del":
+		return d.deleteForward()
+	case op == "left":
+		d.move(-1, false)
+	case op == "right":
+		d.move(1, false)
+	case op == "shiftleft":
+		d.move(-1, true)
+	case op == "shiftright":
+		d.move(1, true)
+	case op == "end":
+		d.end(false)
+	case op == "home":
+		d.home(false)
+	case op == "down":
+		d.vert(1, false)
+	case op == "enter":
+		return d.insert([]rune("\n"))
+	case strings.HasPrefix(op, "type:"):
+		return d.insert([]rune(strings.TrimPrefix(op, "type:")))
+	case strings.HasPrefix(op, "paste:"):
+		clip.text = strings.TrimPrefix(op, "paste:")
+		if clip.text == "" {
+			return false
+		}
+		return d.insert([]rune(clip.text))
+	default:
+		return false
+	}
+	return false
+}
+
+func (d *runeDoc) backspace() bool {
+	if d.anchor != d.caret {
+		return d.deleteRange()
+	}
+	if d.caret <= 0 {
+		d.caret = 0
+		d.anchor = 0
+		return false
+	}
+	d.text = append(append([]rune{}, d.text[:d.caret-1]...), d.text[d.caret:]...)
+	d.caret--
+	d.anchor = d.caret
+	return true
+}
+
+func (d *runeDoc) deleteForward() bool {
+	if d.anchor != d.caret {
+		return d.deleteRange()
+	}
+	if d.caret >= len(d.text) {
+		return false
+	}
+	d.text = append(append([]rune{}, d.text[:d.caret]...), d.text[d.caret+1:]...)
+	d.anchor = d.caret
+	return true
+}
+
+func (d *runeDoc) deleteRange() bool {
+	a, b := d.anchor, d.caret
+	if a > b {
+		a, b = b, a
+	}
+	if a < 0 {
+		a = 0
+	}
+	if b > len(d.text) {
+		b = len(d.text)
+	}
+	if a >= b {
+		d.caret, d.anchor = a, a
+		return false
+	}
+	d.text = append(append([]rune{}, d.text[:a]...), d.text[b:]...)
+	d.caret, d.anchor = a, a
+	return true
+}
+
+func (d *runeDoc) insert(s []rune) bool {
+	if len(s) == 0 {
+		return false
+	}
+	if d.anchor != d.caret {
+		d.deleteRange()
+	}
+	out := append(append([]rune{}, d.text[:d.caret]...), s...)
+	out = append(out, d.text[d.caret:]...)
+	d.text = out
+	d.caret += len(s)
+	d.anchor = d.caret
+	return true
+}
+
+func (d *runeDoc) move(dir int, keep bool) {
+	d.caret += dir
+	if d.caret < 0 {
+		d.caret = 0
+	}
+	if d.caret > len(d.text) {
+		d.caret = len(d.text)
+	}
+	if !keep {
+		d.anchor = d.caret
+	}
+}
+
+func (d *runeDoc) home(keep bool) {
+	for d.caret > 0 && d.text[d.caret-1] != '\n' {
+		d.caret--
+	}
+	if !keep {
+		d.anchor = d.caret
+	}
+}
+
+func (d *runeDoc) end(keep bool) {
+	for d.caret < len(d.text) && d.text[d.caret] != '\n' {
+		d.caret++
+	}
+	if !keep {
+		d.anchor = d.caret
+	}
+}
+
+func (d *runeDoc) vert(dir int, keep bool) {
+	line, col := 0, 0
+	for i := 0; i < d.caret && i < len(d.text); i++ {
+		if d.text[i] == '\n' {
+			line++
+			col = 0
+			continue
+		}
+		col++
+	}
+	line += dir
+	if line < 0 {
+		line = 0
+	}
+	off := 0
+	cur := 0
+	for cur < line && off < len(d.text) {
+		if d.text[off] == '\n' {
+			cur++
+		}
+		off++
+	}
+	n := 0
+	for off+n < len(d.text) && d.text[off+n] != '\n' && n < col {
+		n++
+	}
+	d.caret = off + n
+	if !keep {
+		d.anchor = d.caret
+	}
+}
+
+func editorOp(op string, clip *editorClip) *event.Event {
+	ev := &event.Event{Type: event.KeyDown}
+	switch {
+	case op == "bs":
+		ev.Key = event.KeyBackspace
+	case op == "del":
+		ev.Key = event.KeyDelete
+	case op == "left":
+		ev.Key = event.KeyArrowLeft
+	case op == "right":
+		ev.Key = event.KeyArrowRight
+	case op == "shiftleft":
+		ev.Key = event.KeyArrowLeft
+		ev.Modifiers.Shift = true
+	case op == "shiftright":
+		ev.Key = event.KeyArrowRight
+		ev.Modifiers.Shift = true
+	case op == "down":
+		ev.Key = event.KeyArrowDown
+	case op == "end":
+		ev.Key = event.KeyEnd
+	case op == "home":
+		ev.Key = event.KeyHome
+	case op == "enter":
+		ev.Key = event.KeyEnter
+	case strings.HasPrefix(op, "type:"):
+		ev.Type = event.KeyPress
+		ev.Char = []rune(strings.TrimPrefix(op, "type:"))[0]
+	case strings.HasPrefix(op, "paste:"):
+		clip.text = strings.TrimPrefix(op, "paste:")
+		ev.Key = event.KeyV
+		ev.Modifiers.Ctrl = true
+	}
+	return ev
+}
+
+func runeOff(text string, line, col int) int {
+	lines := strings.Split(text, "\n")
+	n := 0
+	for i := 0; i < line && i < len(lines); i++ {
+		n += len([]rune(lines[i])) + 1
+	}
+	n += col
+	return n
 }
 
 func TestEditorDeleteSelectionPreservesNewlines(t *testing.T) {

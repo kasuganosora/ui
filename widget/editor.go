@@ -191,8 +191,19 @@ func (e *Editor) backspace() {
 		e.changed()
 		return
 	}
-	e.moveCaret(-1, 0, false)
-	e.deleteForward()
+	r := []rune(e.text)
+	off := posToRune(e.text, e.caret)
+	if off <= 0 {
+		return
+	}
+	out := make([]rune, 0, len(r)-1)
+	out = append(out, r[:off-1]...)
+	out = append(out, r[off:]...)
+	e.text = string(out)
+	e.caret = runeToPos(e.text, off-1)
+	e.anchor = e.caret
+	e.reveal()
+	e.changed()
 }
 
 func (e *Editor) deleteForward() {

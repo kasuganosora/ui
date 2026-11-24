@@ -113,7 +113,7 @@ HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKe
 | 6 filepicker | host-verified，边界写明 | `TestFilePickerNavigatesInjectedList`：目录名和路径是字形，Enter 进入目录，Backspace 回到父级，文件 Enter 只回调路径。列举失败画出错误文本。窗口外的名字不画，滚动后的行不盖住路径条。数据来自注入的 `List`，控件里没有操作系统读写。没有新建、删除或重命名 |
 | 7 commitgraph | host-verified，边界写明 | `TestCommitGraphLanesAndRows`：第一父提交留在原泳道，旁支另开一列。主题是字形。视口下面的提交不画，滚下来才出现。点击和方向键改选中。调用方提供提交，不是 git 命令 |
 | 8 diagram | host-verified，边界写明 | `TestDiagramBoxArrowLayout`：`box` 和 `->` 排成从左到右的层，标签是字形。`subgraph` 被忽略。视口外的节点不画，滚到视口里才画。不是 Mermaid，不依赖 limu |
-| 9 editor | host-verified，边界写明 | `TestEditorRuneCaretAndGlyphs` 覆盖符文光标、退格「你」、字形和视口滚动。`TestEditorDeleteSelectionPreservesNewlines`：选中中间行 `cd` 后退格得到 `ab\n\nef`，不会删掉没选中的换行。首行、末行、反向选区、跨行、停在列 0、空选区、替换成 `X`、行首合并、Delete、Enter 和粘贴各只触发一次 `OnChange`。没有 chroma，没有自动换行 |
+| 9 editor | host-verified，边界写明 | `TestEditorRuneCaretAndGlyphs` 覆盖符文光标、退格「你」、字形和视口滚动。`TestEditorDeleteSelectionPreservesNewlines`：选中中间行 `cd` 后退格得到 `ab\n\nef`。`TestEditorBoundaryEditsMatchRuneModel` 用符文切片对照：文档开头退格、文末 Delete、空粘贴都不改文本也不发 `OnChange`。首行、末行、反向选区、跨行、停在列 0、空选区、替换成 `X`、行首合并、Delete、Enter 和粘贴各只触发一次 `OnChange`。没有 chroma，没有自动换行 |
 | 10 diff | host-verified，边界写明 | `TestDiffViewSideBySide`：左右列各自裁剪，`old`/`new` 的字形不越过中线。`n` 从相同行跳到替换再跳到新增。点击用 `TextPos` 列偏移。视口外的变更不画。这是行级 LCS，不是词级差异，也不是三方合并 |
 | 11 richeditor | pending | 还没做 |
 | 12 formula | pending | 还没做。默认不嵌入 NewCMMath，字体由调用方提供 |
