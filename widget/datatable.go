@@ -26,10 +26,21 @@ type DataTable struct {
 	resizeW float32
 }
 
+const (
+	colLeft = iota
+	colMiddle
+	colRight
+)
+
 type columnPlace struct {
 	index  int
 	x, w   float32
-	frozen bool
+	kind   int
+	region uimath.Rect
+}
+
+func (p columnPlace) visible(band uimath.Rect) uimath.Rect {
+	return uimath.NewRect(p.x, band.Y, p.w, band.Height).Intersection(p.region).Intersection(band)
 }
 
 // NewDataTable creates an empty table with a copy of columns.
@@ -229,9 +240,11 @@ func (d *DataTable) SetScrollY(y float32) {
 }
 
 func (d *DataTable) ColumnHeader(i int) uimath.Rect {
+	b := d.Bounds()
+	band := uimath.NewRect(b.X, b.Y, b.Width, d.headerH)
 	for _, p := range d.placed() {
 		if p.index == i {
-			return uimath.NewRect(p.x, d.Bounds().Y, p.w, d.headerH)
+			return p.visible(band)
 		}
 	}
 	return uimath.Rect{}
@@ -247,8 +260,12 @@ func (d *DataTable) maxScrollY() float32 {
 }
 
 func (d *DataTable) clampScroll() {
-	_, _, sum, view := d.middleMetrics()
-	max := sum - view
+	s := d.split()
+	var sum float32
+	for i := s.leftN; i < len(d.columns)-s.rightN; i++ {
+		sum += d.columns[i].Width
+	}
+	max := sum - s.mid.Width
 	if max < 0 {
 		max = 0
 	}
@@ -260,82 +277,89 @@ func (d *DataTable) clampScroll() {
 	}
 }
 
-func (d *DataTable) middleMetrics() (start, n int, sum, view float32) {
-	nCols := len(d.columns)
-	left, right := d.frozenL, d.frozenR
-	if left+right > nCols {
-		right = nCols - left
-	}
-	start = left
-	n = nCols - left - right
+type columnSplit struct {
+	left, mid, right uimath.Rect
+	leftN, rightN    int
+}
+
+func (d *DataTable) split() columnSplit {
 	b := d.Bounds()
+	n := len(d.columns)
+	leftN, rightN := d.frozenL, d.frozenR
+	if leftN < 0 {
+		leftN = 0
+	}
+	if rightN < 0 {
+		rightN = 0
+	}
+	if leftN > n {
+		leftN = n
+	}
+	if leftN+rightN > n {
+		rightN = n - leftN
+	}
 	var leftW, rightW float32
-	for i := 0; i < left && i < nCols; i++ {
+	for i := 0; i < leftN; i++ {
 		leftW += d.columns[i].Width
 	}
-	for i := nCols - right; i < nCols && i >= 0; i++ {
+	for i := n - rightN; i < n; i++ {
 		rightW += d.columns[i].Width
 	}
-	view = b.Width - leftW - rightW
-	if view < 0 {
-		view = 0
+	left := uimath.NewRect(b.X, b.Y, leftW, b.Height)
+	if left.Width > b.Width {
+		left.Width = b.Width
 	}
-	for i := 0; i < n; i++ {
-		sum += d.columns[start+i].Width
+	if left.Width < 0 {
+		left.Width = 0
 	}
-	return start, n, sum, view
+	rx := b.X + b.Width - rightW
+	if rx < b.X {
+		rx = b.X
+	}
+	right := uimath.NewRect(rx, b.Y, b.X+b.Width-rx, b.Height)
+	midL := b.X + leftW
+	midR := b.X + b.Width - rightW
+	if midL < b.X {
+		midL = b.X
+	}
+	if midR > b.X+b.Width {
+		midR = b.X + b.Width
+	}
+	if midR < midL {
+		midR = midL
+	}
+	return columnSplit{
+		left:  left,
+		mid:   uimath.NewRect(midL, b.Y, midR-midL, b.Height),
+		right: right,
+		leftN: leftN, rightN: rightN,
+	}
 }
 
 func (d *DataTable) placed() []columnPlace {
 	b := d.Bounds()
+	s := d.split()
 	n := len(d.columns)
-	leftN, rightN := d.frozenL, d.frozenR
-	if leftN+rightN > n {
-		rightN = n - leftN
-	}
 	out := make([]columnPlace, 0, n)
 	x := b.X
-	for i := 0; i < leftN; i++ {
+	for i := 0; i < s.leftN; i++ {
 		w := d.columns[i].Width
-		out = append(out, columnPlace{index: i, x: x, w: w, frozen: true})
+		out = append(out, columnPlace{index: i, x: x, w: w, kind: colLeft, region: s.left})
 		x += w
 	}
-	leftEdge := x
-	var rightW float32
-	for i := n - rightN; i < n && i >= 0; i++ {
-		rightW += d.columns[i].Width
-	}
-	rightEdge := b.X + b.Width - rightW
-	x = leftEdge - d.scrollX
-	for i := leftN; i < n-rightN; i++ {
+	x = s.mid.X - d.scrollX
+	for i := s.leftN; i < n-s.rightN; i++ {
 		w := d.columns[i].Width
-		out = append(out, columnPlace{index: i, x: x, w: w})
+		out = append(out, columnPlace{index: i, x: x, w: w, kind: colMiddle, region: s.mid})
 		x += w
 	}
-	x = rightEdge
-	for i := n - rightN; i < n && i >= 0; i++ {
+	x = s.right.X
+	for i := n - s.rightN; i < n; i++ {
 		w := d.columns[i].Width
-		out = append(out, columnPlace{index: i, x: x, w: w, frozen: true})
+		out = append(out, columnPlace{index: i, x: x, w: w, kind: colRight, region: s.right})
 		x += w
 	}
 	return out
-}
-
-func (d *DataTable) middleClip() uimath.Rect {
-	b := d.Bounds()
-	var leftW, rightW float32
-	n := len(d.columns)
-	leftN, rightN := d.frozenL, d.frozenR
-	if leftN+rightN > n {
-		rightN = n - leftN
-	}
-	for i := 0; i < leftN && i < n; i++ {
-		leftW += d.columns[i].Width
-	}
-	for i := n - rightN; i < n && i >= 0; i++ {
-		rightW += d.columns[i].Width
-	}
-	return uimath.NewRect(b.X+leftW, b.Y, b.Width-leftW-rightW, b.Height)
 }
 
 func (d *DataTable) columnAt(x, y float32) (int, bool) {
@@ -343,16 +367,23 @@ func (d *DataTable) columnAt(x, y float32) (int, bool) {
 	if !b.Contains(uimath.Vec2{X: x, Y: y}) {
 		return -1, false
 	}
-	clip := d.middleClip()
+	band := uimath.NewRect(b.X, b.Y, b.Width, b.Height)
+	hit := -1
+	var vis uimath.Rect
 	for _, p := range d.placed() {
-		if !p.frozen && (x < clip.X || x >= clip.X+clip.Width) {
+		v := p.visible(band)
+		if v.Width <= 0 || v.Height <= 0 {
 			continue
 		}
-		if x >= p.x && x < p.x+p.w {
-			return p.index, x >= p.x+p.w-6
+		if x >= v.X && x < v.X+v.Width && y >= v.Y && y < v.Y+v.Height {
+			hit = p.index
+			vis = v
 		}
 	}
-	return -1, false
+	if hit < 0 {
+		return -1, false
+	}
+	return hit, x >= vis.X+vis.Width-6
 }
 
 func (d *DataTable) cellAt(x, y float32) (row, col int, ok bool) {
@@ -392,52 +423,30 @@ func (d *DataTable) Draw(buf *render.CommandBuffer) {
 	if b.IsEmpty() || len(d.columns) == 0 {
 		return
 	}
-	places := d.placed()
-	mid := d.middleClip()
 	headerBand := uimath.NewRect(b.X, b.Y, b.Width, d.headerH)
 	bodyH := b.Height - d.headerH
 	if bodyH < 0 {
 		bodyH = 0
 	}
 	bodyBand := uimath.NewRect(b.X, b.Y+d.headerH, b.Width, bodyH)
-	regions := []uimath.Rect{
-		uimath.NewRect(b.X, b.Y, mid.X-b.X, b.Height),
-		uimath.NewRect(mid.X, b.Y, mid.Width, b.Height),
-		uimath.NewRect(mid.X+mid.Width, b.Y, b.X+b.Width-(mid.X+mid.Width), b.Height),
-	}
 	buf.PushClipZ(b, 1)
-	for _, region := range regions {
-		if region.Width <= 0 {
-			continue
+	for _, p := range d.placed() {
+		fill := uimath.ColorWhite
+		if p.kind != colMiddle {
+			fill = d.config.SuccessColor
 		}
-		buf.PushClip(headerBand.Intersection(region))
-		for _, p := range places {
-			if !columnInRegion(p, region) {
-				continue
-			}
-			fill := uimath.ColorWhite
-			if p.frozen {
-				fill = d.config.SuccessColor
-			}
+		if hv := p.visible(headerBand); hv.Width > 0 && hv.Height > 0 {
+			buf.PushClip(hv)
 			d.paintHeader(buf, p, fill)
+			buf.PopClip()
 		}
-		buf.PopClip()
-		if bodyBand.Height <= 0 {
-			continue
+		if bv := p.visible(bodyBand); bv.Width > 0 && bv.Height > 0 {
+			buf.PushClip(bv)
+			d.paintBody(buf, p)
+			buf.PopClip()
 		}
-		buf.PushClip(bodyBand.Intersection(region))
-		for _, p := range places {
-			if columnInRegion(p, region) {
-				d.paintBody(buf, p)
-			}
-		}
-		buf.PopClip()
 	}
 	buf.PopClipZ(3)
-}
-
-func columnInRegion(p columnPlace, region uimath.Rect) bool {
-	return p.x < region.X+region.Width && p.x+p.w > region.X
 }
 
 func (d *DataTable) paintHeader(buf *render.CommandBuffer, p columnPlace, fill uimath.Color) {

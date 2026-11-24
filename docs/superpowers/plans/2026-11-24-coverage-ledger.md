@@ -107,7 +107,7 @@ HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKe
 | --- | --- | --- |
 | 1 Camera | approved-bounded | 审查第 10 轮通过 `8e6efffa`。平移、缩放、命中、视口裁剪、图层顺序。`TestCameraHostPanZoomAndHit`、`TestCameraClipsViewportAndAnchorsGrid`、`TestCameraClipDoesNotCoverOtherControls`、`TestHigherLayerCoversEarlierDraw`。一个平面和点标记，不是场景图 |
 | 2 plot | approved-bounded | 同一轮通过。柱、折线中点、面积、散点只命中点、扇形、坐标轴、桑基直线加权边、单层树图切片。`TestPlotHostBarsAxesAndPie`、`TestPlotLinesAreaSankeyPie`、`TestPlotScatterHitIsThePoint`。树图不是 squarified。桑基不是丝带 |
-| 3 DataTable | host-verified，边界写明 | 表头和表体是两段剪刀，再和左右固定列、中间列相交。`TestDataTableBodyClipLeavesHeader`：`scrollY` 为 10、28、38 时 `(90,74)` 仍是固定列表头的绿色，表头字形还在，点表头不选行，表头仍能拖宽。半行、底边外和邻居像素仍正确。没有列组，也没有单元格里的控件 |
+| 3 DataTable | host-verified，边界写明 | 列先按序号分成左固定、中间、右固定，每列只画自己的区域，再和表头或表体、外框相交。`TestDataTableFrozenColumnsOwnTheirRegions`：宽 120 的中间列在 `scrollX` 40 时几何上横跨三段，左右固定表头仍是绿色，中间字形的剪刀停在中间视口。左右单独固定、横纵同时滚动、拖宽和按序号移动都在。没有列组，也没有单元格里的控件 |
 | 4 TextView | host-verified，边界写明 | 标题、列表、行内代码、围栏代码和链接标签都是字形，不是色条。围栏代码可以有底色。`TestTextViewPaintsGlyphs` 检查这些字符串进了文本命令，长行换到下一行，两个链接的命中框分开，换文档后旧标题消失。`TestTextViewMarkdownLinksAndCode` 仍检查宿主点击。没有表格、图片、强调语法，也不使用 goldmark |
 | 5 flow | host-verified，边界写明 | 节点名字是字形。`NodeScreen` 连宽高一起乘缩放。`TestFlowScalesNodesAndPaintsNames` 在平移后检查 2 倍和 0.5 倍：绘制矩形、内部命中、外部拒绝、宿主点中、边接到缩放后的节点边缘、超出视口被裁掉。`TestFlowLayersUseCamera` 仍覆盖分层、平移、删除。自环不改层。只在环里的节点共用一个附加层，不是完整环布局 |
 | 6 filepicker | pending | 还没做。将只走调用方的目录回调，不调用操作系统对话框 |

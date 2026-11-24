@@ -479,6 +479,174 @@ func TestDataTableBodyClipLeavesHeader(t *testing.T) {
 	}
 }
 
+func TestDataTableFrozenColumnsOwnTheirRegions(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(480, 320)
+	fx := newGlyphFixture(t, 480, 320)
+	ui.Config().TextRenderer = fx.drawer
+	sr, sg, sb, _ := ui.Config().SuccessColor.RGBA8()
+	green := func(scrollX, scrollY float32, x, y int) {
+		t.Helper()
+		dt := frozenTable(ui, 1, 1)
+		dt.SetScrollX(scrollX)
+		dt.SetScrollY(scrollY)
+		buf := render.NewCommandBuffer()
+		dt.Draw(buf)
+		fx.present(buf)
+		r, g, b, a := pixAt(fx.be.Pixels(), 480, x, y)
+		if r != sr || g != sg || b != sb || a != 255 {
+			t.Fatalf("scroll %v %v pixel (%d,%d) = %d %d %d %d, want frozen green", scrollX, scrollY, x, y, r, g, b, a)
+		}
+	}
+	// scroll 0 baseline, then the same frozen pixels after the middle column slides across them
+	for _, x := range []int{130, 232} {
+		green(0, 0, x, 60)
+		green(40, 0, x, 60)
+		green(40, 10, x, 74)
+	}
+
+	dt := frozenTable(ui, 1, 1)
+	dt.SetScrollX(40)
+	dt.SetScrollY(10)
+	buf := render.NewCommandBuffer()
+	dt.Draw(buf)
+	midHeader, ok := textClip(buf, "MIDDLECOL", uimath.NewRect(0, 0, 480, 320))
+	if !ok || midHeader.X < 149.5 || midHeader.X+midHeader.Width > 200.5 {
+		t.Fatalf("middle header clip %v ok %v", midHeader, ok)
+	}
+	midBody, ok := textClip(buf, "MMMM", uimath.NewRect(0, 0, 480, 320))
+	if !ok || midBody.X < 149.5 || midBody.X+midBody.Width > 200.5 || midBody.Y < 77.5 {
+		t.Fatalf("middle body clip %v ok %v", midBody, ok)
+	}
+	leftClip, ok := textClip(buf, "Lft", uimath.NewRect(80, 50, 70, 28))
+	if !ok || leftClip.X < 79.5 || leftClip.X+leftClip.Width > 150.5 {
+		t.Fatalf("left header clip %v", leftClip)
+	}
+	rightClip, ok := textClip(buf, "Rt", uimath.NewRect(200, 50, 40, 28))
+	if !ok || rightClip.X < 199.5 || rightClip.X+rightClip.Width > 240.5 {
+		t.Fatalf("right header clip %v", rightClip)
+	}
+	fx.present(buf)
+	r, g, b, a := pixAt(fx.be.Pixels(), 480, 130, 90)
+	if a == 0 || r < 200 {
+		t.Fatalf("left body pixel became middle text %d %d %d %d", r, g, b, a)
+	}
+	var row, col = -1, -1
+	dt.OnCellClick(func(ctx widget.CellEventContext) { row, col = ctx.RowIndex, ctx.ColIndex })
+	click(ui, 170, 90)
+	if row != 0 || col != 1 {
+		t.Fatalf("middle hit row %d col %d", row, col)
+	}
+	row, col = -1, -1
+	click(ui, 100, 90)
+	if row != 0 || col != 0 {
+		t.Fatalf("left hit row %d col %d", row, col)
+	}
+	grip := dt.ColumnHeader(0)
+	before := dt.ColumnWidth(0)
+	ui.HandleEvent(&event.Event{Type: event.MouseDown, GlobalX: grip.X + grip.Width - 2, GlobalY: grip.Y + 4})
+	ui.HandleEvent(&event.Event{Type: event.MouseMove, GlobalX: grip.X + grip.Width + 18, GlobalY: grip.Y + 4})
+	ui.HandleEvent(&event.Event{Type: event.MouseUp, GlobalX: grip.X + grip.Width + 18, GlobalY: grip.Y + 4})
+	if dt.ColumnWidth(0) < before+10 || dt.ColumnHeader(0).X != 80 {
+		t.Fatalf("resize width %v header %v", dt.ColumnWidth(0), dt.ColumnHeader(0))
+	}
+	if !dt.MoveColumn(2, 0) || dt.ColumnKeys()[0] != "right" {
+		t.Fatalf("freeze index follows column order %v", dt.ColumnKeys())
+	}
+	if dt.ColumnHeader(0).X != 80 {
+		t.Fatalf("moved column did not become the left frozen header %v", dt.ColumnHeader(0))
+	}
+
+	leftOnly := frozenTable(ui, 1, 0)
+	leftOnly.SetScrollX(40)
+	buf = render.NewCommandBuffer()
+	leftOnly.Draw(buf)
+	fx.present(buf)
+	r, g, b, a = pixAt(fx.be.Pixels(), 480, 130, 60)
+	if r != sr || g != sg || b != sb {
+		t.Fatalf("left-only freeze pixel %d %d %d", r, g, b)
+	}
+	rightOnly := rightFrozenTable(ui)
+	rightOnly.SetScrollX(40)
+	buf = render.NewCommandBuffer()
+	rightOnly.Draw(buf)
+	fx.present(buf)
+	r, g, b, a = pixAt(fx.be.Pixels(), 480, 232, 60)
+	if r != sr || g != sg || b != sb {
+		t.Fatalf("right-only freeze pixel %d %d %d", r, g, b)
+	}
+
+	narrow := widget.NewDataTable(ui.Tree(), []widget.TableColumn{
+		{ColKey: "a", Title: "A", Width: 120},
+		{ColKey: "b", Title: "B", Width: 120},
+	}, ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), narrow.ElementID())
+	place(ui.Tree(), narrow.ElementID(), 80, 50, 160, 100)
+	narrow.SetFrozen(1, 1)
+	if h := narrow.ColumnHeader(0); h.X != 80 || h.Width != 120 {
+		t.Fatalf("narrow left header %v", h)
+	}
+	if h := narrow.ColumnHeader(1); h.X != 120 || h.Width != 120 {
+		t.Fatalf("narrow right header %v", h)
+	}
+}
+
+func frozenTable(ui *EmbeddedUI, left, right int) *widget.DataTable {
+	dt := widget.NewDataTable(ui.Tree(), []widget.TableColumn{
+		{ColKey: "left", Title: "Lft", Width: 70},
+		{ColKey: "mid", Title: "MIDDLECOL", Width: 120},
+		{ColKey: "right", Title: "Rt", Width: 40},
+	}, ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), dt.ElementID())
+	place(ui.Tree(), dt.ElementID(), 80, 50, 160, 100)
+	dt.SetHeaderHeight(28)
+	dt.SetRowHeight(28)
+	dt.SetFrozen(left, right)
+	dt.SetRows([][]string{{"L", "MMMM", "R"}, {"L", "MMMM", "R"}, {"L", "MMMM", "R"}, {"L", "MMMM", "R"}})
+	return dt
+}
+
+func rightFrozenTable(ui *EmbeddedUI) *widget.DataTable {
+	dt := widget.NewDataTable(ui.Tree(), []widget.TableColumn{
+		{ColKey: "mid", Title: "MIDDLECOL", Width: 200},
+		{ColKey: "right", Title: "Rt", Width: 40},
+	}, ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), dt.ElementID())
+	place(ui.Tree(), dt.ElementID(), 80, 50, 160, 100)
+	dt.SetHeaderHeight(28)
+	dt.SetRowHeight(28)
+	dt.SetFrozen(0, 1)
+	dt.SetRows([][]string{{"MMMM", "R"}, {"MMMM", "R"}})
+	return dt
+}
+
+func textClip(buf *render.CommandBuffer, sample string, area uimath.Rect) (uimath.Rect, bool) {
+	var cur uimath.Rect
+	seen := false
+	want := len([]rune(sample))
+	for _, c := range buf.Commands() {
+		if c.Type == render.CmdClip && c.Clip != nil {
+			cur = c.Clip.Bounds
+			seen = true
+			continue
+		}
+		if c.Type != render.CmdText || c.Text == nil || len(c.Text.Glyphs) != want {
+			continue
+		}
+		ok := true
+		for _, g := range c.Text.Glyphs {
+			if !glyphOverlaps(g, area) {
+				ok = false
+				break
+			}
+		}
+		if ok && seen {
+			return cur, true
+		}
+	}
+	return uimath.Rect{}, false
+}
+
 func TestTextViewPaintsGlyphs(t *testing.T) {
 	ui := NewEmbeddedUI(nil)
 	ui.Resize(480, 360)
