@@ -637,7 +637,7 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 		return
 	}
 
-	// Clip scopes keep their emission order. Native frames are not captured here.
+	// Clip-baked z-order, shared with the other backends. Native frames are not captured here.
 	b.processCommands(render.OrderedForPaint(buf.Commands()))
 	b.processCommands(render.OrderedForPaint(buf.Overlays()))
 

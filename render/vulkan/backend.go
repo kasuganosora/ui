@@ -658,8 +658,8 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 
 	// Process commands in painters algorithm order (as emitted by the widget tree).
 	// The widget Draw methods already emit commands in the correct back-to-front order.
-	// Group z-order inside clip scopes. Main lists on this backend are not
-	// pixel-tested here; the software rasterizer covers the same ordering.
+	// Same clip-baked z-order as the software rasterizer. This path is not
+	// pixel-tested; no native frame is captured here.
 	b.renderAllCommands(cmd, render.OrderedForPaint(buf.Commands()))
 
 	// Render overlays after main commands, starting from a full scissor.

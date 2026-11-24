@@ -23,3 +23,9 @@
 按已批准设计表 3 的序号继续。1 完成才能做 5；9 完成才能做 10。第 8、12、15、16、17、19 行在默认下停在文档写明的边界，并用测试锁住这个边界。
 
 验收命令沿用已批准设计里程碑 4 一节。`go test ./...` 的 Vulkan 视觉失败单独报告。
+
+## 绘制顺序（审查第 9 轮）
+
+图层顺序不能依赖 `Draw` 的调用顺序。`OrderedForPaint` 在规范化时做三件事：按命令发出顺序记下每条绘制当时的绝对剪刀（`PushClip` 已经把嵌套裁剪相交过），丢掉作为屏障的裁剪命令，再按 `ZOrder` 稳定排序。图层基数已经加在 `ZOrder` 上（`rank * 10000`），所以更高的模态排在后面，同层里控件自己的 z 和相同 z 的发出顺序保持不变。排序后再按相邻命令的剪刀差异重建绝对 `CmdClip`。六个后端都消费这个结果，并且把剪刀设成绝对值。软件光栅验证像素。OpenGL、Vulkan、Metal、DX9、DX11 没有帧图像。
+
+测试：`TestOrderedForPaintKeepsClipScopes` 保留邻居和嵌套剪刀；`TestOrderedForPaintOrdersLayersAcrossClips` 让更高 z 穿过更低的裁剪；`TestCommandBufferNestedClipFollowsDraw` 检查相交后的内层矩形；`TestHigherLayerCoversEarlierDraw` 用更高对话框先画、更低层的 Camera、ImageCompare、Command 后画，软件像素和宿主 `HitTest` 都落在更高层。

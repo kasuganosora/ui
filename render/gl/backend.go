@@ -257,8 +257,8 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 	glCall(l.glEnable, GL_SCISSOR_TEST)
 	glCall(l.glScissor, 0, 0, uintptr(b.vpWidth), uintptr(b.vpHeight))
 
-	// Z-order is scoped between clip commands. Overlays start with a full
-	// scissor so a main-list clip cannot crop them.
+	// Draws keep the scissor they were emitted under. Overlays start unclipped
+	// so a main-list clip cannot crop a later layer.
 	paint := func(cmds []render.Command) {
 		for _, c := range cmds {
 			switch c.Type {

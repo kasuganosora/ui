@@ -389,31 +389,46 @@ func StableZOrder(cmds []Command) []Command {
 	return out
 }
 
-// OrderedForPaint stable-sorts each run of ordinary commands by ZOrder and
-// leaves clip commands where they were emitted. A clip therefore applies only
-// to commands issued after it and before the next clip, including nested
-// clips, instead of every later command that happens to share a z-order.
+// OrderedForPaint records the absolute scissor active when each draw was
+// emitted, drops clip commands as ordering barriers, and stable-sorts the
+// draws by ZOrder. Layer rank is already part of ZOrder, so a higher layer
+// paints later no matter which Draw ran first. Equal z-orders keep emission
+// order. Clip commands are then rebuilt wherever the baked scissor changes.
+// Nested clips stay with the draws issued inside them because PushClip stores
+// the intersected rectangle. Every backend Submit must paint this sequence
+// and set the scissor to the clip bounds directly.
 func OrderedForPaint(cmds []Command) []Command {
-	out := make([]Command, 0, len(cmds))
-	start := 0
-	flush := func(end int) {
-		if start >= end {
-			return
-		}
-		group := append([]Command(nil), cmds[start:end]...)
-		sort.SliceStable(group, func(i, j int) bool {
-			return group[i].ZOrder < group[j].ZOrder
-		})
-		out = append(out, group...)
+	full := uimath.NewRect(0, 0, 1e6, 1e6)
+	type stamped struct {
+		cmd  Command
+		clip uimath.Rect
 	}
-	for i, cmd := range cmds {
+	cur := full
+	drawn := make([]stamped, 0, len(cmds))
+	for _, cmd := range cmds {
 		if cmd.Type == CmdClip {
-			flush(i)
-			out = append(out, cmd)
-			start = i + 1
+			if cmd.Clip != nil {
+				cur = cmd.Clip.Bounds
+			}
+			continue
 		}
+		drawn = append(drawn, stamped{cmd: cmd, clip: cur})
 	}
-	flush(len(cmds))
+	sort.SliceStable(drawn, func(i, j int) bool {
+		return drawn[i].cmd.ZOrder < drawn[j].cmd.ZOrder
+	})
+	out := make([]Command, 0, len(drawn)*2)
+	var active uimath.Rect
+	have := false
+	for _, item := range drawn {
+		if !have || item.clip != active {
+			bounds := item.clip
+			out = append(out, Command{Type: CmdClip, Clip: &ClipCmd{Bounds: bounds}})
+			active = bounds
+			have = true
+		}
+		out = append(out, item.cmd)
+	}
 	return out
 }
 

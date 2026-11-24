@@ -75,8 +75,8 @@ func (b *SoftwareBackend) resize(w, h int) {
 }
 
 func (b *SoftwareBackend) Submit(buf *render.CommandBuffer) {
-	// Sort z-order inside each clip scope. Clips stay in emission order so one
-	// widget's scissor cannot capture a later widget that reused the same z.
+	// Each draw keeps the scissor it was emitted under, then z-order (including
+	// layer rank) decides what paints above it.
 	b.executeCommands(render.OrderedForPaint(buf.Commands()))
 
 	// Overlays are a later pass and start unclipped. Their own clips stay scoped.

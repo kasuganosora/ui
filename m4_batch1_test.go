@@ -422,6 +422,114 @@ func TestPlotLinesAreaSankeyPie(t *testing.T) {
 	}
 }
 
+func TestHigherLayerCoversEarlierDraw(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(400, 300)
+	tree := ui.Tree()
+	low := widget.NewDialog(tree, "", ui.Config())
+	high := widget.NewDialog(tree, "", ui.Config())
+	low.SetWidth(200)
+	high.SetWidth(220)
+	low.SetFooter(false)
+	high.SetFooter(false)
+	low.SetCloseOnOverlayClick(false)
+	high.SetCloseOnOverlayClick(false)
+	tree.AppendChild(tree.Root(), low.ElementID())
+	tree.AppendChild(tree.Root(), high.ElementID())
+	place(tree, low.ElementID(), 0, 0, 400, 300)
+	place(tree, high.ElementID(), 0, 0, 400, 300)
+
+	lowCam := widget.NewCamera(tree, ui.Config())
+	lowCam.AddMarker("m", 16, 16)
+	lowCmp := widget.NewImageCompare(tree, ui.Config())
+	lowCmp.SetPosition(80)
+	lowCmd := widget.NewCommand(tree, ui.Config())
+	low.AppendChild(lowCam)
+	low.AppendChild(lowCmp)
+	low.AppendChild(lowCmd)
+	place(tree, lowCam.ElementID(), 140, 40, 90, 80)
+	place(tree, lowCmp.ElementID(), 120, 100, 80, 40)
+	place(tree, lowCmd.ElementID(), 150, 140, 120, 90)
+	lowCmd.Add("go", "go")
+
+	highCmd := widget.NewCommand(tree, ui.Config())
+	highCmp := widget.NewImageCompare(tree, ui.Config())
+	highCmp.SetBefore(widget.NewImage(tree, render.TextureHandle(7), ui.Config()))
+	highCmp.SetAfter(widget.NewImage(tree, render.TextureHandle(8), ui.Config()))
+	highCmp.SetPosition(50)
+	highCam := widget.NewCamera(tree, ui.Config())
+	highCam.AddMarker("h", 16, 16)
+	high.AppendChild(highCmd)
+	high.AppendChild(highCmp)
+	high.AppendChild(highCam)
+	place(tree, highCmd.ElementID(), 8, 4, 70, 80)
+	place(tree, highCmp.ElementID(), 310, 8, 80, 40)
+	place(tree, highCam.ElementID(), 330, 70, 60, 50)
+	highCmd.Add("top", "top")
+
+	meter := widget.NewMeter(tree, ui.Config())
+	meter.SetValue(1)
+	tree.AppendChild(tree.Root(), meter.ElementID())
+	place(tree, meter.ElementID(), 150, 180, 40, 16)
+
+	low.Open()
+	high.Open()
+
+	// Valid custom order: the higher modal is drawn before the lower one.
+	buf := render.NewCommandBuffer()
+	high.Draw(buf)
+	low.Draw(buf)
+	meter.Draw(buf)
+	be := godot.NewSoftwareBackend()
+	be.Resize(400, 300)
+	be.BeginFrame()
+	be.Submit(buf)
+
+	pr, pg, pb, _ := ui.Config().PrimaryColor.RGBA8()
+	assertWhite := func(x, y int, label string) {
+		t.Helper()
+		r, g, b, a := pixAt(be.Pixels(), 400, x, y)
+		if a != 255 || r != 255 || g != 255 || b != 255 {
+			t.Fatalf("%s pixel (%d,%d) = %d %d %d %d, want the higher panel", label, x, y, r, g, b, a)
+		}
+	}
+	assertPrimary := func(x, y int, label string) {
+		t.Helper()
+		r, g, b, a := pixAt(be.Pixels(), 400, x, y)
+		if a == 0 || r != pr || g != pg || b != pb {
+			t.Fatalf("%s pixel (%d,%d) = %d %d %d %d, want primary", label, x, y, r, g, b, a)
+		}
+	}
+	mx, my := lowCam.WorldToScreen(16, 16)
+	assertWhite(int(mx), int(my), "lower camera marker")
+	assertWhite(170, 180, "lower command")
+	assertWhite(130, 120, "lower image compare")
+	assertWhite(160, 188, "main meter drawn last")
+	assertPrimary(20, 48, "higher command")
+	hx, hy := highCam.WorldToScreen(16, 16)
+	r, g, b, a := pixAt(be.Pixels(), 400, int(hx), int(hy))
+	if r == pr && g == pg && b == pb {
+		t.Fatalf("higher camera marker painted above its own layer backdrop at (%d,%d)", int(hx), int(hy))
+	}
+	if a == 0 || (r == 0 && g == 0 && b == 0) {
+		t.Fatalf("higher camera marker was clipped away (%d %d %d %d)", r, g, b, a)
+	}
+
+	ui.HandleEvent(&event.Event{Type: event.MouseMove, GlobalX: mx, GlobalY: my})
+	hit := tree.HitTest(mx, my)
+	if !tree.InScope(hit, high.ElementID()) || tree.InScope(hit, low.ElementID()) {
+		t.Fatalf("host hit %d on the lower camera, want the higher dialog", hit)
+	}
+	ui.HandleEvent(&event.Event{Type: event.MouseMove, GlobalX: 20, GlobalY: 48})
+	hit = tree.HitTest(20, 48)
+	if !tree.InScope(hit, highCmd.ElementID()) {
+		t.Fatalf("host hit %d, want the higher command", hit)
+	}
+	if elem := tree.Get(hit); elem == nil || !elem.IsHovered() {
+		t.Fatal("host move did not hover the higher command")
+	}
+}
+
 func pixAt(px []byte, w, x, y int) (byte, byte, byte, byte) {
 	if x < 0 || y < 0 || len(px) < (y*w+x+1)*4 {
 		return 0, 0, 0, 0

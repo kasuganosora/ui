@@ -95,7 +95,7 @@
 
 ## 浮层排序
 
-绘制顺序用 `render.OrderedForPaint`：普通命令在每段裁剪之间按 ZOrder 稳定排序，裁剪命令留在原来的位置。软件光栅的像素测试覆盖了这个语义。OpenGL、Vulkan、Metal、DX9、DX11 的提交也调用它；这些原生后端没有帧图像，不能当成已经看过像素。`StableZOrder` 仍是不含裁剪的纯排序，只由 `TestStableZOrderKeepsEqualRanksInInsertionOrder` 检查。`TestOrderedForPaintKeepsClipScopes` 检查嵌套裁剪不会把后面的矩形吸进前面的剪刀。
+绘制顺序用 `render.OrderedForPaint`：每条绘制记住发出时的绝对剪刀，再按 ZOrder 稳定排序（图层基数已经在 ZOrder 里），最后按剪刀变化重建裁剪命令。软件光栅覆盖了邻居裁剪、嵌套相交，以及更高图层先画仍然盖住更低图层。OpenGL、Vulkan、Metal、DX9、DX11 的提交调用同一个函数；这些原生后端没有帧图像。`StableZOrder` 仍是不含裁剪的纯排序。`TestOrderedForPaintKeepsClipScopes`、`TestOrderedForPaintOrdersLayersAcrossClips`、`TestCommandBufferNestedClipFollowsDraw`、`TestHigherLayerCoversEarlierDraw`。
 
 HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKeepsChildrenAndFollowingMeter` 检查嵌套段落、后续 meter/togglebutton，以及带子节点的 `formsection` 不会吃掉下一个兄弟。
 
