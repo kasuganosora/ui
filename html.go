@@ -1495,6 +1495,10 @@ func (p *htmlParser) parseMilestone3(tag string, attrs map[string]string, id str
 		w = widget.NewCommitGraph(p.tree, p.cfg)
 	case "diagram":
 		w = widget.NewDiagram(p.tree, p.cfg)
+	case "editor":
+		w = widget.NewEditor(p.tree, p.cfg)
+	case "diffview":
+		w = widget.NewDiffView(p.tree, p.cfg)
 	default:
 		return false
 	}

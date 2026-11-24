@@ -113,8 +113,8 @@ HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKe
 | 6 filepicker | host-verified，边界写明 | `TestFilePickerNavigatesInjectedList`：目录名和路径是字形，Enter 进入目录，Backspace 回到父级，文件 Enter 只回调路径。列举失败画出错误文本。窗口外的名字不画，滚动后的行不盖住路径条。数据来自注入的 `List`，控件里没有操作系统读写。没有新建、删除或重命名 |
 | 7 commitgraph | host-verified，边界写明 | `TestCommitGraphLanesAndRows`：第一父提交留在原泳道，旁支另开一列。主题是字形。视口下面的提交不画，滚下来才出现。点击和方向键改选中。调用方提供提交，不是 git 命令 |
 | 8 diagram | host-verified，边界写明 | `TestDiagramBoxArrowLayout`：`box` 和 `->` 排成从左到右的层，标签是字形。`subgraph` 被忽略。视口外的节点不画，滚到视口里才画。不是 Mermaid，不依赖 limu |
-| 9 editor | pending | 还没做。默认简单分词，不新增 chroma |
-| 10 diff | pending | 还没做。依赖第 9 行的位置模型 |
+| 9 editor | host-verified，边界写明 | `TestEditorRuneCaretAndGlyphs`：光标按符文移动，退格删掉「你」而不是一个字节，插入和 Shift 选区走宿主按键。`func` 和 `hello` 是字形，关键字用主色但仍是字形。视口外的行不画，滚到光标才出现。控件外没有像素。没有 chroma，没有自动换行 |
+| 10 diff | host-verified，边界写明 | `TestDiffViewSideBySide`：左右列各自裁剪，`old`/`new` 的字形不越过中线。`n` 从相同行跳到替换再跳到新增。点击用 `TextPos` 列偏移。视口外的变更不画。这是行级 LCS，不是词级差异，也不是三方合并 |
 | 11 richeditor | pending | 还没做 |
 | 12 formula | pending | 还没做。默认不嵌入 NewCMMath，字体由调用方提供 |
 | 13 chat | pending | 还没做。只做会话界面 |
