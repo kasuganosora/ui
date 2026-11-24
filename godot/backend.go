@@ -87,12 +87,7 @@ func (b *SoftwareBackend) Submit(buf *render.CommandBuffer) {
 	// Process overlays (on top, no clip)
 	if overlays := buf.Overlays(); len(overlays) > 0 {
 		b.scissor = uimath.NewRect(0, 0, float32(b.width), float32(b.height))
-		ovr := make([]render.Command, len(overlays))
-		copy(ovr, overlays)
-		sort.SliceStable(ovr, func(i, j int) bool {
-			return ovr[i].ZOrder < ovr[j].ZOrder
-		})
-		b.executeCommands(ovr)
+		b.executeCommands(render.StableZOrder(overlays))
 	}
 }
 

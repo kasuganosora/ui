@@ -637,9 +637,9 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 		return
 	}
 
-	// Process main commands then overlays
+	// Main commands stay in painter order. Overlays use the shared z sort.
 	b.processCommands(buf.Commands())
-	b.processCommands(buf.Overlays())
+	b.processCommands(render.StableZOrder(buf.Overlays()))
 
 	b.presentAndCommit()
 }

@@ -1,6 +1,10 @@
 package render
 
-import uimath "github.com/kasuganosora/ui/math"
+import (
+	"sort"
+
+	uimath "github.com/kasuganosora/ui/math"
+)
 
 // CommandType identifies the type of render command.
 type CommandType uint8
@@ -345,6 +349,18 @@ func (cb *CommandBuffer) Commands() []Command {
 // Overlays returns the overlay commands (read-only view).
 func (cb *CommandBuffer) Overlays() []Command {
 	return cb.overlays
+}
+
+// StableZOrder returns a copy of cmds sorted by ascending ZOrder.
+// Equal orders keep their original sequence. Metal, DirectX 9, DirectX 11,
+// the software rasterizer, OpenGL, and Vulkan overlay submission all use
+// this order. Native GPU pixels are not exercised here.
+func StableZOrder(cmds []Command) []Command {
+	out := append([]Command(nil), cmds...)
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].ZOrder < out[j].ZOrder
+	})
+	return out
 }
 
 // Len returns the number of commands.

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"sort"
 	"sync"
 	"unsafe"
 
@@ -667,11 +666,7 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 	overlays := buf.Overlays()
 	if len(overlays) > 0 {
 		_, _, _ = syscallN(b.loader.vkCmdSetScissor, uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&scissor)))
-		ordered := append([]render.Command(nil), overlays...)
-		sort.SliceStable(ordered, func(i, j int) bool {
-			return ordered[i].ZOrder < ordered[j].ZOrder
-		})
-		b.renderAllCommands(cmd, ordered)
+		b.renderAllCommands(cmd, render.StableZOrder(overlays))
 	}
 
 	// Unmap vertex buffer

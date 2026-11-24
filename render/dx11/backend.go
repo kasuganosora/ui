@@ -1040,7 +1040,7 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 		return
 	}
 	b.renderCommands(buf.Commands())
-	b.renderCommands(buf.Overlays())
+	b.renderCommands(render.StableZOrder(buf.Overlays()))
 }
 
 func (b *Backend) renderCommands(commands []render.Command) {
