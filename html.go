@@ -1499,6 +1499,10 @@ func (p *htmlParser) parseMilestone3(tag string, attrs map[string]string, id str
 		w = widget.NewEditor(p.tree, p.cfg)
 	case "diffview":
 		w = widget.NewDiffView(p.tree, p.cfg)
+	case "richeditor":
+		w = widget.NewRichEditor(p.tree, p.cfg)
+	case "formula":
+		w = widget.NewFormula(p.tree, p.cfg)
 	default:
 		return false
 	}

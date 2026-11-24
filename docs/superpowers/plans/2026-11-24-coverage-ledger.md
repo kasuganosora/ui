@@ -115,8 +115,8 @@ HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKe
 | 8 diagram | host-verified，边界写明 | `TestDiagramBoxArrowLayout`：`box` 和 `->` 排成从左到右的层，标签是字形。`subgraph` 被忽略。视口外的节点不画，滚到视口里才画。不是 Mermaid，不依赖 limu |
 | 9 editor | host-verified，边界写明 | `TestEditorRuneCaretAndGlyphs` 覆盖符文光标、退格「你」、字形和视口滚动。`TestEditorDeleteSelectionPreservesNewlines`：选中中间行 `cd` 后退格得到 `ab\n\nef`。`TestEditorBoundaryEditsMatchRuneModel` 用符文切片对照：文档开头退格、文末 Delete、空粘贴都不改文本也不发 `OnChange`。首行、末行、反向选区、跨行、停在列 0、空选区、替换成 `X`、行首合并、Delete、Enter 和粘贴各只触发一次 `OnChange`。没有 chroma，没有自动换行 |
 | 10 diff | host-verified，边界写明 | `TestDiffViewSideBySide`：左右列各自裁剪，`old`/`new` 的字形不越过中线。`n` 从相同行跳到替换再跳到新增。点击用 `TextPos` 列偏移。视口外的变更不画。这是行级 LCS，不是词级差异，也不是三方合并 |
-| 11 richeditor | pending | 还没做 |
-| 12 formula | pending | 还没做。默认不嵌入 NewCMMath，字体由调用方提供 |
+| 11 richeditor | host-verified，边界写明 | `TestRichEditorMarksAndGlyphs`、`TestRichEditorMarkTable`。文档是 UTF-8 加符文区间标记。开头退格、文末 Delete、空粘贴不改文本也不发 `OnChange`。选中 `ab\ncd\nef` 里的 `cd` 得到 `ab\n\nef`，未选中的换行还在。插入和删除会平移、裁短或丢掉标记。粗体是同一字面再画一次，代码有底色但仍是字形，链接是主色字形。点击用测量宽度，视口外的行不画。没有图片、表格、HTML 粘贴，也不是 ProseMirror/Tiptap。不自动换行 |
+| 12 formula | host-verified，边界写明 | `TestFormulaLayoutGlyphsAndHit`。语法是四则、`frac`、`sup`、`sub`、`sqrt` 和括号。分子在分母上面，上标抬高，下标降低，根号内容是字形。点击分母得到 `den`。宽公式在视口外的原子不画，滚进来才画。源字符串本身不作为一条文本画出。字体用调用方的 `TextDrawer`。没有积分、矩阵或完整 TeX，也不嵌入 NewCMMath |
 | 13 chat | pending | 还没做。只做会话界面 |
 | 14 Dock 序列化 | pending | 还没做 |
 | 15 terminal | pending | 还没做。默认只做字节流视图和键盘路由，不是完整 VT |
