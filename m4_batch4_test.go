@@ -6,6 +6,7 @@ import (
 	"github.com/kasuganosora/ui/core"
 	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
+	"github.com/kasuganosora/ui/platform"
 	"github.com/kasuganosora/ui/render"
 	"github.com/kasuganosora/ui/widget"
 )
@@ -99,6 +100,88 @@ func TestEditorRuneCaretAndGlyphs(t *testing.T) {
 		t.Fatal("editor survived destroy")
 	}
 }
+
+func TestEditorDeleteSelectionPreservesNewlines(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(480, 240)
+	ed := widget.NewEditor(ui.Tree(), ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), ed.ElementID())
+	place(ui.Tree(), ed.ElementID(), 16, 20, 180, 80)
+	ui.Tree().SetFocused(ed.ElementID(), true)
+	var changes int
+	var last string
+	ed.OnChange(func(s string) {
+		changes++
+		last = s
+	})
+
+	type step struct {
+		name string
+		text string
+		keys []event.Event
+		want string
+		line int
+		col  int
+	}
+	right := event.Event{Type: event.KeyDown, Key: event.KeyArrowRight}
+	down := event.Event{Type: event.KeyDown, Key: event.KeyArrowDown}
+	shiftR := event.Event{Type: event.KeyDown, Key: event.KeyArrowRight, Modifiers: event.Modifiers{Shift: true}}
+	shiftL := event.Event{Type: event.KeyDown, Key: event.KeyArrowLeft, Modifiers: event.Modifiers{Shift: true}}
+	shiftD := event.Event{Type: event.KeyDown, Key: event.KeyArrowDown, Modifiers: event.Modifiers{Shift: true}}
+	back := event.Event{Type: event.KeyDown, Key: event.KeyBackspace}
+	del := event.Event{Type: event.KeyDown, Key: event.KeyDelete}
+	end := event.Event{Type: event.KeyDown, Key: event.KeyEnd}
+	enter := event.Event{Type: event.KeyDown, Key: event.KeyEnter}
+	paste := event.Event{Type: event.KeyDown, Key: event.KeyV, Modifiers: event.Modifiers{Ctrl: true}}
+
+	check := func(s step) {
+		t.Helper()
+		ed.SetText(s.text)
+		changes = 0
+		for _, k := range s.keys {
+			ui.HandleEvent(&k)
+		}
+		if ed.Text() != s.want || last != s.want {
+			t.Fatalf("%s text %q last %q want %q", s.name, ed.Text(), last, s.want)
+		}
+		if changes != 1 {
+			t.Fatalf("%s OnChange %d", s.name, changes)
+		}
+		if ed.Caret().Line != s.line || ed.Caret().Col != s.col || ed.SelectedText() != "" {
+			t.Fatalf("%s caret %+v sel %q", s.name, ed.Caret(), ed.SelectedText())
+		}
+	}
+	check(step{"middle", "ab\ncd\nef", []event.Event{down, shiftR, shiftR, back}, "ab\n\nef", 1, 0})
+	check(step{"first", "ab\ncd\nef", []event.Event{shiftR, back}, "b\ncd\nef", 0, 0})
+	check(step{"last", "ab\ncd\nef", []event.Event{down, down, shiftR, back}, "ab\ncd\nf", 2, 0})
+	check(step{"reverse", "ab\ncd\nef", []event.Event{down, end, shiftL, shiftL, back}, "ab\n\nef", 1, 0})
+	check(step{"unicode", "a你b\ncd", []event.Event{right, shiftR, back}, "ab\ncd", 0, 1})
+	check(step{"replace", "ab\ncd\nef", []event.Event{down, shiftR, shiftR, {Type: event.KeyPress, Char: 'X'}}, "ab\nX\nef", 1, 1})
+	check(step{"span", "ab\ncd\nef", []event.Event{right, shiftD, shiftD, back}, "af", 0, 1})
+	check(step{"end col0", "ab\ncd\nef", []event.Event{down, shiftL, back}, "abcd\nef", 0, 2})
+	check(step{"empty", "ab\ncd\nef", []event.Event{down, shiftR, shiftL, back}, "abcd\nef", 0, 2})
+	check(step{"merge", "ab\ncd\nef", []event.Event{down, back}, "abcd\nef", 0, 2})
+	check(step{"delete", "ab\ncd\nef", []event.Event{end, del}, "abcd\nef", 0, 2})
+	check(step{"enter", "ab\ncd", []event.Event{right, enter}, "a\nb\ncd", 1, 0})
+
+	clip := &editorClip{text: "Z"}
+	ui.Config().Platform = clip
+	check(step{"paste", "ab\ncd\nef", []event.Event{down, shiftR, shiftR, paste}, "ab\nZ\nef", 1, 1})
+}
+
+type editorClip struct{ text string }
+
+func (c *editorClip) Init() error { return nil }
+func (c *editorClip) CreateWindow(platform.WindowOptions) (platform.Window, error) {
+	return nil, nil
+}
+func (c *editorClip) PollEvents() []event.Event     { return nil }
+func (c *editorClip) ProcessMessages()              {}
+func (c *editorClip) GetClipboardText() string      { return c.text }
+func (c *editorClip) SetClipboardText(s string)     { c.text = s }
+func (c *editorClip) GetPrimaryMonitorDPI() float32 { return 1 }
+func (c *editorClip) GetSystemLocale() string       { return "en" }
+func (c *editorClip) Terminate()                    {}
 
 func TestDiffViewSideBySide(t *testing.T) {
 	ui := NewEmbeddedUI(nil)

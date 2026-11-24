@@ -13,13 +13,14 @@ import (
 // a fixed set colored with the text pipeline. It does not use chroma.
 type Editor struct {
 	Base
-	text    string
-	caret   TextPos
-	anchor  TextPos
-	scrollX float32
-	scrollY float32
-	lineH   float32
-	pad     float32
+	text     string
+	caret    TextPos
+	anchor   TextPos
+	scrollX  float32
+	scrollY  float32
+	lineH    float32
+	pad      float32
+	onChange func(string)
 }
 
 // NewEditor creates an empty editor.
@@ -61,7 +62,13 @@ func NewEditor(tree *core.Tree, cfg *Config) *Editor {
 			e.backspace()
 		case event.KeyDelete:
 			e.deleteForward()
+		case event.KeyEnter:
+			e.insert("\n")
 		default:
+			if ev.Modifiers.Ctrl && ev.Key == event.KeyV {
+				e.paste()
+				break
+			}
 			return
 		}
 		ev.StopPropagation()
@@ -94,6 +101,15 @@ func (e *Editor) SetText(s string) {
 
 func (e *Editor) Text() string   { return e.text }
 func (e *Editor) Caret() TextPos { return e.caret }
+
+// OnChange reports the full text after one user edit.
+func (e *Editor) OnChange(fn func(string)) { e.onChange = fn }
+
+func (e *Editor) changed() {
+	if e.onChange != nil {
+		e.onChange(e.text)
+	}
+}
 
 // SelectedText is the rune range between the anchor and the caret.
 func (e *Editor) SelectedText() string { return selectedText(e.text, e.anchor, e.caret) }
@@ -172,6 +188,7 @@ func (e *Editor) moveCaret(dCol, dLine int, keepAnchor bool) {
 func (e *Editor) backspace() {
 	if e.SelectedText() != "" {
 		e.deleteSelection()
+		e.changed()
 		return
 	}
 	e.moveCaret(-1, 0, false)
@@ -181,21 +198,22 @@ func (e *Editor) backspace() {
 func (e *Editor) deleteForward() {
 	if e.SelectedText() != "" {
 		e.deleteSelection()
+		e.changed()
 		return
 	}
-	lines := textLines(e.text)
-	p := clampPos(lines, e.caret)
-	r := []rune(lines[p.Line])
-	if p.Col < len(r) {
-		r = append(r[:p.Col], r[p.Col+1:]...)
-		lines[p.Line] = string(r)
-	} else if p.Line+1 < len(lines) {
-		lines[p.Line] = lines[p.Line] + lines[p.Line+1]
-		lines = append(lines[:p.Line+1], lines[p.Line+2:]...)
+	r := []rune(e.text)
+	off := posToRune(e.text, e.caret)
+	if off >= len(r) {
+		return
 	}
-	e.text = strings.Join(lines, "\n")
-	e.caret = clampPos(textLines(e.text), p)
+	out := make([]rune, 0, len(r)-1)
+	out = append(out, r[:off]...)
+	out = append(out, r[off+1:]...)
+	e.text = string(out)
+	e.caret = runeToPos(e.text, off)
 	e.anchor = e.caret
+	e.reveal()
+	e.changed()
 }
 
 func (e *Editor) deleteSelection() {
@@ -204,58 +222,57 @@ func (e *Editor) deleteSelection() {
 	if lo == hi {
 		return
 	}
-	var b strings.Builder
-	for i, line := range lines {
-		r := []rune(line)
-		start, end := 0, len(r)
-		if i == lo.Line {
-			start = lo.Col
-		}
-		if i == hi.Line {
-			end = hi.Col
-		}
-		if i < lo.Line || i > hi.Line {
-			if b.Len() > 0 {
-				b.WriteByte('\n')
-			}
-			b.WriteString(line)
-			continue
-		}
-		if i == lo.Line {
-			if b.Len() > 0 && lo.Line != 0 {
-				// joined below
-			}
-			b.WriteString(string(r[:start]))
-			if i == hi.Line {
-				b.WriteString(string(r[end:]))
-			}
-			continue
-		}
-		if i == hi.Line {
-			b.WriteString(string(r[end:]))
-		}
+	r := []rune(e.text)
+	a := posToRune(e.text, lo)
+	b := posToRune(e.text, hi)
+	if a < 0 {
+		a = 0
 	}
-	e.text = b.String()
-	e.caret = lo
-	e.anchor = lo
+	if b > len(r) {
+		b = len(r)
+	}
+	if a >= b {
+		return
+	}
+	out := make([]rune, 0, len(r)-(b-a))
+	out = append(out, r[:a]...)
+	out = append(out, r[b:]...)
+	e.text = string(out)
+	e.caret = runeToPos(e.text, a)
+	e.anchor = e.caret
 	e.reveal()
 }
 
 func (e *Editor) insert(s string) {
+	if s == "" {
+		return
+	}
 	if e.SelectedText() != "" {
 		e.deleteSelection()
 	}
-	lines := textLines(e.text)
-	p := clampPos(lines, e.caret)
-	r := []rune(lines[p.Line])
+	r := []rune(e.text)
+	off := posToRune(e.text, e.caret)
 	add := []rune(s)
-	r = append(r[:p.Col], append(add, r[p.Col:]...)...)
-	lines[p.Line] = string(r)
-	p.Col += len(add)
-	e.text = strings.Join(lines, "\n")
-	e.caret = p
-	e.anchor = p
+	out := make([]rune, 0, len(r)+len(add))
+	out = append(out, r[:off]...)
+	out = append(out, add...)
+	out = append(out, r[off:]...)
+	e.text = string(out)
+	e.caret = runeToPos(e.text, off+len(add))
+	e.anchor = e.caret
 	e.reveal()
+	e.changed()
+}
+
+func (e *Editor) paste() {
+	if e.config == nil || e.config.Platform == nil {
+		return
+	}
+	text := e.config.Platform.GetClipboardText()
+	if text == "" {
+		return
+	}
+	e.insert(text)
 }
 
 func (e *Editor) reveal() {

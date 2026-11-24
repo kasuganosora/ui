@@ -83,6 +83,36 @@ func colAtX(line string, localX float32, measure func(string) float32) int {
 	return len(r)
 }
 
+func posToRune(s string, p TextPos) int {
+	lines := textLines(s)
+	p = clampPos(lines, p)
+	n := 0
+	for i := 0; i < p.Line; i++ {
+		n += len([]rune(lines[i])) + 1
+	}
+	return n + p.Col
+}
+
+func runeToPos(s string, off int) TextPos {
+	r := []rune(s)
+	if off < 0 {
+		off = 0
+	}
+	if off > len(r) {
+		off = len(r)
+	}
+	line, col := 0, 0
+	for i := 0; i < off; i++ {
+		if r[i] == '\n' {
+			line++
+			col = 0
+			continue
+		}
+		col++
+	}
+	return TextPos{Line: line, Col: col}
+}
+
 func selectedText(s string, a, b TextPos) string {
 	lines := textLines(s)
 	lo, hi := orderPos(clampPos(lines, a), clampPos(lines, b))
