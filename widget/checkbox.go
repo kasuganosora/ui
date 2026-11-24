@@ -37,14 +37,17 @@ func NewCheckbox(tree *core.Tree, label string, cfg *Config) *Checkbox {
 	c.style.Gap = cfg.SpaceSM
 	tree.SetProperty(c.id, "text", label)
 
-	c.tree.AddHandler(c.id, event.MouseClick, func(e *event.Event) {
-		if !c.disabled && !c.readonly {
-			c.checked = !c.checked
-			if c.onChange != nil {
-				c.onChange(c.checked)
-			}
+	toggle := func() {
+		if c.disabled || c.readonly {
+			return
 		}
-	})
+		c.checked = !c.checked
+		if c.onChange != nil {
+			c.onChange(c.checked)
+		}
+	}
+	c.tree.AddHandler(c.id, event.MouseClick, func(e *event.Event) { toggle() })
+	bindActivate(tree, c.id, func() bool { return !c.disabled && !c.readonly }, toggle)
 
 	return c
 }

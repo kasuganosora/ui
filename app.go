@@ -98,6 +98,7 @@ type App struct {
 	// Event state
 	mouseDownTarget core.ElementID
 	lastHoverTarget core.ElementID
+	input           core.HostInput
 	lastCursor      platform.CursorShape
 	lastMouseX      float32
 	lastMouseY      float32
@@ -204,6 +205,7 @@ func NewApp(opts AppOptions) (*App, error) {
 	// --- Widget Tree ---
 	a.tree = core.NewTree()
 	a.dispatch = core.NewDispatcher(a.tree)
+	a.input = core.HostInput{Tree: a.tree}
 	a.cfg = widget.DefaultConfig()
 	a.cfg.TextRenderer = &textDrawerAdapter{
 		renderer:        a.textRenderer,
@@ -491,13 +493,7 @@ func (a *App) handleEvent(evt *event.Event) {
 		a.handleMouse(evt)
 	case event.KeyDown, event.KeyUp, event.KeyPress,
 		event.IMECompositionStart, event.IMECompositionUpdate, event.IMECompositionEnd:
-		a.tree.Walk(a.tree.Root(), func(id core.ElementID, _ int) bool {
-			if e := a.tree.Get(id); e != nil && e.IsFocused() {
-				a.dispatch.Dispatch(id, evt)
-				return false
-			}
-			return true
-		})
+		a.input.Handle(evt)
 	}
 }
 
@@ -536,29 +532,7 @@ func (a *App) handleMouse(evt *event.Event) {
 
 	target := a.tree.HitTest(evt.GlobalX, evt.GlobalY)
 
-	// Drag support
-	if a.mouseDownTarget != core.InvalidElementID && target != a.mouseDownTarget {
-		if evt.Type == event.MouseMove || evt.Type == event.MouseUp {
-			a.dispatch.Dispatch(a.mouseDownTarget, evt)
-		}
-	}
-
-	// Hover + cursor
 	if evt.Type == event.MouseMove {
-		// Only update the two elements that actually changed hover state.
-		// Previously walked the entire tree on every MouseMove (O(n) × depth markDirty calls).
-		if target != a.lastHoverTarget {
-			if a.lastHoverTarget != core.InvalidElementID {
-				a.tree.SetHovered(a.lastHoverTarget, false)
-				a.dispatch.Dispatch(a.lastHoverTarget, &event.Event{Type: event.MouseLeave})
-			}
-			if target != core.InvalidElementID {
-				a.tree.SetHovered(target, true)
-				a.dispatch.Dispatch(target, &event.Event{Type: event.MouseEnter})
-			}
-			a.lastHoverTarget = target
-		}
-
 		wantCursor := platform.CursorArrow
 		for id := target; id != core.InvalidElementID; {
 			if e := a.tree.Get(id); e != nil {
@@ -581,42 +555,7 @@ func (a *App) handleMouse(evt *event.Event) {
 		}
 	}
 
-	if target != core.InvalidElementID {
-		// Blur on click outside input
-		if evt.Type == event.MouseDown {
-			isInput := false
-			for id := target; id != core.InvalidElementID; {
-				if e := a.tree.Get(id); e != nil {
-					if e.Type() == core.TypeInput {
-						isInput = true
-						break
-					}
-					id = e.ParentID()
-				} else {
-					break
-				}
-			}
-			if !isInput {
-				a.tree.ClearFocus()
-			}
-		}
-
-		a.dispatch.Dispatch(target, evt)
-
-		// Click synthesis
-		if evt.Type == event.MouseDown {
-			a.mouseDownTarget = target
-		} else if evt.Type == event.MouseUp && target == a.mouseDownTarget {
-			clickEvt := *evt
-			clickEvt.Type = event.MouseClick
-			a.dispatch.Dispatch(target, &clickEvt)
-			a.mouseDownTarget = core.InvalidElementID
-		}
-	}
-
-	if evt.Type == event.MouseUp {
-		a.mouseDownTarget = core.InvalidElementID
-	}
+	a.input.Handle(evt)
 }
 
 // AutoLayout performs a basic layout for HTML-based UIs.
@@ -1106,6 +1045,12 @@ type textDrawerAdapter struct {
 }
 
 func (a *textDrawerAdapter) DrawText(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32) {
+	a.DrawTextZ(buf, text, x, y, fontSize, maxWidth, color, opacity, 0)
+}
+
+// DrawTextZ is DrawText with an explicit z-order so glyphs stay above the
+// fills they label.
+func (a *textDrawerAdapter) DrawTextZ(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32, z int32) {
 	a.renderer.DrawText(buf, text, textrender.DrawOptions{
 		ShapeOpts: font.ShapeOptions{
 			FontID:          a.fontID,
@@ -1119,6 +1064,7 @@ func (a *textDrawerAdapter) DrawText(buf *render.CommandBuffer, text string, x, 
 		OriginY: y,
 		Color:   color,
 		Opacity: opacity,
+		ZOrder:  z,
 	})
 }
 

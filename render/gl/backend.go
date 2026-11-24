@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"image"
 	"math"
-	"sort"
 	"unsafe"
 
 	uimath "github.com/kasuganosora/ui/math"
@@ -258,30 +257,27 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 	glCall(l.glEnable, GL_SCISSOR_TEST)
 	glCall(l.glScissor, 0, 0, uintptr(b.vpWidth), uintptr(b.vpHeight))
 
-	// Process commands in order (with overlays appended)
-	cmds := buf.Commands()
-	overlays := buf.Overlays()
-
-	// Sort by z-order (stable)
-	all := make([]render.Command, 0, len(cmds)+len(overlays))
-	all = append(all, cmds...)
-	all = append(all, overlays...)
-	sort.SliceStable(all, func(i, j int) bool {
-		return all[i].ZOrder < all[j].ZOrder
-	})
-
-	for _, c := range all {
-		switch c.Type {
-		case render.CmdClip:
-			b.applyScissor(c.Clip)
-		case render.CmdRect:
-			b.renderRect(c)
-		case render.CmdText:
-			b.renderText(c)
-		case render.CmdImage:
-			b.renderImage(c)
+	// Draws keep the scissor they were emitted under. Overlays start unclipped
+	// so a main-list clip cannot crop a later layer.
+	paint := func(cmds []render.Command) {
+		for _, c := range cmds {
+			switch c.Type {
+			case render.CmdClip:
+				b.applyScissor(c.Clip)
+			case render.CmdRect:
+				b.renderRect(c)
+			case render.CmdText:
+				b.renderText(c)
+			case render.CmdImage:
+				b.renderImage(c)
+			case render.CmdShader:
+				_ = render.ShaderFallback()
+			}
 		}
 	}
+	paint(render.OrderedForPaint(buf.Commands()))
+	glCall(l.glScissor, 0, 0, uintptr(b.vpWidth), uintptr(b.vpHeight))
+	paint(render.OrderedForPaint(buf.Overlays()))
 
 	glCall(l.glDisable, GL_SCISSOR_TEST)
 

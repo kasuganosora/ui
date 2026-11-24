@@ -2,6 +2,7 @@ package widget
 
 import (
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 )
@@ -22,7 +23,7 @@ func NewVirtualGrid(tree *core.Tree, cols, rowCount int, cfg *Config) *VirtualGr
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	return &VirtualGrid{
+	vg := &VirtualGrid{
 		Base:     NewBase(tree, core.TypeCustom, cfg),
 		cols:     cols,
 		rowCount: rowCount,
@@ -30,6 +31,13 @@ func NewVirtualGrid(tree *core.Tree, cols, rowCount int, cfg *Config) *VirtualGr
 		cellH:    100,
 		gap:      8,
 	}
+	tree.AddHandler(vg.id, event.MouseWheel, func(e *event.Event) {
+		vg.scrollY += e.WheelDY
+		if vg.scrollY < 0 {
+			vg.scrollY = 0
+		}
+	})
+	return vg
 }
 
 func (vg *VirtualGrid) Cols() int                { return vg.cols }

@@ -67,6 +67,9 @@ type Dialog struct {
 	closeID   core.ElementID // close X button element
 	confirmID core.ElementID // confirm button element
 	cancelID  core.ElementID // cancel button element
+
+	prior  core.ElementID
+	scoped bool
 }
 
 // NewDialog creates a dialog.
@@ -86,6 +89,7 @@ func NewDialog(tree *core.Tree, title string, cfg *Config) *Dialog {
 		showOverlay:         true,
 	}
 	d.style.Display = layout.DisplayNone
+	tree.SetVisible(d.id, false)
 
 	// Click on backdrop closes dialog
 	d.tree.AddHandler(d.id, event.MouseClick, func(e *event.Event) {
@@ -122,6 +126,40 @@ func NewDialog(tree *core.Tree, title string, cfg *Config) *Dialog {
 			d.onCancel()
 		}
 	})
+	tree.AddHandler(d.id, event.KeyDown, func(e *event.Event) {
+		if e.Phase == event.PhaseCapture || e.Key != event.KeyEscape || !d.visible || !d.closeOnEscKeydown {
+			return
+		}
+		if d.onEscKeydown != nil {
+			d.onEscKeydown()
+		}
+		d.Close()
+		if d.onClose != nil {
+			d.onClose()
+		}
+		e.StopPropagation()
+	})
+	activate := func(fn func()) func(*event.Event) {
+		return func(e *event.Event) {
+			if e.Phase == event.PhaseCapture || (e.Key != event.KeyEnter && e.Key != event.KeySpace) {
+				return
+			}
+			if fn != nil {
+				fn()
+			}
+			e.StopPropagation()
+		}
+	}
+	tree.AddHandler(d.confirmID, event.KeyDown, activate(func() {
+		if d.onConfirm != nil {
+			d.onConfirm()
+		}
+	}))
+	tree.AddHandler(d.cancelID, event.KeyDown, activate(func() {
+		if d.onCancel != nil {
+			d.onCancel()
+		}
+	}))
 
 	return d
 }
@@ -153,19 +191,67 @@ func (d *Dialog) SetPlacement(p DialogPlacement)    { d.placement = p }
 func (d *Dialog) SetMode(m DialogMode)              { d.mode = m }
 
 func (d *Dialog) Open() {
+	if !d.visible {
+		d.prior = d.tree.Focused()
+		d.tree.PushFocusScope(d.id)
+		d.scoped = true
+	}
 	d.visible = true
 	d.style.Display = layout.DisplayFlex
+	d.tree.SetVisible(d.id, true)
+	d.tree.SetFocusable(d.confirmID, true)
+	d.tree.SetFocusable(d.cancelID, true)
+	d.tree.SetFocusable(d.closeID, true)
+	d.tree.SetFocused(d.confirmID, true)
+	d.promoteLayer()
+}
+
+func (d *Dialog) promoteLayer() {
+	d.tree.PushLayer(d.id)
+	if elem := d.tree.Get(d.id); elem != nil && elem.ParentID() != core.InvalidElementID {
+		d.tree.BringChildToFront(elem.ParentID(), d.id)
+	}
 }
 
 func (d *Dialog) Close() {
+	was := d.visible
+	focusWasInside := d.tree.InScope(d.tree.Focused(), d.id)
 	d.visible = false
 	d.style.Display = layout.DisplayNone
+	d.tree.SetVisible(d.id, false)
+	d.tree.SetFocusable(d.confirmID, false)
+	d.tree.SetFocusable(d.cancelID, false)
+	d.tree.SetFocusable(d.closeID, false)
+	if d.tree.Focused() == d.confirmID || d.tree.Focused() == d.cancelID || d.tree.Focused() == d.closeID || d.tree.Focused() == d.id {
+		d.tree.ClearFocus()
+	}
+	if d.scoped {
+		d.tree.PopFocusScopeOwned(d.id)
+		d.scoped = false
+	}
+	d.tree.PopLayer(d.id)
+	if was && focusWasInside {
+		d.restoreFocus()
+	}
+}
+
+func (d *Dialog) restoreFocus() {
+	scope := d.tree.FocusScope()
+	prior := d.prior
+	if prior != core.InvalidElementID && d.tree.Get(prior) != nil && d.tree.InScope(prior, scope) && d.tree.ChainAllows(prior) {
+		d.tree.SetFocused(prior, true)
+		return
+	}
+	if scope != core.InvalidElementID {
+		d.tree.FocusNext(core.InvalidElementID)
+	}
 }
 
 func (d *Dialog) Draw(buf *render.CommandBuffer) {
 	if !d.visible {
 		return
 	}
+	defer withLayer(buf, d.tree, d.id)()
 	bounds := d.Bounds()
 	if bounds.IsEmpty() {
 		return

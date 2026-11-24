@@ -44,11 +44,13 @@ type Element struct {
 	layout LayoutResult
 
 	// State flags
-	visible bool
-	enabled bool
-	focused bool
-	hovered bool
-	dirty   DirtyFlags
+	visible   bool
+	enabled   bool
+	focused   bool
+	focusable bool
+	overlay   bool
+	hovered   bool
+	dirty     DirtyFlags
 
 	// Event handlers
 	handlers map[event.Type][]EventHandler
@@ -125,9 +127,29 @@ func (e *Element) TextContent() string {
 // Tree is the aggregate root for the element tree.
 // All element mutations must go through Tree methods.
 type Tree struct {
-	elements map[ElementID]*Element
-	root     ElementID
-	nextID   ElementID
+	elements    map[ElementID]*Element
+	root        ElementID
+	nextID      ElementID
+	focused     ElementID
+	scopes      []ElementID
+	keyFallback ElementID
+	notifying   bool
+	focusQ      []focusNote
+	layers      []modalLayer
+	layerSeq    int32
+	transients  []ElementID
+	hitOrder    map[ElementID]int
+}
+
+type modalLayer struct {
+	id   ElementID
+	rank int32
+}
+
+type focusNote struct {
+	blurred []ElementID
+	id      ElementID
+	on      bool
 }
 
 // NewTree creates a new element tree.
@@ -282,8 +304,12 @@ func (t *Tree) DestroyElement(id ElementID) {
 	if elem.parent != InvalidElementID {
 		t.RemoveChild(elem.parent, id)
 	}
+	t.forgetScopes(id)
 	// Recursively destroy children
 	t.destroyRecursive(id)
+	if t.focused != InvalidElementID && t.elements[t.focused] == nil {
+		t.focused = InvalidElementID
+	}
 }
 
 func (t *Tree) destroyRecursive(id ElementID) {
@@ -353,28 +379,68 @@ func (t *Tree) SetEnabled(id ElementID, enabled bool) {
 // SetFocused sets the focused state. Only one element should be focused at a time.
 // When setting focus to true, any previously focused element is automatically unfocused.
 func (t *Tree) SetFocused(id ElementID, focused bool) {
+	if focused && !t.ChainAllows(id) {
+		return
+	}
+	var blurred []ElementID
 	if focused {
 		for eid, elem := range t.elements {
 			if elem != nil && elem.focused && eid != id {
 				elem.focused = false
+				blurred = append(blurred, eid)
 				t.markDirty(eid, DirtyPaint)
 			}
 		}
+		t.focused = id
+	} else if t.focused == id {
+		t.focused = InvalidElementID
+		blurred = append(blurred, id)
 	}
 	if elem := t.elements[id]; elem != nil {
 		elem.focused = focused
 		t.markDirty(id, DirtyPaint)
 	}
+	t.notifyFocus(blurred, id, focused)
+}
+
+func (t *Tree) notifyFocus(blurred []ElementID, id ElementID, focused bool) {
+	t.focusQ = append(t.focusQ, focusNote{blurred: blurred, id: id, on: focused})
+	if t.notifying {
+		return
+	}
+	t.notifying = true
+	defer func() { t.notifying = false }()
+	steps := 0
+	for len(t.focusQ) > 0 && steps < 32 {
+		n := t.focusQ[0]
+		t.focusQ = t.focusQ[1:]
+		steps++
+		d := NewDispatcher(t)
+		for _, bid := range n.blurred {
+			if bid == n.id && n.on {
+				continue
+			}
+			d.DispatchToTarget(bid, &event.Event{Type: event.Blur})
+		}
+		if n.on && t.elements[n.id] != nil {
+			d.DispatchToTarget(n.id, &event.Event{Type: event.Focus})
+		}
+	}
+	t.focusQ = nil
 }
 
 // ClearFocus removes focus from all elements.
 func (t *Tree) ClearFocus() {
+	var blurred []ElementID
 	for eid, elem := range t.elements {
 		if elem != nil && elem.focused {
 			elem.focused = false
+			blurred = append(blurred, eid)
 			t.markDirty(eid, DirtyPaint)
 		}
 	}
+	t.focused = InvalidElementID
+	t.notifyFocus(blurred, InvalidElementID, false)
 }
 
 // SetHovered sets the hovered state.
@@ -456,14 +522,94 @@ func (t *Tree) ElementCount() int {
 	return len(t.elements)
 }
 
-// HitTest finds the deepest visible element at the given point.
+// SetOverlay marks an element as a popup hit target. Overlay hits are
+// tested before the normal tree so a popup can extend outside its parent.
+func (t *Tree) SetOverlay(id ElementID, on bool) {
+	if elem := t.elements[id]; elem != nil {
+		elem.overlay = on
+	}
+}
+
+// HitTest finds the element at the given point. A regular hit and the
+// last eligible overlay are compared by tree order, so a dialog opened
+// after a popup covers that popup, while a popup opened inside the
+// dialog still receives hits outside its parent box. Disabled or hidden
+// ancestors are not hittable.
 func (t *Tree) HitTest(x, y float32) ElementID {
-	return t.hitTestRecursive(t.root, x, y)
+	t.hitOrder = make(map[ElementID]int)
+	n := 0
+	t.Walk(t.root, func(id ElementID, _ int) bool {
+		n++
+		t.hitOrder[id] = n
+		return true
+	})
+	defer func() { t.hitOrder = nil }()
+	return t.preferHit(t.hitTestRecursive(t.root, x, y), t.hitOverlay(x, y))
+}
+
+func (t *Tree) preferHit(a, b ElementID) ElementID {
+	if a == InvalidElementID {
+		return b
+	}
+	if b == InvalidElementID {
+		return a
+	}
+	ra, rb := t.LayerRank(a), t.LayerRank(b)
+	if ra != rb {
+		if ra > rb {
+			return a
+		}
+		return b
+	}
+	ao, bo := t.hitOrder[a], t.hitOrder[b]
+	if bo > ao {
+		return b
+	}
+	return a
+}
+
+func (t *Tree) walkOrder(id ElementID) int {
+	n := 0
+	found := 0
+	t.Walk(t.root, func(cur ElementID, _ int) bool {
+		n++
+		if cur == id {
+			found = n
+		}
+		return true
+	})
+	return found
+}
+
+func (t *Tree) hitOverlay(x, y float32) ElementID {
+	var hit ElementID
+	t.Walk(t.root, func(id ElementID, _ int) bool {
+		elem := t.elements[id]
+		if elem == nil || !elem.overlay || !t.ChainAllows(id) {
+			return true
+		}
+		if elem.layout.Bounds.Contains(uimath.Vec2{X: x, Y: y}) {
+			hit = t.preferHit(hit, id)
+		}
+		return true
+	})
+	return hit
+}
+
+func (t *Tree) ancestorsVisible(id ElementID) bool {
+	for id != InvalidElementID {
+		elem := t.elements[id]
+		if elem == nil || !elem.visible {
+			return false
+		}
+		id = elem.parent
+	}
+	return true
 }
 
 func (t *Tree) hitTestRecursive(id ElementID, x, y float32) ElementID {
 	elem := t.elements[id]
-	if elem == nil || !elem.visible {
+	if elem == nil || !t.ChainAllows(id) {
 		return InvalidElementID
 	}
 	b := elem.layout.Bounds
@@ -474,12 +620,12 @@ func (t *Tree) hitTestRecursive(id ElementID, x, y float32) ElementID {
 	if elem.hitTestFn != nil && !elem.hitTestFn(x-b.X, y-b.Y) {
 		return InvalidElementID
 	}
-	// Check children in reverse order (last drawn = on top)
+	best := InvalidElementID
 	for i := len(elem.children) - 1; i >= 0; i-- {
-		hit := t.hitTestRecursive(elem.children[i], x, y)
-		if hit != InvalidElementID {
-			return hit
-		}
+		best = t.preferHit(best, t.hitTestRecursive(elem.children[i], x, y))
+	}
+	if best != InvalidElementID {
+		return t.preferHit(best, id)
 	}
 	return id
 }

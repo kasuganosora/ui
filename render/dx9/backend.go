@@ -931,8 +931,9 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 	if buf == nil {
 		return
 	}
-	b.renderCommands(buf.Commands())
-	b.renderCommands(buf.Overlays())
+	// Clip-baked z-order, shared with the other backends. Native frames are not captured here.
+	b.renderCommands(render.OrderedForPaint(buf.Commands()))
+	b.renderCommands(render.OrderedForPaint(buf.Overlays()))
 }
 
 func (b *Backend) renderCommands(commands []render.Command) {
@@ -1002,6 +1003,10 @@ func (b *Backend) renderCommands(commands []render.Command) {
 			}
 			b.renderShadowBatch(commands[i:j])
 			i = j
+
+		case render.CmdShader:
+			_ = render.ShaderFallback()
+			i++
 
 		default:
 			i++

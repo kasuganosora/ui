@@ -637,9 +637,9 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 		return
 	}
 
-	// Process main commands then overlays
-	b.processCommands(buf.Commands())
-	b.processCommands(buf.Overlays())
+	// Clip-baked z-order, shared with the other backends. Native frames are not captured here.
+	b.processCommands(render.OrderedForPaint(buf.Commands()))
+	b.processCommands(render.OrderedForPaint(buf.Overlays()))
 
 	b.presentAndCommit()
 }
@@ -668,6 +668,8 @@ func (b *Backend) processCommands(commands []render.Command) {
 			if c.Image != nil {
 				b.drawImage(c.Image, c.Opacity)
 			}
+		case render.CmdShader:
+			_ = render.ShaderFallback()
 		}
 	}
 }

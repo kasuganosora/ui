@@ -47,14 +47,17 @@ func NewSwitch(tree *core.Tree, cfg *Config) *Switch {
 	s.style.Height = layout.Px(h)
 	s.style.FlexShrink = 0
 
-	s.tree.AddHandler(s.id, event.MouseClick, func(e *event.Event) {
-		if !s.disabled && !s.loading {
-			s.value = !s.value
-			if s.onChange != nil {
-				s.onChange(s.value)
-			}
+	toggle := func() {
+		if s.disabled || s.loading {
+			return
 		}
-	})
+		s.value = !s.value
+		if s.onChange != nil {
+			s.onChange(s.value)
+		}
+	}
+	s.tree.AddHandler(s.id, event.MouseClick, func(e *event.Event) { toggle() })
+	bindActivate(tree, s.id, func() bool { return !s.disabled && !s.loading }, toggle)
 
 	return s
 }

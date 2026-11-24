@@ -945,8 +945,12 @@ func TestGamepadNavigatorFull(t *testing.T) {
 	}
 
 	gn.Navigate(NavDown)
+	if gn.FocusIndex() != 0 {
+		t.Errorf("first direction focuses the current item, got %d", gn.FocusIndex())
+	}
+	gn.Navigate(NavDown)
 	if gn.FocusIndex() != 1 {
-		t.Errorf("expected focus 1 after nav down, got %d", gn.FocusIndex())
+		t.Errorf("expected focus 1 after the next nav down, got %d", gn.FocusIndex())
 	}
 
 	navigated := false
@@ -2283,10 +2287,14 @@ func TestGamepadKeyDownHandler(t *testing.T) {
 		t.Fatal("expected keydown handler")
 	}
 
-	// Arrow down
+	// Arrow down focuses the current item before it moves.
+	keyH[len(keyH)-1](&event.Event{Type: event.KeyDown, Key: event.KeyArrowDown})
+	if gn.FocusIndex() != 0 {
+		t.Errorf("first direction focuses the current item, got %d", gn.FocusIndex())
+	}
 	keyH[len(keyH)-1](&event.Event{Type: event.KeyDown, Key: event.KeyArrowDown})
 	if gn.FocusIndex() != 1 {
-		t.Errorf("expected focus 1 after arrow down, got %d", gn.FocusIndex())
+		t.Errorf("expected focus 1 after the next arrow down, got %d", gn.FocusIndex())
 	}
 
 	// Arrow up

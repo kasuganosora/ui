@@ -31,14 +31,23 @@ func NewLink(tree *core.Tree, text, href string, cfg *Config) *Link {
 			l.onClick(l.href)
 		}
 	})
+	bindActivate(tree, l.id, func() bool { return !l.disabled }, func() {
+		if l.onClick != nil {
+			l.onClick(l.href)
+		}
+	})
 	return l
 }
 
-func (l *Link) Text() string            { return l.text }
-func (l *Link) Href() string            { return l.href }
-func (l *Link) SetText(t string)        { l.text = t; l.tree.SetProperty(l.id, "text", t) }
-func (l *Link) SetHref(h string)        { l.href = h }
-func (l *Link) SetDisabled(d bool)      { l.disabled = d }
+func (l *Link) Text() string     { return l.text }
+func (l *Link) Href() string     { return l.href }
+func (l *Link) SetText(t string) { l.text = t; l.tree.SetProperty(l.id, "text", t) }
+func (l *Link) SetHref(h string) { l.href = h }
+func (l *Link) SetDisabled(d bool) {
+	l.disabled = d
+	l.tree.SetEnabled(l.id, !d)
+	l.tree.SetFocusable(l.id, !d)
+}
 func (l *Link) OnClick(fn func(string)) { l.onClick = fn }
 
 func (l *Link) Draw(buf *render.CommandBuffer) {

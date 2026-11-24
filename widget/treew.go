@@ -2,6 +2,7 @@ package widget
 
 import (
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 )
@@ -15,6 +16,8 @@ type TreeNode struct {
 	Selected bool
 	Icon     string
 	Data     interface{}
+	Checked  bool
+	Lazy     func(*TreeNode)
 }
 
 // Tree is an expandable tree view widget.
@@ -25,16 +28,167 @@ type Tree struct {
 	itemHeight float32
 	onSelect   func(node *TreeNode)
 	onExpand   func(node *TreeNode)
+	cursor     int
+	selected   string
+	dragKey    string
 }
 
 func NewTree(tree *core.Tree, cfg *Config) *Tree {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	return &Tree{
+	tr := &Tree{
 		Base:       NewBase(tree, core.TypeCustom, cfg),
 		indent:     20,
 		itemHeight: 32,
+		cursor:     -1,
+	}
+	bindArrows(tree, tr.id, func(k event.Key) bool {
+		if k == event.KeyEscape {
+			return false
+		}
+		tr.onKey(k)
+		return true
+	})
+	tree.AddHandler(tr.id, event.MouseDown, func(e *event.Event) {
+		if n := tr.nodeAt(e.GlobalY); n != nil {
+			tr.dragKey = n.Key
+		}
+	})
+	tree.AddHandler(tr.id, event.MouseUp, func(e *event.Event) {
+		if tr.dragKey == "" {
+			return
+		}
+		target := tr.nodeAt(e.GlobalY)
+		if target != nil && target.Key != tr.dragKey {
+			tr.reorder(tr.dragKey, target.Key)
+		}
+		tr.dragKey = ""
+	})
+	return tr
+}
+
+func (t *Tree) nodeAt(y float32) *TreeNode {
+	nodes := t.flat()
+	if len(nodes) == 0 || t.itemHeight <= 0 {
+		return nil
+	}
+	i := int((y - t.Bounds().Y) / t.itemHeight)
+	if i < 0 || i >= len(nodes) {
+		return nil
+	}
+	return nodes[i]
+}
+
+func (t *Tree) reorder(from, to string) {
+	nodes := t.flat()
+	var a, b *TreeNode
+	for _, n := range nodes {
+		if n.Key == from {
+			a = n
+		}
+		if n.Key == to {
+			b = n
+		}
+	}
+	if a == nil || b == nil {
+		return
+	}
+	// Reorder among roots when both are roots. Otherwise swap within the same parent slice.
+	if t.swapIn(t.roots, a, b) {
+		return
+	}
+}
+
+func (t *Tree) swapIn(nodes []*TreeNode, a, b *TreeNode) bool {
+	ia, ib := -1, -1
+	for i, n := range nodes {
+		if n == a {
+			ia = i
+		}
+		if n == b {
+			ib = i
+		}
+	}
+	if ia >= 0 && ib >= 0 {
+		nodes[ia], nodes[ib] = nodes[ib], nodes[ia]
+		return true
+	}
+	for _, n := range nodes {
+		if t.swapIn(n.Children, a, b) {
+			return true
+		}
+	}
+	return false
+}
+
+func (t *Tree) SelectedKey() string { return t.selected }
+
+func (t *Tree) flat() []*TreeNode {
+	var out []*TreeNode
+	var walk func([]*TreeNode)
+	walk = func(nodes []*TreeNode) {
+		for _, n := range nodes {
+			out = append(out, n)
+			if n.Expanded {
+				walk(n.Children)
+			}
+		}
+	}
+	walk(t.roots)
+	return out
+}
+
+func (t *Tree) onKey(k event.Key) {
+	nodes := t.flat()
+	if len(nodes) == 0 {
+		return
+	}
+	switch k {
+	case event.KeyArrowDown:
+		t.cursor++
+		if t.cursor >= len(nodes) {
+			t.cursor = len(nodes) - 1
+		}
+	case event.KeyArrowUp:
+		if t.cursor < 0 {
+			t.cursor = 0
+		} else if t.cursor > 0 {
+			t.cursor--
+		}
+	case event.KeyEnter:
+		if t.cursor < 0 {
+			t.cursor = 0
+		}
+		if t.cursor >= 0 && t.cursor < len(nodes) {
+			for _, n := range t.flat() {
+				n.Selected = false
+			}
+			t.selected = nodes[t.cursor].Key
+			nodes[t.cursor].Selected = true
+			if t.onSelect != nil {
+				t.onSelect(nodes[t.cursor])
+			}
+		}
+	case event.KeyArrowRight:
+		if t.cursor >= 0 && t.cursor < len(nodes) {
+			n := nodes[t.cursor]
+			if len(n.Children) == 0 && n.Lazy != nil {
+				n.Lazy(n)
+			}
+			n.Expanded = true
+			if t.onExpand != nil {
+				t.onExpand(n)
+			}
+		}
+	case event.KeyArrowLeft:
+		if t.cursor >= 0 && t.cursor < len(nodes) {
+			nodes[t.cursor].Expanded = false
+		}
+	case event.KeySpace:
+		if t.cursor >= 0 && t.cursor < len(nodes) {
+			nodes[t.cursor].Checked = !nodes[t.cursor].Checked
+		}
 	}
 }
 

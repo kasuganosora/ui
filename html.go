@@ -449,6 +449,9 @@ func (p *htmlParser) parseElement(parent containerWidget, ancestors []css.Elemen
 	inlineStyle := attrs["style"]
 
 	// Self-closing / void elements
+	if p.parseMilestone3(tag, attrs, id, classes, inlineStyle, ancestors, parent, selfClose) {
+		return
+	}
 	switch tag {
 	case "br":
 		return
@@ -1407,6 +1410,134 @@ func (p *htmlParser) parseElement(parent containerWidget, ancestors []css.Elemen
 }
 
 // registerWidget stores widget info for CSS application and indexes it for querying.
+func (p *htmlParser) parseMilestone3(tag string, attrs map[string]string, id string, classes []string, inlineStyle string, ancestors []css.ElementInfo, parent containerWidget, selfClose bool) bool {
+	var w widget.Widget
+	switch tag {
+	case "meter":
+		m := widget.NewMeter(p.tree, p.cfg)
+		if v, ok := attrs["value"]; ok {
+			if n, err := strconv.ParseFloat(v, 32); err == nil {
+				m.SetValue(float32(n))
+			}
+		}
+		w = m
+	case "holdtoconfirm":
+		w = widget.NewHoldToConfirm(p.tree, attrs["label"], p.cfg)
+	case "togglebutton":
+		w = widget.NewToggleButton(p.tree, attrs["label"], p.cfg)
+	case "imagecompare":
+		w = widget.NewImageCompare(p.tree, p.cfg)
+	case "otpinput":
+		n := 4
+		if v, ok := attrs["length"]; ok {
+			if parsed, err := strconv.Atoi(v); err == nil {
+				n = parsed
+			}
+		}
+		w = widget.NewOtpInput(p.tree, n, p.cfg)
+	case "scrollbar":
+		w = widget.NewScrollbar(p.tree, p.cfg)
+	case "togglegroup":
+		w = widget.NewToggleGroup(p.tree, p.cfg)
+	case "toolbar":
+		w = widget.NewToolbar(p.tree, p.cfg)
+	case "hovercard":
+		w = widget.NewHoverCard(p.tree, p.cfg)
+	case "combobox":
+		w = widget.NewCombobox(p.tree, nil, p.cfg)
+	case "suggestlist":
+		w = widget.NewSuggestList(p.tree, p.cfg)
+	case "command":
+		w = widget.NewCommand(p.tree, p.cfg)
+	case "commanddialog":
+		w = widget.NewCommandDialog(p.tree, p.cfg)
+	case "emojipicker":
+		w = widget.NewEmojiPicker(p.tree, p.cfg)
+	case "navstack":
+		w = widget.NewNav(p.tree, p.cfg)
+	case "formsection":
+		w = widget.NewFormSection(p.tree, attrs["title"], p.cfg)
+	case "formrow":
+		w = widget.NewFormRow(p.tree, p.cfg)
+	case "formfield":
+		w = widget.NewFormField(p.tree, attrs["label"], p.cfg)
+	case "plainshell":
+		s := widget.NewPlainShell(p.tree, p.cfg)
+		s.SetTitle(attrs["title"])
+		w = s
+	case "sidebar":
+		w = widget.NewSidebar(p.tree, p.cfg)
+	case "sidebarshell":
+		w = widget.NewSidebarShell(p.tree, p.cfg)
+	case "tabshell":
+		w = widget.NewTabShell(p.tree, p.cfg)
+	case "settings":
+		w = widget.NewSettings(p.tree, p.cfg)
+	case "settingsdialog":
+		w = widget.NewSettingsDialog(p.tree, p.cfg)
+	case "camera":
+		w = widget.NewCamera(p.tree, p.cfg)
+	case "plot":
+		w = widget.NewPlot(p.tree, p.cfg)
+	case "datatable":
+		w = widget.NewDataTable(p.tree, nil, p.cfg)
+	case "textview":
+		tv := widget.NewTextView(p.tree, p.cfg)
+		if md := attrs["markdown"]; md != "" {
+			tv.SetMarkdown(md)
+		}
+		w = tv
+	case "flow":
+		w = widget.NewFlow(p.tree, p.cfg)
+	case "filepicker":
+		w = widget.NewFilePicker(p.tree, p.cfg)
+	case "commitgraph":
+		w = widget.NewCommitGraph(p.tree, p.cfg)
+	case "diagram":
+		w = widget.NewDiagram(p.tree, p.cfg)
+	case "editor":
+		w = widget.NewEditor(p.tree, p.cfg)
+	case "diffview":
+		w = widget.NewDiffView(p.tree, p.cfg)
+	case "richeditor":
+		w = widget.NewRichEditor(p.tree, p.cfg)
+	case "formula":
+		w = widget.NewFormula(p.tree, p.cfg)
+	case "chat":
+		w = widget.NewChat(p.tree, p.cfg)
+	case "docklayout":
+		w = widget.NewDockLayout(p.tree, p.cfg)
+	case "terminal":
+		w = widget.NewTerminal(p.tree, p.cfg)
+	default:
+		return false
+	}
+	p.registerWidget(w, tag, id, classes, inlineStyle, ancestors)
+	parent.AppendChild(w)
+	if selfClose {
+		return true
+	}
+	if hostsChildren(tag) {
+		if box, ok := w.(containerWidget); ok {
+			childAncestors := append([]css.ElementInfo{{Tag: tag, ID: id, Classes: classes}}, ancestors...)
+			p.parseChildren(box, childAncestors)
+			p.skipClosingTag(tag)
+			return true
+		}
+	}
+	p.readTextContent(tag)
+	return true
+}
+
+func hostsChildren(tag string) bool {
+	switch tag {
+	case "navstack", "formsection", "formrow", "plainshell", "sidebarshell", "tabshell", "settings", "settingsdialog", "commanddialog":
+		return true
+	default:
+		return false
+	}
+}
+
 func (p *htmlParser) registerWidget(w widget.Widget, tag, id string, classes []string, inlineStyle string, ancestors []css.ElementInfo) {
 	p.registerWidgetWithAttrs(w, tag, id, classes, inlineStyle, ancestors, nil)
 }

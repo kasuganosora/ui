@@ -36,6 +36,7 @@ type Notification struct {
 	footer          string
 	startTime       time.Time
 	closeID         core.ElementID
+	elapsed         float32
 }
 
 func NewNotification(tree *core.Tree, title, content string, cfg *Config) *Notification {
@@ -84,6 +85,22 @@ func (n *Notification) SetFooter(f string)           { n.footer = f }
 func (n *Notification) Show() {
 	n.visible = true
 	n.startTime = time.Now()
+	n.elapsed = 0
+}
+
+func (n *Notification) Tick(dt float32) {
+	if !n.visible || n.duration <= 0 || dt <= 0 {
+		return
+	}
+	n.elapsed += dt
+	if n.elapsed*1000 < float32(n.duration) {
+		return
+	}
+	n.elapsed = 0
+	if n.onDurationEnd != nil {
+		n.onDurationEnd()
+	}
+	n.Close()
 }
 
 func (n *Notification) Close() {
@@ -120,6 +137,7 @@ func notificationIconInfo(t NotificationTheme) (string, string) {
 }
 
 func (n *Notification) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, n.tree, n.id)()
 	if !n.visible {
 		return
 	}

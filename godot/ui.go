@@ -64,6 +64,7 @@ type UI struct {
 
 	// Event state
 	lastHoverTarget core.ElementID
+	input           core.HostInput
 }
 
 // NewUI creates a new headless UI instance.
@@ -124,6 +125,7 @@ func NewUI(opts UIOptions) (*UI, error) {
 	// Widget tree
 	u.tree = core.NewTree()
 	u.dispatch = core.NewDispatcher(u.tree)
+	u.input = core.HostInput{Tree: u.tree}
 	u.cfg = widget.DefaultConfig()
 	u.cfg.TextRenderer = &textDrawer{
 		renderer:        u.textRenderer,
@@ -241,7 +243,10 @@ func (u *UI) InjectMouseMove(x, y float32) {
 	})
 }
 
-// InjectMouseClick injects a mouse click at the given logical pixel coordinates.
+// InjectMouseClick injects one click at the given logical pixel coordinates.
+// It sends MouseDown and MouseUp only. HostInput synthesizes the single
+// MouseClick when both land on the same target. A later explicit MouseClick
+// is a separate gesture and is not swallowed.
 func (u *UI) InjectMouseClick(x, y float32, button event.MouseButton) {
 	u.plat.InjectEvent(event.Event{
 		Type:    event.MouseDown,
@@ -250,11 +255,6 @@ func (u *UI) InjectMouseClick(x, y float32, button event.MouseButton) {
 	})
 	u.plat.InjectEvent(event.Event{
 		Type:    event.MouseUp,
-		GlobalX: x, GlobalY: y,
-		Button: button,
-	})
-	u.plat.InjectEvent(event.Event{
-		Type:    event.MouseClick,
 		GlobalX: x, GlobalY: y,
 		Button: button,
 	})
@@ -317,48 +317,7 @@ func (u *UI) Destroy() {
 
 // handleEvent routes an event to the widget tree.
 func (u *UI) handleEvent(evt *event.Event) {
-	switch evt.Type {
-	case event.MouseMove, event.MouseDown, event.MouseUp, event.MouseClick:
-		target := u.tree.HitTest(evt.GlobalX, evt.GlobalY)
-
-		// Hover tracking
-		if evt.Type == event.MouseMove {
-			u.tree.Walk(u.tree.Root(), func(id core.ElementID, _ int) bool {
-				u.tree.SetHovered(id, id == target)
-				return true
-			})
-			if target != u.lastHoverTarget {
-				if u.lastHoverTarget != core.InvalidElementID {
-					u.dispatch.Dispatch(u.lastHoverTarget, &event.Event{Type: event.MouseLeave})
-				}
-				if target != core.InvalidElementID {
-					u.dispatch.Dispatch(target, &event.Event{Type: event.MouseEnter})
-				}
-				u.lastHoverTarget = target
-			}
-		}
-
-		if target != core.InvalidElementID {
-			u.dispatch.Dispatch(target, evt)
-		}
-
-	case event.MouseWheel:
-		// Dispatch to hovered element
-		target := u.tree.HitTest(evt.GlobalX, evt.GlobalY)
-		if target != core.InvalidElementID {
-			u.dispatch.Dispatch(target, evt)
-		}
-
-	case event.KeyDown, event.KeyUp, event.KeyPress:
-		// Route to focused element
-		u.tree.Walk(u.tree.Root(), func(id core.ElementID, _ int) bool {
-			if e := u.tree.Get(id); e != nil && e.IsFocused() {
-				u.dispatch.Dispatch(id, evt)
-				return false
-			}
-			return true
-		})
-	}
+	u.input.Handle(evt)
 }
 
 // --- Mock font engine (copied from app.go to avoid circular import) ---
@@ -434,6 +393,10 @@ type textDrawer struct {
 }
 
 func (a *textDrawer) DrawText(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32) {
+	a.DrawTextZ(buf, text, x, y, fontSize, maxWidth, color, opacity, 0)
+}
+
+func (a *textDrawer) DrawTextZ(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32, z int32) {
 	a.renderer.DrawText(buf, text, textrender.DrawOptions{
 		ShapeOpts: font.ShapeOptions{
 			FontID:          a.fontID,
@@ -447,6 +410,7 @@ func (a *textDrawer) DrawText(buf *render.CommandBuffer, text string, x, y, font
 		OriginY: y,
 		Color:   color,
 		Opacity: opacity,
+		ZOrder:  z,
 	})
 }
 

@@ -84,6 +84,7 @@ func NewGamepadNavigator(tree *core.Tree, cfg *Config) *GamepadNavigator {
 		focusIndex:  -1,
 		showFocus:   true,
 	}
+	tree.SetKeyFallback(gn.id)
 	tree.AddHandler(gn.id, event.GamepadButtonDown, gn.onGamepadButton)
 	tree.AddHandler(gn.id, event.GamepadAxis, gn.onGamepadAxis)
 	// Also support keyboard navigation
@@ -157,6 +158,16 @@ func (gn *GamepadNavigator) Navigate(dir NavDirection) {
 	if !gn.enabled || len(gn.widgets) == 0 {
 		return
 	}
+	if gn.focusIndex >= 0 && gn.focusIndex < len(gn.widgets) {
+		cur := gn.widgets[gn.focusIndex]
+		if gn.canFocus(cur) && gn.tree.Focused() != cur.ElementID() {
+			gn.tree.SetFocused(cur.ElementID(), true)
+			if gn.onNavigate != nil {
+				gn.onNavigate(cur)
+			}
+			return
+		}
+	}
 
 	switch dir {
 	case NavDown, NavRight:
@@ -170,14 +181,26 @@ func (gn *GamepadNavigator) navigateNext() {
 	start := gn.focusIndex
 	for i := 1; i <= len(gn.widgets); i++ {
 		idx := (start + i) % len(gn.widgets)
-		if gn.widgets[idx].NavFocusable() {
+		if gn.canFocus(gn.widgets[idx]) {
 			gn.focusIndex = idx
+			gn.tree.SetFocused(gn.widgets[idx].ElementID(), true)
 			if gn.onNavigate != nil {
 				gn.onNavigate(gn.widgets[idx])
 			}
 			return
 		}
 	}
+}
+
+func (gn *GamepadNavigator) canFocus(w Navigable) bool {
+	if w == nil || !w.NavFocusable() {
+		return false
+	}
+	elem := gn.tree.Get(w.ElementID())
+	if elem == nil || !elem.IsVisible() || !elem.IsEnabled() {
+		return false
+	}
+	return gn.tree.InScope(w.ElementID(), gn.tree.FocusScope())
 }
 
 func (gn *GamepadNavigator) navigatePrev() {
@@ -187,8 +210,9 @@ func (gn *GamepadNavigator) navigatePrev() {
 	}
 	for i := 1; i <= len(gn.widgets); i++ {
 		idx := (start - i + len(gn.widgets)) % len(gn.widgets)
-		if gn.widgets[idx].NavFocusable() {
+		if gn.canFocus(gn.widgets[idx]) {
 			gn.focusIndex = idx
+			gn.tree.SetFocused(gn.widgets[idx].ElementID(), true)
 			if gn.onNavigate != nil {
 				gn.onNavigate(gn.widgets[idx])
 			}
@@ -291,7 +315,7 @@ func (gn *GamepadNavigator) onGamepadAxis(e *event.Event) {
 }
 
 func (gn *GamepadNavigator) onKeyDown(e *event.Event) {
-	if !gn.enabled {
+	if !gn.enabled || e.Phase == event.PhaseCapture || e.Phase == event.PhaseBubble {
 		return
 	}
 	switch e.Key {
@@ -312,6 +336,7 @@ func (gn *GamepadNavigator) onKeyDown(e *event.Event) {
 
 // Draw renders the focus indicator on the currently focused widget.
 func (gn *GamepadNavigator) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, gn.tree, gn.id)()
 	if !gn.enabled || !gn.showFocus {
 		return
 	}

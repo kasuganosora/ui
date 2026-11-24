@@ -20,6 +20,7 @@ type ListItem struct {
 	Avatar      string               // avatar text/initials (rendered as circle)
 	AvatarColor uimath.Color         // avatar background color (zero = default)
 	Image       render.TextureHandle // avatar image texture
+	Disabled    bool
 }
 
 // ListLayout controls whether items are arranged horizontally or vertically.
@@ -38,6 +39,7 @@ type List struct {
 	items         []ListItem
 	itemHeight    float32
 	scrollY       float32
+	cursor        int
 	bordered      bool
 	split         bool
 	stripe        bool
@@ -70,6 +72,7 @@ func NewList(tree *core.Tree, cfg *Config) *List {
 		hoverable:    true,
 		hoveredIndex: -1,
 		size:         SizeMedium,
+		cursor:       -1,
 	}
 	l.style.Display = layout.DisplayFlex
 	l.style.FlexDirection = layout.FlexDirectionColumn
@@ -81,7 +84,7 @@ func NewList(tree *core.Tree, cfg *Config) *List {
 			return
 		}
 		bounds := l.Bounds()
-		idx := l.hitTestItem(e.Y - bounds.Y + l.scrollY)
+		idx := l.hitTestItem(e.GlobalY - bounds.Y + l.scrollY)
 		if idx != l.hoveredIndex {
 			l.hoveredIndex = idx
 			l.tree.MarkDirty(l.id)
@@ -97,7 +100,7 @@ func NewList(tree *core.Tree, cfg *Config) *List {
 	// Click handler for item selection
 	tree.AddHandler(l.id, event.MouseClick, func(e *event.Event) {
 		bounds := l.Bounds()
-		idx := l.hitTestItem(e.Y - bounds.Y + l.scrollY)
+		idx := l.hitTestItem(e.GlobalY - bounds.Y + l.scrollY)
 		if idx >= 0 && idx < len(l.items) {
 			if l.selectable && l.items[idx].Value != "" {
 				l.selectedValue = l.items[idx].Value
@@ -111,8 +114,62 @@ func NewList(tree *core.Tree, cfg *Config) *List {
 			}
 		}
 	})
+	bindArrows(tree, l.id, func(k event.Key) bool {
+		if k == event.KeyEscape {
+			return false
+		}
+		l.onKey(k)
+		return true
+	})
 
 	return l
+}
+
+func (l *List) onKey(k event.Key) {
+	if !l.selectable || len(l.items) == 0 {
+		return
+	}
+	switch k {
+	case event.KeyArrowDown, event.KeyArrowRight:
+		l.cursor = l.nextEnabled(l.cursor, 1)
+		if l.cursor >= 0 {
+			l.selectedValue = l.items[l.cursor].Value
+		}
+	case event.KeyArrowUp, event.KeyArrowLeft:
+		l.cursor = l.nextEnabled(l.cursor, -1)
+		if l.cursor >= 0 {
+			l.selectedValue = l.items[l.cursor].Value
+		}
+	case event.KeyEnter, event.KeySpace:
+		if l.cursor < 0 {
+			l.cursor = l.nextEnabled(-1, 1)
+		}
+		if l.cursor >= 0 && l.onChange != nil {
+			l.selectedValue = l.items[l.cursor].Value
+			l.onChange(l.selectedValue)
+		}
+	}
+}
+
+func (l *List) nextEnabled(from, dir int) int {
+	if len(l.items) == 0 {
+		return -1
+	}
+	i := from
+	for step := 0; step < len(l.items); step++ {
+		if dir > 0 {
+			i++
+		} else {
+			i--
+		}
+		if i < 0 || i >= len(l.items) {
+			return from
+		}
+		if !l.items[i].Disabled {
+			return i
+		}
+	}
+	return from
 }
 
 func (l *List) SetItems(items []ListItem) {
@@ -574,10 +631,24 @@ func NewVirtualList(tree *core.Tree, cfg *Config) *VirtualList {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	return &VirtualList{
+	vl := &VirtualList{
 		Base:       NewBase(tree, core.TypeDiv, cfg),
 		itemHeight: 40,
 	}
+	tree.AddHandler(vl.id, event.MouseWheel, func(e *event.Event) {
+		vl.scrollY += e.WheelDY
+		if vl.scrollY < 0 {
+			vl.scrollY = 0
+		}
+		max := vl.ContentHeight() - vl.Bounds().Height
+		if max < 0 {
+			max = 0
+		}
+		if vl.scrollY > max {
+			vl.scrollY = max
+		}
+	})
+	return vl
 }
 
 func (vl *VirtualList) SetItemCount(n int)      { vl.itemCount = n }

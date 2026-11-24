@@ -100,6 +100,42 @@ func NewTabs(tree *core.Tree, list []TabPanel, cfg *Config) *Tabs {
 			t.tree.MarkDirty(t.id)
 		})
 	}
+	bindArrows(tree, t.id, func(k event.Key) bool {
+		if k == event.KeyEscape {
+			return false
+		}
+		dir := 0
+		switch k {
+		case event.KeyArrowRight, event.KeyArrowDown:
+			dir = 1
+		case event.KeyArrowLeft, event.KeyArrowUp:
+			dir = -1
+		default:
+			return true
+		}
+		if len(t.list) == 0 || t.disabled {
+			return true
+		}
+		idx := 0
+		for i, p := range t.list {
+			if p.Value == t.value {
+				idx = i
+				break
+			}
+		}
+		for step := 0; step < len(t.list); step++ {
+			idx = (idx + dir + len(t.list)) % len(t.list)
+			if t.list[idx].Disabled {
+				continue
+			}
+			t.value = t.list[idx].Value
+			if t.onChange != nil {
+				t.onChange(t.value)
+			}
+			return true
+		}
+		return true
+	})
 
 	return t
 }
@@ -135,7 +171,11 @@ func (t *Tabs) SetSize(s Size) { t.size = s }
 func (t *Tabs) Size() Size { return t.size }
 
 // SetDisabled disables or enables all tabs.
-func (t *Tabs) SetDisabled(v bool) { t.disabled = v }
+func (t *Tabs) SetDisabled(v bool) {
+	t.disabled = v
+	t.tree.SetEnabled(t.id, !v)
+	t.tree.SetFocusable(t.id, !v)
+}
 
 // IsDisabled returns whether all tabs are disabled.
 func (t *Tabs) IsDisabled() bool { return t.disabled }

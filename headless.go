@@ -20,6 +20,7 @@ type HeadlessUI struct {
 	buf        *render.CommandBuffer
 	width      float32
 	height     float32
+	input      core.HostInput
 }
 
 // NewHeadlessUI creates a headless UI instance.
@@ -33,6 +34,7 @@ func NewHeadlessUI(cfg *widget.Config) *HeadlessUI {
 		dispatcher: core.NewDispatcher(tree),
 		config:     cfg,
 		buf:        render.NewCommandBuffer(),
+		input:      core.HostInput{Tree: tree},
 	}
 }
 
@@ -59,12 +61,7 @@ func (h *HeadlessUI) Resize(width, height float32) {
 
 // HandleEvent dispatches an event.
 func (h *HeadlessUI) HandleEvent(evt *event.Event) {
-	if evt.Type.IsMouse() {
-		target := h.tree.HitTest(evt.GlobalX, evt.GlobalY)
-		if target != core.InvalidElementID {
-			h.dispatcher.Dispatch(target, evt)
-		}
-	}
+	h.input.Handle(evt)
 }
 
 // Render generates render commands and returns them.

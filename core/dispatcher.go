@@ -22,6 +22,9 @@ func (d *Dispatcher) Dispatch(targetID ElementID, evt *event.Event) bool {
 	if target == nil {
 		return true
 	}
+	if evt != nil && (evt.Type.IsMouse() || evt.Type.IsKeyboard() || evt.Type.IsTouch()) && !d.tree.ChainAllows(targetID) {
+		return true
+	}
 
 	// Build propagation path: target → root (excluding target itself)
 	path := d.buildPath(targetID)

@@ -2,6 +2,7 @@ package widget
 
 import (
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 )
@@ -14,16 +15,40 @@ type Swiper struct {
 	autoplay bool
 	showDots bool
 	onChange func(int)
+	interval float32
+	accum    float32
+	dragX    float32
+	dragging bool
 }
 
 func NewSwiper(tree *core.Tree, cfg *Config) *Swiper {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	return &Swiper{
+	s := &Swiper{
 		Base:     NewBase(tree, core.TypeCustom, cfg),
 		showDots: true,
+		interval: 3,
 	}
+	tree.AddHandler(s.id, event.MouseDown, func(e *event.Event) {
+		s.dragging = true
+		s.dragX = e.GlobalX
+	})
+	tree.AddHandler(s.id, event.MouseUp, func(e *event.Event) { s.dragging = false })
+	tree.AddHandler(s.id, event.MouseMove, func(e *event.Event) {
+		if !s.dragging || len(s.panels) == 0 {
+			return
+		}
+		dx := e.GlobalX - s.dragX
+		if dx <= -40 {
+			s.dragging = false
+			s.Next()
+		} else if dx >= 40 {
+			s.dragging = false
+			s.Prev()
+		}
+	})
+	return s
 }
 
 func (s *Swiper) Current() int          { return s.current }
@@ -32,6 +57,28 @@ func (s *Swiper) SetCurrent(c int)      { s.current = c }
 func (s *Swiper) SetAutoplay(a bool)    { s.autoplay = a }
 func (s *Swiper) SetShowDots(d bool)    { s.showDots = d }
 func (s *Swiper) OnChange(fn func(int)) { s.onChange = fn }
+
+func (s *Swiper) SetInterval(seconds float32) {
+	if seconds <= 0 {
+		seconds = 3
+	}
+	s.interval = seconds
+}
+
+func (s *Swiper) Tick(dt float32) {
+	if !s.autoplay || len(s.panels) == 0 || dt <= 0 {
+		return
+	}
+	step := s.interval
+	if step <= 0 {
+		step = 3
+	}
+	s.accum += dt
+	for s.accum >= step {
+		s.accum -= step
+		s.Next()
+	}
+}
 
 func (s *Swiper) AddPanel(w Widget) {
 	s.panels = append(s.panels, w)

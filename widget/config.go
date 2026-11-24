@@ -7,7 +7,7 @@ import (
 )
 
 // TextDrawer renders text into a command buffer.
-// When set on Config, widgets use real text rendering instead of placeholder rects.
+// When set on Config, widgets use real glyph commands instead of placeholder rects.
 type TextDrawer interface {
 	DrawText(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32)
 	// LineHeight returns the font line height (ascent + descent) for the given size.
@@ -15,6 +15,24 @@ type TextDrawer interface {
 	LineHeight(fontSize float32) float32
 	// MeasureText returns the width of the given text at the specified font size.
 	MeasureText(text string, fontSize float32) float32
+}
+
+// ZTextDrawer is a TextDrawer that can place glyphs on a chosen z-order.
+// Fills under a label use a lower z so the glyphs stay visible.
+type ZTextDrawer interface {
+	TextDrawer
+	DrawTextZ(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32, z int32)
+}
+
+func emitText(cfg *Config, buf *render.CommandBuffer, text string, x, y, size, maxW float32, color uimath.Color, opacity float32, z int32) {
+	if cfg == nil || cfg.TextRenderer == nil || text == "" {
+		return
+	}
+	if zdraw, ok := cfg.TextRenderer.(ZTextDrawer); ok {
+		zdraw.DrawTextZ(buf, text, x, y, size, maxW, color, opacity, z)
+		return
+	}
+	cfg.TextRenderer.DrawText(buf, text, x, y, size, maxW, color, opacity)
 }
 
 // Size represents component size variants.

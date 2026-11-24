@@ -16,6 +16,7 @@ type DatePicker struct {
 	open     bool
 	width    float32
 	onChange func(year, month, day int)
+	cells    hitCells
 }
 
 func NewDatePicker(tree *core.Tree, cfg *Config) *DatePicker {
@@ -29,10 +30,60 @@ func NewDatePicker(tree *core.Tree, cfg *Config) *DatePicker {
 		day:   1,
 		width: 260,
 	}
+	dp.cells = hitCells{tree: tree, parent: dp.id}
 	tree.AddHandler(dp.id, event.MouseClick, func(e *event.Event) {
-		dp.open = !dp.open
+		dp.onClick(e.GlobalX, e.GlobalY)
 	})
 	return dp
+}
+
+func (dp *DatePicker) Destroy() {
+	dp.cells.clear()
+	dp.Base.Destroy()
+}
+
+func (dp *DatePicker) onClick(x, y float32) {
+	b := dp.Bounds()
+	if dp.open {
+		if day, ok := dayAt(b.X, b.Y+b.Height+4+36, 32, dp.firstDayOfWeek(), dp.daysInMonth(), x, y); ok {
+			dp.day = day
+			dp.open = false
+			dp.cells.clear()
+			if dp.onChange != nil {
+				dp.onChange(dp.year, dp.month, dp.day)
+			}
+			return
+		}
+	}
+	if pointIn(x, y, b) {
+		dp.open = !dp.open
+		if dp.open {
+			dp.placeCells()
+		} else {
+			dp.cells.clear()
+		}
+	}
+}
+
+func (dp *DatePicker) placeCells() {
+	b := dp.Bounds()
+	cell := float32(32)
+	first := dp.firstDayOfWeek()
+	days := dp.daysInMonth()
+	rects := make([]uimath.Rect, 0, days)
+	for d := 1; d <= days; d++ {
+		col := (first + d - 1) % 7
+		row := (first + d - 1) / 7
+		rects = append(rects, uimath.NewRect(b.X+float32(col)*cell, b.Y+b.Height+4+36+float32(row)*cell, cell, cell))
+	}
+	dp.cells.set(rects, func(i int, _ *event.Event) {
+		dp.day = i + 1
+		dp.open = false
+		dp.cells.clear()
+		if dp.onChange != nil {
+			dp.onChange(dp.year, dp.month, dp.day)
+		}
+	})
 }
 
 func (dp *DatePicker) Year() int                       { return dp.year }
@@ -59,16 +110,11 @@ func (dp *DatePicker) daysInMonth() int {
 
 // dayOfWeek returns 0=Sun..6=Sat for first day of current month (Zeller's).
 func (dp *DatePicker) firstDayOfWeek() int {
-	y := dp.year
-	m := dp.month
-	if m < 3 {
-		m += 12
-		y--
-	}
-	return (1 + (13*(m+1))/5 + y + y/4 - y/100 + y/400) % 7
+	return weekdayIndex(dp.year, dp.month, 1)
 }
 
 func (dp *DatePicker) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, dp.tree, dp.id)()
 	bounds := dp.Bounds()
 	if bounds.IsEmpty() {
 		return
@@ -162,6 +208,7 @@ type TimePicker struct {
 	showSec  bool
 	open     bool
 	onChange func(h, m, s int)
+	cells    hitCells
 }
 
 func NewTimePicker(tree *core.Tree, cfg *Config) *TimePicker {
@@ -172,9 +219,79 @@ func NewTimePicker(tree *core.Tree, cfg *Config) *TimePicker {
 		Base: NewBase(tree, core.TypeCustom, cfg),
 	}
 	tree.AddHandler(tp.id, event.MouseClick, func(e *event.Event) {
-		tp.open = !tp.open
+		tp.onClick(e.GlobalX, e.GlobalY)
 	})
 	return tp
+}
+
+func (tp *TimePicker) onClick(x, y float32) {
+	b := tp.Bounds()
+	if tp.open {
+		originY := b.Y + b.Height + 4
+		cell := float32(28)
+		if y >= originY && y < originY+6*cell {
+			col := int((x - b.X) / cell)
+			row := int((y - originY) / cell)
+			hour := col*6 + row
+			if hour >= 0 && hour < 24 && col >= 0 && col < 4 {
+				tp.hour = hour
+				return
+			}
+		}
+		minY := originY + 6*cell + 8
+		if y >= minY && y < minY+28 {
+			mins := []int{0, 15, 30, 45}
+			i := int((x - b.X) / 40)
+			if i >= 0 && i < len(mins) {
+				tp.minute = mins[i]
+				tp.open = false
+				if tp.onChange != nil {
+					tp.onChange(tp.hour, tp.minute, tp.second)
+				}
+				return
+			}
+		}
+	}
+	if pointIn(x, y, b) {
+		tp.open = !tp.open
+		if tp.open {
+			tp.placeCells()
+		} else {
+			tp.cells.clear()
+		}
+	}
+}
+
+func (tp *TimePicker) placeCells() {
+	b := tp.Bounds()
+	originY := b.Y + b.Height + 4
+	cell := float32(28)
+	var rects []uimath.Rect
+	for h := 0; h < 24; h++ {
+		col := h / 6
+		row := h % 6
+		rects = append(rects, uimath.NewRect(b.X+float32(col)*cell, originY+float32(row)*cell, cell, cell))
+	}
+	mins := []int{0, 15, 30, 45}
+	minY := originY + 6*cell + 8
+	for i := range mins {
+		rects = append(rects, uimath.NewRect(b.X+float32(i)*40, minY, 40, 28))
+	}
+	if tp.cells.tree == nil {
+		tp.cells = hitCells{tree: tp.tree, parent: tp.id}
+	}
+	tp.cells.set(rects, func(i int, _ *event.Event) {
+		if i < 24 {
+			tp.hour = i
+			return
+		}
+		tp.minute = mins[i-24]
+		tp.open = false
+		tp.cells.clear()
+		if tp.onChange != nil {
+			tp.onChange(tp.hour, tp.minute, tp.second)
+		}
+	})
 }
 
 func (tp *TimePicker) Hour() int    { return tp.hour }
@@ -191,6 +308,7 @@ func (tp *TimePicker) SetOpen(o bool)                  { tp.open = o }
 func (tp *TimePicker) OnChange(fn func(int, int, int)) { tp.onChange = fn }
 
 func (tp *TimePicker) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, tp.tree, tp.id)()
 	bounds := tp.Bounds()
 	if bounds.IsEmpty() {
 		return

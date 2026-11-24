@@ -39,18 +39,61 @@ type Collapse struct {
 	disabled            bool
 	headerIDs           []core.ElementID // clickable header elements
 	onChange            func(keys []string)
+	cursor              int
 }
 
 func NewCollapse(tree *core.Tree, cfg *Config) *Collapse {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	return &Collapse{
+	c := &Collapse{
 		Base:             NewBase(tree, core.TypeDiv, cfg),
 		activeKeys:       make(map[string]bool),
 		expandOnRowClick: true,
 		expandIcon:       true,
+		cursor:           -1,
 	}
+	bindArrows(tree, c.id, func(k event.Key) bool {
+		if k == event.KeyEscape {
+			return false
+		}
+		c.onKey(k)
+		return true
+	})
+	return c
+}
+
+func (c *Collapse) onKey(k event.Key) {
+	if c.disabled || len(c.panels) == 0 {
+		return
+	}
+	switch k {
+	case event.KeyArrowDown, event.KeyArrowRight:
+		c.cursor = c.nextPanel(c.cursor, 1)
+	case event.KeyArrowUp, event.KeyArrowLeft:
+		c.cursor = c.nextPanel(c.cursor, -1)
+	case event.KeyEnter, event.KeySpace:
+		if c.cursor < 0 {
+			c.cursor = c.nextPanel(-1, 1)
+		}
+		if c.cursor >= 0 && c.cursor < len(c.panels) {
+			c.Toggle(c.panels[c.cursor].Value)
+		}
+	}
+}
+
+func (c *Collapse) nextPanel(from, dir int) int {
+	i := from
+	for step := 0; step < len(c.panels); step++ {
+		i += dir
+		if i < 0 || i >= len(c.panels) {
+			return from
+		}
+		if !c.panels[i].Disabled {
+			return i
+		}
+	}
+	return from
 }
 
 func (c *Collapse) SetPanels(p []CollapsePanel) {
@@ -72,9 +115,13 @@ func (c *Collapse) SetExpandOnRowClick(b bool)                   { c.expandOnRow
 func (c *Collapse) SetExpandIcon(v bool)                         { c.expandIcon = v }
 func (c *Collapse) SetExpandIconPlacement(p ExpandIconPlacement) { c.expandIconPlacement = p }
 func (c *Collapse) SetDefaultExpandAll(v bool)                   { c.defaultExpandAll = v }
-func (c *Collapse) SetDisabled(v bool)                           { c.disabled = v }
-func (c *Collapse) OnChange(fn func([]string))                   { c.onChange = fn }
-func (c *Collapse) IsActive(key string) bool                     { return c.activeKeys[key] }
+func (c *Collapse) SetDisabled(v bool) {
+	c.disabled = v
+	c.tree.SetEnabled(c.id, !v)
+	c.tree.SetFocusable(c.id, !v)
+}
+func (c *Collapse) OnChange(fn func([]string)) { c.onChange = fn }
+func (c *Collapse) IsActive(key string) bool   { return c.activeKeys[key] }
 
 // Deprecated: Use SetExpandMutex instead.
 func (c *Collapse) SetAccordion(a bool) { c.expandMutex = a }

@@ -120,6 +120,21 @@ func (b *Builder) Checkbox(label string) *CheckboxBuilder {
 	return &CheckboxBuilder{cb: cb}
 }
 
+// Meter adds a 0–1 meter. It follows the same builder shape as Progress.
+func (b *Builder) Meter(value float32) *Builder {
+	m := widget.NewMeter(b.tree, b.config)
+	m.SetValue(value)
+	b.root.AppendChild(m)
+	return b
+}
+
+// ToggleButton adds a toggle button and returns it for further bindings.
+func (b *Builder) ToggleButton(label string) *widget.ToggleButton {
+	btn := widget.NewToggleButton(b.tree, label, b.config)
+	b.root.AppendChild(btn)
+	return btn
+}
+
 // Progress adds a progress bar.
 func (b *Builder) Progress(percent float32) *Builder {
 	p := widget.NewProgress(b.tree, b.config)

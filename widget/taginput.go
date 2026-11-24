@@ -35,7 +35,11 @@ func NewTagInput(tree *core.Tree, cfg *Config) *TagInput {
 		size:    SizeMedium,
 	}
 	// Keyboard handler for Enter (add tag) and Backspace (remove last tag when input empty).
+	tree.SetFocusable(ti.id, true)
 	tree.AddHandler(ti.id, event.KeyDown, func(e *event.Event) {
+		if e.Phase == event.PhaseCapture {
+			return
+		}
 		switch e.Key {
 		case event.KeyEnter:
 			if ti.inputText != "" {

@@ -56,21 +56,21 @@ type Backend struct {
 	// Dynamic vertex buffer for per-frame data
 	vertexBuffers      []Buffer
 	vertexMemory       []DeviceMemory
-	vertexSizes        []uint64       // Per-frame-slot: allocated buffer size
-	frameVertexOffset  uint64         // Current write offset in vertex buffer for this frame
-	mappedVertexPtr    unsafe.Pointer // Mapped pointer for current frame's vertex buffer
+	vertexSizes        []uint64         // Per-frame-slot: allocated buffer size
+	frameVertexOffset  uint64           // Current write offset in vertex buffer for this frame
+	mappedVertexPtr    unsafe.Pointer   // Mapped pointer for current frame's vertex buffer
 	staleVertexBuffers [][]Buffer       // Per-frame-slot: old vertex buffers pending destruction
 	staleVertexMemory  [][]DeviceMemory // Per-frame-slot: corresponding memory
 
 	// State
-	width, height    int
-	dpiScale         float32 // DPI scale factor (1.0 = 96 DPI); coordinates are logical pixels
-	vsync            bool
-	transparent      bool    // Per-pixel alpha transparency (shaped window)
-	resizePending    bool   // Set by Resize; cleared after swapchain recreation in Submit
-	lastImageIndex   uint32 // Last rendered swapchain image (for ReadPixels)
-	lastFrameValid   bool   // Whether lastImageIndex is valid
-	deviceLost       bool   // Set when VK_ERROR_DEVICE_LOST is detected; rendering becomes no-op
+	width, height  int
+	dpiScale       float32 // DPI scale factor (1.0 = 96 DPI); coordinates are logical pixels
+	vsync          bool
+	transparent    bool   // Per-pixel alpha transparency (shaped window)
+	resizePending  bool   // Set by Resize; cleared after swapchain recreation in Submit
+	lastImageIndex uint32 // Last rendered swapchain image (for ReadPixels)
+	lastFrameValid bool   // Whether lastImageIndex is valid
+	deviceLost     bool   // Set when VK_ERROR_DEVICE_LOST is detected; rendering becomes no-op
 
 	// Texture management
 	texMu         sync.RWMutex
@@ -327,12 +327,12 @@ type subpassDescription struct {
 }
 
 type subpassDependency struct {
-	SrcSubpass    uint32
-	DstSubpass    uint32
-	SrcStageMask  PipelineStageFlags
-	DstStageMask  PipelineStageFlags
-	SrcAccessMask AccessFlags
-	DstAccessMask AccessFlags
+	SrcSubpass      uint32
+	DstSubpass      uint32
+	SrcStageMask    PipelineStageFlags
+	DstStageMask    PipelineStageFlags
+	SrcAccessMask   AccessFlags
+	DstAccessMask   AccessFlags
 	DependencyFlags uint32
 }
 
@@ -515,23 +515,23 @@ func (b *Backend) DPIScale() float32 { return b.dpiScale }
 
 // RectVertex for rect rendering — 19 float32 fields, 76 bytes.
 type RectVertex struct {
-	PosX, PosY                              float32 // NDC position
-	U, V                                    float32 // UV for SDF computation
-	ColorR, ColorG, ColorB, ColorA          float32 // Fill color
-	RectW, RectH                            float32 // Rect size in pixels for SDF
+	PosX, PosY                             float32 // NDC position
+	U, V                                   float32 // UV for SDF computation
+	ColorR, ColorG, ColorB, ColorA         float32 // Fill color
+	RectW, RectH                           float32 // Rect size in pixels for SDF
 	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32 // Corner radii
-	BorderWidth                             float32
-	BorderR, BorderG, BorderB, BorderA      float32 // Border color
+	BorderWidth                            float32
+	BorderR, BorderG, BorderB, BorderA     float32 // Border color
 }
 
 // ShadowVertex for shadow rendering — 15 float32 fields, 60 bytes.
 type ShadowVertex struct {
-	PosX, PosY                              float32 // NDC position
-	U, V                                    float32 // UV relative to element (0,0)..(1,1)
-	ColorR, ColorG, ColorB, ColorA          float32 // Shadow color
-	ElemW, ElemH                            float32 // Spread-adjusted element size in physical px
+	PosX, PosY                             float32 // NDC position
+	U, V                                   float32 // UV relative to element (0,0)..(1,1)
+	ColorR, ColorG, ColorB, ColorA         float32 // Shadow color
+	ElemW, ElemH                           float32 // Spread-adjusted element size in physical px
 	RadiusTL, RadiusTR, RadiusBR, RadiusBL float32 // Corner radii in physical px (spread-adjusted)
-	Blur                                    float32 // Blur radius in physical px
+	Blur                                   float32 // Blur radius in physical px
 }
 
 // BeginFrame implements render.Backend.
@@ -658,15 +658,15 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 
 	// Process commands in painters algorithm order (as emitted by the widget tree).
 	// The widget Draw methods already emit commands in the correct back-to-front order.
-	commands := buf.Commands()
-	b.renderAllCommands(cmd, commands)
+	// Same clip-baked z-order as the software rasterizer. This path is not
+	// pixel-tested; no native frame is captured here.
+	b.renderAllCommands(cmd, render.OrderedForPaint(buf.Commands()))
 
-	// Render overlays (dropdowns, tooltips) after all normal commands.
-	// Reset scissor to full viewport so overlays are not clipped.
+	// Render overlays after main commands, starting from a full scissor.
 	overlays := buf.Overlays()
 	if len(overlays) > 0 {
 		_, _, _ = syscallN(b.loader.vkCmdSetScissor, uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&scissor)))
-		b.renderAllCommands(cmd, overlays)
+		b.renderAllCommands(cmd, render.OrderedForPaint(overlays))
 	}
 
 	// Unmap vertex buffer

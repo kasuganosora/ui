@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"sort"
 
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/platform"
@@ -76,23 +75,14 @@ func (b *SoftwareBackend) resize(w, h int) {
 }
 
 func (b *SoftwareBackend) Submit(buf *render.CommandBuffer) {
-	// Process main commands (already in submission order; sort by z-order)
-	cmds := make([]render.Command, len(buf.Commands()))
-	copy(cmds, buf.Commands())
-	sort.SliceStable(cmds, func(i, j int) bool {
-		return cmds[i].ZOrder < cmds[j].ZOrder
-	})
-	b.executeCommands(cmds)
+	// Each draw keeps the scissor it was emitted under, then z-order (including
+	// layer rank) decides what paints above it.
+	b.executeCommands(render.OrderedForPaint(buf.Commands()))
 
-	// Process overlays (on top, no clip)
+	// Overlays are a later pass and start unclipped. Their own clips stay scoped.
 	if overlays := buf.Overlays(); len(overlays) > 0 {
 		b.scissor = uimath.NewRect(0, 0, float32(b.width), float32(b.height))
-		ovr := make([]render.Command, len(overlays))
-		copy(ovr, overlays)
-		sort.SliceStable(ovr, func(i, j int) bool {
-			return ovr[i].ZOrder < ovr[j].ZOrder
-		})
-		b.executeCommands(ovr)
+		b.executeCommands(render.OrderedForPaint(overlays))
 	}
 }
 
@@ -129,6 +119,10 @@ func (b *SoftwareBackend) executeCommands(cmds []render.Command) {
 			if cmd.Shadow != nil {
 				b.drawShadow(cmd.Shadow, cmd.Opacity, dpi)
 			}
+		case render.CmdShader:
+			if cmd.Shader != nil {
+				b.drawShader(cmd.Shader, cmd.Opacity, dpi)
+			}
 		}
 	}
 }
@@ -164,6 +158,76 @@ func (b *SoftwareBackend) drawRect(rc *render.RectCmd, opacity float32, dpi floa
 		b.fillRect(px, py+bw, bw, ph-bw*2, r8, g8, b8, a)
 		// Right
 		b.fillRect(px+pw-bw, py+bw, bw, ph-bw*2, r8, g8, b8, a)
+	}
+}
+
+// drawShader evaluates the program at every pixel of the clipped bounds.
+// A sample error paints nothing from this command.
+func (b *SoftwareBackend) drawShader(sc *render.ShaderCmd, opacity float32, dpi float32) {
+	if sc.Program == nil || sc.Bounds.Width <= 0 || sc.Bounds.Height <= 0 || dpi <= 0 {
+		return
+	}
+	x0 := int(sc.Bounds.X * dpi)
+	y0 := int(sc.Bounds.Y * dpi)
+	x1 := int((sc.Bounds.X + sc.Bounds.Width) * dpi)
+	y1 := int((sc.Bounds.Y + sc.Bounds.Height) * dpi)
+	sx0 := int(b.scissor.X)
+	sy0 := int(b.scissor.Y)
+	sx1 := int(b.scissor.X + b.scissor.Width)
+	sy1 := int(b.scissor.Y + b.scissor.Height)
+	if x0 < sx0 {
+		x0 = sx0
+	}
+	if y0 < sy0 {
+		y0 = sy0
+	}
+	if x1 > sx1 {
+		x1 = sx1
+	}
+	if y1 > sy1 {
+		y1 = sy1
+	}
+	if x0 < 0 {
+		x0 = 0
+	}
+	if y0 < 0 {
+		y0 = 0
+	}
+	if x1 > b.width {
+		x1 = b.width
+	}
+	if y1 > b.height {
+		y1 = b.height
+	}
+	if x0 >= x1 || y0 >= y1 {
+		return
+	}
+	w := x1 - x0
+	h := y1 - y0
+	type sample struct {
+		r, g, bv byte
+		a        float32
+	}
+	pix := make([]sample, w*h)
+	for y := y0; y < y1; y++ {
+		ly := (float32(y) + 0.5) / dpi
+		v := (ly - sc.Bounds.Y) / sc.Bounds.Height
+		for x := x0; x < x1; x++ {
+			lx := (float32(x) + 0.5) / dpi
+			u := (lx - sc.Bounds.X) / sc.Bounds.Width
+			c, err := sc.Program.Eval(uimath.Vec2{X: u, Y: v}, sc.Uniforms)
+			if err != nil {
+				return
+			}
+			r8, g8, b8, _ := c.RGBA8()
+			pix[(y-y0)*w+(x-x0)] = sample{r: r8, g: g8, bv: b8, a: c.A * opacity}
+		}
+	}
+	for y := y0; y < y1; y++ {
+		for x := x0; x < x1; x++ {
+			s := pix[(y-y0)*w+(x-x0)]
+			b.blendPixel(x, y, s.r, s.g, s.bv, s.a)
+		}
 	}
 }
 

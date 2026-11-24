@@ -3,6 +3,7 @@ package widget
 import (
 	"github.com/kasuganosora/ui/core"
 	"github.com/kasuganosora/ui/css"
+	"github.com/kasuganosora/ui/event"
 	"github.com/kasuganosora/ui/layout"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
@@ -35,7 +36,42 @@ func NewDiv(tree *core.Tree, cfg *Config) *Div {
 	}
 	d.style.Display = layout.DisplayFlex
 	d.style.FlexDirection = layout.FlexDirectionColumn
+	tree.AddHandler(d.id, event.KeyDown, func(e *event.Event) {
+		if !d.scrollable {
+			return
+		}
+		elem := d.Element()
+		if elem == nil || !elem.IsVisible() || !elem.IsEnabled() {
+			return
+		}
+		page := d.Bounds().Height
+		if page <= 0 {
+			page = 40
+		}
+		switch e.Key {
+		case event.KeyPageDown:
+			d.ScrollTo(d.scrollX, d.clampScroll(d.scrollY+page))
+			e.StopPropagation()
+		case event.KeyPageUp:
+			d.ScrollTo(d.scrollX, d.clampScroll(d.scrollY-page))
+			e.StopPropagation()
+		}
+	})
 	return d
+}
+
+func (d *Div) clampScroll(y float32) float32 {
+	if y < 0 {
+		y = 0
+	}
+	max := d.contentHeight - d.Bounds().Height
+	if max < 0 {
+		max = 0
+	}
+	if y > max {
+		y = max
+	}
+	return y
 }
 
 func (d *Div) BgColor() uimath.Color     { return d.bgColor }
@@ -50,7 +86,10 @@ func (d *Div) SetBgColor(c uimath.Color)     { d.bgColor = c }
 func (d *Div) SetBorderColor(c uimath.Color) { d.borderColor = c }
 func (d *Div) SetBorderWidth(w float32)      { d.borderWidth = w }
 func (d *Div) SetBorderRadius(r float32)     { d.borderRadius = r }
-func (d *Div) SetScrollable(v bool)          { d.scrollable = v }
+func (d *Div) SetScrollable(v bool) {
+	d.scrollable = v
+	d.tree.SetFocusable(d.id, v)
+}
 
 func (d *Div) GradientStart() uimath.Color { return d.gradientStart }
 func (d *Div) GradientEnd() uimath.Color   { return d.gradientEnd }

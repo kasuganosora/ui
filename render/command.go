@@ -1,6 +1,11 @@
 package render
 
-import uimath "github.com/kasuganosora/ui/math"
+import (
+	"errors"
+	"sort"
+
+	uimath "github.com/kasuganosora/ui/math"
+)
 
 // CommandType identifies the type of render command.
 type CommandType uint8
@@ -12,6 +17,7 @@ const (
 	CmdClip                          // Set scissor rect
 	CmdShadow                        // Box shadow (SDF-blurred rounded rect)
 	CmdPath                          // Custom path (future)
+	CmdShader                        // Per-pixel program. Software evaluates it; GPU backends skip it.
 )
 
 // Command is a single render command. Value object.
@@ -30,6 +36,8 @@ type Command struct {
 	Clip *ClipCmd
 	// Used by CmdShadow
 	Shadow *ShadowCmd
+	// Used by CmdShader
+	Shader *ShaderCmd
 }
 
 // RectCmd describes a rectangle draw.
@@ -91,6 +99,19 @@ type ClipCmd struct {
 	Bounds uimath.Rect
 }
 
+// ShaderProgram evaluates one sample. uv is 0..1 across the command bounds.
+// The software backend calls it once per covered pixel. GPU backends do not.
+type ShaderProgram interface {
+	Eval(uv uimath.Vec2, uniforms map[string]float32) (uimath.Color, error)
+}
+
+// ShaderCmd is a shaded rectangle. Uniforms are copied when the command is recorded.
+type ShaderCmd struct {
+	Bounds   uimath.Rect
+	Program  ShaderProgram
+	Uniforms map[string]float32
+}
+
 // CommandBuffer collects render commands for a frame.
 // Uses arena-style allocation for command structs — zero GC pressure per frame.
 type CommandBuffer struct {
@@ -109,6 +130,9 @@ type CommandBuffer struct {
 	clipIdx     int
 	shadowArena []ShadowCmd
 	shadowIdx   int
+	shaderArena []ShaderCmd
+	shaderIdx   int
+	layerBase   int32
 }
 
 // NewCommandBuffer creates an empty command buffer.
@@ -134,6 +158,26 @@ func (cb *CommandBuffer) Reset() {
 	cb.imageIdx = 0
 	cb.clipIdx = 0
 	cb.shadowIdx = 0
+	cb.shaderIdx = 0
+	cb.layerBase = 0
+}
+
+// SetLayerBase offsets later commands into the overlay list. A non-zero base
+// is one modal layer: every command drawn while it is set shares that layer,
+// and a larger base paints above an earlier one. Draw order inside one base
+// stays stable.
+func (cb *CommandBuffer) SetLayerBase(z int32) { cb.layerBase = z }
+
+// LayerBase returns the active layer offset.
+func (cb *CommandBuffer) LayerBase() int32 { return cb.layerBase }
+
+func (cb *CommandBuffer) place(cmd Command) {
+	if cb.layerBase != 0 {
+		cmd.ZOrder += cb.layerBase
+		cb.overlays = append(cb.overlays, cmd)
+		return
+	}
+	cb.commands = append(cb.commands, cmd)
 }
 
 // acquireRect returns a pointer to a RectCmd in the arena.
@@ -173,6 +217,15 @@ func (cb *CommandBuffer) acquireClip() *ClipCmd {
 	return p
 }
 
+func (cb *CommandBuffer) acquireShader() *ShaderCmd {
+	if cb.shaderIdx >= len(cb.shaderArena) {
+		cb.shaderArena = append(cb.shaderArena, ShaderCmd{})
+	}
+	p := &cb.shaderArena[cb.shaderIdx]
+	cb.shaderIdx++
+	return p
+}
+
 func (cb *CommandBuffer) acquireShadow() *ShadowCmd {
 	if cb.shadowIdx >= len(cb.shadowArena) {
 		cb.shadowArena = append(cb.shadowArena, ShadowCmd{})
@@ -186,7 +239,7 @@ func (cb *CommandBuffer) acquireShadow() *ShadowCmd {
 func (cb *CommandBuffer) DrawRect(cmd RectCmd, zOrder int32, opacity float32) {
 	rc := cb.acquireRect()
 	*rc = cmd
-	cb.commands = append(cb.commands, Command{
+	cb.place(Command{
 		Type:    CmdRect,
 		ZOrder:  zOrder,
 		Opacity: opacity,
@@ -198,7 +251,7 @@ func (cb *CommandBuffer) DrawRect(cmd RectCmd, zOrder int32, opacity float32) {
 func (cb *CommandBuffer) DrawText(cmd TextCmd, zOrder int32, opacity float32) {
 	tc := cb.acquireText()
 	*tc = cmd
-	cb.commands = append(cb.commands, Command{
+	cb.place(Command{
 		Type:    CmdText,
 		ZOrder:  zOrder,
 		Opacity: opacity,
@@ -210,11 +263,31 @@ func (cb *CommandBuffer) DrawText(cmd TextCmd, zOrder int32, opacity float32) {
 func (cb *CommandBuffer) DrawImage(cmd ImageCmd, zOrder int32, opacity float32) {
 	ic := cb.acquireImage()
 	*ic = cmd
-	cb.commands = append(cb.commands, Command{
+	cb.place(Command{
 		Type:    CmdImage,
 		ZOrder:  zOrder,
 		Opacity: opacity,
 		Image:   ic,
+	})
+}
+
+// DrawShader records a per-pixel shader. The software backend evaluates Program
+// for each pixel inside the clipped bounds. The call does not evaluate it.
+func (cb *CommandBuffer) DrawShader(cmd ShaderCmd, zOrder int32, opacity float32) {
+	sc := cb.acquireShader()
+	*sc = cmd
+	if len(cmd.Uniforms) > 0 {
+		copied := make(map[string]float32, len(cmd.Uniforms))
+		for k, v := range cmd.Uniforms {
+			copied[k] = v
+		}
+		sc.Uniforms = copied
+	}
+	cb.place(Command{
+		Type:    CmdShader,
+		ZOrder:  zOrder,
+		Opacity: opacity,
+		Shader:  sc,
 	})
 }
 
@@ -224,7 +297,7 @@ func (cb *CommandBuffer) DrawImage(cmd ImageCmd, zOrder int32, opacity float32) 
 func (cb *CommandBuffer) DrawShadow(cmd ShadowCmd, zOrder int32, opacity float32) {
 	sc := cb.acquireShadow()
 	*sc = cmd
-	cb.commands = append(cb.commands, Command{
+	cb.place(Command{
 		Type:    CmdShadow,
 		ZOrder:  zOrder,
 		Opacity: opacity,
@@ -249,10 +322,22 @@ func (cb *CommandBuffer) PushClip(bounds uimath.Rect) {
 	cb.clipStack = append(cb.clipStack, bounds)
 	cc := cb.acquireClip()
 	cc.Bounds = bounds
-	cb.commands = append(cb.commands, Command{
+	cb.place(Command{
 		Type: CmdClip,
 		Clip: cc,
 	})
+}
+
+// PushClipZ is PushClip with an explicit z-order so a backend that sorts by z
+// keeps the clip wrapped around the draws it belongs to.
+func (cb *CommandBuffer) PushClipZ(bounds uimath.Rect, z int32) {
+	if len(cb.clipStack) > 0 {
+		bounds = cb.clipStack[len(cb.clipStack)-1].Intersection(bounds)
+	}
+	cb.clipStack = append(cb.clipStack, bounds)
+	cc := cb.acquireClip()
+	cc.Bounds = bounds
+	cb.place(Command{Type: CmdClip, ZOrder: z, Clip: cc})
 }
 
 // PopClip restores the scissor to the previous clip rect (or full viewport if none).
@@ -266,10 +351,25 @@ func (cb *CommandBuffer) PopClip() {
 	} else {
 		cc.Bounds = uimath.NewRect(0, 0, 1e6, 1e6)
 	}
-	cb.commands = append(cb.commands, Command{
+	cb.place(Command{
 		Type: CmdClip,
 		Clip: cc,
 	})
+}
+
+// PopClipZ is PopClip with an explicit z-order. It must be greater than the
+// z-order of the draws issued since the matching PushClipZ.
+func (cb *CommandBuffer) PopClipZ(z int32) {
+	if len(cb.clipStack) > 0 {
+		cb.clipStack = cb.clipStack[:len(cb.clipStack)-1]
+	}
+	cc := cb.acquireClip()
+	if len(cb.clipStack) > 0 {
+		cc.Bounds = cb.clipStack[len(cb.clipStack)-1]
+	} else {
+		cc.Bounds = uimath.NewRect(0, 0, 1e6, 1e6)
+	}
+	cb.place(Command{Type: CmdClip, ZOrder: z, Clip: cc})
 }
 
 // DrawOverlay adds a rect command to the overlay layer.
@@ -279,7 +379,7 @@ func (cb *CommandBuffer) DrawOverlay(cmd RectCmd, zOrder int32, opacity float32)
 	*rc = cmd
 	cb.overlays = append(cb.overlays, Command{
 		Type:    CmdRect,
-		ZOrder:  zOrder,
+		ZOrder:  zOrder + cb.layerBase,
 		Opacity: opacity,
 		Rect:    rc,
 	})
@@ -291,7 +391,7 @@ func (cb *CommandBuffer) DrawOverlayTextCmd(cmd TextCmd, zOrder int32, opacity f
 	*tc = cmd
 	cb.overlays = append(cb.overlays, Command{
 		Type:    CmdText,
-		ZOrder:  zOrder,
+		ZOrder:  zOrder + cb.layerBase,
 		Opacity: opacity,
 		Text:    tc,
 	})
@@ -326,6 +426,68 @@ func (cb *CommandBuffer) Commands() []Command {
 func (cb *CommandBuffer) Overlays() []Command {
 	return cb.overlays
 }
+
+// StableZOrder returns a copy of cmds sorted by ascending ZOrder.
+// Equal orders keep their original sequence. It ignores clip commands, so
+// paint submission uses OrderedForPaint instead.
+func StableZOrder(cmds []Command) []Command {
+	out := append([]Command(nil), cmds...)
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].ZOrder < out[j].ZOrder
+	})
+	return out
+}
+
+// OrderedForPaint records the absolute scissor active when each draw was
+// emitted, drops clip commands as ordering barriers, and stable-sorts the
+// draws by ZOrder. Layer rank is already part of ZOrder, so a higher layer
+// paints later no matter which Draw ran first. Equal z-orders keep emission
+// order. Clip commands are then rebuilt wherever the baked scissor changes.
+// Nested clips stay with the draws issued inside them because PushClip stores
+// the intersected rectangle. Every backend Submit must paint this sequence
+// and set the scissor to the clip bounds directly.
+func OrderedForPaint(cmds []Command) []Command {
+	full := uimath.NewRect(0, 0, 1e6, 1e6)
+	type stamped struct {
+		cmd  Command
+		clip uimath.Rect
+	}
+	cur := full
+	drawn := make([]stamped, 0, len(cmds))
+	for _, cmd := range cmds {
+		if cmd.Type == CmdClip {
+			if cmd.Clip != nil {
+				cur = cmd.Clip.Bounds
+			}
+			continue
+		}
+		drawn = append(drawn, stamped{cmd: cmd, clip: cur})
+	}
+	sort.SliceStable(drawn, func(i, j int) bool {
+		return drawn[i].cmd.ZOrder < drawn[j].cmd.ZOrder
+	})
+	out := make([]Command, 0, len(drawn)*2)
+	var active uimath.Rect
+	have := false
+	for _, item := range drawn {
+		if !have || item.clip != active {
+			bounds := item.clip
+			out = append(out, Command{Type: CmdClip, Clip: &ClipCmd{Bounds: bounds}})
+			active = bounds
+			have = true
+		}
+		out = append(out, item.cmd)
+	}
+	return out
+}
+
+// ErrShaderGPUUnsupported is returned by GPU backends that receive a shader
+// command. They skip the command. Software is the backend that evaluates it.
+var ErrShaderGPUUnsupported = errors.New("render: shader command is evaluated by the software backend only")
+
+// ShaderFallback is the explicit GPU-backend path for a shader command.
+// Calling it records that the command was seen and not executed.
+func ShaderFallback() error { return ErrShaderGPUUnsupported }
 
 // Len returns the number of commands.
 func (cb *CommandBuffer) Len() int {

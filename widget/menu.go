@@ -50,6 +50,7 @@ type Menu struct {
 	collapsed    bool    // collapsed sidebar mode
 	expandMutex  bool    // same-level mutual exclusion
 	width        float32 // menu width, 0 = auto
+	cursor       int
 }
 
 func NewMenu(tree *core.Tree, cfg *Config) *Menu {
@@ -61,6 +62,7 @@ func NewMenu(tree *core.Tree, cfg *Config) *Menu {
 		expanded:   make(map[string]bool),
 		itemHeight: 40,
 		indent:     24,
+		cursor:     -1,
 	}
 	m.style.Display = layout.DisplayFlex
 	m.style.FlexDirection = layout.FlexDirectionColumn
@@ -71,7 +73,44 @@ func NewMenu(tree *core.Tree, cfg *Config) *Menu {
 	tree.AddHandler(m.id, event.MouseMove, func(e *event.Event) {
 		m.handleHover(e.GlobalX, e.GlobalY)
 	})
+	bindArrows(tree, m.id, func(k event.Key) bool {
+		if k == event.KeyEscape {
+			return false
+		}
+		m.onKey(k)
+		return true
+	})
 	return m
+}
+
+func (m *Menu) onKey(k event.Key) {
+	if len(m.items) == 0 {
+		return
+	}
+	switch k {
+	case event.KeyArrowDown:
+		if m.cursor < 0 {
+			m.cursor = 0
+		} else if m.cursor < len(m.items)-1 {
+			m.cursor++
+		}
+	case event.KeyArrowUp:
+		if m.cursor > 0 {
+			m.cursor--
+		}
+	case event.KeyEnter, event.KeySpace:
+		if m.cursor < 0 {
+			m.cursor = 0
+		}
+		if m.cursor >= 0 && m.cursor < len(m.items) {
+			item := m.items[m.cursor]
+			if len(item.Children) > 0 {
+				m.ToggleExpanded(item.Value)
+				return
+			}
+			m.SelectItem(item.Value)
+		}
+	}
 }
 
 func (m *Menu) SetItems(items []MenuItem) { m.items = items }

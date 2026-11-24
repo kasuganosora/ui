@@ -104,18 +104,42 @@ func NewPagination(tree *core.Tree, cfg *Config) *Pagination {
 		}
 	})
 
+	bindArrows(tree, p.id, func(k event.Key) bool {
+		if k == event.KeyEscape {
+			return false
+		}
+		if p.disabled {
+			return true
+		}
+		switch k {
+		case event.KeyArrowRight, event.KeyArrowDown:
+			if p.current < p.TotalPages() {
+				p.GoTo(p.current + 1)
+			}
+		case event.KeyArrowLeft, event.KeyArrowUp:
+			if p.current > 1 {
+				p.GoTo(p.current - 1)
+			}
+		}
+		return true
+	})
+
 	return p
 }
 
-func (p *Pagination) Current() int                           { return p.current }
-func (p *Pagination) Total() int                             { return p.total }
-func (p *Pagination) PageSize() int                          { return p.pageSize }
-func (p *Pagination) SetCurrent(c int)                       { p.current = c }
-func (p *Pagination) SetTotal(t int)                         { p.total = t }
-func (p *Pagination) SetPageSize(s int)                      { p.pageSize = s }
-func (p *Pagination) SetSize(s Size)                         { p.size = s }
-func (p *Pagination) SetTheme(t PaginationTheme)             { p.theme = t }
-func (p *Pagination) SetDisabled(d bool)                     { p.disabled = d }
+func (p *Pagination) Current() int               { return p.current }
+func (p *Pagination) Total() int                 { return p.total }
+func (p *Pagination) PageSize() int              { return p.pageSize }
+func (p *Pagination) SetCurrent(c int)           { p.current = c }
+func (p *Pagination) SetTotal(t int)             { p.total = t }
+func (p *Pagination) SetPageSize(s int)          { p.pageSize = s }
+func (p *Pagination) SetSize(s Size)             { p.size = s }
+func (p *Pagination) SetTheme(t PaginationTheme) { p.theme = t }
+func (p *Pagination) SetDisabled(d bool) {
+	p.disabled = d
+	p.tree.SetEnabled(p.id, !d)
+	p.tree.SetFocusable(p.id, !d)
+}
 func (p *Pagination) SetFoldedMaxPageBtn(n int)              { p.foldedMaxPageBtn = n }
 func (p *Pagination) SetMaxPageBtn(n int)                    { p.maxPageBtn = n }
 func (p *Pagination) SetPageEllipsisMode(m PageEllipsisMode) { p.pageEllipsisMode = m }

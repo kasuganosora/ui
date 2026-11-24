@@ -2,6 +2,7 @@ package widget
 
 import (
 	"github.com/kasuganosora/ui/core"
+	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 )
@@ -16,6 +17,7 @@ type AutoComplete struct {
 	selected    int
 	onSelect    func(string)
 	filterFn    func(input string, options []string) []string
+	cells       hitCells
 }
 
 func NewAutoComplete(tree *core.Tree, cfg *Config) *AutoComplete {
@@ -27,6 +29,44 @@ func NewAutoComplete(tree *core.Tree, cfg *Config) *AutoComplete {
 		selected: -1,
 	}
 	ac.filterFn = defaultAutoFilter
+	tree.SetFocusable(ac.id, true)
+	tree.AddHandler(ac.id, event.KeyDown, func(e *event.Event) {
+		if !ac.open {
+			return
+		}
+		switch e.Key {
+		case event.KeyArrowDown:
+			ac.selected++
+			if ac.selected >= len(ac.filtered) {
+				ac.selected = len(ac.filtered) - 1
+			}
+			e.StopPropagation()
+		case event.KeyArrowUp:
+			if ac.selected > 0 {
+				ac.selected--
+			}
+			e.StopPropagation()
+		case event.KeyEnter:
+			if ac.selected < 0 && len(ac.filtered) > 0 {
+				ac.selected = 0
+			}
+			ac.SelectItem(ac.selected)
+			e.StopPropagation()
+		}
+	})
+	tree.AddHandler(ac.id, event.MouseClick, func(e *event.Event) {
+		if !ac.open {
+			return
+		}
+		b := ac.Bounds()
+		itemH := float32(32)
+		dy := b.Y + b.Height + 4
+		if e.GlobalY < dy {
+			return
+		}
+		ac.SelectItem(int((e.GlobalY - dy) / itemH))
+		e.StopPropagation()
+	})
 	return ac
 }
 
@@ -46,6 +86,25 @@ func (ac *AutoComplete) SetText(t string) {
 	ac.filtered = ac.filterFn(t, ac.suggestions)
 	ac.open = len(ac.filtered) > 0 && t != ""
 	ac.selected = -1
+	if ac.open {
+		ac.placeCells()
+	} else {
+		ac.cells.clear()
+	}
+}
+
+func (ac *AutoComplete) placeCells() {
+	if ac.cells.tree == nil {
+		ac.cells = hitCells{tree: ac.tree, parent: ac.id}
+	}
+	b := ac.Bounds()
+	itemH := float32(32)
+	dy := b.Y + b.Height + 4
+	rects := make([]uimath.Rect, len(ac.filtered))
+	for i := range ac.filtered {
+		rects[i] = uimath.NewRect(b.X, dy+float32(i)*itemH, b.Width, itemH)
+	}
+	ac.cells.set(rects, func(i int, _ *event.Event) { ac.SelectItem(i) })
 }
 
 func (ac *AutoComplete) SetFilterFn(fn func(string, []string) []string) {
@@ -56,6 +115,7 @@ func (ac *AutoComplete) SelectItem(index int) {
 	if index >= 0 && index < len(ac.filtered) {
 		ac.text = ac.filtered[index]
 		ac.open = false
+		ac.cells.clear()
 		if ac.onSelect != nil {
 			ac.onSelect(ac.text)
 		}
@@ -95,6 +155,7 @@ func containsPrefix(s, prefix string) bool {
 }
 
 func (ac *AutoComplete) Draw(buf *render.CommandBuffer) {
+	defer withLayer(buf, ac.tree, ac.id)()
 	bounds := ac.Bounds()
 	if bounds.IsEmpty() {
 		return

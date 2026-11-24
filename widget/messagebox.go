@@ -30,6 +30,8 @@ type MessageBox struct {
 	onOK       func()
 	onCancel   func()
 	showCancel bool
+	prior      core.ElementID
+	scoped     bool
 }
 
 // NewMessageBox creates a message box dialog.
@@ -46,12 +48,23 @@ func NewMessageBox(tree *core.Tree, title, content string, cfg *Config) *Message
 		showCancel: false,
 	}
 	mb.style.Display = layout.DisplayNone
+	tree.SetVisible(mb.id, false)
 
 	// Click backdrop to close
 	tree.AddHandler(mb.id, event.MouseClick, func(e *event.Event) {
 		if mb.onCancel != nil {
 			mb.onCancel()
 		}
+	})
+	tree.AddHandler(mb.id, event.KeyDown, func(e *event.Event) {
+		if e.Phase == event.PhaseCapture || e.Key != event.KeyEscape || !mb.visible {
+			return
+		}
+		if mb.onCancel != nil {
+			mb.onCancel()
+		}
+		mb.Close()
+		e.StopPropagation()
 	})
 
 	return mb
@@ -71,14 +84,43 @@ func (mb *MessageBox) OnOK(fn func())              { mb.onOK = fn }
 func (mb *MessageBox) OnCancel(fn func())          { mb.onCancel = fn }
 
 func (mb *MessageBox) Open() {
+	if !mb.visible {
+		mb.prior = mb.tree.Focused()
+		mb.tree.PushFocusScope(mb.id)
+		mb.tree.SetFocusable(mb.id, true)
+		mb.scoped = true
+	}
 	mb.visible = true
 	mb.style.Display = layout.DisplayFlex
+	mb.tree.SetVisible(mb.id, true)
+	mb.tree.SetFocused(mb.id, true)
+	mb.tree.PushLayer(mb.id)
+	if elem := mb.tree.Get(mb.id); elem != nil && elem.ParentID() != core.InvalidElementID {
+		mb.tree.BringChildToFront(elem.ParentID(), mb.id)
+	}
 	mb.tree.MarkDirty(mb.id)
 }
 
 func (mb *MessageBox) Close() {
+	was := mb.visible
+	focusWasInside := mb.tree.InScope(mb.tree.Focused(), mb.id)
 	mb.visible = false
 	mb.style.Display = layout.DisplayNone
+	mb.tree.SetVisible(mb.id, false)
+	mb.tree.SetFocusable(mb.id, false)
+	mb.tree.PopLayer(mb.id)
+	if mb.scoped {
+		mb.tree.PopFocusScopeOwned(mb.id)
+		mb.scoped = false
+	}
+	if was && focusWasInside {
+		scope := mb.tree.FocusScope()
+		if mb.prior != core.InvalidElementID && mb.tree.Get(mb.prior) != nil && mb.tree.InScope(mb.prior, scope) && mb.tree.ChainAllows(mb.prior) {
+			mb.tree.SetFocused(mb.prior, true)
+		} else if scope != core.InvalidElementID {
+			mb.tree.FocusNext(core.InvalidElementID)
+		}
+	}
 	mb.tree.MarkDirty(mb.id)
 }
 
@@ -101,6 +143,7 @@ func (mb *MessageBox) Draw(buf *render.CommandBuffer) {
 	if !mb.visible {
 		return
 	}
+	defer withLayer(buf, mb.tree, mb.id)()
 	bounds := mb.Bounds()
 	if bounds.IsEmpty() {
 		return

@@ -31,6 +31,8 @@ type Slider struct {
 	showTooltip bool
 	layout      SliderLayout
 	rangeMode   bool
+	lo, hi      float32
+	rangeInit   bool
 	showStep    bool
 	marks       map[float32]string
 	onChange    func(float32)
@@ -67,21 +69,93 @@ func NewSlider(tree *core.Tree, cfg *Config) *Slider {
 			}
 		}
 	})
+	bindArrows(tree, s.id, func(k event.Key) bool {
+		if k == event.KeyEscape {
+			return false
+		}
+		dir := float32(0)
+		if k == event.KeyArrowRight || k == event.KeyArrowUp {
+			dir = 1
+		} else if k == event.KeyArrowLeft || k == event.KeyArrowDown {
+			dir = -1
+		}
+		if dir == 0 || s.disabled {
+			return true
+		}
+		step := s.step
+		if step == 0 {
+			step = 1
+		}
+		if s.rangeMode {
+			s.SetRangeValues(s.lo+dir*step, s.hi)
+			return true
+		}
+		s.SetValue(s.value + dir*step)
+		return true
+	})
 	return s
 }
 
-func (s *Slider) Value() float32                { return s.value }
-func (s *Slider) Min() float32                  { return s.min }
-func (s *Slider) Max() float32                  { return s.max }
-func (s *Slider) SetMin(v float32)              { s.min = v }
-func (s *Slider) SetMax(v float32)              { s.max = v }
-func (s *Slider) SetStep(v float32)             { s.step = v }
-func (s *Slider) SetDisabled(d bool)            { s.disabled = d }
-func (s *Slider) SetShowTooltip(v bool)         { s.showTooltip = v }
-func (s *Slider) SetLayout(l SliderLayout)      { s.layout = l }
-func (s *Slider) Layout() SliderLayout          { return s.layout }
-func (s *Slider) SetRange(v bool)               { s.rangeMode = v }
-func (s *Slider) Range() bool                   { return s.rangeMode }
+func (s *Slider) Value() float32 {
+	if s.rangeMode {
+		return s.lo
+	}
+	return s.value
+}
+func (s *Slider) Min() float32      { return s.min }
+func (s *Slider) Max() float32      { return s.max }
+func (s *Slider) SetMin(v float32)  { s.min = v }
+func (s *Slider) SetMax(v float32)  { s.max = v }
+func (s *Slider) SetStep(v float32) { s.step = v }
+func (s *Slider) SetDisabled(d bool) {
+	s.disabled = d
+	s.tree.SetEnabled(s.id, !d)
+	s.tree.SetFocusable(s.id, !d)
+}
+func (s *Slider) SetShowTooltip(v bool)    { s.showTooltip = v }
+func (s *Slider) SetLayout(l SliderLayout) { s.layout = l }
+func (s *Slider) Layout() SliderLayout     { return s.layout }
+func (s *Slider) SetRange(v bool) {
+	s.rangeMode = v
+	if v && !s.rangeInit {
+		s.lo = s.value
+		s.hi = s.max
+		s.rangeInit = true
+	}
+}
+func (s *Slider) Range() bool { return s.rangeMode }
+
+func (s *Slider) SetRangeValues(lo, hi float32) {
+	if lo > hi {
+		lo, hi = hi, lo
+	}
+	s.lo = s.clamp(lo)
+	s.hi = s.clamp(hi)
+	if s.lo > s.hi {
+		s.lo = s.hi
+	}
+	s.value = s.lo
+	s.rangeMode = true
+	s.rangeInit = true
+	if s.onChange != nil {
+		s.onChange(s.Value())
+	}
+}
+
+func (s *Slider) RangeValues() (float32, float32) { return s.lo, s.hi }
+
+func (s *Slider) clamp(v float32) float32 {
+	if v < s.min {
+		v = s.min
+	}
+	if v > s.max {
+		v = s.max
+	}
+	if s.step > 0 {
+		v = s.min + float32(int((v-s.min)/s.step+0.5))*s.step
+	}
+	return v
+}
 func (s *Slider) SetShowStep(v bool)            { s.showStep = v }
 func (s *Slider) ShowStep() bool                { return s.showStep }
 func (s *Slider) SetMarks(m map[float32]string) { s.marks = m }
@@ -118,7 +192,23 @@ func (s *Slider) updateFromMouse(mx float32) {
 	if t > 1 {
 		t = 1
 	}
-	s.SetValue(s.min + t*(s.max-s.min))
+	val := s.min + t*(s.max-s.min)
+	if !s.rangeMode {
+		s.SetValue(val)
+		return
+	}
+	if abs32(val-s.lo) <= abs32(val-s.hi) {
+		s.SetRangeValues(val, s.hi)
+	} else {
+		s.SetRangeValues(s.lo, val)
+	}
+}
+
+func abs32(v float32) float32 {
+	if v < 0 {
+		return -v
+	}
+	return v
 }
 
 func (s *Slider) ratio() float32 {

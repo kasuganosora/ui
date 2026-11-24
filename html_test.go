@@ -1328,6 +1328,20 @@ func TestIsTruthy(t *testing.T) {
 	}
 }
 
+func TestHTMLMilestone3Meter(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	doc := LoadHTMLDocument(tree, cfg, `<meter value="0.4"></meter><togglebutton label="粗体"></togglebutton>`, "")
+	if len(doc.QueryByTag("meter")) != 1 || len(doc.QueryByTag("togglebutton")) != 1 {
+		t.Fatalf("tags meter %d toggle %d children %d", len(doc.QueryByTag("meter")), len(doc.QueryByTag("togglebutton")), len(doc.Root.Children()))
+	}
+	meters := doc.QueryByTag("meter")
+	m := meters[0].(*widget.Meter)
+	if m.Value() != 0.4 {
+		t.Fatalf("meter value %v", m.Value())
+	}
+}
+
 func TestDocumentInterpolateNoData(t *testing.T) {
 	tree := core.NewTree()
 	cfg := widget.DefaultConfig()

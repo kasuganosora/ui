@@ -35,6 +35,7 @@ type Message struct {
 	onDurationEnd   func()
 	startTime       time.Time
 	closeID         core.ElementID
+	elapsed         float32
 }
 
 // NewMessage creates a message notification.
@@ -82,9 +83,30 @@ func (m *Message) SetContent(content string) { m.content = content }
 func (m *Message) SetTheme(t MessageTheme)   { m.theme = t }
 
 func (m *Message) SetVisible(v bool) {
+	if v {
+		m.elapsed = 0
+	}
 	m.visible = v
 	if v {
 		m.startTime = time.Now()
+	}
+}
+
+func (m *Message) Tick(dt float32) {
+	if !m.visible || m.duration <= 0 || dt <= 0 {
+		return
+	}
+	m.elapsed += dt
+	if m.elapsed*1000 < float32(m.duration) {
+		return
+	}
+	m.elapsed = 0
+	m.visible = false
+	if m.onDurationEnd != nil {
+		m.onDurationEnd()
+	}
+	if m.onClose != nil {
+		m.onClose()
 	}
 }
 
