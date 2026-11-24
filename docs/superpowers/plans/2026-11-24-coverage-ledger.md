@@ -101,4 +101,12 @@ HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKe
 
 ## 表 3（19）
 
-全部 pending。里程碑 4 还没开始。
+第一批只做了能独立成立的两行。其余没有空类型。
+
+| 行 | 状态 | 证据 |
+| --- | --- | --- |
+| 1 Camera | host-verified | `TestCameraHostPanZoomAndHit`。拖拽改变世界原点，滚轮以光标为中心缩放，标记可命中，软件光栅不是空帧 |
+| 2 plot | host-verified | `TestPlotHostBarsAxesAndPie`。柱、折线、饼、树图、桑基都有几何和命中。柱和坐标画进内部 `Canvas` 像素，也画进命令缓冲并由软件后端光栅化。面积和散点走同一套点映射 |
+| 3–13、14–19 | pending | 数据表、Markdown、流程图、文件浏览、提交图、图布局、编辑器、diff、富文本、公式、聊天、Dock 序列化、终端字节流、WebView、视频、着色器、取色都还没做。16、17、19 将来只做到假宿主，不能写成设备已接入 |
+
+悬停层和模态：`TestModalEscapeSkipsCoveredHover`。被更高模态盖住的 transient 不再吃掉 Escape。没有模态时，悬停打开的卡片仍能在不持有焦点的情况下被 Escape 关掉。

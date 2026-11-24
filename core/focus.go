@@ -93,6 +93,19 @@ func (t *Tree) PopLayer(id ElementID) {
 	t.layers = kept
 }
 
+// topModal returns the visible layer with the highest rank.
+func (t *Tree) topModal() (ElementID, int32) {
+	var id ElementID
+	var rank int32
+	for _, layer := range t.layers {
+		if layer.rank > rank && t.ChainAllows(layer.id) {
+			rank = layer.rank
+			id = layer.id
+		}
+	}
+	return id, rank
+}
+
 // LayerRank returns the rank of the nearest modal layer at id or an ancestor.
 // Zero means the element is not inside an open modal layer.
 func (t *Tree) LayerRank(id ElementID) int32 {
@@ -179,9 +192,13 @@ func (t *Tree) RouteKey(evt *event.Event) {
 		return
 	}
 	if evt.Type == event.KeyDown && evt.Key == event.KeyEscape {
+		modal, modalRank := t.topModal()
 		for i := len(t.transients) - 1; i >= 0; i-- {
 			id := t.transients[i]
 			if !t.ChainAllows(id) {
+				continue
+			}
+			if modal != InvalidElementID && t.LayerRank(id) < modalRank && !t.InScope(id, modal) {
 				continue
 			}
 			NewDispatcher(t).Dispatch(id, evt)

@@ -1475,6 +1475,10 @@ func (p *htmlParser) parseMilestone3(tag string, attrs map[string]string, id str
 		w = widget.NewSettings(p.tree, p.cfg)
 	case "settingsdialog":
 		w = widget.NewSettingsDialog(p.tree, p.cfg)
+	case "camera":
+		w = widget.NewCamera(p.tree, p.cfg)
+	case "plot":
+		w = widget.NewPlot(p.tree, p.cfg)
 	default:
 		return false
 	}
