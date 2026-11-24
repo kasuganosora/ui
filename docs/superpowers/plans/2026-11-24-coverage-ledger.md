@@ -105,8 +105,8 @@ HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKe
 
 | 行 | 状态 | 证据 |
 | --- | --- | --- |
-| 1 Camera | host-verified | `TestCameraHostPanZoomAndHit`。拖拽改变世界原点，滚轮以光标为中心缩放，标记可命中，软件光栅不是空帧 |
-| 2 plot | host-verified | `TestPlotHostBarsAxesAndPie`。柱、折线、饼、树图、桑基都有几何和命中。柱和坐标画进内部 `Canvas` 像素，也画进命令缓冲并由软件后端光栅化。面积和散点走同一套点映射 |
+| 1 Camera | host-verified | `TestCameraHostPanZoomAndHit` 覆盖平移、绕光标缩放和标记命中。`TestCameraClipsViewportAndAnchorsGrid`：标记和网格裁在视口内，网格相位跟着世界原点走，平移出视口后再平移回来 |
+| 2 plot | host-verified，边界写明 | `TestPlotHostBarsAxesAndPie` 覆盖柱、散点和单层树图。`TestPlotLinesAreaSankeyPie` 覆盖线段中点的绘制和命中、面积填充、桑基连线（直线、宽度随流量，不是丝带物理）、扇形内部/圆外拒绝、空值、负数柱和极大值。树图仍是单层横向切片，不是 squarified。Canvas 像素和命令缓冲的软件光栅使用同一组矩形 |
 | 3–13、14–19 | pending | 数据表、Markdown、流程图、文件浏览、提交图、图布局、编辑器、diff、富文本、公式、聊天、Dock 序列化、终端字节流、WebView、视频、着色器、取色都还没做。16、17、19 将来只做到假宿主，不能写成设备已接入 |
 
 悬停层和模态：`TestModalEscapeSkipsCoveredHover`。被更高模态盖住的 transient 不再吃掉 Escape。没有模态时，悬停打开的卡片仍能在不持有焦点的情况下被 Escape 关掉。

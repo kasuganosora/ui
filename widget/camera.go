@@ -1,6 +1,8 @@
 package widget
 
 import (
+	"math"
+
 	"github.com/kasuganosora/ui/core"
 	"github.com/kasuganosora/ui/event"
 	uimath "github.com/kasuganosora/ui/math"
@@ -97,6 +99,10 @@ func (c *Camera) ScreenToWorld(x, y float32) (float32, float32) {
 }
 
 func (c *Camera) MarkerAt(x, y float32) string {
+	b := c.Bounds()
+	if !b.Contains(uimath.Vec2{X: x, Y: y}) {
+		return ""
+	}
 	const r = float32(8)
 	for i := len(c.ids) - 1; i >= 0; i-- {
 		sx, sy := c.WorldToScreen(c.wx[i], c.wy[i])
@@ -113,12 +119,21 @@ func (c *Camera) Draw(buf *render.CommandBuffer) {
 		return
 	}
 	buf.DrawRect(render.RectCmd{Bounds: b, FillColor: c.config.BgColor, BorderColor: c.config.BorderColor, BorderWidth: 1}, 1, 1)
-	step := float32(40) * c.zoom
-	if step < 8 {
-		step = 8
-	}
-	for x := b.X; x < b.X+b.Width; x += step {
-		buf.DrawRect(render.RectCmd{Bounds: uimath.NewRect(x, b.Y, 1, b.Height), FillColor: c.config.BorderColor}, 2, 1)
+	buf.PushClipZ(b, 2)
+	const worldStep = float32(40)
+	if c.zoom > 0 {
+		x0 := float32(math.Floor(float64(c.originX/worldStep))) * worldStep
+		x1 := c.originX + b.Width/c.zoom
+		for wx := x0; wx <= x1+worldStep; wx += worldStep {
+			sx, _ := c.WorldToScreen(wx, 0)
+			buf.DrawRect(render.RectCmd{Bounds: uimath.NewRect(sx, b.Y, 1, b.Height), FillColor: c.config.BorderColor}, 2, 1)
+		}
+		y0 := float32(math.Floor(float64(c.originY/worldStep))) * worldStep
+		y1 := c.originY + b.Height/c.zoom
+		for wy := y0; wy <= y1+worldStep; wy += worldStep {
+			_, sy := c.WorldToScreen(0, wy)
+			buf.DrawRect(render.RectCmd{Bounds: uimath.NewRect(b.X, sy, b.Width, 1), FillColor: c.config.BorderColor}, 2, 1)
+		}
 	}
 	for i := range c.ids {
 		sx, sy := c.WorldToScreen(c.wx[i], c.wy[i])
@@ -127,4 +142,5 @@ func (c *Camera) Draw(buf *render.CommandBuffer) {
 			FillColor: c.config.PrimaryColor,
 		}, 3, 1)
 	}
+	buf.PopClipZ(4)
 }

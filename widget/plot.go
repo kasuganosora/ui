@@ -85,6 +85,10 @@ func NewPlot(tree *core.Tree, cfg *Config) *Plot {
 
 func (p *Plot) Canvas() *Canvas { return p.canvas }
 func (p *Plot) Selected() int   { return p.selected }
+
+// SetBars sets bar heights. Values below zero are drawn as empty bars so they
+// cannot be hit. An empty slice draws no bars. The tallest finite value fills
+// the plot, and smaller values keep their proportion.
 func (p *Plot) SetBars(v []float32) {
 	p.mode = plotBars
 	p.bars = append(p.bars[:0], v...)
@@ -182,7 +186,11 @@ func (p *Plot) rebuild() {
 		}
 		slot := a.Width / float32(n)
 		_, _, _, maxY := p.domain()
-		for i, v := range p.bars {
+		for i, raw := range p.bars {
+			v := raw
+			if v < 0 {
+				v = 0
+			}
 			h := float32(0)
 			if maxY > 0 {
 				h = v / maxY * a.Height
@@ -256,27 +264,39 @@ func (p *Plot) TreemapRect(i int) uimath.Rect {
 }
 func (p *Plot) SankeyNode(i int) uimath.Rect { return p.TreemapRect(i) }
 
-func (p *Plot) PieAnchor(i int) (float32, float32) {
+func (p *Plot) pieCenter() (cx, cy, radius float32) {
 	a := p.plotBounds()
-	cx := a.X + a.Width/2
-	cy := a.Y + a.Height/2
-	r := a.Height * 0.3
-	if a.Width < a.Height {
-		r = a.Width * 0.3
+	cx = a.X + a.Width/2
+	cy = a.Y + a.Height/2
+	radius = a.Width
+	if a.Height < radius {
+		radius = a.Height
 	}
+	return cx, cy, radius * 0.35
+}
+
+func (p *Plot) PieAnchor(i int) (float32, float32) {
+	cx, cy, radius := p.pieCenter()
 	var sum float32
 	for _, v := range p.pie {
-		sum += v
+		if v > 0 {
+			sum += v
+		}
 	}
 	if sum <= 0 || i < 0 || i >= len(p.pie) {
 		return cx, cy
 	}
-	angle := float32(-math.Pi / 2)
+	angle := -math.Pi / 2
+	r := float64(radius) * 0.55
 	for n, v := range p.pie {
-		sweep := v / sum * float32(2*math.Pi)
+		val := v
+		if val < 0 {
+			val = 0
+		}
+		sweep := float64(val / sum * float32(2*math.Pi))
 		if n == i {
 			mid := angle + sweep/2
-			return cx + float32(math.Cos(float64(mid)))*r, cy + float32(math.Sin(float64(mid)))*r
+			return cx + float32(math.Cos(mid)*r), cy + float32(math.Sin(mid)*r)
 		}
 		angle += sweep
 	}
@@ -285,40 +305,127 @@ func (p *Plot) PieAnchor(i int) (float32, float32) {
 
 func (p *Plot) Hit(x, y float32) (series, index int, ok bool) {
 	if p.mode == plotPie {
-		a := p.plotBounds()
-		cx := a.X + a.Width/2
-		cy := a.Y + a.Height/2
-		ang := math.Atan2(float64(y-cy), float64(x-cx))
-		// Convert atan2 (-pi, pi] so it starts at -pi/2 and increases clockwise in screen space.
-		// Screen y grows downward, which matches atan2's y.
-		start := -math.Pi / 2
-		rel := ang - start
-		for rel < 0 {
-			rel += 2 * math.Pi
+		return p.hitPie(x, y)
+	}
+	if p.mode == plotArea && p.inArea(x, y) {
+		return 0, 0, true
+	}
+	if p.mode == plotLine || p.mode == plotArea || p.mode == plotScatter {
+		if i, ok := p.nearSegment(x, y, 4); ok {
+			return 0, i, true
 		}
-		var sum float32
-		for _, v := range p.pie {
-			sum += v
-		}
-		if sum <= 0 {
-			return 0, 0, false
-		}
-		acc := 0.0
-		for i, v := range p.pie {
-			acc += float64(v / sum * float32(2*math.Pi))
-			if rel <= acc {
-				return 0, i, true
-			}
-		}
-		return 0, len(p.pie) - 1, true
 	}
 	p.rebuild()
 	for i := len(p.rects) - 1; i >= 0; i-- {
+		if p.rects[i].Height <= 0 || p.rects[i].Width <= 0 {
+			continue
+		}
 		if p.rects[i].Contains(uimath.Vec2{X: x, Y: y}) {
 			return 0, i, true
 		}
 	}
 	return 0, 0, false
+}
+
+func (p *Plot) hitPie(x, y float32) (int, int, bool) {
+	cx, cy, radius := p.pieCenter()
+	dx, dy := float64(x-cx), float64(y-cy)
+	if dx*dx+dy*dy > float64(radius*radius) {
+		return 0, 0, false
+	}
+	var sum float32
+	for _, v := range p.pie {
+		if v > 0 {
+			sum += v
+		}
+	}
+	if sum <= 0 {
+		return 0, 0, false
+	}
+	rel := math.Atan2(dy, dx) + math.Pi/2
+	for rel < 0 {
+		rel += 2 * math.Pi
+	}
+	acc := 0.0
+	for i, v := range p.pie {
+		val := v
+		if val < 0 {
+			val = 0
+		}
+		acc += float64(val / sum * float32(2*math.Pi))
+		if rel <= acc {
+			return 0, i, true
+		}
+	}
+	return 0, len(p.pie) - 1, true
+}
+
+func (p *Plot) nearSegment(x, y, tol float32) (int, bool) {
+	if len(p.points) < 2 {
+		return 0, false
+	}
+	best := -1
+	bestD := tol + 1
+	for i := 0; i < len(p.points)-1; i++ {
+		x0, y0 := p.mapPoint(p.points[i].X, p.points[i].Y)
+		x1, y1 := p.mapPoint(p.points[i+1].X, p.points[i+1].Y)
+		if d := distToSegment(x, y, x0, y0, x1, y1); d < bestD {
+			bestD = d
+			best = i
+		}
+	}
+	if best >= 0 && bestD <= tol {
+		return best, true
+	}
+	return 0, false
+}
+
+func distToSegment(px, py, x0, y0, x1, y1 float32) float32 {
+	dx, dy := x1-x0, y1-y0
+	len2 := dx*dx + dy*dy
+	t := float32(0)
+	if len2 > 0 {
+		t = ((px-x0)*dx + (py-y0)*dy) / len2
+		if t < 0 {
+			t = 0
+		}
+		if t > 1 {
+			t = 1
+		}
+	}
+	qx, qy := x0+t*dx, y0+t*dy
+	ex, ey := px-qx, py-qy
+	return float32(math.Sqrt(float64(ex*ex + ey*ey)))
+}
+
+func (p *Plot) inArea(x, y float32) bool {
+	a := p.plotBounds()
+	if !a.Contains(uimath.Vec2{X: x, Y: y}) || len(p.points) < 2 {
+		return false
+	}
+	_, _, minY, _ := p.domain()
+	_, base := p.mapPoint(p.points[0].X, minY)
+	for i := 0; i < len(p.points)-1; i++ {
+		x0, y0 := p.mapPoint(p.points[i].X, p.points[i].Y)
+		x1, y1 := p.mapPoint(p.points[i+1].X, p.points[i+1].Y)
+		lo, hi := x0, x1
+		if hi < lo {
+			lo, hi = hi, lo
+		}
+		if x < lo || x > hi || hi == lo {
+			continue
+		}
+		t := (x - x0) / (x1 - x0)
+		lineY := y0 + (y1-y0)*t
+		top, bot := lineY, base
+		if bot < top {
+			top, bot = bot, top
+		}
+		if y >= top-1 && y <= bot+1 {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Plot) Draw(buf *render.CommandBuffer) {
@@ -332,9 +439,21 @@ func (p *Plot) Draw(buf *render.CommandBuffer) {
 	ctx.SetFillColor(uimath.Color{R: 1, G: 1, B: 1, A: 1})
 	ctx.FillRect(0, 0, float64(p.canvas.Width()), float64(p.canvas.Height()))
 	ctx.SetFillColor(p.config.PrimaryColor)
-	for _, r := range p.rects {
-		ctx.FillRect(float64(r.X-b.X), float64(r.Y-b.Y), float64(r.Width), float64(r.Height))
-		buf.DrawRect(render.RectCmd{Bounds: r, FillColor: p.config.PrimaryColor}, 2, 1)
+	if p.mode == plotLine || p.mode == plotArea || p.mode == plotScatter {
+		if p.mode == plotArea {
+			p.paintArea(ctx, buf, b)
+		}
+		p.paintSegments(ctx, buf, b)
+	} else {
+		for _, r := range p.rects {
+			if r.Width <= 0 || r.Height <= 0 {
+				continue
+			}
+			p.paintRect(ctx, buf, b, r, p.config.PrimaryColor, 2)
+		}
+	}
+	if p.mode == plotSankey {
+		p.paintSankeyLinks(ctx, buf, b)
 	}
 	if p.mode == plotPie {
 		p.paintPie(ctx, buf, b)
@@ -345,58 +464,134 @@ func (p *Plot) Draw(buf *render.CommandBuffer) {
 	p.canvas.Draw(buf)
 }
 
-func (p *Plot) paintPie(ctx *CanvasContext2D, buf *render.CommandBuffer, b uimath.Rect) {
+func (p *Plot) paintRect(ctx *CanvasContext2D, buf *render.CommandBuffer, origin uimath.Rect, r uimath.Rect, col uimath.Color, z int32) {
+	ctx.SetFillColor(col)
+	ctx.FillRect(float64(r.X-origin.X), float64(r.Y-origin.Y), float64(r.Width), float64(r.Height))
+	buf.DrawRect(render.RectCmd{Bounds: r, FillColor: col}, z, 1)
+}
+
+func (p *Plot) paintSegments(ctx *CanvasContext2D, buf *render.CommandBuffer, origin uimath.Rect) {
+	for i := 0; i < len(p.points)-1; i++ {
+		x0, y0 := p.mapPoint(p.points[i].X, p.points[i].Y)
+		x1, y1 := p.mapPoint(p.points[i+1].X, p.points[i+1].Y)
+		steps := int(math.Hypot(float64(x1-x0), float64(y1-y0)))
+		if steps < 1 {
+			steps = 1
+		}
+		for s := 0; s <= steps; s++ {
+			t := float32(s) / float32(steps)
+			x := x0 + (x1-x0)*t
+			y := y0 + (y1-y0)*t
+			p.paintRect(ctx, buf, origin, uimath.NewRect(x-2, y-2, 4, 4), p.config.PrimaryColor, 5)
+		}
+	}
+}
+
+func (p *Plot) paintArea(ctx *CanvasContext2D, buf *render.CommandBuffer, origin uimath.Rect) {
+	if len(p.points) < 2 {
+		return
+	}
+	_, _, minY, _ := p.domain()
+	_, base := p.mapPoint(p.points[0].X, minY)
 	a := p.plotBounds()
-	cx := a.X + a.Width/2
-	cy := a.Y + a.Height/2
-	radius := a.Height * 0.35
-	if a.Width < a.Height {
-		radius = a.Width * 0.35
+	for i := 0; i < len(p.points)-1; i++ {
+		x0, y0 := p.mapPoint(p.points[i].X, p.points[i].Y)
+		x1, y1 := p.mapPoint(p.points[i+1].X, p.points[i+1].Y)
+		steps := int(math.Abs(float64(x1 - x0)))
+		if steps < 1 {
+			steps = 1
+		}
+		for s := 0; s <= steps; s++ {
+			t := float32(s) / float32(steps)
+			x := x0 + (x1-x0)*t
+			y := y0 + (y1-y0)*t
+			top, bot := y, base
+			if bot < top {
+				top, bot = bot, top
+			}
+			if x < a.X || x > a.X+a.Width {
+				continue
+			}
+			if top < a.Y {
+				top = a.Y
+			}
+			if bot > a.Y+a.Height {
+				bot = a.Y + a.Height
+			}
+			if bot-top < 1 {
+				continue
+			}
+			p.paintRect(ctx, buf, origin, uimath.NewRect(x, top, 1, bot-top), p.config.PrimaryColor, 2)
+		}
+	}
+}
+
+func (p *Plot) paintSankeyLinks(ctx *CanvasContext2D, buf *render.CommandBuffer, origin uimath.Rect) {
+	for _, link := range p.links {
+		if link.Value <= 0 || link.From < 0 || link.To < 0 || link.From >= len(p.rects) || link.To >= len(p.rects) {
+			continue
+		}
+		if link.From >= len(p.nodes) || p.nodes[link.From].Value <= 0 {
+			continue
+		}
+		from, to := p.rects[link.From], p.rects[link.To]
+		h := from.Height * link.Value / p.nodes[link.From].Value
+		if h < 8 {
+			h = 8
+		}
+		y := (from.Y+from.Height/2+to.Y+to.Height/2)/2 - h/2
+		x0 := from.X + from.Width
+		x1 := to.X
+		if x1 < x0 {
+			x0, x1 = to.X+to.Width, from.X
+		}
+		if x1-x0 < 1 {
+			continue
+		}
+		p.paintRect(ctx, buf, origin, uimath.NewRect(x0, y, x1-x0, h), p.config.WarningColor, 2)
+	}
+}
+
+func (p *Plot) paintPie(ctx *CanvasContext2D, buf *render.CommandBuffer, b uimath.Rect) {
+	cx, cy, radius := p.pieCenter()
+	if radius <= 0 {
+		return
 	}
 	var sum float32
 	for _, v := range p.pie {
-		sum += v
+		if v > 0 {
+			sum += v
+		}
 	}
-	if sum <= 0 || radius <= 0 {
+	if sum <= 0 {
 		return
 	}
 	colors := []uimath.Color{p.config.PrimaryColor, p.config.ErrorColor, p.config.SuccessColor, p.config.WarningColor}
-	for py := int(cy - radius); py <= int(cy+radius); py++ {
-		for px := int(cx - radius); px <= int(cx+radius); px++ {
+	r2 := radius * radius
+	for py := int(math.Floor(float64(cy - radius))); py <= int(math.Ceil(float64(cy+radius))); py++ {
+		for px := int(math.Floor(float64(cx - radius))); px <= int(math.Ceil(float64(cx+radius))); px++ {
 			dx, dy := float32(px)-cx, float32(py)-cy
-			if dx*dx+dy*dy > radius*radius {
+			if dx*dx+dy*dy > r2 {
 				continue
 			}
-			ang := math.Atan2(float64(dy), float64(dx))
-			rel := ang + math.Pi/2
+			rel := math.Atan2(float64(dy), float64(dx)) + math.Pi/2
 			for rel < 0 {
 				rel += 2 * math.Pi
 			}
 			acc := 0.0
 			idx := 0
 			for i, v := range p.pie {
-				acc += float64(v / sum * float32(2*math.Pi))
+				val := v
+				if val < 0 {
+					val = 0
+				}
+				acc += float64(val / sum * float32(2*math.Pi))
 				idx = i
 				if rel <= acc {
 					break
 				}
 			}
-			col := colors[idx%len(colors)]
-			ctx.SetFillColor(col)
-			ctx.FillRect(float64(px)-float64(b.X), float64(py)-float64(b.Y), 1, 1)
+			p.paintRect(ctx, buf, b, uimath.NewRect(float32(px), float32(py), 1, 1), colors[idx%len(colors)], 4)
 		}
-	}
-	// One retained rectangle per slice so the software raster shows both colors.
-	angle := -math.Pi / 2
-	for i, v := range p.pie {
-		sweep := float64(v / sum * float32(2*math.Pi))
-		mid := angle + sweep/2
-		x := cx + float32(math.Cos(mid))*radius*0.6
-		y := cy + float32(math.Sin(mid))*radius*0.6
-		buf.DrawRect(render.RectCmd{
-			Bounds:    uimath.NewRect(x-6, y-6, 12, 12),
-			FillColor: colors[i%len(colors)],
-		}, 4, 1)
-		angle += sweep
 	}
 }

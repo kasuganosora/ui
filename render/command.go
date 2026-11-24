@@ -279,6 +279,18 @@ func (cb *CommandBuffer) PushClip(bounds uimath.Rect) {
 	})
 }
 
+// PushClipZ is PushClip with an explicit z-order so a backend that sorts by z
+// keeps the clip wrapped around the draws it belongs to.
+func (cb *CommandBuffer) PushClipZ(bounds uimath.Rect, z int32) {
+	if len(cb.clipStack) > 0 {
+		bounds = cb.clipStack[len(cb.clipStack)-1].Intersection(bounds)
+	}
+	cb.clipStack = append(cb.clipStack, bounds)
+	cc := cb.acquireClip()
+	cc.Bounds = bounds
+	cb.place(Command{Type: CmdClip, ZOrder: z, Clip: cc})
+}
+
 // PopClip restores the scissor to the previous clip rect (or full viewport if none).
 func (cb *CommandBuffer) PopClip() {
 	if len(cb.clipStack) > 0 {
@@ -294,6 +306,21 @@ func (cb *CommandBuffer) PopClip() {
 		Type: CmdClip,
 		Clip: cc,
 	})
+}
+
+// PopClipZ is PopClip with an explicit z-order. It must be greater than the
+// z-order of the draws issued since the matching PushClipZ.
+func (cb *CommandBuffer) PopClipZ(z int32) {
+	if len(cb.clipStack) > 0 {
+		cb.clipStack = cb.clipStack[:len(cb.clipStack)-1]
+	}
+	cc := cb.acquireClip()
+	if len(cb.clipStack) > 0 {
+		cc.Bounds = cb.clipStack[len(cb.clipStack)-1]
+	} else {
+		cc.Bounds = uimath.NewRect(0, 0, 1e6, 1e6)
+	}
+	cb.place(Command{Type: CmdClip, ZOrder: z, Clip: cc})
 }
 
 // DrawOverlay adds a rect command to the overlay layer.

@@ -5,6 +5,7 @@ import (
 
 	"github.com/kasuganosora/ui/event"
 	"github.com/kasuganosora/ui/godot"
+	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 	"github.com/kasuganosora/ui/widget"
 )
@@ -159,4 +160,213 @@ func TestPlotHostBarsAxesAndPie(t *testing.T) {
 	if plot.SankeyNode(0).Height <= 0 || plot.SankeyNode(1).X <= plot.SankeyNode(0).X {
 		t.Fatal("sankey nodes were not laid out in columns")
 	}
+}
+
+func TestCameraClipsViewportAndAnchorsGrid(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(400, 300)
+	cam := widget.NewCamera(ui.Tree(), ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), cam.ElementID())
+	place(ui.Tree(), cam.ElementID(), 80, 60, 120, 100)
+	cam.AddMarker("out", -30, 10)
+	cam.AddMarker("in", 20, 20)
+	pr, pg, pb, _ := ui.Config().PrimaryColor.RGBA8()
+	buf := render.NewCommandBuffer()
+	cam.Draw(buf)
+	be := godot.NewSoftwareBackend()
+	be.Resize(400, 300)
+	be.BeginFrame()
+	be.Submit(buf)
+	or, og, ob, oa := pixAt(be.Pixels(), 400, 50, 70)
+	if oa != 0 && or == pr && og == pg && ob == pb {
+		t.Fatalf("marker painted outside the viewport at (50,70) #%02x%02x%02x", or, og, ob)
+	}
+	inx, iny := cam.WorldToScreen(20, 20)
+	ir, ig, ib, ia := pixAt(be.Pixels(), 400, int(inx), int(iny))
+	if ia == 0 || ir != pr || ig != pg || ib != pb {
+		t.Fatalf("inside marker missing at %v %v color %d %d %d %d", inx, iny, ir, ig, ib, ia)
+	}
+	phase0 := verticalGridX(buf, cam)
+	cam.AddMarker("shift", 0, 0)
+	// Slide the world so the origin phase moves by 15px.
+	ui.HandleEvent(&event.Event{Type: event.MouseDown, GlobalX: 100, GlobalY: 80})
+	ui.HandleEvent(&event.Event{Type: event.MouseMove, GlobalX: 115, GlobalY: 80})
+	ui.HandleEvent(&event.Event{Type: event.MouseUp, GlobalX: 115, GlobalY: 80})
+	buf = render.NewCommandBuffer()
+	cam.Draw(buf)
+	phase1 := verticalGridX(buf, cam)
+	if len(phase0) == 0 || len(phase1) == 0 || phase0[0] == phase1[0] {
+		t.Fatalf("grid did not follow the pan: %v -> %v", phase0, phase1)
+	}
+	sx, _ := cam.WorldToScreen(40, 0)
+	found := false
+	for _, x := range phase1 {
+		if abs32(x-sx) < 1.5 {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("grid phase %v want a line near world 40 at %v", phase1, sx)
+	}
+	ui.HandleEvent(&event.Event{Type: event.MouseDown, GlobalX: 140, GlobalY: 100})
+	ui.HandleEvent(&event.Event{Type: event.MouseMove, GlobalX: 90, GlobalY: 100})
+	ui.HandleEvent(&event.Event{Type: event.MouseUp, GlobalX: 90, GlobalY: 100})
+	buf = render.NewCommandBuffer()
+	cam.Draw(buf)
+	be.BeginFrame()
+	be.Submit(buf)
+	ox, oy := cam.WorldToScreen(-30, 10)
+	r, _, _, a := pixAt(be.Pixels(), 400, int(ox), int(oy))
+	if ox < 80 || ox >= 200 || a == 0 || r != pr {
+		t.Fatalf("marker did not pan back inside the viewport at %v %v color %d %d", ox, oy, r, a)
+	}
+	ui.HandleEvent(&event.Event{Type: event.MouseDown, GlobalX: 140, GlobalY: 100})
+	ui.HandleEvent(&event.Event{Type: event.MouseMove, GlobalX: 190, GlobalY: 100})
+	ui.HandleEvent(&event.Event{Type: event.MouseUp, GlobalX: 190, GlobalY: 100})
+	buf = render.NewCommandBuffer()
+	cam.Draw(buf)
+	be.BeginFrame()
+	be.Submit(buf)
+	r, _, _, a = pixAt(be.Pixels(), 400, 50, 70)
+	if a != 0 && r == pr {
+		t.Fatal("marker stayed painted outside the viewport after panning out")
+	}
+}
+
+func TestPlotLinesAreaSankeyPie(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(400, 280)
+	plot := widget.NewPlot(ui.Tree(), ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), plot.ElementID())
+	place(ui.Tree(), plot.ElementID(), 40, 20, 320, 200)
+	plot.SetLine([]widget.PlotPoint{{X: 0, Y: 1}, {X: 2, Y: 3}})
+	x0, y0 := plot.LineAnchor(0)
+	x1, y1 := plot.LineAnchor(1)
+	mx, my := (x0+x1)/2, (y0+y1)/2
+	if _, _, ok := plot.Hit(mx, my); !ok {
+		t.Fatalf("segment midpoint %v %v missed", mx, my)
+	}
+	buf := render.NewCommandBuffer()
+	plot.Draw(buf)
+	if !softwareCovers(buf, 400, 280, int(mx), int(my), ui.Config().PrimaryColor) {
+		t.Fatal("line segment was not rasterized away from the vertices")
+	}
+	ui.HandleEvent(&event.Event{Type: event.MouseDown, GlobalX: mx, GlobalY: my})
+	ui.HandleEvent(&event.Event{Type: event.MouseUp, GlobalX: mx, GlobalY: my})
+	if plot.Selected() < 0 {
+		t.Fatal("host click on the segment did not select")
+	}
+	plot.SetArea([]widget.PlotPoint{{X: 0, Y: 0}, {X: 1, Y: 4}, {X: 2, Y: 0}})
+	_, peak := plot.LineAnchor(1)
+	_, base := plot.LineAnchor(0)
+	ix, iy := plot.LineAnchor(1)
+	iy = peak + (base-peak)*0.5
+	if _, _, ok := plot.Hit(ix, iy); !ok {
+		t.Fatalf("area interior %v %v missed", ix, iy)
+	}
+	if _, _, ok := plot.Hit(4, iy); ok {
+		t.Fatal("area hit outside the plot")
+	}
+	buf = render.NewCommandBuffer()
+	plot.Draw(buf)
+	if !softwareCovers(buf, 400, 280, int(ix), int(iy), ui.Config().PrimaryColor) {
+		t.Fatal("area fill was not rasterized under the line")
+	}
+	plot.SetSankey(
+		[]widget.SankeyNode{{Name: "a", Value: 10}, {Name: "b", Value: 4}, {Name: "c", Value: 10}},
+		[]widget.SankeyLink{{From: 0, To: 2, Value: 10}},
+	)
+	plot.Draw(render.NewCommandBuffer())
+	n0, n2 := plot.SankeyNode(0), plot.SankeyNode(2)
+	ex := n0.X + n0.Width + 4
+	ey := n0.Y + n0.Height/2
+	if n2.X <= n0.X || n0.Contains(uimath.Vec2{X: ex, Y: ey}) || n2.Contains(uimath.Vec2{X: ex, Y: ey}) {
+		t.Fatalf("edge sample landed on a node %v %v", n0, n2)
+	}
+	buf = render.NewCommandBuffer()
+	plot.Draw(buf)
+	if !commandCovers(buf, ex, ey) && !softwareCovers(buf, 400, 280, int(ex), int(ey), ui.Config().WarningColor) {
+		t.Fatal("sankey link 0->2 has no edge away from the nodes")
+	}
+	plot.SetPie([]float32{1, 1, 2})
+	if _, _, ok := plot.Hit(42, 52); ok {
+		t.Fatal("point outside the pie circle hit a sector")
+	}
+	for i := 0; i < 3; i++ {
+		ax, ay := plot.PieAnchor(i)
+		_, got, ok := plot.Hit(ax, ay)
+		if !ok || got != i {
+			t.Fatalf("wedge %d hit %d ok %v at %v %v", i, got, ok, ax, ay)
+		}
+	}
+	ax, ay := plot.PieAnchor(2)
+	buf = render.NewCommandBuffer()
+	plot.Draw(buf)
+	if !softwareCovers(buf, 400, 280, int(ax), int(ay), ui.Config().SuccessColor) && !softwareCovers(buf, 400, 280, int(ax), int(ay), ui.Config().PrimaryColor) {
+		t.Fatal("pie wedge was not rasterized from the command buffer")
+	}
+	plot.SetBars(nil)
+	plot.Draw(render.NewCommandBuffer())
+	if _, _, ok := plot.Hit(80, 80); ok {
+		t.Fatal("empty bars hit")
+	}
+	plot.SetBars([]float32{0, 0})
+	plot.Draw(render.NewCommandBuffer())
+	plot.SetBars([]float32{-4, 8})
+	plot.Draw(render.NewCommandBuffer())
+	ax, ay = plot.BarAnchor(0)
+	if _, idx, ok := plot.Hit(ax, ay); ok && idx == 0 {
+		t.Fatal("negative bar was treated as a positive body")
+	}
+	plot.SetBars([]float32{1e8, 1})
+	plot.Draw(render.NewCommandBuffer())
+	if _, idx, ok := plot.Hit(plot.BarAnchor(0)); !ok || idx != 0 {
+		t.Fatal("extreme bar was not hittable")
+	}
+}
+
+func pixAt(px []byte, w, x, y int) (byte, byte, byte, byte) {
+	if x < 0 || y < 0 || len(px) < (y*w+x+1)*4 {
+		return 0, 0, 0, 0
+	}
+	i := (y*w + x) * 4
+	return px[i], px[i+1], px[i+2], px[i+3]
+}
+
+func verticalGridX(buf *render.CommandBuffer, cam *widget.Camera) []float32 {
+	var xs []float32
+	b := cam.Bounds()
+	for _, c := range buf.Commands() {
+		if c.Rect == nil || c.Rect.Bounds.Width > 1.5 || c.Rect.Bounds.Height < b.Height*0.5 {
+			continue
+		}
+		xs = append(xs, c.Rect.Bounds.X)
+	}
+	return xs
+}
+
+func abs32(v float32) float32 {
+	if v < 0 {
+		return -v
+	}
+	return v
+}
+
+func softwareCovers(buf *render.CommandBuffer, w, h, x, y int, want uimath.Color) bool {
+	be := godot.NewSoftwareBackend()
+	be.Resize(w, h)
+	be.BeginFrame()
+	be.Submit(buf)
+	r, g, b, a := pixAt(be.Pixels(), w, x, y)
+	wr, wg, wb, _ := want.RGBA8()
+	return a != 0 && r == wr && g == wg && b == wb
+}
+
+func commandCovers(buf *render.CommandBuffer, x, y float32) bool {
+	for _, c := range buf.Commands() {
+		if c.Rect != nil && c.Rect.Bounds.Contains(uimath.Vec2{X: x, Y: y}) && c.Rect.Bounds.Width > 16 {
+			return true
+		}
+	}
+	return false
 }
