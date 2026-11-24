@@ -2,6 +2,7 @@ package widget
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/kasuganosora/ui/core"
 	"github.com/kasuganosora/ui/event"
@@ -31,11 +32,23 @@ type Chat struct {
 	draft     string
 	selected  string
 	scrollY   float32
-	rowH      float32
 	composerH float32
 	pad       float32
 	seq       int
+	sending   bool
 	sender    ChatSender
+}
+
+type chatLine struct {
+	text string
+	x, y float32
+	w    float32
+}
+
+type chatBlock struct {
+	id    string
+	row   uimath.Rect
+	lines []chatLine
 }
 
 // NewChat creates an empty conversation.
@@ -43,7 +56,7 @@ func NewChat(tree *core.Tree, cfg *Config) *Chat {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	c := &Chat{Base: NewBase(tree, core.TypeCustom, cfg), rowH: 36, composerH: 32, pad: 8}
+	c := &Chat{Base: NewBase(tree, core.TypeCustom, cfg), composerH: 32, pad: 8}
 	tree.SetFocusable(c.id, true)
 	tree.AddHandler(c.id, event.KeyDown, func(ev *event.Event) {
 		if !targetPhase(ev) {
@@ -112,10 +125,9 @@ func (c *Chat) SetScrollY(y float32) {
 
 // MessageScreen is the row rectangle for id, including rows outside the clip.
 func (c *Chat) MessageScreen(id string) uimath.Rect {
-	list := c.listBounds()
-	for i, m := range c.messages {
-		if m.ID == id {
-			return uimath.NewRect(list.X, list.Y+float32(i)*c.rowH-c.scrollY, list.Width, c.rowH)
+	for _, b := range c.blocks() {
+		if b.id == id {
+			return b.row
 		}
 	}
 	return uimath.Rect{}
@@ -139,19 +151,27 @@ func (c *Chat) backspace() {
 }
 
 func (c *Chat) commit() {
-	if c.draft == "" {
+	if c.sending || c.draft == "" {
 		return
 	}
+	snap := c.draft
+	c.sending = true
+	var err error
 	if c.sender != nil {
-		if err := c.sender.Send(c.draft); err != nil {
-			return
-		}
+		err = c.sender.Send(snap)
+	}
+	if err != nil {
+		c.sending = false
+		return
 	}
 	c.seq++
 	c.messages = append(c.messages, ChatMessage{
-		ID: fmt.Sprintf("m%d", c.seq), Author: "me", Text: c.draft, Mine: true,
+		ID: fmt.Sprintf("m%d", c.seq), Author: "me", Text: snap, Mine: true,
 	})
-	c.draft = ""
+	if strings.HasPrefix(c.draft, snap) {
+		c.draft = c.draft[len(snap):]
+	}
+	c.sending = false
 }
 
 func (c *Chat) messageAt(x, y float32) string {
@@ -159,14 +179,18 @@ func (c *Chat) messageAt(x, y float32) string {
 	if x < list.X || y < list.Y || x >= list.X+list.Width || y >= list.Y+list.Height {
 		return ""
 	}
-	i := int((y - list.Y + c.scrollY) / c.rowH)
-	if i < 0 || i >= len(c.messages) {
-		return ""
+	for _, b := range c.blocks() {
+		if y >= b.row.Y && y < b.row.Y+b.row.Height {
+			return b.id
+		}
 	}
-	return c.messages[i].ID
+	return ""
 }
 
 func (c *Chat) measure(s string) float32 {
+	if s == "" {
+		return 0
+	}
 	size := c.config.FontSizeSm
 	if c.config.TextRenderer != nil {
 		return c.config.TextRenderer.MeasureText(s, size)
@@ -174,7 +198,95 @@ func (c *Chat) measure(s string) float32 {
 	return float32(len([]rune(s))) * size * 0.6
 }
 
-// Draw paints author and body glyphs. The list and the composer have separate clips.
+func (c *Chat) lineStep() float32 {
+	size := c.config.FontSizeSm
+	if size <= 0 {
+		size = 12
+	}
+	if c.config.TextRenderer != nil {
+		if h := c.config.TextRenderer.LineHeight(size); h > 0 {
+			return h
+		}
+	}
+	return size
+}
+
+func (c *Chat) wrap(s string, maxW float32) []string {
+	if s == "" {
+		return nil
+	}
+	var out []string
+	for _, para := range strings.Split(s, "\n") {
+		r := []rune(para)
+		if len(r) == 0 {
+			out = append(out, "")
+			continue
+		}
+		i := 0
+		for i < len(r) {
+			j := i + 1
+			for j < len(r) && c.measure(string(r[i:j+1])) <= maxW {
+				j++
+			}
+			out = append(out, string(r[i:j]))
+			i = j
+		}
+	}
+	return out
+}
+
+func (c *Chat) blocks() []chatBlock {
+	list := c.listBounds()
+	y := list.Y - c.scrollY
+	out := make([]chatBlock, 0, len(c.messages))
+	for _, m := range c.messages {
+		lines, h := c.placeLines(m, uimath.NewRect(list.X, y, list.Width, 0))
+		out = append(out, chatBlock{id: m.ID, row: uimath.NewRect(list.X, y, list.Width, h), lines: lines})
+		y += h
+	}
+	return out
+}
+
+func (c *Chat) placeLines(m ChatMessage, origin uimath.Rect) ([]chatLine, float32) {
+	maxW := origin.Width - 2*c.pad
+	if maxW < 1 {
+		maxW = origin.Width
+	}
+	step := c.lineStep()
+	author := m.Author
+	if author == "" {
+		author = "me"
+	}
+	var lines []chatLine
+	y := origin.Y + 1
+	add := func(text string) {
+		w := c.measure(text)
+		x := origin.X + c.pad
+		if m.Mine {
+			x = origin.X + origin.Width - c.pad - w
+			if x < origin.X+c.pad {
+				x = origin.X + c.pad
+			}
+		}
+		if text != "" {
+			lines = append(lines, chatLine{text: text, x: x, y: y, w: w})
+		}
+		y += step
+	}
+	for _, line := range c.wrap(author, maxW) {
+		add(line)
+	}
+	for _, line := range c.wrap(m.Text, maxW) {
+		add(line)
+	}
+	h := y - origin.Y + 1
+	if h < step+2 {
+		h = step + 2
+	}
+	return lines, h
+}
+
+// Draw paints the author above the body. The list and the composer have separate clips.
 func (c *Chat) Draw(buf *render.CommandBuffer) {
 	b := c.Bounds()
 	if b.IsEmpty() {
@@ -184,15 +296,16 @@ func (c *Chat) Draw(buf *render.CommandBuffer) {
 	buf.PushClip(b)
 	buf.DrawRect(render.RectCmd{Bounds: b, FillColor: c.config.BgColor}, 0, 1)
 	buf.PushClip(list)
-	for i, m := range c.messages {
-		y := list.Y + float32(i)*c.rowH - c.scrollY
-		if y+c.rowH <= list.Y {
+	for _, block := range c.blocks() {
+		if block.row.Y+block.row.Height <= list.Y {
 			continue
 		}
-		if y >= list.Y+list.Height {
+		if block.row.Y >= list.Y+list.Height {
 			break
 		}
-		c.drawMessage(buf, m, uimath.NewRect(list.X, y, list.Width, c.rowH))
+		for _, line := range block.lines {
+			emitText(c.config, buf, line.text, line.x, line.y, c.config.FontSizeSm, line.w+1, c.config.TextColor, 1, 4)
+		}
 	}
 	buf.PopClip()
 	comp := uimath.NewRect(b.X, list.Y+list.Height, b.Width, c.composerH)
@@ -203,28 +316,4 @@ func (c *Chat) Draw(buf *render.CommandBuffer) {
 	}
 	buf.PopClip()
 	buf.PopClip()
-}
-
-func (c *Chat) drawMessage(buf *render.CommandBuffer, m ChatMessage, row uimath.Rect) {
-	cfg := c.config
-	author := m.Author
-	if author == "" {
-		author = "me"
-	}
-	aw := c.measure(author)
-	bw := c.measure(m.Text)
-	ax := row.X + c.pad
-	bx := ax
-	if m.Mine {
-		ax = row.X + row.Width - c.pad - aw
-		bx = row.X + row.Width - c.pad - bw
-		if ax < row.X+c.pad {
-			ax = row.X + c.pad
-		}
-		if bx < row.X+c.pad {
-			bx = row.X + c.pad
-		}
-	}
-	emitText(cfg, buf, author, ax, row.Y+1, cfg.FontSizeSm, row.Width, cfg.TextColor, 1, 4)
-	emitText(cfg, buf, m.Text, bx, row.Y+1, cfg.FontSizeSm, row.Width, cfg.TextColor, 1, 4)
 }

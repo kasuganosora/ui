@@ -136,6 +136,211 @@ type stubErr string
 
 func (e stubErr) Error() string { return string(e) }
 
+func TestChatAuthorAndBodyStayApart(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(480, 360)
+	fx := newGlyphFixture(t, 480, 360)
+	ui.Config().TextRenderer = fx.drawer
+	ch := widget.NewChat(ui.Tree(), ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), ch.ElementID())
+	place(ui.Tree(), ch.ElementID(), 40, 20, 200, 220)
+	ch.Append(widget.ChatMessage{ID: "other", Author: "pat", Text: "LEFTTEXT"})
+	ch.Append(widget.ChatMessage{ID: "own", Author: "me", Text: "OWNTEXT", Mine: true})
+	longAuthor := "SUPERLONGAUTHORNAMEEXTRACHARS"
+	ch.Append(widget.ChatMessage{ID: "long", Author: longAuthor, Text: "FIRSTBODY\nSECONDLINE"})
+	ch.Append(widget.ChatMessage{ID: "ownlong", Author: "OWNLONG", Text: "OWNLINEALPHA\nOWNLINEBETA", Mine: true})
+	buf := render.NewCommandBuffer()
+	ch.Draw(buf)
+	cmds := textCmds(buf)
+	area := uimath.NewRect(40, 20, 200, 188)
+	pat := textIn(cmds, "pat", area)
+	left := textIn(cmds, "LEFTTEXT", area)
+	me := textIn(cmds, "me", area)
+	own := textIn(cmds, "OWNTEXT", area)
+	if pat == nil || left == nil || me == nil || own == nil {
+		t.Fatal("author or body glyphs are missing")
+	}
+	if glyphsIntersect(pat, left) || glyphsIntersect(me, own) {
+		t.Fatal("author glyphs intersect the body")
+	}
+	if pat.Glyphs[0].Y >= left.Glyphs[0].Y || me.Glyphs[0].Y >= own.Glyphs[0].Y {
+		t.Fatal("author is not above the body")
+	}
+	if left.Glyphs[0].X > 40+16 || own.Glyphs[0].X <= left.Glyphs[0].X {
+		t.Fatalf("alignment left %v own %v", left.Glyphs[0].X, own.Glyphs[0].X)
+	}
+	fx.present(buf)
+	for _, g := range []render.GlyphInstance{pat.Glyphs[0], left.Glyphs[0], me.Glyphs[0], own.Glyphs[0]} {
+		r, gg, b, a := pixAt(fx.be.Pixels(), 480, int(g.X+g.Width/2), int(g.Y+g.Height/2))
+		if a == 0 || (r > 80 && gg > 80 && b > 80) {
+			t.Fatalf("glyph ink %d %d %d %d at %v,%v", r, gg, b, a, g.X, g.Y)
+		}
+	}
+	size := ui.Config().FontSizeSm
+	maxW := float32(200 - 16)
+	parts := wrapRunes(longAuthor, maxW, func(s string) float32 { return fx.drawer.MeasureText(s, size) })
+	if len(parts) < 2 {
+		t.Fatalf("author did not need to wrap: %v", parts)
+	}
+	a0 := textIn(cmds, parts[0], area)
+	a1 := textIn(cmds, parts[1], area)
+	b0 := textIn(cmds, "FIRSTBODY", area)
+	b1 := textIn(cmds, "SECONDLINE", area)
+	if a0 == nil || a1 == nil || b0 == nil || b1 == nil || glyphsIntersect(a0, a1) || glyphsIntersect(b0, b1) || a1.Glyphs[0].Y >= b0.Glyphs[0].Y {
+		t.Fatal("wrapped author or multiline body collapsed")
+	}
+	o0 := textIn(cmds, "OWNLINEALPHA", area)
+	o1 := textIn(cmds, "OWNLINEBETA", area)
+	if o0 == nil || o1 == nil || o0.Glyphs[0].Y >= o1.Glyphs[0].Y {
+		t.Fatal("own multiline body collapsed")
+	}
+	right := float32(40 + 200 - 8)
+	if o0.Glyphs[len(o0.Glyphs)-1].X+o0.Glyphs[len(o0.Glyphs)-1].Width < right-size || o1.Glyphs[len(o1.Glyphs)-1].X+o1.Glyphs[len(o1.Glyphs)-1].Width < right-size {
+		t.Fatal("own multiline body is not right aligned")
+	}
+	click(ui, left.Glyphs[0].X+1, left.Glyphs[0].Y+1)
+	if ch.SelectedID() != "other" {
+		t.Fatalf("body hit selected %q", ch.SelectedID())
+	}
+
+	var many []widget.ChatMessage
+	for i := 0; i < 16; i++ {
+		many = append(many, widget.ChatMessage{ID: "row", Author: "pat", Text: "same"})
+	}
+	many = append(many, widget.ChatMessage{ID: "below", Author: "pat", Text: "BELOWFOLD"})
+	ch.SetMessages(many)
+	place(ui.Tree(), ch.ElementID(), 40, 20, 200, 90)
+	buf = render.NewCommandBuffer()
+	ch.Draw(buf)
+	if hasText(textCmds(buf), "BELOWFOLD", uimath.NewRect(0, 0, 480, 360)) {
+		t.Fatal("chat drew a message below the list")
+	}
+	off := ch.MessageScreen("below")
+	ch.SetScrollY(off.Y - 20)
+	buf = render.NewCommandBuffer()
+	ch.Draw(buf)
+	if !hasText(textCmds(buf), "BELOWFOLD", uimath.NewRect(40, 20, 200, 58)) {
+		t.Fatal("scrolled chat did not draw the folded message")
+	}
+}
+
+func glyphsIntersect(a, b *render.TextCmd) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	for _, g := range a.Glyphs {
+		for _, h := range b.Glyphs {
+			if g.X < h.X+h.Width && g.X+g.Width > h.X && g.Y < h.Y+h.Height && g.Y+g.Height > h.Y {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func wrapRunes(s string, maxW float32, measure func(string) float32) []string {
+	r := []rune(s)
+	var out []string
+	i := 0
+	for i < len(r) {
+		j := i + 1
+		for j < len(r) && measure(string(r[i:j+1])) <= maxW {
+			j++
+		}
+		out = append(out, string(r[i:j]))
+		i = j
+	}
+	return out
+}
+
+type hookSender struct {
+	n    int
+	last string
+	err  error
+	hook func(string)
+}
+
+func (s *hookSender) Send(text string) error {
+	s.n++
+	s.last = text
+	if s.hook != nil {
+		s.hook(text)
+	}
+	return s.err
+}
+
+func TestChatReentrantSendKeepsSnapshot(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(320, 200)
+	ch := widget.NewChat(ui.Tree(), ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), ch.ElementID())
+	place(ui.Tree(), ch.ElementID(), 8, 8, 200, 120)
+	ui.Tree().SetFocused(ch.ElementID(), true)
+	s := &hookSender{}
+	ch.SetSender(s)
+	press := func(r rune) {
+		ui.HandleEvent(&event.Event{Type: event.KeyPress, Char: r})
+	}
+	enter := func() {
+		ui.HandleEvent(&event.Event{Type: event.KeyDown, Key: event.KeyEnter})
+	}
+
+	s.hook = func(text string) {
+		if text != "A" {
+			t.Fatalf("callback saw %q", text)
+		}
+		press('Q')
+	}
+	press('A')
+	enter()
+	if s.n != 1 || s.last != "A" || len(ch.Messages()) != 1 || ch.Messages()[0].Text != "A" || ch.Draft() != "Q" {
+		t.Fatalf("success n %d last %q messages %+v draft %q", s.n, s.last, ch.Messages(), ch.Draft())
+	}
+
+	ch.SetMessages(nil)
+	s.n, s.err = 0, errChat
+	s.hook = func(string) { press('Q') }
+	press('A')
+	enter()
+	if s.n != 1 || len(ch.Messages()) != 0 || ch.Draft() != "AQ" {
+		t.Fatalf("failure n %d messages %+v draft %q", s.n, ch.Messages(), ch.Draft())
+	}
+
+	ch.SetMessages(nil)
+	s.n, s.err = 0, nil
+	s.hook = func(string) {
+		press('Q')
+		enter()
+	}
+	press('A')
+	enter()
+	if s.n != 1 || len(ch.Messages()) != 1 || ch.Messages()[0].Text != "A" || ch.Draft() != "Q" {
+		t.Fatalf("reenter n %d messages %+v draft %q", s.n, ch.Messages(), ch.Draft())
+	}
+
+	n := s.n
+	s.hook = nil
+	enter()
+	if ch.Draft() != "" || s.n != n+1 || len(ch.Messages()) != 2 || ch.Messages()[1].Text != "Q" {
+		t.Fatalf("second enter n %d messages %+v draft %q", s.n, ch.Messages(), ch.Draft())
+	}
+
+	ch.SetMessages(nil)
+	s.n = 0
+	s.hook = func(string) {
+		ch.Append(widget.ChatMessage{ID: "extra", Author: "you", Text: "APPENDED"})
+	}
+	press('B')
+	enter()
+	if s.n != 1 || len(ch.Messages()) != 2 || ch.Messages()[0].Text != "APPENDED" || ch.Messages()[1].Text != "B" {
+		t.Fatalf("append during send n %d %+v", s.n, ch.Messages())
+	}
+	enter()
+	if s.n != 1 || ch.Draft() != "" {
+		t.Fatalf("empty enter n %d draft %q", s.n, ch.Draft())
+	}
+}
+
 func TestChatSendMatchesDraft(t *testing.T) {
 	ui := NewEmbeddedUI(nil)
 	ui.Resize(320, 200)

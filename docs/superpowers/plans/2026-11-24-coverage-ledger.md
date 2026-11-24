@@ -117,8 +117,8 @@ HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKe
 | 10 diff | host-verified，边界写明 | `TestDiffViewSideBySide`：左右列各自裁剪，`old`/`new` 的字形不越过中线。`n` 从相同行跳到替换再跳到新增。点击用 `TextPos` 列偏移。视口外的变更不画。这是行级 LCS，不是词级差异，也不是三方合并 |
 | 11 richeditor | host-verified，边界写明 | `TestRichEditorMarksAndGlyphs`、`TestRichEditorMarkTable`。文档是 UTF-8 加符文区间标记。开头退格、文末 Delete、空粘贴不改文本也不发 `OnChange`。选中 `ab\ncd\nef` 里的 `cd` 得到 `ab\n\nef`，未选中的换行还在。插入和删除会平移、裁短或丢掉标记。粗体是同一字面再画一次，代码有底色但仍是字形，链接是主色字形。点击用测量宽度，视口外的行不画。没有图片、表格、HTML 粘贴，也不是 ProseMirror/Tiptap。不自动换行。`RichEditor.Draw` 和 `Editor.Draw` 一样不读树上的可见性：父级决定要不要调用 `Draw`（`TabShell` 只画当前页，`LayerManager` 跳过不可见层），命中和焦点走 `ChainAllows`。这是现有约定，没有改 `Draw` |
 | 12 formula | host-verified，边界写明 | `TestFormulaLayoutGlyphsAndHit`。语法是四则、`frac`、`sup`、`sub`、`sqrt` 和括号。分子在分母上面，上标抬高，下标降低，根号内容是字形。点击分母得到 `den`。宽公式在视口外的原子不画，滚进来才画。源字符串本身不作为一条文本画出。字体用调用方的 `TextDrawer`。没有积分、矩阵或完整 TeX，也不嵌入 NewCMMath |
-| 13 chat | host-verified，边界写明 | `TestChatMessagesGlyphsScrollAndSend`、`TestChatSendMatchesDraft`。消息和输入框是字形，自己的消息靠右，列表和输入框分开裁剪。空草稿和发送失败不改记录；失败时草稿还在。追加别人的消息不调用发送接口。视口外的消息不画。发送接口由宿主注入，控件里没有网络 |
-| 14 Dock 序列化 | host-verified，边界写明 | `TestDockRestoreGeometryAndIDs`。JSON 记下面板编号、停靠位置、尺寸、浮动矩形、页签顺序、当前页签和缩放。恢复后几何和编号一致，同编号的内容控件还在。重复编号、空编号、负数尺寸、未知当前页签、缩放不大于 0、坏 JSON 都拒绝，当前布局不动。标题是字形，画在表头填充上面。这是布局树，不是窗口管理器 |
+| 13 chat | host-verified，边界写明 | `TestChatAuthorAndBodyStayApart`：作者和正文的字形框不相交，作者在上，别人靠左，自己的多行靠右。长名字按测量宽度换行。视口外的消息不画。点正文用同一套行几何命中。列表和输入框仍分开裁剪。`TestChatReentrantSendKeepsSnapshot`：回调里再按 `Q` 或再按 Enter，记录仍是按下 Enter 前的 `A`，只调用一次 `Send`；成功后草稿只剩回调期间的新输入。发送失败保留原草稿加新输入。`Append` 不调用发送。空 Enter 不发送。没有网络 |
+| 14 Dock 序列化 | host-verified，边界写明 | `TestDockRestoreGeometryAndIDs`。序列化的是现有 `DockLayout` 的平铺边缘：每侧一块、中间页签编号、浮动矩形和缩放。JSON 恢复编号和几何，同编号的内容指针还在。重复编号、空编号、负数尺寸、未知当前页签、缩放不大于 0、坏 JSON 都拒绝，当前布局不动。标题是字形。这不是嵌套分割树。`Draw` 不画 `Content`。点击页签不改变当前页签 |
 | 15 terminal | host-verified，边界写明 | `TestTerminalBytesKeysAndScroll`。`Write` 追加 UTF-8，半个符文先留着，拼齐再显示。`ESC [2J` 留在文本里，不清屏。按键只交给 `OnBytes`，不写进画面，也不启动进程。视口外的行不画。不是 VT，没有 libghostty，没有 PTY |
 | 16 WebView | pending | 还没做。将来只做到接口和假宿主 |
 | 17 Video | pending | 还没做。将来只做到接口和假宿主 |
