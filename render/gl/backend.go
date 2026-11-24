@@ -270,6 +270,8 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 				b.renderText(c)
 			case render.CmdImage:
 				b.renderImage(c)
+			case render.CmdShader:
+				_ = render.ShaderFallback()
 			}
 		}
 	}

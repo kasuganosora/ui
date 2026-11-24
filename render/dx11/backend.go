@@ -1067,6 +1067,8 @@ func (b *Backend) renderCommands(commands []render.Command) {
 			if c.Shadow != nil {
 				b.renderShadow(c)
 			}
+		case render.CmdShader:
+			_ = render.ShaderFallback()
 		}
 	}
 }

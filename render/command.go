@@ -1,6 +1,7 @@
 package render
 
 import (
+	"errors"
 	"sort"
 
 	uimath "github.com/kasuganosora/ui/math"
@@ -16,6 +17,7 @@ const (
 	CmdClip                          // Set scissor rect
 	CmdShadow                        // Box shadow (SDF-blurred rounded rect)
 	CmdPath                          // Custom path (future)
+	CmdShader                        // Per-pixel program. Software evaluates it; GPU backends skip it.
 )
 
 // Command is a single render command. Value object.
@@ -34,6 +36,8 @@ type Command struct {
 	Clip *ClipCmd
 	// Used by CmdShadow
 	Shadow *ShadowCmd
+	// Used by CmdShader
+	Shader *ShaderCmd
 }
 
 // RectCmd describes a rectangle draw.
@@ -95,6 +99,19 @@ type ClipCmd struct {
 	Bounds uimath.Rect
 }
 
+// ShaderProgram evaluates one sample. uv is 0..1 across the command bounds.
+// The software backend calls it once per covered pixel. GPU backends do not.
+type ShaderProgram interface {
+	Eval(uv uimath.Vec2, uniforms map[string]float32) (uimath.Color, error)
+}
+
+// ShaderCmd is a shaded rectangle. Uniforms are copied when the command is recorded.
+type ShaderCmd struct {
+	Bounds   uimath.Rect
+	Program  ShaderProgram
+	Uniforms map[string]float32
+}
+
 // CommandBuffer collects render commands for a frame.
 // Uses arena-style allocation for command structs — zero GC pressure per frame.
 type CommandBuffer struct {
@@ -113,6 +130,8 @@ type CommandBuffer struct {
 	clipIdx     int
 	shadowArena []ShadowCmd
 	shadowIdx   int
+	shaderArena []ShaderCmd
+	shaderIdx   int
 	layerBase   int32
 }
 
@@ -139,6 +158,7 @@ func (cb *CommandBuffer) Reset() {
 	cb.imageIdx = 0
 	cb.clipIdx = 0
 	cb.shadowIdx = 0
+	cb.shaderIdx = 0
 	cb.layerBase = 0
 }
 
@@ -197,6 +217,15 @@ func (cb *CommandBuffer) acquireClip() *ClipCmd {
 	return p
 }
 
+func (cb *CommandBuffer) acquireShader() *ShaderCmd {
+	if cb.shaderIdx >= len(cb.shaderArena) {
+		cb.shaderArena = append(cb.shaderArena, ShaderCmd{})
+	}
+	p := &cb.shaderArena[cb.shaderIdx]
+	cb.shaderIdx++
+	return p
+}
+
 func (cb *CommandBuffer) acquireShadow() *ShadowCmd {
 	if cb.shadowIdx >= len(cb.shadowArena) {
 		cb.shadowArena = append(cb.shadowArena, ShadowCmd{})
@@ -239,6 +268,26 @@ func (cb *CommandBuffer) DrawImage(cmd ImageCmd, zOrder int32, opacity float32) 
 		ZOrder:  zOrder,
 		Opacity: opacity,
 		Image:   ic,
+	})
+}
+
+// DrawShader records a per-pixel shader. The software backend evaluates Program
+// for each pixel inside the clipped bounds. The call does not evaluate it.
+func (cb *CommandBuffer) DrawShader(cmd ShaderCmd, zOrder int32, opacity float32) {
+	sc := cb.acquireShader()
+	*sc = cmd
+	if len(cmd.Uniforms) > 0 {
+		copied := make(map[string]float32, len(cmd.Uniforms))
+		for k, v := range cmd.Uniforms {
+			copied[k] = v
+		}
+		sc.Uniforms = copied
+	}
+	cb.place(Command{
+		Type:    CmdShader,
+		ZOrder:  zOrder,
+		Opacity: opacity,
+		Shader:  sc,
 	})
 }
 
@@ -431,6 +480,14 @@ func OrderedForPaint(cmds []Command) []Command {
 	}
 	return out
 }
+
+// ErrShaderGPUUnsupported is returned by GPU backends that receive a shader
+// command. They skip the command. Software is the backend that evaluates it.
+var ErrShaderGPUUnsupported = errors.New("render: shader command is evaluated by the software backend only")
+
+// ShaderFallback is the explicit GPU-backend path for a shader command.
+// Calling it records that the command was seen and not executed.
+func ShaderFallback() error { return ErrShaderGPUUnsupported }
 
 // Len returns the number of commands.
 func (cb *CommandBuffer) Len() int {

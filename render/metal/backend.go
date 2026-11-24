@@ -668,6 +668,8 @@ func (b *Backend) processCommands(commands []render.Command) {
 			if c.Image != nil {
 				b.drawImage(c.Image, c.Opacity)
 			}
+		case render.CmdShader:
+			_ = render.ShaderFallback()
 		}
 	}
 }

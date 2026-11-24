@@ -1004,6 +1004,10 @@ func (b *Backend) renderCommands(commands []render.Command) {
 			b.renderShadowBatch(commands[i:j])
 			i = j
 
+		case render.CmdShader:
+			_ = render.ShaderFallback()
+			i++
+
 		default:
 			i++
 		}
