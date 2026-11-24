@@ -180,6 +180,11 @@ const emojiDemoHTML = `<div style="padding: 20px; background: #1a1a2e; width: 10
 </div>`
 
 func TestVisualEmoji(t *testing.T) {
+	// Without FreeType the font engine falls back to placeholders, so there
+	// are no real glyphs (let alone color emoji) to compare against.
+	if ui.NewFontEngine() == nil {
+		t.Skip("color emoji rendering requires FreeType (libfreetype.dylib not available)")
+	}
 	env := newEmojiTestEnv(t, 800, 500)
 	defer env.close()
 

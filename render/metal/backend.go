@@ -73,9 +73,17 @@ type Backend struct {
 	nearestSampler uintptr
 
 	// Per-frame: current drawable and command buffer
-	drawable  uintptr // id<CAMetalDrawable>
-	cmdBuffer uintptr // id<MTLCommandBuffer>
-	encoder   uintptr // id<MTLRenderCommandEncoder>
+	drawable    uintptr // id<CAMetalDrawable>
+	drawableTex uintptr // id<MTLTexture> belonging to the current drawable
+	cmdBuffer   uintptr // id<MTLCommandBuffer>
+	encoder     uintptr // id<MTLRenderCommandEncoder>
+
+	// CPU-side copy of the last completed frame, used by ReadPixels.
+	// ReadPixels is called after EndFrame, when the drawable has already been
+	// presented, so the copy has to be taken while it is still valid.
+	readbackMu  sync.RWMutex
+	lastFrame   *image.RGBA
+	readbackErr error // reason the most recent frame could not be captured
 
 	// Vertex ring buffer
 	vertexBuf    uintptr        // id<MTLBuffer>
@@ -202,6 +210,11 @@ func (b *Backend) Init(win platform.Window) error {
 }
 
 // nsStringMetal creates an NSString from a Go string using the metal package's symbols.
+// nsStringMetal returns an autoreleased NSString created with
+// +[NSString stringWithUTF8String:]. Under MRC the caller does NOT own it and
+// must not send release: the enclosing NSAutoreleasePool owns it. Releasing it
+// here causes a double free when that pool is drained (observed as a SIGSEGV in
+// the platform teardown, long after the actual mistake).
 func nsStringMetal(s string) uintptr {
 	cls := objcClass("NSString")
 	if cls == 0 {
@@ -248,7 +261,7 @@ func (b *Backend) createPipelines() error {
 	if srcNS == 0 {
 		return fmt.Errorf("metal: failed to create NSString for shader source")
 	}
-	defer msgSend(srcNS, selReleaseMetal)
+	// srcNS is autoreleased — owned by the NSAutoreleasePool, not by us.
 
 	var nsErr uintptr
 	lib := msgSend(b.device, selNewDefaultLibraryWithSource, srcNS, 0, uintptr(unsafe.Pointer(&nsErr)))
@@ -264,7 +277,7 @@ func (b *Backend) createPipelines() error {
 		if nameNS == 0 {
 			return 0, fmt.Errorf("metal: failed to create NSString for function name %q", name)
 		}
-		defer msgSend(nameNS, selReleaseMetal)
+		// nameNS is autoreleased — owned by the NSAutoreleasePool, not by us.
 		fn := msgSend(lib, selNewFunctionWithName, nameNS)
 		if fn == 0 {
 			return 0, fmt.Errorf("metal: function %q not found in shader library", name)
@@ -580,12 +593,14 @@ func (b *Backend) BeginFrame() {
 	// Get next drawable
 	b.drawable = msgSend(b.metalLayer, selNextDrawable)
 	if b.drawable == 0 {
+		b.drawableTex = 0
 		fmt.Println("[METAL] BeginFrame: drawable is nil!")
 		return
 	}
 
 	// Drawable texture
 	drawableTex := msgSend(b.drawable, selTexture)
+	b.drawableTex = drawableTex
 
 	// Create command buffer
 	b.cmdBuffer = msgSend(b.cmdQueue, selCommandBuffer)
@@ -686,8 +701,74 @@ func (b *Backend) presentAndCommit() {
 			b.drawable = 0
 		}
 		msgSend(b.cmdBuffer, selCommit)
+		// ReadPixels is called after EndFrame, i.e. after the drawable has been
+		// scheduled for presentation. Wait for the GPU and cache a CPU copy now,
+		// while the drawable texture is still valid.
+		msgSend(b.cmdBuffer, selWaitUntilCompleted)
+		b.captureFrame()
 		b.cmdBuffer = 0
 	}
+	b.drawableTex = 0
+}
+
+// captureFrame copies the just-completed drawable texture into a CPU-side
+// RGBA image. The layer uses MTLPixelFormatBGRA8Unorm_sRGB, so the blue and
+// red channels have to be swapped for image.RGBA.
+func (b *Backend) captureFrame() {
+	tex := b.drawableTex
+	if tex == 0 {
+		b.setReadbackError("no drawable texture for this frame")
+		return
+	}
+	if msgSendGetBytes == nil {
+		b.setReadbackError("getBytes:bytesPerRow:fromRegion:mipmapLevel: is unavailable")
+		return
+	}
+
+	// A Resize() changes the layer's drawableSize, but the next drawable may
+	// still be the previous size for one frame. Trust the texture's own
+	// dimensions: a region larger than the texture makes getBytes read out of
+	// bounds, while a smaller one silently truncates the screenshot.
+	w := int(msgSend(tex, selTextureWidth))
+	h := int(msgSend(tex, selTextureHeight))
+	if w <= 0 || h <= 0 {
+		b.setReadbackError("drawable texture reported an invalid size %dx%d", w, h)
+		return
+	}
+
+	rowBytes := w * 4
+	raw := make([]byte, rowBytes*h)
+	region := MTLRegion{
+		Origin: MTLOrigin{X: 0, Y: 0, Z: 0},
+		Size:   MTLSize{Width: uintptr(w), Height: uintptr(h), Depth: 1},
+	}
+	msgSendGetBytes(tex, selGetBytes,
+		uintptr(unsafe.Pointer(&raw[0])), uintptr(rowBytes), region,
+		0, // mipmapLevel
+	)
+
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for i := 0; i < w*h; i++ {
+		off := i * 4
+		img.Pix[off] = raw[off+2]   // B -> R
+		img.Pix[off+1] = raw[off+1] // G
+		img.Pix[off+2] = raw[off]   // R -> B
+		img.Pix[off+3] = raw[off+3] // A
+	}
+
+	b.readbackMu.Lock()
+	b.lastFrame = img
+	b.readbackErr = nil
+	b.readbackMu.Unlock()
+}
+
+// setReadbackError makes a failed capture observable. Without it ReadPixels
+// would only report "no frame has been rendered yet" even when frames were
+// rendered but the GPU readback silently bailed out.
+func (b *Backend) setReadbackError(format string, args ...any) {
+	b.readbackMu.Lock()
+	b.readbackErr = fmt.Errorf(format, args...)
+	b.readbackMu.Unlock()
 }
 
 // Resize implements render.Backend.
@@ -1078,7 +1159,9 @@ func (b *Backend) CreateTexture(desc render.TextureDesc) (render.TextureHandle, 
 	if texDesc == 0 {
 		return render.InvalidTexture, fmt.Errorf("metal: texture2DDescriptorWithPixelFormat returned nil")
 	}
-	defer msgSend(texDesc, selReleaseMetal)
+	// texDesc comes from a convenience constructor, so it is autoreleased and
+	// owned by the NSAutoreleasePool. Only objects from alloc/init or new* may
+	// be released here.
 
 	msgSend(texDesc, selSetUsage, uintptr(MTLTextureUsageShaderRead))
 	// MTLStorageModeShared = 0
@@ -1183,13 +1266,33 @@ func (b *Backend) DPIScale() float32 {
 	return b.dpiScale
 }
 
-// ReadPixels implements render.Backend. Not yet implemented for Metal.
+// ReadPixels implements render.Backend. It returns a copy of the last fully
+// rendered frame; an error is returned if no frame has been submitted yet.
 func (b *Backend) ReadPixels() (*image.RGBA, error) {
-	return nil, fmt.Errorf("metal: ReadPixels not implemented")
+	b.readbackMu.RLock()
+	last := b.lastFrame
+	err := b.readbackErr
+	b.readbackMu.RUnlock()
+	if err != nil {
+		return nil, fmt.Errorf("metal: frame readback failed: %w", err)
+	}
+	if last == nil {
+		return nil, fmt.Errorf("metal: no frame has been rendered yet")
+	}
+
+	img := image.NewRGBA(last.Bounds())
+	copy(img.Pix, last.Pix)
+	return img, nil
 }
 
 // Destroy implements render.Backend.
 func (b *Backend) Destroy() {
+	b.readbackMu.Lock()
+	b.lastFrame = nil
+	b.readbackErr = nil
+	b.drawableTex = 0
+	b.readbackMu.Unlock()
+
 	// Release all textures
 	b.texMu.Lock()
 	for handle, mt := range b.textures {

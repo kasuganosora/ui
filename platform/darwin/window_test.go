@@ -384,7 +384,19 @@ func TestInitWindowWithContentRectSmoke(t *testing.T) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
+	// Foundation/AppKit must be loaded before looking up NSThread, otherwise
+	// objc_getClass can return nil and the guard below would skip the test for
+	// the wrong reason.
 	ensureFoundation()
+
+	// Go does not guarantee that a test goroutine (even with GOMAXPROCS=1)
+	// stays on the process main thread: purego's cgo calls can move it to a
+	// different M. Bootstrapping AppKit from such a thread intermittently
+	// blocks inside finishLaunching and wedges the whole test binary, so skip
+	// this native smoke test when that happens.
+	if msgSend(id(objcClass("NSThread")), objcSelector("isMainThread")) == 0 {
+		t.Skip("AppKit bootstrap requires the process main thread")
+	}
 
 	app := msgSend(id(objcClass("NSApplication")), selSharedApplication)
 	if app == 0 {

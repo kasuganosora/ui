@@ -491,10 +491,12 @@ func (p *Platform) Terminate() {
 		w.Destroy()
 	}
 	p.windows = nil
-	if p.autoreleasePool != 0 {
-		msgSend(p.autoreleasePool, selRelease)
-		p.autoreleasePool = 0
-	}
+	// The autorelease pool belongs to the process-wide NSApplication, not to a
+	// single Platform instance. Releasing it here leaves the thread's pool
+	// stack dangling: any autoreleased object created afterwards (for example
+	// the title NSString of a window belonging to the next Platform instance)
+	// is registered with a dead pool and crashes on later use. Keep the pool
+	// alive for the lifetime of the process; the OS reclaims it on exit.
 	p.inited = false
 	runtime.UnlockOSThread()
 }

@@ -72,6 +72,12 @@ var (
 
 	// msgSendSetScissorRect: setScissorRect: (MTLScissorRect — 32 bytes struct)
 	msgSendSetScissorRect func(obj, sel uintptr, rect MTLScissorRect)
+
+	// msgSendGetBytes: getBytes:bytesPerRow:fromRegion:mipmapLevel:
+	// MTLRegion (48 bytes) is passed as a struct, so this must be a typed
+	// wrapper just like msgSendReplaceRegion. The slice/bytesPerImage variant
+	// is only used for array and 3D textures.
+	msgSendGetBytes func(obj, sel uintptr, pixels uintptr, bytesPerRow uintptr, region MTLRegion, mipmapLevel uintptr)
 )
 
 // ---- Metal pixel format constants ----
@@ -181,6 +187,10 @@ var (
 	selEndEncoding                        uintptr
 	selPresentDrawable                    uintptr
 	selCommit                             uintptr
+	selWaitUntilCompleted                 uintptr
+	selGetBytes                           uintptr
+	selTextureWidth                       uintptr
+	selTextureHeight                      uintptr
 	selTexture                            uintptr
 	selSetFragmentTexture                 uintptr
 	selSetFragmentSamplerState            uintptr
@@ -322,6 +332,7 @@ func init() {
 	purego.RegisterFunc(&msgSendBool, objc_msgSend)
 	purego.RegisterFunc(&msgSendReplaceRegion, objc_msgSend)
 	purego.RegisterFunc(&msgSendSetScissorRect, objc_msgSend)
+	purego.RegisterFunc(&msgSendGetBytes, objc_msgSend)
 
 	// ---- Load Metal framework (optional: Metal may not be available on very old macOS) ----
 	_, _ = purego.Dlopen("/System/Library/Frameworks/Metal.framework/Metal", purego.RTLD_LAZY|purego.RTLD_GLOBAL)
@@ -362,6 +373,10 @@ func init() {
 	selEndEncoding = sel("endEncoding")
 	selPresentDrawable = sel("presentDrawable:")
 	selCommit = sel("commit")
+	selWaitUntilCompleted = sel("waitUntilCompleted")
+	selGetBytes = sel("getBytes:bytesPerRow:fromRegion:mipmapLevel:")
+	selTextureWidth = sel("width")
+	selTextureHeight = sel("height")
 
 	// Encoder state
 	selSetRenderPipelineState = sel("setRenderPipelineState:")

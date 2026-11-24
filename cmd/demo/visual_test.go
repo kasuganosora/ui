@@ -199,11 +199,12 @@ func verifyAllVisibleHaveBounds(t *testing.T, tree *core.Tree, maxDepth int) {
 func verifyNotUniform(t *testing.T, img *image.RGBA, label string) {
 	t.Helper()
 	bounds := img.Bounds()
-	ref := img.RGBAAt(0, 0)
-	for y := 0; y < bounds.Dy(); y += max(1, bounds.Dy()/20) {
-		for x := 0; x < bounds.Dx(); x += max(1, bounds.Dx()/20) {
-			c := img.RGBAAt(x, y)
-			if c != ref {
+	ref := img.RGBAAt(bounds.Min.X, bounds.Min.Y)
+	// Sample every pixel: a coarse 20x20 grid misses thin text and separators
+	// and reports a perfectly rendered frame as uniform.
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			if img.RGBAAt(x, y) != ref {
 				return
 			}
 		}
@@ -369,25 +370,23 @@ func TestVisualMessageLoop(t *testing.T) {
 	tree.SetLayout(root.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(0, 0, w, h)})
 	tree.SetLayout(txt.ElementID(), core.LayoutResult{Bounds: uimath.NewRect(20, h/2-20, w-40, 40)})
 
-	done := make(chan struct{})
-	go func() {
-		for i := 0; i < 10; i++ {
-			env.plat.PollEvents()
-			env.backend.BeginFrame()
-			env.textRenderer.BeginFrame()
-			env.buf.Reset()
-			root.Draw(env.buf)
-			_ = env.textRenderer.Upload()
-			env.backend.Submit(env.buf)
-			env.backend.EndFrame()
+	// AppKit requires nextEventMatchingMask (PollEvents) to run on the main
+	// thread, so the loop stays on the test goroutine instead of a spawned one.
+	// A deadline still guards against a stalled frame; go test's own timeout is
+	// the final backstop if a single call blocks entirely.
+	start := time.Now()
+	for i := 0; i < 10; i++ {
+		env.plat.PollEvents()
+		env.backend.BeginFrame()
+		env.textRenderer.BeginFrame()
+		env.buf.Reset()
+		root.Draw(env.buf)
+		_ = env.textRenderer.Upload()
+		env.backend.Submit(env.buf)
+		env.backend.EndFrame()
+		if time.Since(start) > 10*time.Second {
+			t.Fatal("message loop deadlock")
 		}
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(10 * time.Second):
-		t.Fatal("message loop deadlock")
 	}
 
 	_, img := env.screenshot(t, "message_loop")
@@ -508,6 +507,11 @@ func TestVisualFrameConsistency(t *testing.T) {
 }
 
 func TestVisualFontSpecimen(t *testing.T) {
+	// The >50 distinct colors assertion measures real glyph antialiasing;
+	// the mock font engine can only produce flat placeholder rectangles.
+	if ui.NewFontEngine() == nil {
+		t.Skip("rich text rendering requires FreeType (libfreetype.dylib not available)")
+	}
 	env := newTestEnv(t, 1200, 900)
 	defer env.close()
 

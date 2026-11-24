@@ -1,7 +1,9 @@
 # Binaries
 *.test
 *.out
-feed
+# Only the built binary in the repo root. An unanchored `feed` pattern also
+# matches the cmd/feed/ directory and silently hides new source files there.
+/feed
 
 # Backup files
 *.orig

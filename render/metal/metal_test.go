@@ -136,7 +136,7 @@ func TestShaderCompilation(t *testing.T) {
 	if srcNS == 0 {
 		t.Fatal("failed to create NSString for shader source")
 	}
-	defer msgSend(srcNS, selReleaseMetal)
+	// srcNS is autoreleased; the NSAutoreleasePool owns it.
 
 	var nsErr uintptr
 	lib := msgSend(device, selNewDefaultLibraryWithSource, srcNS, 0, uintptr(unsafe.Pointer(&nsErr)))
@@ -158,8 +158,8 @@ func TestShaderCompilation(t *testing.T) {
 			t.Errorf("failed to create NSString for %q", name)
 			continue
 		}
+		// nameNS is autoreleased; only fn (from newFunctionWithName:) is owned here.
 		fn := msgSend(lib, selNewFunctionWithName, nameNS)
-		msgSend(nameNS, selReleaseMetal)
 		if fn == 0 {
 			t.Errorf("function %q not found in compiled library", name)
 		} else {
@@ -222,24 +222,27 @@ type nilWindow struct{}
 
 var _ platform.Window = (*nilWindow)(nil)
 
-func (w *nilWindow) Size() (int, int)               { return 800, 600 }
-func (w *nilWindow) SetSize(int, int)               {}
-func (w *nilWindow) FramebufferSize() (int, int)    { return 800, 600 }
-func (w *nilWindow) Position() (int, int)           { return 0, 0 }
-func (w *nilWindow) SetPosition(int, int)           {}
-func (w *nilWindow) SetTitle(string)                {}
-func (w *nilWindow) SetFullscreen(bool)             {}
-func (w *nilWindow) IsFullscreen() bool             { return false }
-func (w *nilWindow) ShouldClose() bool              { return false }
-func (w *nilWindow) SetShouldClose(bool)            {}
-func (w *nilWindow) NativeHandle() uintptr          { return 0 }
-func (w *nilWindow) DPIScale() float32              { return 1.0 }
-func (w *nilWindow) SetVisible(bool)                {}
-func (w *nilWindow) ShowDeferred()                  {}
-func (w *nilWindow) SetMinSize(int, int)            {}
-func (w *nilWindow) SetMaxSize(int, int)            {}
-func (w *nilWindow) SetCursor(platform.CursorShape) {}
-func (w *nilWindow) SetIMEPosition(uimath.Rect)     {}
+func (w *nilWindow) Size() (int, int)                   { return 800, 600 }
+func (w *nilWindow) SetSize(int, int)                   {}
+func (w *nilWindow) FramebufferSize() (int, int)        { return 800, 600 }
+func (w *nilWindow) Position() (int, int)               { return 0, 0 }
+func (w *nilWindow) SetPosition(int, int)               {}
+func (w *nilWindow) SetTitle(string)                    {}
+func (w *nilWindow) SetFullscreen(bool)                 {}
+func (w *nilWindow) IsFullscreen() bool                 { return false }
+func (w *nilWindow) ShouldClose() bool                  { return false }
+func (w *nilWindow) SetShouldClose(bool)                {}
+func (w *nilWindow) NativeHandle() uintptr              { return 0 }
+func (w *nilWindow) DPIScale() float32                  { return 1.0 }
+func (w *nilWindow) IsTransparent() bool                { return false }
+func (w *nilWindow) SetTopMost(bool)                    {}
+func (w *nilWindow) SetHitTestFunc(func(int, int) bool) {}
+func (w *nilWindow) SetVisible(bool)                    {}
+func (w *nilWindow) ShowDeferred()                      {}
+func (w *nilWindow) SetMinSize(int, int)                {}
+func (w *nilWindow) SetMaxSize(int, int)                {}
+func (w *nilWindow) SetCursor(platform.CursorShape)     {}
+func (w *nilWindow) SetIMEPosition(uimath.Rect)         {}
 func (w *nilWindow) ShowContextMenu(clientX, clientY int, items []platform.ContextMenuItem) int {
 	return -1
 }
