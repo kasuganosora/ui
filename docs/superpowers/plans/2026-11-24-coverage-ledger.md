@@ -110,9 +110,9 @@ HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKe
 | 3 DataTable | host-verified，边界写明 | 列先按序号分成左固定、中间、右固定，每列只画自己的区域，再和表头或表体、外框相交。`TestDataTableFrozenColumnsOwnTheirRegions`：宽 120 的中间列在 `scrollX` 40 时几何上横跨三段，左右固定表头仍是绿色，中间字形的剪刀停在中间视口。左右单独固定、横纵同时滚动、拖宽和按序号移动都在。没有列组，也没有单元格里的控件 |
 | 4 TextView | host-verified，边界写明 | 标题、列表、行内代码、围栏代码和链接标签都是字形，不是色条。围栏代码可以有底色。`TestTextViewPaintsGlyphs` 检查这些字符串进了文本命令，长行换到下一行，两个链接的命中框分开，换文档后旧标题消失。`TestTextViewMarkdownLinksAndCode` 仍检查宿主点击。没有表格、图片、强调语法，也不使用 goldmark |
 | 5 flow | host-verified，边界写明 | 节点名字是字形。`NodeScreen` 连宽高一起乘缩放。`TestFlowScalesNodesAndPaintsNames` 在平移后检查 2 倍和 0.5 倍：绘制矩形、内部命中、外部拒绝、宿主点中、边接到缩放后的节点边缘、超出视口被裁掉。`TestFlowLayersUseCamera` 仍覆盖分层、平移、删除。自环不改层。只在环里的节点共用一个附加层，不是完整环布局 |
-| 6 filepicker | pending | 还没做。将只走调用方的目录回调，不调用操作系统对话框 |
-| 7 commitgraph | pending | 还没做 |
-| 8 diagram | pending | 还没做。默认只做可测的小布局，不依赖 limu |
+| 6 filepicker | host-verified，边界写明 | `TestFilePickerNavigatesInjectedList`：目录名和路径是字形，Enter 进入目录，Backspace 回到父级，文件 Enter 只回调路径。列举失败画出错误文本。窗口外的名字不画，滚动后的行不盖住路径条。数据来自注入的 `List`，控件里没有操作系统读写。没有新建、删除或重命名 |
+| 7 commitgraph | host-verified，边界写明 | `TestCommitGraphLanesAndRows`：第一父提交留在原泳道，旁支另开一列。主题是字形。视口下面的提交不画，滚下来才出现。点击和方向键改选中。调用方提供提交，不是 git 命令 |
+| 8 diagram | host-verified，边界写明 | `TestDiagramBoxArrowLayout`：`box` 和 `->` 排成从左到右的层，标签是字形。`subgraph` 被忽略。视口外的节点不画，滚到视口里才画。不是 Mermaid，不依赖 limu |
 | 9 editor | pending | 还没做。默认简单分词，不新增 chroma |
 | 10 diff | pending | 还没做。依赖第 9 行的位置模型 |
 | 11 richeditor | pending | 还没做 |

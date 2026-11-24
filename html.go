@@ -1489,6 +1489,12 @@ func (p *htmlParser) parseMilestone3(tag string, attrs map[string]string, id str
 		w = tv
 	case "flow":
 		w = widget.NewFlow(p.tree, p.cfg)
+	case "filepicker":
+		w = widget.NewFilePicker(p.tree, p.cfg)
+	case "commitgraph":
+		w = widget.NewCommitGraph(p.tree, p.cfg)
+	case "diagram":
+		w = widget.NewDiagram(p.tree, p.cfg)
 	default:
 		return false
 	}
