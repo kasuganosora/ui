@@ -12,6 +12,7 @@
 | WebView / Video 真宿主 | platform-interface-only |
 | 屏幕取色 | platform-interface-only |
 | 终端 VT | platform-interface-only |
+| GPU 着色像素 | 只有软件后端逐像素执行。OpenGL、Vulkan、Metal、DX9、DX11 的 `Submit` 不把错误返回给调用方 |
 | Vulkan 视觉包 | 本机 `VK_ERROR_UNKNOWN`，不能当作绘制集成已验证 |
 
 ## 审查项
@@ -41,7 +42,7 @@
 
 ## 第二次审查（fc2d56fd 仍阻断基础）
 
-下面 10 项在修前对 `fc2d56fd` 是红的。修后走 embedded/headless 的 `HandleEvent`/`HitTest`，或 godot `InjectMouseClick`。里程碑 1–2 仍是 partial，表 2/3 仍 pending。
+下面 10 项在修前对 `fc2d56fd` 是红的。修后走 embedded/headless 的 `HandleEvent`/`HitTest`，或 godot `InjectMouseClick`。写这段时里程碑 1–2 仍是 partial，表 2/3 尚未开始。当前范围见文末交接。
 
 | # | 结果 | 测试 |
 | --- | --- | --- |
@@ -101,7 +102,7 @@ HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKe
 
 ## 表 3（19）
 
-第一批只做了能独立成立的两行。其余没有空类型。
+19 行都在各自写出的边界内独立通过。汇总见文末交接。
 
 | 行 | 状态 | 证据 |
 | --- | --- | --- |
@@ -122,7 +123,43 @@ HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKe
 | 15 terminal | host-verified，边界写明 | `TestTerminalBytesKeysAndScroll`。`Write` 追加 UTF-8，半个符文先留着，拼齐再显示。`ESC [2J` 留在文本里，不清屏。按键只交给 `OnBytes`，不写进画面，也不启动进程。视口外的行不画。不是 VT，没有 libghostty，没有 PTY |
 | 16 WebView | platform-interface-only | `TestFakeWebViewHistoryAndLifecycle`。`FakeWebViewHost.Open` 只增加计数。`LoadURL` 记历史，空地址失败且不改当前页。后退、前进、截断前进栈、刷新和 `<title>` 读取都在。`Eval` 只查宿主给的脚本表，未知脚本不改页面。关闭后加载和再次关闭返回 `ErrClosed`。没有系统 WebView，也不发起网络请求 |
 | 17 Video | platform-interface-only | `TestFakeVideoPlaybackBounds`。空源或时长不大于 0 不会打开。播放时 `Tick` 推进位置，暂停后不动。越界 `Seek` 和音量不改原值。放到结尾只触发一次 `OnEnded` 并暂停。关闭后再播放返回 `ErrClosed`。没有解码器 |
-| 18 Shader | 已接到软件命令，待独立复审 | `TestShaderCommandPaintsVaryingPixels`。`DrawShader` 把 `core.Shader` 放进命令缓冲，软件后端对裁剪后的每个像素调用 `Eval`，测试本身不先求值再画纯色矩形。左右像素的 `uv.x` 不同，`gain` 在两侧相同。嵌套剪刀只留下内层，空剪刀不落笔，更高图层盖住着色结果，半透明和底下的矩形合成。右半失败的程序一个像素都不写。下一帧换程序后旧颜色消失。OpenGL、Vulkan、Metal、DX9、DX11 遇到 `CmdShader` 调用 `ShaderFallback` 并返回 `ErrShaderGPUUnsupported`，没有帧图像 |
+| 18 Shader | 软件逐像素路径已独立通过 | 审查第 23 轮通过 `c39708b6af693b796c1376b5a5ff11a3be7bc906`（tree `d3fd81db78ff5ad700bab563269ea2c002a75e46`）。`DrawShader` 把 `core.Shader` 放进命令缓冲，软件后端对裁剪后的每个像素调用 `Eval`。`TestShaderCommandPaintsVaryingPixels` 不先求值再画纯色矩形。左右像素的 `uv.x` 不同，`gain` 在两侧相同。嵌套剪刀只留下内层，空剪刀不落笔，更高图层盖住着色结果，半透明和底下的矩形合成。右半失败的程序一个像素都不写。下一帧换程序后旧颜色消失。OpenGL、Vulkan、Metal、DX9、DX11 的 `Submit` 没有把 `ErrShaderGPUUnsupported` 返回给调用方：命令循环执行 `_ = render.ShaderFallback()`，丢掉这个错误，跳过着色命令，然后继续后面的命令。Vulkan 在跳过前先 `flushBatch`。这五个后端不画出着色像素，也没有帧图像 |
 | 19 ColorEyeDropper | platform-interface-only | `TestFakeEyeDropperDoesNotSample`。未授权时 `Request` 返回 `ErrPermission`，没有颜色。授权后停在拾取中，直到宿主 `Deliver` 一个颜色。重复请求不替换进行中的拾取。取消后没有颜色，再 `Deliver` 失败。没有屏幕采样 |
 
 悬停层和模态：`TestModalEscapeSkipsCoveredHover`。被更高模态盖住的 transient 不再吃掉 Escape。没有模态时，悬停打开的卡片仍能在不持有焦点的情况下被 Escape 关掉。
+
+## 交接
+
+代码证据钉在 `c39708b6af693b796c1376b5a5ff11a3be7bc906`，tree `d3fd81db78ff5ad700bab563269ea2c002a75e46`。其后的提交只改 `docs/`。相对该提交，代码文件没有差异。
+
+里程碑 1–2 是 partial。`Form.Reset` 只清 Input、TextArea、Checkbox、Select、Slider 这五类。树拖拽只交换同一父节点。硬件 `GamepadButtonDown` 没有接到 app、embedded、godot。无障碍名字和 `accessibility.Collect` 在进程内，不是 Win32 UI Automation，也不会自动跑。
+
+里程碑 3 的表 2 共 20 行是 host-verified。没有操作系统读屏。ImageCompare 没有纹理时仍是色块。
+
+里程碑 4 的表 3 共 19 行在已批准边界内独立通过：
+
+- Camera 是一个平面。plot 的树图是单层切片，桑基是直线加权边。
+- diagram 只有 `box` 和 `->`。editor 没有 chroma，也没有自动换行。diff 是行级 LCS。
+- richeditor 没有图片、表格或 HTML 粘贴；`Draw` 不读树上的可见性。formula 是小语法，不嵌入 NewCMMath。
+- Dock 是现有平铺边缘的缩放和序列化。不是嵌套分割树。`Draw` 不画 `Content`。点击页签不切换。
+- terminal 是 UTF-8 字节流和按键路由，不是 VT。
+- WebView、Video、ColorEyeDropper 是接口和假宿主。
+- Shader 的软件逐像素路径在上面的提交通过。五个 GPU 后端不画着色像素。
+
+没有接入：系统 WebView、视频解码器、屏幕取色、GPU 着色像素、完整 VT、Win32 UI Automation、Linux IME、操作系统文件对话框。
+
+在该代码上重跑：
+
+```text
+go test -count=1 -timeout 180s ./widget ./core ./render ./accessibility ./layout .
+go test -race -count=1 -timeout 300s ./core ./widget ./accessibility ./render .
+go build -o /dev/null .
+```
+
+三条退出码都是 0。
+
+```text
+go test -count=1 -timeout 600s ./...
+```
+
+退出码 1。失败只有 16 个 `VK_ERROR_UNKNOWN`：`cmd/demo` 11 个（`TestVisualEmoji` 和 10 个 `TestVisual*`），`cmd/feed` 2 个，`cmd/game` 3 个。没有原生 GPU 帧。
