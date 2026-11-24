@@ -658,15 +658,15 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 
 	// Process commands in painters algorithm order (as emitted by the widget tree).
 	// The widget Draw methods already emit commands in the correct back-to-front order.
-	commands := buf.Commands()
-	b.renderAllCommands(cmd, commands)
+	// Group z-order inside clip scopes. Main lists on this backend are not
+	// pixel-tested here; the software rasterizer covers the same ordering.
+	b.renderAllCommands(cmd, render.OrderedForPaint(buf.Commands()))
 
-	// Render overlays (dropdowns, tooltips) after all normal commands.
-	// Reset scissor to full viewport so overlays are not clipped.
+	// Render overlays after main commands, starting from a full scissor.
 	overlays := buf.Overlays()
 	if len(overlays) > 0 {
 		_, _, _ = syscallN(b.loader.vkCmdSetScissor, uintptr(cmd), 0, 1, uintptr(unsafe.Pointer(&scissor)))
-		b.renderAllCommands(cmd, render.StableZOrder(overlays))
+		b.renderAllCommands(cmd, render.OrderedForPaint(overlays))
 	}
 
 	// Unmap vertex buffer

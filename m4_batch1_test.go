@@ -233,6 +233,103 @@ func TestCameraClipsViewportAndAnchorsGrid(t *testing.T) {
 	}
 }
 
+func TestCameraClipDoesNotCoverOtherControls(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(400, 300)
+	before := widget.NewMeter(ui.Tree(), ui.Config())
+	before.SetValue(0.8)
+	before.SetMarks([]float32{0.5})
+	cam := widget.NewCamera(ui.Tree(), ui.Config())
+	cam.AddMarker("in", 20, 20)
+	after := widget.NewMeter(ui.Tree(), ui.Config())
+	after.SetValue(0.8)
+	after.SetMarks([]float32{0.5})
+	cam2 := widget.NewCamera(ui.Tree(), ui.Config())
+	cam2.AddMarker("b", 10, 10)
+	plot := widget.NewPlot(ui.Tree(), ui.Config())
+	plot.SetBars([]float32{4, 8})
+	cmp := widget.NewImageCompare(ui.Tree(), ui.Config())
+	cmp.SetBefore(widget.NewImage(ui.Tree(), render.TextureHandle(3), ui.Config()))
+	cmp.SetAfter(widget.NewImage(ui.Tree(), render.TextureHandle(4), ui.Config()))
+	cmp.SetPosition(40)
+	ui.Tree().AppendChild(ui.Tree().Root(), before.ElementID())
+	ui.Tree().AppendChild(ui.Tree().Root(), cam.ElementID())
+	ui.Tree().AppendChild(ui.Tree().Root(), after.ElementID())
+	ui.Tree().AppendChild(ui.Tree().Root(), cam2.ElementID())
+	ui.Tree().AppendChild(ui.Tree().Root(), plot.ElementID())
+	ui.Tree().AppendChild(ui.Tree().Root(), cmp.ElementID())
+	place(ui.Tree(), before.ElementID(), 10, 40, 50, 20)
+	place(ui.Tree(), cam.ElementID(), 80, 60, 120, 100)
+	place(ui.Tree(), after.ElementID(), 240, 70, 100, 20)
+	place(ui.Tree(), cam2.ElementID(), 260, 180, 80, 60)
+	place(ui.Tree(), plot.ElementID(), 240, 210, 140, 70)
+	place(ui.Tree(), cmp.ElementID(), 10, 180, 100, 50)
+	buf := render.NewCommandBuffer()
+	before.Draw(buf)
+	cam.Draw(buf)
+	after.Draw(buf)
+	cam2.Draw(buf)
+	plot.Draw(buf)
+	cmp.Draw(buf)
+	be := godot.NewSoftwareBackend()
+	be.Resize(400, 300)
+	be.BeginFrame()
+	be.Submit(buf)
+	pr, pg, pb, _ := ui.Config().PrimaryColor.RGBA8()
+	assertPrimary := func(x, y int, label string) {
+		t.Helper()
+		r, g, b, a := pixAt(be.Pixels(), 400, x, y)
+		if a == 0 || r != pr || g != pg || b != pb {
+			t.Fatalf("%s pixel (%d,%d) = %d %d %d %d, want primary %d %d %d", label, x, y, r, g, b, a, pr, pg, pb)
+		}
+	}
+	sx, sy := cam.WorldToScreen(20, 20)
+	assertPrimary(int(sx), int(sy), "camera marker")
+	assertPrimary(20, 50, "meter before camera")
+	assertPrimary(250, 80, "meter after camera")
+	r, g, b, _ := pixAt(be.Pixels(), 400, 291, 80)
+	if r == 220 && g == 220 && b == 220 {
+		t.Fatal("meter mark was clipped away, leaving the gray track")
+	}
+	assertPrimary(270, 190, "second camera marker")
+	bx, by := plot.BarAnchor(1)
+	assertPrimary(int(bx), int(by), "plot bar")
+	split := 10 + 100*0.4
+	r, g, b, a := pixAt(be.Pixels(), 400, int(split), 200)
+	if a == 0 || r < 250 || g < 250 || b < 250 {
+		t.Fatalf("image compare divider clipped: %d %d %d %d", r, g, b, a)
+	}
+	r, _, _, a = pixAt(be.Pixels(), 400, 50, 70)
+	if a != 0 && r == pr {
+		t.Fatal("outside-camera pixel changed to the marker color")
+	}
+}
+
+func TestPlotScatterHitIsThePoint(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(400, 260)
+	plot := widget.NewPlot(ui.Tree(), ui.Config())
+	ui.Tree().AppendChild(ui.Tree().Root(), plot.ElementID())
+	place(ui.Tree(), plot.ElementID(), 30, 20, 320, 200)
+	plot.SetScatter([]widget.PlotPoint{{X: 0, Y: 0}, {X: 2, Y: 1}, {X: 4, Y: 3}})
+	x0, y0 := plot.LineAnchor(0)
+	x1, y1 := plot.LineAnchor(1)
+	if _, _, ok := plot.Hit((x0+x1)/2, (y0+y1)/2); ok {
+		t.Fatal("scatter hit the empty span between points")
+	}
+	x2, y2 := plot.LineAnchor(2)
+	ui.HandleEvent(&event.Event{Type: event.MouseDown, GlobalX: x2, GlobalY: y2})
+	ui.HandleEvent(&event.Event{Type: event.MouseUp, GlobalX: x2, GlobalY: y2})
+	if plot.Selected() != 2 {
+		t.Fatalf("third point selected %d", plot.Selected())
+	}
+	buf := render.NewCommandBuffer()
+	plot.Draw(buf)
+	if !softwareCovers(buf, 400, 260, int(x2), int(y2), ui.Config().PrimaryColor) {
+		t.Fatal("scatter point was not rasterized")
+	}
+}
+
 func TestPlotLinesAreaSankeyPie(t *testing.T) {
 	ui := NewEmbeddedUI(nil)
 	ui.Resize(400, 280)

@@ -637,9 +637,9 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 		return
 	}
 
-	// Main commands stay in painter order. Overlays use the shared z sort.
-	b.processCommands(buf.Commands())
-	b.processCommands(render.StableZOrder(buf.Overlays()))
+	// Clip scopes keep their emission order. Native frames are not captured here.
+	b.processCommands(render.OrderedForPaint(buf.Commands()))
+	b.processCommands(render.OrderedForPaint(buf.Overlays()))
 
 	b.presentAndCommit()
 }

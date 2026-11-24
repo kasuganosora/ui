@@ -95,7 +95,7 @@
 
 ## 浮层排序
 
-`render.StableZOrder` 按 ZOrder 稳定排序。软件光栅、Vulkan、Metal、DX9、DX11 的浮层提交调用这个函数。OpenGL 在本地把主命令和浮层做同样的稳定排序，不经过该函数。`TestStableZOrderKeepsEqualRanksInInsertionOrder` 只检查纯函数。没有在 Metal 或 DirectX 上画出像素。
+绘制顺序用 `render.OrderedForPaint`：普通命令在每段裁剪之间按 ZOrder 稳定排序，裁剪命令留在原来的位置。软件光栅的像素测试覆盖了这个语义。OpenGL、Vulkan、Metal、DX9、DX11 的提交也调用它；这些原生后端没有帧图像，不能当成已经看过像素。`StableZOrder` 仍是不含裁剪的纯排序，只由 `TestStableZOrderKeepsEqualRanksInInsertionOrder` 检查。`TestOrderedForPaintKeepsClipScopes` 检查嵌套裁剪不会把后面的矩形吸进前面的剪刀。
 
 HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKeepsChildrenAndFollowingMeter` 检查嵌套段落、后续 meter/togglebutton，以及带子节点的 `formsection` 不会吃掉下一个兄弟。
 
@@ -105,8 +105,8 @@ HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKe
 
 | 行 | 状态 | 证据 |
 | --- | --- | --- |
-| 1 Camera | host-verified | `TestCameraHostPanZoomAndHit` 覆盖平移、绕光标缩放和标记命中。`TestCameraClipsViewportAndAnchorsGrid`：标记和网格裁在视口内，网格相位跟着世界原点走，平移出视口后再平移回来 |
-| 2 plot | host-verified，边界写明 | `TestPlotHostBarsAxesAndPie` 覆盖柱、散点和单层树图。`TestPlotLinesAreaSankeyPie` 覆盖线段中点的绘制和命中、面积填充、桑基连线（直线、宽度随流量，不是丝带物理）、扇形内部/圆外拒绝、空值、负数柱和极大值。树图仍是单层横向切片，不是 squarified。Canvas 像素和命令缓冲的软件光栅使用同一组矩形 |
+| 1 Camera | host-verified | `TestCameraHostPanZoomAndHit`、`TestCameraClipsViewportAndAnchorsGrid`。`TestCameraClipDoesNotCoverOtherControls`：裁剪只作用于摄像机自己发出的命令，前后的 Meter、第二台摄像机、柱图和 ImageCompare 分隔条保持原色 |
+| 2 plot | partial | 柱、折线中点、面积、桑基直线连边、扇形、单层树图已有宿主和软件光栅测试。散点只命中点：`TestPlotScatterHitIsThePoint`。树图不是 squarified，桑基不是丝带。这一行留到独立审查通过后再视为完成 |
 | 3–13、14–19 | pending | 数据表、Markdown、流程图、文件浏览、提交图、图布局、编辑器、diff、富文本、公式、聊天、Dock 序列化、终端字节流、WebView、视频、着色器、取色都还没做。16、17、19 将来只做到假宿主，不能写成设备已接入 |
 
 悬停层和模态：`TestModalEscapeSkipsCoveredHover`。被更高模态盖住的 transient 不再吃掉 Escape。没有模态时，悬停打开的卡片仍能在不持有焦点的情况下被 Escape 关掉。

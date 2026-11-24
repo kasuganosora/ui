@@ -379,14 +379,41 @@ func (cb *CommandBuffer) Overlays() []Command {
 }
 
 // StableZOrder returns a copy of cmds sorted by ascending ZOrder.
-// Equal orders keep their original sequence. Metal, DirectX 9, DirectX 11,
-// the software rasterizer, OpenGL, and Vulkan overlay submission all use
-// this order. Native GPU pixels are not exercised here.
+// Equal orders keep their original sequence. It ignores clip commands, so
+// paint submission uses OrderedForPaint instead.
 func StableZOrder(cmds []Command) []Command {
 	out := append([]Command(nil), cmds...)
 	sort.SliceStable(out, func(i, j int) bool {
 		return out[i].ZOrder < out[j].ZOrder
 	})
+	return out
+}
+
+// OrderedForPaint stable-sorts each run of ordinary commands by ZOrder and
+// leaves clip commands where they were emitted. A clip therefore applies only
+// to commands issued after it and before the next clip, including nested
+// clips, instead of every later command that happens to share a z-order.
+func OrderedForPaint(cmds []Command) []Command {
+	out := make([]Command, 0, len(cmds))
+	start := 0
+	flush := func(end int) {
+		if start >= end {
+			return
+		}
+		group := append([]Command(nil), cmds[start:end]...)
+		sort.SliceStable(group, func(i, j int) bool {
+			return group[i].ZOrder < group[j].ZOrder
+		})
+		out = append(out, group...)
+	}
+	for i, cmd := range cmds {
+		if cmd.Type == CmdClip {
+			flush(i)
+			out = append(out, cmd)
+			start = i + 1
+		}
+	}
+	flush(len(cmds))
 	return out
 }
 

@@ -1039,8 +1039,9 @@ func (b *Backend) Submit(buf *render.CommandBuffer) {
 	if buf == nil {
 		return
 	}
-	b.renderCommands(buf.Commands())
-	b.renderCommands(render.StableZOrder(buf.Overlays()))
+	// Clip scopes keep their emission order. Native frames are not captured here.
+	b.renderCommands(render.OrderedForPaint(buf.Commands()))
+	b.renderCommands(render.OrderedForPaint(buf.Overlays()))
 }
 
 func (b *Backend) renderCommands(commands []render.Command) {

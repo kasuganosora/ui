@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"sort"
 
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/platform"
@@ -76,18 +75,14 @@ func (b *SoftwareBackend) resize(w, h int) {
 }
 
 func (b *SoftwareBackend) Submit(buf *render.CommandBuffer) {
-	// Process main commands (already in submission order; sort by z-order)
-	cmds := make([]render.Command, len(buf.Commands()))
-	copy(cmds, buf.Commands())
-	sort.SliceStable(cmds, func(i, j int) bool {
-		return cmds[i].ZOrder < cmds[j].ZOrder
-	})
-	b.executeCommands(cmds)
+	// Sort z-order inside each clip scope. Clips stay in emission order so one
+	// widget's scissor cannot capture a later widget that reused the same z.
+	b.executeCommands(render.OrderedForPaint(buf.Commands()))
 
-	// Process overlays (on top, no clip)
+	// Overlays are a later pass and start unclipped. Their own clips stay scoped.
 	if overlays := buf.Overlays(); len(overlays) > 0 {
 		b.scissor = uimath.NewRect(0, 0, float32(b.width), float32(b.height))
-		b.executeCommands(render.StableZOrder(overlays))
+		b.executeCommands(render.OrderedForPaint(overlays))
 	}
 }
 

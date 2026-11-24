@@ -310,7 +310,7 @@ func (p *Plot) Hit(x, y float32) (series, index int, ok bool) {
 	if p.mode == plotArea && p.inArea(x, y) {
 		return 0, 0, true
 	}
-	if p.mode == plotLine || p.mode == plotArea || p.mode == plotScatter {
+	if p.mode == plotLine || p.mode == plotArea {
 		if i, ok := p.nearSegment(x, y, 4); ok {
 			return 0, i, true
 		}
