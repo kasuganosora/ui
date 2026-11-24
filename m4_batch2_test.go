@@ -389,6 +389,96 @@ func TestDataTablePaintsLabelsAndClipsRows(t *testing.T) {
 	}
 }
 
+func TestDataTableBodyClipLeavesHeader(t *testing.T) {
+	ui := NewEmbeddedUI(nil)
+	ui.Resize(480, 320)
+	fx := newGlyphFixture(t, 480, 320)
+	ui.Config().TextRenderer = fx.drawer
+	tree := ui.Tree()
+	cols := []widget.TableColumn{
+		{ColKey: "a", Title: "Left", Width: 70},
+		{ColKey: "b", Title: "Mid", Width: 50},
+		{ColKey: "c", Title: "Right", Width: 40},
+	}
+	dt := widget.NewDataTable(tree, cols, ui.Config())
+	tree.AppendChild(tree.Root(), dt.ElementID())
+	place(tree, dt.ElementID(), 80, 50, 160, 100)
+	dt.SetHeaderHeight(28)
+	dt.SetRowHeight(28)
+	dt.SetFrozen(1, 1)
+	rows := make([][]string, 12)
+	for i := range rows {
+		rows[i] = []string{"L", "M", "R"}
+	}
+	dt.SetRows(rows)
+	sr, sg, sb, _ := ui.Config().SuccessColor.RGBA8()
+	assertHeader := func(scroll float32) {
+		t.Helper()
+		dt.SetScrollY(scroll)
+		buf := render.NewCommandBuffer()
+		dt.Draw(buf)
+		fx.present(buf)
+		r, g, b, a := pixAt(fx.be.Pixels(), 480, 90, 74)
+		if r != sr || g != sg || b != sb || a != 255 {
+			t.Fatalf("scroll %v header pixel (90,74) = %d %d %d %d, want frozen green", scroll, r, g, b, a)
+		}
+		left := textIn(textCmds(buf), "Left", dt.ColumnHeader(0))
+		mid := textIn(textCmds(buf), "Mid", dt.ColumnHeader(1))
+		if left == nil || mid == nil {
+			t.Fatalf("scroll %v missing header glyphs left %v mid %v", scroll, left != nil, mid != nil)
+		}
+		lg := left.Glyphs[0]
+		r, g, b, a = pixAt(fx.be.Pixels(), 480, int(lg.X+lg.Width/2), int(lg.Y+lg.Height/2))
+		if a == 0 || r > 80 {
+			t.Fatalf("scroll %v frozen header glyph %d %d %d %d", scroll, r, g, b, a)
+		}
+		mg := mid.Glyphs[0]
+		r, g, b, a = pixAt(fx.be.Pixels(), 480, int(mg.X+mg.Width/2), int(mg.Y+mg.Height/2))
+		if a == 0 || r > 80 {
+			t.Fatalf("scroll %v middle header glyph %d %d %d %d", scroll, r, g, b, a)
+		}
+	}
+	assertHeader(10)
+	assertHeader(28)
+	assertHeader(38)
+
+	dt.SetScrollY(10)
+	buf := render.NewCommandBuffer()
+	dt.Draw(buf)
+	fx.present(buf)
+	r, g, b, a := pixAt(fx.be.Pixels(), 480, 90, 152)
+	if a != 0 {
+		t.Fatalf("pixel below table %d %d %d %d", r, g, b, a)
+	}
+	r, g, b, a = pixAt(fx.be.Pixels(), 480, 80+160+4, 90)
+	if a != 0 {
+		t.Fatalf("neighbor pixel %d %d %d %d", r, g, b, a)
+	}
+	var row = -1
+	dt.OnCellClick(func(ctx widget.CellEventContext) { row = ctx.RowIndex })
+	click(ui, 90, 74)
+	if row != -1 {
+		t.Fatalf("header click hit row %d", row)
+	}
+	click(ui, 90, 149)
+	if row != 2 {
+		t.Fatalf("partial body row %d", row)
+	}
+	row = -1
+	click(ui, 90, 152)
+	if row != -1 {
+		t.Fatal("hit below the table")
+	}
+	grip := dt.ColumnHeader(0)
+	before := dt.ColumnWidth(0)
+	ui.HandleEvent(&event.Event{Type: event.MouseDown, GlobalX: grip.X + grip.Width - 2, GlobalY: grip.Y + 4})
+	ui.HandleEvent(&event.Event{Type: event.MouseMove, GlobalX: grip.X + grip.Width + 20, GlobalY: grip.Y + 4})
+	ui.HandleEvent(&event.Event{Type: event.MouseUp, GlobalX: grip.X + grip.Width + 20, GlobalY: grip.Y + 4})
+	if dt.ColumnWidth(0) < before+10 {
+		t.Fatalf("header resize %v from %v", dt.ColumnWidth(0), before)
+	}
+}
+
 func TestTextViewPaintsGlyphs(t *testing.T) {
 	ui := NewEmbeddedUI(nil)
 	ui.Resize(480, 360)

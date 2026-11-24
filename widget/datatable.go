@@ -394,29 +394,41 @@ func (d *DataTable) Draw(buf *render.CommandBuffer) {
 	}
 	places := d.placed()
 	mid := d.middleClip()
-	buf.PushClipZ(b, 1)
-	buf.PushClip(uimath.NewRect(mid.X, b.Y, mid.Width, b.Height))
-	for _, p := range places {
-		if !p.frozen {
-			d.paintColumn(buf, p, uimath.ColorWhite)
-		}
+	headerBand := uimath.NewRect(b.X, b.Y, b.Width, d.headerH)
+	bodyH := b.Height - d.headerH
+	if bodyH < 0 {
+		bodyH = 0
 	}
-	buf.PopClip()
-	if leftW := mid.X - b.X; leftW > 0 {
-		buf.PushClip(uimath.NewRect(b.X, b.Y, leftW, b.Height))
+	bodyBand := uimath.NewRect(b.X, b.Y+d.headerH, b.Width, bodyH)
+	regions := []uimath.Rect{
+		uimath.NewRect(b.X, b.Y, mid.X-b.X, b.Height),
+		uimath.NewRect(mid.X, b.Y, mid.Width, b.Height),
+		uimath.NewRect(mid.X+mid.Width, b.Y, b.X+b.Width-(mid.X+mid.Width), b.Height),
+	}
+	buf.PushClipZ(b, 1)
+	for _, region := range regions {
+		if region.Width <= 0 {
+			continue
+		}
+		buf.PushClip(headerBand.Intersection(region))
 		for _, p := range places {
-			if p.frozen && p.x < mid.X {
-				d.paintColumn(buf, p, d.config.SuccessColor)
+			if !columnInRegion(p, region) {
+				continue
 			}
+			fill := uimath.ColorWhite
+			if p.frozen {
+				fill = d.config.SuccessColor
+			}
+			d.paintHeader(buf, p, fill)
 		}
 		buf.PopClip()
-	}
-	rightX := mid.X + mid.Width
-	if rightW := b.X + b.Width - rightX; rightW > 0 {
-		buf.PushClip(uimath.NewRect(rightX, b.Y, rightW, b.Height))
+		if bodyBand.Height <= 0 {
+			continue
+		}
+		buf.PushClip(bodyBand.Intersection(region))
 		for _, p := range places {
-			if p.frozen && p.x >= rightX-0.5 {
-				d.paintColumn(buf, p, d.config.SuccessColor)
+			if columnInRegion(p, region) {
+				d.paintBody(buf, p)
 			}
 		}
 		buf.PopClip()
@@ -424,19 +436,28 @@ func (d *DataTable) Draw(buf *render.CommandBuffer) {
 	buf.PopClipZ(3)
 }
 
-func (d *DataTable) paintColumn(buf *render.CommandBuffer, p columnPlace, header uimath.Color) {
+func columnInRegion(p columnPlace, region uimath.Rect) bool {
+	return p.x < region.X+region.Width && p.x+p.w > region.X
+}
+
+func (d *DataTable) paintHeader(buf *render.CommandBuffer, p columnPlace, fill uimath.Color) {
 	b := d.Bounds()
 	col := d.columns[p.index]
 	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(p.x, b.Y, p.w, d.headerH),
-		FillColor: header,
+		FillColor: fill,
 	}, 1, 1)
 	d.paintString(buf, col.Title, uimath.NewRect(p.x, b.Y, p.w, d.headerH), col.Align)
+}
+
+func (d *DataTable) paintBody(buf *render.CommandBuffer, p columnPlace) {
+	b := d.Bounds()
 	bodyTop := b.Y + d.headerH
 	bodyBot := b.Y + b.Height
 	if d.rowH <= 0 || bodyBot <= bodyTop {
 		return
 	}
+	col := d.columns[p.index]
 	start := int(d.scrollY / d.rowH)
 	if start < 0 {
 		start = 0
