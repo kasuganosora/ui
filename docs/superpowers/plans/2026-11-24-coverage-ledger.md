@@ -120,9 +120,9 @@ HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKe
 | 13 chat | host-verified，边界写明 | `TestChatAuthorAndBodyStayApart`：作者和正文的字形框不相交，作者在上，别人靠左，自己的多行靠右。长名字按测量宽度换行。视口外的消息不画。点正文用同一套行几何命中。列表和输入框仍分开裁剪。`TestChatReentrantSendKeepsSnapshot`：回调里再按 `Q` 或再按 Enter，记录仍是按下 Enter 前的 `A`，只调用一次 `Send`；成功后草稿只剩回调期间的新输入。发送失败保留原草稿加新输入。`Append` 不调用发送。空 Enter 不发送。没有网络 |
 | 14 Dock 序列化 | host-verified，边界写明 | `TestDockRestoreGeometryAndIDs`。序列化的是现有 `DockLayout` 的平铺边缘：每侧一块、中间页签编号、浮动矩形和缩放。JSON 恢复编号和几何，同编号的内容指针还在。重复编号、空编号、负数尺寸、未知当前页签、缩放不大于 0、坏 JSON 都拒绝，当前布局不动。标题是字形。这不是嵌套分割树。`Draw` 不画 `Content`。点击页签不改变当前页签 |
 | 15 terminal | host-verified，边界写明 | `TestTerminalBytesKeysAndScroll`。`Write` 追加 UTF-8，半个符文先留着，拼齐再显示。`ESC [2J` 留在文本里，不清屏。按键只交给 `OnBytes`，不写进画面，也不启动进程。视口外的行不画。不是 VT，没有 libghostty，没有 PTY |
-| 16 WebView | pending | 还没做。将来只做到接口和假宿主 |
-| 17 Video | pending | 还没做。将来只做到接口和假宿主 |
-| 18 Shader | pending | 还没做。干净重写，不复制 Kage |
-| 19 ColorEyeDropper | pending | 还没做。将来只做到接口，不在本环境接屏幕取色 |
+| 16 WebView | platform-interface-only | `TestFakeWebViewHistoryAndLifecycle`。`FakeWebViewHost.Open` 只增加计数。`LoadURL` 记历史，空地址失败且不改当前页。后退、前进、截断前进栈、刷新和 `<title>` 读取都在。`Eval` 只查宿主给的脚本表，未知脚本不改页面。关闭后加载和再次关闭返回 `ErrClosed`。没有系统 WebView，也不发起网络请求 |
+| 17 Video | platform-interface-only | `TestFakeVideoPlaybackBounds`。空源或时长不大于 0 不会打开。播放时 `Tick` 推进位置，暂停后不动。越界 `Seek` 和音量不改原值。放到结尾只触发一次 `OnEnded` 并暂停。关闭后再播放返回 `ErrClosed`。没有解码器 |
+| 18 Shader | host-verified，边界写明 | `TestShaderEvalAndFailedCompile`、`TestShaderResultPaintsInSoftware`。语法是赋值、四则、`uv`、`vec4`、`min`、`max`、`clamp`、`mix` 和 float uniform。求值在 CPU。缺 uniform 报错。编译失败返回 nil，不替换调用方已经持有的程序。结果颜色可以填进现有矩形命令，软件像素能读到。不生成图形 API 着色器 |
+| 19 ColorEyeDropper | platform-interface-only | `TestFakeEyeDropperDoesNotSample`。未授权时 `Request` 返回 `ErrPermission`，没有颜色。授权后停在拾取中，直到宿主 `Deliver` 一个颜色。重复请求不替换进行中的拾取。取消后没有颜色，再 `Deliver` 失败。没有屏幕采样 |
 
 悬停层和模态：`TestModalEscapeSkipsCoveredHover`。被更高模态盖住的 transient 不再吃掉 Escape。没有模态时，悬停打开的卡片仍能在不持有焦点的情况下被 Escape 关掉。
