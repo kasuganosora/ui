@@ -229,12 +229,17 @@ func (f *Flow) nodeWorld(id string) uimath.Rect {
 	)
 }
 
-// NodeScreen returns the top-left of the node in screen space.
+// NodeScreen returns the node rectangle in screen space. Position and size
+// both follow the camera zoom.
 func (f *Flow) NodeScreen(id string) uimath.Rect {
 	f.sync()
 	w := f.nodeWorld(id)
 	x, y := f.cam.WorldToScreen(w.X, w.Y)
-	return uimath.NewRect(x, y, w.Width, w.Height)
+	z := f.cam.Zoom()
+	if z < 0 {
+		z = 0
+	}
+	return uimath.NewRect(x, y, w.Width*z, w.Height*z)
 }
 
 // NodeAt returns the top-most node under a screen point, or "".
@@ -305,6 +310,29 @@ func (f *Flow) Draw(buf *render.CommandBuffer) {
 			fill = cfg.ActiveColor
 		}
 		buf.DrawRect(render.RectCmd{Bounds: s, FillColor: fill}, 6, 1)
+		label := f.labels[id]
+		if label != "" && cfg.TextRenderer != nil {
+			buf.PushClip(s)
+			size := cfg.FontSize * f.cam.Zoom()
+			if size < 1 {
+				size = 1
+			}
+			tw := cfg.TextRenderer.MeasureText(label, size)
+			if tw > s.Width {
+				tw = s.Width
+			}
+			lh := cfg.TextRenderer.LineHeight(size)
+			tx := s.X + (s.Width-tw)/2
+			ty := s.Y + (s.Height-lh)/2
+			if tx < s.X {
+				tx = s.X
+			}
+			if ty < s.Y {
+				ty = s.Y
+			}
+			emitText(cfg, buf, label, tx, ty, size, s.Width, cfg.TextColor, 1, 8)
+			buf.PopClip()
+		}
 	}
 	buf.PopClipZ(7)
 }

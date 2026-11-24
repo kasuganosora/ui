@@ -393,6 +393,10 @@ type textDrawer struct {
 }
 
 func (a *textDrawer) DrawText(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32) {
+	a.DrawTextZ(buf, text, x, y, fontSize, maxWidth, color, opacity, 0)
+}
+
+func (a *textDrawer) DrawTextZ(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32, z int32) {
 	a.renderer.DrawText(buf, text, textrender.DrawOptions{
 		ShapeOpts: font.ShapeOptions{
 			FontID:          a.fontID,
@@ -406,6 +410,7 @@ func (a *textDrawer) DrawText(buf *render.CommandBuffer, text string, x, y, font
 		OriginY: y,
 		Color:   color,
 		Opacity: opacity,
+		ZOrder:  z,
 	})
 }
 

@@ -237,15 +237,6 @@ func (d *DataTable) ColumnHeader(i int) uimath.Rect {
 	return uimath.Rect{}
 }
 
-// ColumnMark is the small swatch drawn in a scrolling column header.
-func (d *DataTable) ColumnMark(i int) uimath.Rect {
-	h := d.ColumnHeader(i)
-	if h.IsEmpty() {
-		return uimath.Rect{}
-	}
-	return uimath.NewRect(h.X+4, h.Y+4, 8, 8)
-}
-
 func (d *DataTable) maxScrollY() float32 {
 	view := d.Bounds().Height - d.headerH
 	total := float32(len(d.rows)) * d.rowH
@@ -364,43 +355,33 @@ func (d *DataTable) columnAt(x, y float32) (int, bool) {
 	return -1, false
 }
 
-func (d *DataTable) visibleSpan() (start, end int) {
-	n := len(d.rows)
-	if n == 0 {
-		return 0, 0
-	}
-	view := d.Bounds().Height - d.headerH
-	if view < d.rowH {
-		view = d.rowH
-	}
-	count := int(view/d.rowH) + 1
-	if count < 1 {
-		count = 1
-	}
-	start = int(d.scrollY / d.rowH)
-	if start > n {
-		start = n
-	}
-	end = start + count
-	if end > n {
-		end = n
-	}
-	return start, end
-}
-
 func (d *DataTable) cellAt(x, y float32) (row, col int, ok bool) {
 	b := d.Bounds()
-	if y < b.Y+d.headerH || y >= b.Y+b.Height {
+	if !b.Contains(uimath.Vec2{X: x, Y: y}) || y < b.Y+d.headerH {
 		return 0, 0, false
 	}
 	col, _ = d.columnAt(x, y)
 	if col < 0 {
 		return 0, 0, false
 	}
-	start, end := d.visibleSpan()
-	local := int((y - b.Y - d.headerH) / d.rowH)
-	row = start + local
-	if row < start || row >= end {
+	content := y - (b.Y + d.headerH) + d.scrollY
+	if content < 0 {
+		return 0, 0, false
+	}
+	row = int(content / d.rowH)
+	if row < 0 || row >= len(d.rows) {
+		return 0, 0, false
+	}
+	rowY := b.Y + d.headerH + float32(row)*d.rowH - d.scrollY
+	visTop := rowY
+	if visTop < b.Y+d.headerH {
+		visTop = b.Y + d.headerH
+	}
+	visBot := rowY + d.rowH
+	if visBot > b.Y+b.Height {
+		visBot = b.Y + b.Height
+	}
+	if y < visTop || y >= visBot {
 		return 0, 0, false
 	}
 	return row, col, true
@@ -411,40 +392,63 @@ func (d *DataTable) Draw(buf *render.CommandBuffer) {
 	if b.IsEmpty() || len(d.columns) == 0 {
 		return
 	}
-	cfg := d.config
 	places := d.placed()
-	start, end := d.visibleSpan()
-	clip := d.middleClip()
-	success := cfg.SuccessColor
-	buf.PushClipZ(clip, 2)
-	for _, p := range places {
-		if p.frozen {
-			continue
-		}
-		d.paintColumn(buf, p, start, end, uimath.ColorWhite, true)
-	}
-	buf.PopClipZ(4)
+	mid := d.middleClip()
+	buf.PushClipZ(b, 1)
+	buf.PushClip(uimath.NewRect(mid.X, b.Y, mid.Width, b.Height))
 	for _, p := range places {
 		if !p.frozen {
-			continue
+			d.paintColumn(buf, p, uimath.ColorWhite)
 		}
-		d.paintColumn(buf, p, start, end, success, false)
 	}
+	buf.PopClip()
+	if leftW := mid.X - b.X; leftW > 0 {
+		buf.PushClip(uimath.NewRect(b.X, b.Y, leftW, b.Height))
+		for _, p := range places {
+			if p.frozen && p.x < mid.X {
+				d.paintColumn(buf, p, d.config.SuccessColor)
+			}
+		}
+		buf.PopClip()
+	}
+	rightX := mid.X + mid.Width
+	if rightW := b.X + b.Width - rightX; rightW > 0 {
+		buf.PushClip(uimath.NewRect(rightX, b.Y, rightW, b.Height))
+		for _, p := range places {
+			if p.frozen && p.x >= rightX-0.5 {
+				d.paintColumn(buf, p, d.config.SuccessColor)
+			}
+		}
+		buf.PopClip()
+	}
+	buf.PopClipZ(3)
 }
 
-func (d *DataTable) paintColumn(buf *render.CommandBuffer, p columnPlace, start, end int, header uimath.Color, mark bool) {
+func (d *DataTable) paintColumn(buf *render.CommandBuffer, p columnPlace, header uimath.Color) {
 	b := d.Bounds()
+	col := d.columns[p.index]
 	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(p.x, b.Y, p.w, d.headerH),
 		FillColor: header,
-	}, 2, 1)
-	if mark {
-		m := d.ColumnMark(p.index)
-		buf.DrawRect(render.RectCmd{Bounds: m, FillColor: d.config.PrimaryColor}, 3, 1)
+	}, 1, 1)
+	d.paintString(buf, col.Title, uimath.NewRect(p.x, b.Y, p.w, d.headerH), col.Align)
+	bodyTop := b.Y + d.headerH
+	bodyBot := b.Y + b.Height
+	if d.rowH <= 0 || bodyBot <= bodyTop {
+		return
 	}
-	for ri := start; ri < end; ri++ {
-		local := ri - start
-		y := b.Y + d.headerH + float32(local)*d.rowH
+	start := int(d.scrollY / d.rowH)
+	if start < 0 {
+		start = 0
+	}
+	for ri := start; ri < len(d.rows); ri++ {
+		y := bodyTop + float32(ri)*d.rowH - d.scrollY
+		if y >= bodyBot {
+			break
+		}
+		if y+d.rowH <= bodyTop {
+			continue
+		}
 		fill := uimath.ColorWhite
 		if ri%2 == 1 {
 			fill = d.config.BorderColor
@@ -452,6 +456,46 @@ func (d *DataTable) paintColumn(buf *render.CommandBuffer, p columnPlace, start,
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(p.x, y, p.w, d.rowH),
 			FillColor: fill,
-		}, 2, 1)
+		}, 1, 1)
+		cell := ""
+		if p.index < len(d.rows[ri]) {
+			cell = d.rows[ri][p.index]
+		}
+		d.paintString(buf, cell, uimath.NewRect(p.x, y, p.w, d.rowH), col.Align)
 	}
+}
+
+func (d *DataTable) paintString(buf *render.CommandBuffer, text string, cell uimath.Rect, align TableColumnAlign) {
+	cfg := d.config
+	if cfg == nil || cfg.TextRenderer == nil || text == "" || cell.Width < 4 || cell.Height < 4 {
+		return
+	}
+	pad := cfg.SpaceSM
+	if pad*2+4 >= cell.Width {
+		pad = 2
+	}
+	size := cfg.FontSizeSm
+	if size <= 0 {
+		size = cfg.FontSize
+	}
+	maxW := cell.Width - pad*2
+	tw := cfg.TextRenderer.MeasureText(text, size)
+	if tw > maxW {
+		tw = maxW
+	}
+	tx := cell.X + pad
+	switch align {
+	case TableAlignCenter:
+		tx = cell.X + (cell.Width-tw)/2
+	case TableAlignRight:
+		tx = cell.X + cell.Width - pad - tw
+	}
+	lh := cfg.TextRenderer.LineHeight(size)
+	ty := cell.Y + (cell.Height-lh)/2
+	if ty < cell.Y {
+		ty = cell.Y
+	}
+	buf.PushClip(cell)
+	emitText(cfg, buf, text, tx, ty, size, maxW, cfg.TextColor, 1, 4)
+	buf.PopClip()
 }

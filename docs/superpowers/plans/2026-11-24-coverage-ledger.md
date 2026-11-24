@@ -107,9 +107,9 @@ HTML 的 `<nav>` 仍是通用容器。页面栈用 `<navstack>`。`TestHTMLNavKe
 | --- | --- | --- |
 | 1 Camera | approved-bounded | 审查第 10 轮通过 `8e6efffa`。平移、缩放、命中、视口裁剪、图层顺序。`TestCameraHostPanZoomAndHit`、`TestCameraClipsViewportAndAnchorsGrid`、`TestCameraClipDoesNotCoverOtherControls`、`TestHigherLayerCoversEarlierDraw`。一个平面和点标记，不是场景图 |
 | 2 plot | approved-bounded | 同一轮通过。柱、折线中点、面积、散点只命中点、扇形、坐标轴、桑基直线加权边、单层树图切片。`TestPlotHostBarsAxesAndPie`、`TestPlotLinesAreaSankeyPie`、`TestPlotScatterHitIsThePoint`。树图不是 squarified。桑基不是丝带 |
-| 3 DataTable | host-verified，边界写明 | `TestDataTableHostReorderResizeFrozenWindow`：非边缘列移动时单元格跟着走，宿主拖拽加宽，左右固定列在横向滚动后留在边缘，3000 行的矩形命令少于 200，滚轮把命中行往后移，清空后不再命中，销毁不带走旁边的 Meter。没有列组，也没有单元格里的控件 |
-| 4 TextView | host-verified，边界写明 | `TestTextViewMarkdownLinksAndCode`：标题、两个列表项、围栏代码的软件像素、两个链接的宿主点击只打开被点的那个。换文档后旧链接消失。没有表格、图片、强调语法，也不使用 goldmark |
-| 5 flow | host-verified，边界写明 | `TestFlowLayersUseCamera`：最长路分层，同层兄弟按加入顺序上下排列，断开的节点留在第 0 层。宿主点击选中节点，拖动平移 Camera 后命中跟着走，删除节点会删掉相连的边。自环不改层。只在环里的节点共用一个附加层，不是完整环布局 |
+| 3 DataTable | host-verified，边界写明 | 表头标题和可见单元格走 `TextDrawer` 字形命令，软件光栅能点到字形覆盖。`TestDataTablePaintsLabelsAndClipsRows` 还检查右对齐、窗口外的行没有字形、滚动后的半行裁在控件底边以内、底边下和右侧邻居没有被涂到、半行内可命中、底边外不命中。`TestDataTableHostReorderResizeFrozenWindow` 仍覆盖列移动、拖宽、固定列和滚轮。没有列组，也没有单元格里的控件 |
+| 4 TextView | host-verified，边界写明 | 标题、列表、行内代码、围栏代码和链接标签都是字形，不是色条。围栏代码可以有底色。`TestTextViewPaintsGlyphs` 检查这些字符串进了文本命令，长行换到下一行，两个链接的命中框分开，换文档后旧标题消失。`TestTextViewMarkdownLinksAndCode` 仍检查宿主点击。没有表格、图片、强调语法，也不使用 goldmark |
+| 5 flow | host-verified，边界写明 | 节点名字是字形。`NodeScreen` 连宽高一起乘缩放。`TestFlowScalesNodesAndPaintsNames` 在平移后检查 2 倍和 0.5 倍：绘制矩形、内部命中、外部拒绝、宿主点中、边接到缩放后的节点边缘、超出视口被裁掉。`TestFlowLayersUseCamera` 仍覆盖分层、平移、删除。自环不改层。只在环里的节点共用一个附加层，不是完整环布局 |
 | 6 filepicker | pending | 还没做。将只走调用方的目录回调，不调用操作系统对话框 |
 | 7 commitgraph | pending | 还没做 |
 | 8 diagram | pending | 还没做。默认只做可测的小布局，不依赖 limu |

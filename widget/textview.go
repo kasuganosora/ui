@@ -74,37 +74,43 @@ func (v *TextView) Draw(buf *render.CommandBuffer) {
 		return
 	}
 	cfg := v.config
+	buf.PushClip(b)
 	for _, block := range v.layout(b) {
 		switch block.Kind {
 		case "code":
-			buf.DrawRect(render.RectCmd{Bounds: block.Bounds, FillColor: cfg.SuccessColor}, 1, 1)
-			v.drawRunes(buf, block.Text, block.Bounds.X+8, block.Bounds.Y+4, cfg.FontSize, cfg.TextColor)
+			if !block.Inline {
+				buf.DrawRect(render.RectCmd{Bounds: block.Bounds, FillColor: cfg.SuccessColor}, 1, 1)
+				v.paintLines(buf, block.Text, block.Bounds.X+8, block.Bounds.Y+4, cfg.FontSize, cfg.TextColor)
+			} else {
+				buf.DrawRect(render.RectCmd{Bounds: block.Bounds, FillColor: cfg.BorderColor}, 1, 1)
+				emitText(cfg, buf, block.Text, block.Bounds.X, block.Bounds.Y, cfg.FontSize, block.Bounds.Width, cfg.TextColor, 1, 4)
+			}
 		case "link":
-			buf.DrawRect(render.RectCmd{Bounds: block.Bounds, FillColor: cfg.PrimaryColor}, 2, 1)
+			emitText(cfg, buf, block.Text, block.Bounds.X, block.Bounds.Y, cfg.FontSize, block.Bounds.Width+1, cfg.PrimaryColor, 1, 4)
 		case "heading":
-			v.drawRunes(buf, block.Text, block.Bounds.X, block.Bounds.Y, cfg.FontSizeLg, cfg.TextColor)
+			emitText(cfg, buf, block.Text, block.Bounds.X, block.Bounds.Y, cfg.FontSizeLg, block.Bounds.Width, cfg.TextColor, 1, 4)
 		case "list":
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(block.Bounds.X, block.Bounds.Y+6, 6, 6),
 				FillColor: cfg.PrimaryColor,
 			}, 2, 1)
-			v.drawRunes(buf, block.Text, block.Bounds.X+16, block.Bounds.Y, cfg.FontSize, cfg.TextColor)
+			emitText(cfg, buf, block.Text, block.Bounds.X+16, block.Bounds.Y, cfg.FontSize, block.Bounds.Width-16, cfg.TextColor, 1, 4)
 		default:
-			v.drawRunes(buf, block.Text, block.Bounds.X, block.Bounds.Y, cfg.FontSize, cfg.TextColor)
+			emitText(cfg, buf, block.Text, block.Bounds.X, block.Bounds.Y, cfg.FontSize, block.Bounds.Width+1, cfg.TextColor, 1, 4)
 		}
 	}
+	buf.PopClip()
 }
 
-func (v *TextView) drawRunes(buf *render.CommandBuffer, text string, x, y, size float32, color uimath.Color) {
-	if text == "" {
-		return
+func (v *TextView) paintLines(buf *render.CommandBuffer, text string, x, y, size float32, color uimath.Color) {
+	lineH := v.config.FontSize * 1.3
+	if lineH < 16 {
+		lineH = 16
 	}
-	w := v.measure(text, size)
-	h := size
-	buf.DrawRect(render.RectCmd{
-		Bounds:    uimath.NewRect(x, y, w, h),
-		FillColor: color.WithAlpha(0.3),
-	}, 3, 1)
+	for _, line := range strings.Split(text, "\n") {
+		emitText(v.config, buf, line, x, y, size, v.Bounds().Width, color, 1, 4)
+		y += lineH
+	}
 }
 
 func (v *TextView) measure(text string, size float32) float32 {
@@ -176,27 +182,58 @@ func (v *TextView) layout(bounds uimath.Rect) []TextBlock {
 func (v *TextView) placeParagraph(bounds uimath.Rect, text string, y, lineH float32) []TextBlock {
 	segs := tokenizeInline(text)
 	x := bounds.X
+	right := bounds.X + bounds.Width
 	var out []TextBlock
-	for _, seg := range segs {
-		w := v.measure(seg.text, v.config.FontSize)
-		if seg.kind == "link" || seg.kind == "code" {
-			if w < 8 {
-				w = 8
-			}
-		}
-		if x > bounds.X && x+w > bounds.X+bounds.Width {
+	advance := func(w float32) {
+		if x > bounds.X && x+w > right {
 			x = bounds.X
 			y += lineH
 		}
-		block := TextBlock{
+	}
+	for _, seg := range segs {
+		if seg.kind == "text" {
+			for _, word := range wrapWords(seg.text) {
+				w := v.measure(word, v.config.FontSize)
+				advance(w)
+				out = append(out, TextBlock{
+					Kind: "text", Text: word,
+					Bounds: uimath.NewRect(x, y, w, lineH),
+				})
+				x += w
+			}
+			continue
+		}
+		w := v.measure(seg.text, v.config.FontSize)
+		if w < 8 {
+			w = 8
+		}
+		advance(w)
+		out = append(out, TextBlock{
 			Kind: seg.kind, Text: seg.text, URL: seg.url, Inline: seg.kind == "code",
 			Bounds: uimath.NewRect(x, y, w, lineH),
-		}
-		if seg.kind == "text" {
-			block.Kind = "text"
-		}
-		out = append(out, block)
+		})
 		x += w
+	}
+	return out
+}
+
+func wrapWords(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var out []string
+	start := 0
+	for i, r := range s {
+		if r == ' ' {
+			if i > start {
+				out = append(out, s[start:i])
+			}
+			out = append(out, " ")
+			start = i + 1
+		}
+	}
+	if start < len(s) {
+		out = append(out, s[start:])
 	}
 	return out
 }

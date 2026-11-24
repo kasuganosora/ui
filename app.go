@@ -1045,6 +1045,12 @@ type textDrawerAdapter struct {
 }
 
 func (a *textDrawerAdapter) DrawText(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32) {
+	a.DrawTextZ(buf, text, x, y, fontSize, maxWidth, color, opacity, 0)
+}
+
+// DrawTextZ is DrawText with an explicit z-order so glyphs stay above the
+// fills they label.
+func (a *textDrawerAdapter) DrawTextZ(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32, z int32) {
 	a.renderer.DrawText(buf, text, textrender.DrawOptions{
 		ShapeOpts: font.ShapeOptions{
 			FontID:          a.fontID,
@@ -1058,6 +1064,7 @@ func (a *textDrawerAdapter) DrawText(buf *render.CommandBuffer, text string, x, 
 		OriginY: y,
 		Color:   color,
 		Opacity: opacity,
+		ZOrder:  z,
 	})
 }
 
