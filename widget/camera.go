@@ -68,7 +68,10 @@ func NewCamera(tree *core.Tree, cfg *Config) *Camera {
 
 func (c *Camera) OriginX() float32 { return c.originX }
 func (c *Camera) OriginY() float32 { return c.originY }
-func (c *Camera) Zoom() float32    { return c.zoom }
+func (c *Camera) SetOrigin(x, y float32) {
+	c.originX, c.originY = x, y
+}
+func (c *Camera) Zoom() float32 { return c.zoom }
 func (c *Camera) SetZoom(z float32) {
 	if z < 0.2 {
 		z = 0.2

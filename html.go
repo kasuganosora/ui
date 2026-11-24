@@ -1479,6 +1479,16 @@ func (p *htmlParser) parseMilestone3(tag string, attrs map[string]string, id str
 		w = widget.NewCamera(p.tree, p.cfg)
 	case "plot":
 		w = widget.NewPlot(p.tree, p.cfg)
+	case "datatable":
+		w = widget.NewDataTable(p.tree, nil, p.cfg)
+	case "textview":
+		tv := widget.NewTextView(p.tree, p.cfg)
+		if md := attrs["markdown"]; md != "" {
+			tv.SetMarkdown(md)
+		}
+		w = tv
+	case "flow":
+		w = widget.NewFlow(p.tree, p.cfg)
 	default:
 		return false
 	}
