@@ -278,10 +278,10 @@ go build -o /dev/null .
 
 依赖：里程碑 2 的焦点、命中、虚拟网格和无障碍收集。
 
-- [ ] **3a 叶子：** Meter、HoldToConfirm、ToggleButton、ImageCompare、OtpInput、Scrollbar。
-- [ ] **3b 组合：** ToggleGroup、Toolbar、HoverCard、Combobox、SuggestList、Command、CommandDialog。
-- [ ] **3c：** EmojiPicker 与自有目录。
-- [ ] **3d 外壳：** Nav、FormSection/FormRow/FormField、PlainShell、Sidebar、SidebarShell、TabShell、Settings。
+- [x] **3a 叶子：** Meter、HoldToConfirm、ToggleButton、ImageCompare、OtpInput、Scrollbar。
+- [x] **3b 组合：** ToggleGroup、Toolbar、HoverCard、Combobox、SuggestList、Command、CommandDialog。
+- [x] **3c：** EmojiPicker 与自有目录。
+- [x] **3d 外壳：** Nav、FormSection/FormRow/FormField、PlainShell、Sidebar、SidebarShell、TabShell、Settings。
 
 每个新类型带一个无头测试，断言上表「行为验收」那一列。HTML 标签用小写类型名，不改已有标签。
 

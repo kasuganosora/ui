@@ -16,9 +16,9 @@
 
 ## 任务
 
-- [ ] 3a：`Meter`、`HoldToConfirm`、`ToggleButton`、`ImageCompare`、`OtpInput`、`Scrollbar`。每个类型一个失败测试再实现。验收见已批准设计表 2 第 5、4、8、9、2、13 行。
-- [ ] 3b：`ToggleGroup`、`Toolbar`、`HoverCard`、`Combobox`、`SuggestList`、`Command`、`CommandDialog`。依赖 3a 的切换按钮和里程碑 1 的弹出层。
-- [ ] 3c：`EmojiPicker` 与 `emoji_catalog.go` 手写目录。依赖虚拟网格。
-- [ ] 3d：`Nav`、`FormSection`/`FormRow`/`FormField`、`PlainShell`、`Sidebar`、`SidebarShell`、`TabShell`、`Settings`。
+- [x] 3a：`Meter`、`HoldToConfirm`、`ToggleButton`、`ImageCompare`、`OtpInput`、`Scrollbar`。
+- [x] 3b：`ToggleGroup`、`Toolbar`、`HoverCard`、`Combobox`、`SuggestList`、`Command`、`CommandDialog`。
+- [x] 3c：`EmojiPicker` 与 `emoji_catalog.go` 手写目录。
+- [x] 3d：`Nav`、`FormSection`/`FormRow`/`FormField`、`PlainShell`、`Sidebar`、`SidebarShell`、`TabShell`、`Settings`。
 
 验收：`go test -count=1 -timeout 180s ./widget/` 为 0，且表 2 每一行都有含类型名的测试。

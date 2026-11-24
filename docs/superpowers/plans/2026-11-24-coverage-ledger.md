@@ -66,6 +66,37 @@
 
 无障碍：Button、Switch、Slider、Input、TextArea 和表 1b 的角色断言都在。Slider 和 Image 在没有单独标签时名字仍是 `slider` / `image`。这不是系统读屏。
 
-## 表 2（20）与表 3（19）
+## 表 2（20）
 
-全部 pending。里程碑 3 还没开始。
+里程碑 3。行为走 `core.HostInput.Handle`（与 embedded、headless、godot、app 相同的指针和键盘路径）或 `HitTest`。`Tick` 由帧宿主调用，和 `Message.Tick` 一样，测试里直接调用。HTML 标签在 `TestHTMLMilestone3Meter`。Builder 增加了 `Meter` 和 `ToggleButton`，其余用已有的 `Custom`。没有操作系统读屏。
+
+| 行 | 类型 | 状态 | 测试 |
+| --- | --- | --- | --- |
+| 1 | Command / CommandDialog | host-verified | `TestCommandHostFilterAndRun`、`TestCommandDialogHostEscapeRestoresFocus`。打开推入层和作用域，Escape 关闭并还焦 |
+| 2 | OtpInput | host-verified | `TestOtpInputHostTypeBackspacePaste`。禁用后按键不进格 |
+| 3 | HoverCard | host-verified | `TestHoverCardHostDelayFocusEscape`。延迟、焦点、Escape、外部点击 |
+| 4 | HoldToConfirm | host-verified | `TestHoldToConfirmHostHoldAndRelease`。提前松开不触发；禁用不再累计 |
+| 5 | Meter | host-verified | `TestMeterHostValueAndMarks`。类型不是 `Progress` |
+| 6 | Toolbar | host-verified | `TestToolbarHostArrowsDoNotActivate` |
+| 7 | ToggleGroup | host-verified | `TestToggleGroupHostSingleAndMulti` |
+| 8 | ToggleButton | host-verified | `TestToggleButtonHostSpace` |
+| 9 | ImageCompare | host-verified | `TestImageCompareHostDragAndKeys` |
+| 10 | SuggestList | host-verified | `TestSuggestListHostDoesNotOwnInput` |
+| 11 | EmojiPicker | host-verified | `TestEmojiPickerHostSearchAndVirtualCells`。目录是手写 `emoji_catalog.go`，只画可见格 |
+| 12 | Combobox | host-verified | `TestComboboxHostEditAndChoose`。不改 `Select` / `AutoComplete` |
+| 13 | Scrollbar | host-verified | `TestScrollbarHostDrag` |
+| 14 | Nav / NavHeader | host-verified | `TestNavHostPushPopTitle` |
+| 15 | FormSection / FormRow / FormField | host-verified | `TestFormSectionHostRowsDoNotReplaceValidate`。校验仍是 `Form.Validate` |
+| 16 | PlainShell | partial | `TestPlainShellHostSlots` 只检查标题和内容槽，没有单独的宿主点击 |
+| 17 | Sidebar | host-verified | `TestSidebarHostGroupsAndArrows` |
+| 18 | SidebarShell | partial | `TestSidebarShellHostSlots` 检查侧栏和内容槽 |
+| 19 | TabShell | host-verified | `TestTabShellHostSwitch` |
+| 20 | Settings / SettingsDialog | host-verified | `TestSettingsHostCategoryAndDialog`。对话框使用层和作用域 |
+
+## 浮层排序
+
+`render.StableZOrder` 按 ZOrder 稳定排序。软件光栅、OpenGL、Vulkan、Metal、DX9、DX11 的浮层提交都调用它。`TestStableZOrderKeepsEqualRanksInInsertionOrder` 只检查这个纯函数，没有在 Metal 或 DirectX 上画出像素。不能把原生视觉当成已验证。
+
+## 表 3（19）
+
+全部 pending。里程碑 4 还没开始。
