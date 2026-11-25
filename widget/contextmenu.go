@@ -158,7 +158,7 @@ func (cm *ContextMenu) Draw(buf *render.CommandBuffer) {
 		}
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-			cfg.TextRenderer.DrawText(buf, item.Label, cm.x+cfg.SpaceMD, cy+(itemH-lh)/2, cfg.FontSize, cm.width-cfg.SpaceMD*2, color, 1)
+			emitOverlayText(cfg, buf, item.Label, cm.x+cfg.SpaceMD, cy+(itemH-lh)/2, cfg.FontSize, cm.width-cfg.SpaceMD*2, color, 1, menuTextZ)
 		}
 		cy += itemH
 	}

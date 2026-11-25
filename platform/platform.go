@@ -136,6 +136,12 @@ type WindowOptions struct {
 	VSync       bool
 	Transparent bool // Per-pixel alpha transparency (shaped window / desktop pet mode)
 	TopMost     bool // Always on top of other windows
+
+	// Passthrough makes the window ignore all mouse input, letting events reach
+	// the window below. Used by auxiliary floating panels such as tooltips.
+	// Transparent windows that do need per-pixel hit testing (desktop pets)
+	// should leave this false and use Window.SetHitTestFunc instead.
+	Passthrough bool
 }
 
 // DefaultWindowOptions returns sensible default window options.

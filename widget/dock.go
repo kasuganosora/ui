@@ -540,6 +540,6 @@ func (dl *DockLayout) drawFloating(buf *render.CommandBuffer, p *DockPanel, cfg 
 	}, 52, 1)
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, p.Title, x+cfg.SpaceSM, y+(headerH-lh)/2, cfg.FontSizeSm, w-cfg.SpaceSM*2, cfg.TextColor, 1)
+		emitOverlayText(cfg, buf, p.Title, x+cfg.SpaceSM, y+(headerH-lh)/2, cfg.FontSizeSm, w-cfg.SpaceSM*2, cfg.TextColor, 1, dockFloatTextZ)
 	}
 }

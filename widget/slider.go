@@ -301,7 +301,7 @@ func (s *Slider) Draw(buf *render.CommandBuffer) {
 				if cfg.TextRenderer != nil {
 					tw := cfg.TextRenderer.MeasureText(label, cfg.FontSizeSm)
 					lx := bounds.X + bounds.Width*mr - tw/2
-					cfg.TextRenderer.DrawText(buf, label, lx, labelY, cfg.FontSizeSm, tw+4, cfg.TextColor, 1)
+					emitText(cfg, buf, label, lx, labelY, cfg.FontSizeSm, tw+4, cfg.TextColor, 1, sliderMarkTextZ)
 				} else {
 					tw := float32(len(label)) * cfg.FontSizeSm * 0.55
 					th := cfg.FontSizeSm * 1.2
@@ -340,7 +340,7 @@ func (s *Slider) Draw(buf *render.CommandBuffer) {
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 			ty := tooltipY + (tooltipH-lh)/2
-			cfg.TextRenderer.DrawText(buf, valStr, tooltipX+tooltipPadX, ty, cfg.FontSizeSm, tooltipW, uimath.ColorWhite, 1)
+			emitText(cfg, buf, valStr, tooltipX+tooltipPadX, ty, cfg.FontSizeSm, tooltipW, uimath.ColorWhite, 1, tooltipTextZ)
 		} else {
 			tw := float32(len(valStr)) * cfg.FontSizeSm * 0.55
 			th := cfg.FontSizeSm * 1.2

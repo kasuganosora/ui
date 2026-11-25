@@ -123,7 +123,7 @@ func (p *Panel) Draw(buf *render.CommandBuffer, bounds uimath.Rect, cfg *widget.
 
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-			cfg.TextRenderer.DrawText(buf, p.Title, x+pad, y+(titleH-lh)/2, cfg.FontSize, w-pad*2, titleColor, 1)
+			emitTextAt(cfg, buf, p.Title, x+pad, y+(titleH-lh)/2, cfg.FontSize, w-pad*2, titleColor, 1, panelTextZ)
 		}
 	}
 

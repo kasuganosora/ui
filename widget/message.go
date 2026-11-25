@@ -196,9 +196,9 @@ func (m *Message) Draw(buf *render.CommandBuffer) {
 			iconFontSize := float32(10)
 			tw := cfg.TextRenderer.MeasureText(iconFallback, iconFontSize)
 			lh := cfg.TextRenderer.LineHeight(iconFontSize)
-			cfg.TextRenderer.DrawText(buf, iconFallback,
+			emitText(cfg, buf, iconFallback,
 				dotX+(dotSize-tw)/2, dotY+(dotSize-lh)/2,
-				iconFontSize, dotSize, uimath.ColorWhite, 1)
+				iconFontSize, dotSize, uimath.ColorWhite, 1, messageTextZ)
 		}
 	}
 
@@ -214,7 +214,7 @@ func (m *Message) Draw(buf *render.CommandBuffer) {
 			if cfg.TextRenderer != nil {
 				lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 				textY := bounds.Y + (bounds.Height-lh)/2
-				cfg.TextRenderer.DrawText(buf, m.content, textX, textY, cfg.FontSize, textW, cfg.TextColor, 1)
+				emitText(cfg, buf, m.content, textX, textY, cfg.FontSize, textW, cfg.TextColor, 1, messageTextZ)
 			} else {
 				tw := float32(len(m.content)) * cfg.FontSize * 0.55
 				if tw > textW {

@@ -162,7 +162,7 @@ func (w *Window) Draw(buf *render.CommandBuffer) {
 		if w.showClose {
 			maxW -= w.titleH
 		}
-		cfg.TextRenderer.DrawText(buf, w.title, x+pad, y+(w.titleH-lh)/2, cfg.FontSize, maxW, titleColor, 1)
+		emitTextAt(cfg, buf, w.title, x+pad, y+(w.titleH-lh)/2, cfg.FontSize, maxW, titleColor, 1, panelTextZ)
 	}
 
 	if w.showClose {
@@ -175,7 +175,7 @@ func (w *Window) Draw(buf *render.CommandBuffer) {
 				lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 				tx := x + bw - w.titleH*0.5 - cfg.FontSize*0.25
 				ty := y + (w.titleH-lh)/2
-				cfg.TextRenderer.DrawText(buf, "×", tx, ty, cfg.FontSize, w.titleH, closeColor, 1)
+				emitTextAt(cfg, buf, "×", tx, ty, cfg.FontSize, w.titleH, closeColor, 1, panelTextZ)
 			}
 		}
 	}

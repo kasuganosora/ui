@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	ui "github.com/kasuganosora/ui"
 	"github.com/kasuganosora/ui/core"
@@ -56,22 +57,66 @@ var nav = []struct{ value, section string }{
 	{"emoji", "sec-emoji"},
 }
 
+var backendValues = []string{"auto", "metal", "vulkan", "dx11", "dx9", "gl"}
+
+// parseBackend maps a CLI value to a ui.BackendType. Unknown values are an
+// error instead of silently falling back to auto, which used to hide typos.
+func parseBackend(name string) (ui.BackendType, error) {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "", "auto":
+		return ui.BackendAuto, nil
+	case "metal", "mtl":
+		return ui.BackendMetal, nil
+	case "vulkan", "vk":
+		return ui.BackendVulkan, nil
+	case "dx11", "d3d11", "directx":
+		return ui.BackendDX11, nil
+	case "dx9", "d3d9", "directx9":
+		return ui.BackendDX9, nil
+	case "gl", "opengl":
+		return ui.BackendOpenGL, nil
+	default:
+		return ui.BackendAuto, fmt.Errorf("未知的渲染后端 %q（可选：%s）", name, strings.Join(backendValues, ", "))
+	}
+}
+
+// sectionByValue resolves a sidebar value to its content section id.
+func sectionByValue(value string) (string, bool) {
+	for _, n := range nav {
+		if n.value == value {
+			return n.section, true
+		}
+	}
+	return "", false
+}
+
+func sectionValues() []string {
+	out := make([]string, 0, len(nav))
+	for _, n := range nav {
+		out = append(out, n.value)
+	}
+	return out
+}
+
 func main() {
-	backendFlag := flag.String("backend", "auto", "rendering backend: auto, vulkan, dx11, dx9, gl")
+	backendFlag := flag.String("backend", "auto", "渲染后端（auto, metal, vulkan, dx11, dx9, gl）")
+	sectionFlag := flag.String("section", "button", "启动时展示的组件（侧栏 value，例如 button、input、emoji）")
 	flag.Parse()
 
-	var backend ui.BackendType
-	switch *backendFlag {
-	case "dx11", "d3d11", "directx":
-		backend = ui.BackendDX11
-	case "dx9", "d3d9", "directx9":
-		backend = ui.BackendDX9
-	case "vulkan", "vk":
-		backend = ui.BackendVulkan
-	case "gl", "opengl":
-		backend = ui.BackendOpenGL
-	default:
-		backend = ui.BackendAuto
+	backend, err := parseBackend(*backendFlag)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "错误：%v\n", err)
+		os.Exit(2)
+	}
+	initialSection, ok := sectionByValue(*sectionFlag)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "错误：未知组件 %q（可选：%s）\n", *sectionFlag, strings.Join(sectionValues(), ", "))
+		os.Exit(2)
+	}
+
+	fmt.Printf("GoUI 组件库 demo：后端=%s，初始组件=%s\n", *backendFlag, *sectionFlag)
+	if ui.NewFontEngine() == nil {
+		fmt.Fprintln(os.Stderr, "提示：未检测到 FreeType，已切换到纯 Go 字体引擎；彩色 Emoji 需要安装 FreeType 才能显示。")
 	}
 
 	app, err := ui.NewApp(ui.AppOptions{
@@ -89,7 +134,7 @@ func main() {
 	doc := app.LoadHTML(demoHTML)
 
 	// Setup page navigation: click sidebar → show one section
-	setupNavigation(doc)
+	setupNavigation(doc, initialSection)
 
 	// Setup programmatic widgets
 	setupDemoWidgets(doc, app.Tree(), app.Config())
@@ -104,11 +149,19 @@ func main() {
 }
 
 // setupNavigation wires sidebar list to show/hide content sections.
-func setupNavigation(doc *ui.Document) {
-	// Build value→section map
-	sectionMap := make(map[string]string, len(nav))
+func setupNavigation(doc *ui.Document, initialSection string) {
+	// An unknown section would hide every panel and leave an empty window.
+	valid := false
+	initialValue := "button"
 	for _, n := range nav {
-		sectionMap[n.value] = n.section
+		if n.section == initialSection {
+			valid = true
+			initialValue = n.value
+			break
+		}
+	}
+	if !valid {
+		initialSection = "sec-button"
 	}
 
 	showSection := func(targetID string) {
@@ -127,26 +180,61 @@ func setupNavigation(doc *ui.Document) {
 		}
 	}
 
-	// Initially show only Button section
-	showSection("sec-button")
+	showSection(initialSection)
 
-	// Wire up sidebar list onChange
+	// Wire up sidebar list onChange. Keep its highlight in sync with -section
+	// so the visible panel and the selected item never disagree.
 	if ls, ok := doc.QueryByID("sidebar-nav").(*widget.List); ok {
+		ls.SetSelectedValue(initialValue)
 		ls.OnChange(func(value string) {
-			if sec, ok := sectionMap[value]; ok {
+			if sec, ok := sectionByValue(value); ok {
 				showSection(sec)
 			}
 		})
 	}
 }
 
+// buttonBindings is the single source of truth for the clickable buttons in
+// the Button section. Document.OnClick silently ignores unknown ids, so the
+// tests verify that every id here really exists in demoHTML.
+var buttonBindings = []struct{ id, label string }{
+	{"btn-default", "默认按钮"},
+	{"btn-primary", "主要按钮"},
+	{"btn-danger", "危险按钮"},
+	{"btn-warning", "警告按钮"},
+	{"btn-success", "成功按钮"},
+	{"btn-outline-default", "默认描边"},
+	{"btn-outline-primary", "主要描边"},
+	{"btn-outline-danger", "危险描边"},
+	{"btn-outline-warning", "警告描边"},
+	{"btn-outline-success", "成功描边"},
+	{"btn-dashed-default", "默认虚框"},
+	{"btn-dashed-primary", "主要虚框"},
+	{"btn-dashed-danger", "危险虚框"},
+	{"btn-text-default", "默认文字"},
+	{"btn-text-primary", "主要文字"},
+	{"btn-text-danger", "危险文字"},
+}
+
 // setupEventBindings wires up event handlers for widgets created via HTML.
 func setupEventBindings(doc *ui.Document) {
-	doc.OnClick("btn-primary", func() { fmt.Println("[Button] 主要按钮 clicked") })
-	doc.OnClick("btn-danger", func() { fmt.Println("[Button] 危险按钮 clicked") })
-	doc.OnClick("btn-secondary", func() { fmt.Println("[Button] 次要按钮 clicked") })
-	doc.OnClick("btn-text", func() { fmt.Println("[Button] 文字按钮 clicked") })
-	doc.OnClick("btn-link", func() { fmt.Println("[Button] 链接按钮 clicked") })
+	for _, b := range buttonBindings {
+		id, label := b.id, b.label
+		if doc.QueryByID(id) == nil {
+			fmt.Fprintf(os.Stderr, "警告：demo 缺少按钮 id=%q，事件绑定不会生效\n", id)
+			continue
+		}
+		doc.OnClick(id, func() { fmt.Printf("[Button] %s clicked\n", label) })
+	}
+
+	// OnChange/OnToggle are also no-ops for unknown ids; warn once so a typo
+	// cannot silently disable a demo control.
+	for _, id := range []string{"input-basic", "textarea-basic", "cb-apple", "cb-banana", "sw-basic", "select-basic"} {
+		if doc.QueryByID(id) == nil {
+			fmt.Fprintf(os.Stderr, "警告：demo 缺少控件 id=%q，事件绑定不会生效\n", id)
+		}
+	}
+
 	doc.OnChange("input-basic", func(v string) { fmt.Printf("[Input] = %q\n", v) })
 	doc.OnChange("textarea-basic", func(v string) { fmt.Printf("[TextArea] len=%d\n", len(v)) })
 	doc.OnToggle("cb-apple", func(v bool) { fmt.Printf("[Checkbox] 苹果 = %v\n", v) })
@@ -181,6 +269,23 @@ func setupDemoWidgets(doc *ui.Document, tree *core.Tree, cfg *widget.Config) {
 			return c
 		}
 		return nil
+	}
+
+	// Message pills live in a horizontal Space, whose flex layout gives each
+	// child a fixed 120px width. Size them from their label instead so the
+	// renderer has room for the full text instead of an ellipsis.
+	for _, w := range doc.QueryByTag("message") {
+		m, ok := w.(*widget.Message)
+		if !ok {
+			continue
+		}
+		labelW := float32(len([]rune(m.Content()))) * cfg.FontSize
+		if cfg.TextRenderer != nil {
+			labelW = cfg.TextRenderer.MeasureText(m.Content(), cfg.FontSize)
+		}
+		st := m.Style()
+		st.Width = layout.Px(labelW + cfg.SpaceMD*2 + 16 + cfg.SpaceSM + 20 + 8)
+		m.SetStyle(st)
 	}
 
 	// --- Divider ---
@@ -291,9 +396,11 @@ func setupDemoWidgets(doc *ui.Document, tree *core.Tree, cfg *widget.Config) {
 	// --- Table ---
 	if c := get("demo-table"); c != nil {
 		t := widget.NewTable(tree, []widget.TableColumn{
-			{Title: "序号", Width: 60, Align: widget.TableAlignCenter},
+			// Column widths must leave room for the 16px padding on each side:
+			// narrower columns silently ellipsize even short CJK labels.
+			{Title: "序号", Width: 76, Align: widget.TableAlignCenter},
 			{Title: "名称", Width: 0},
-			{Title: "状态", Width: 80, Align: widget.TableAlignCenter},
+			{Title: "状态", Width: 100, Align: widget.TableAlignCenter},
 			{Title: "更新时间", Width: 150},
 		}, cfg)
 		t.SetRows([][]string{
@@ -554,23 +661,23 @@ const demoHTML = `
 					</space>
 					<span class="demo-label">描边按钮</span>
 					<space gap="12">
-						<button variant="outline">默认描边</button>
-						<button variant="outline" theme="primary">主要描边</button>
-						<button variant="outline" theme="danger">危险描边</button>
-						<button variant="outline" theme="warning">警告描边</button>
-						<button variant="outline" theme="success">成功描边</button>
+						<button id="btn-outline-default" variant="outline">默认描边</button>
+						<button id="btn-outline-primary" variant="outline" theme="primary">主要描边</button>
+						<button id="btn-outline-danger" variant="outline" theme="danger">危险描边</button>
+						<button id="btn-outline-warning" variant="outline" theme="warning">警告描边</button>
+						<button id="btn-outline-success" variant="outline" theme="success">成功描边</button>
 					</space>
 					<span class="demo-label">虚框按钮</span>
 					<space gap="12">
-						<button variant="dashed">默认虚框</button>
-						<button variant="dashed" theme="primary">主要虚框</button>
-						<button variant="dashed" theme="danger">危险虚框</button>
+						<button id="btn-dashed-default" variant="dashed">默认虚框</button>
+						<button id="btn-dashed-primary" variant="dashed" theme="primary">主要虚框</button>
+						<button id="btn-dashed-danger" variant="dashed" theme="danger">危险虚框</button>
 					</space>
 					<span class="demo-label">文字按钮</span>
 					<space gap="12">
-						<button variant="text">默认文字</button>
-						<button variant="text" theme="primary">主要文字</button>
-						<button variant="text" theme="danger">危险文字</button>
+						<button id="btn-text-default" variant="text">默认文字</button>
+						<button id="btn-text-primary" variant="text" theme="primary">主要文字</button>
+						<button id="btn-text-danger" variant="text" theme="danger">危险文字</button>
 					</space>
 					<span class="demo-label">按钮状态</span>
 					<space gap="12">

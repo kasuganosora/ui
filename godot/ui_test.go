@@ -173,9 +173,8 @@ func TestSoftwarePaintsOpenedDialogAboveDate(t *testing.T) {
 	dp.SetOpen(true)
 	dlg.Open()
 	ui.Frame(0.016)
-	r, _, _, _ := pixelAt(ui, 154, 162)
-	if r > 200 {
-		t.Fatalf("software raster left the date popup above the later dialog, red %d", r)
+	if w, _ := calendarPanelStrip(ui, 10, 46); w > 2000 {
+		t.Fatalf("software raster left the date popup above the later dialog, white %d", w)
 	}
 
 	ui2, err := NewUI(UIOptions{Width: 800, Height: 600})
@@ -195,10 +194,39 @@ func TestSoftwarePaintsOpenedDialogAboveDate(t *testing.T) {
 	host.Open()
 	inner.SetOpen(true)
 	ui2.Frame(0.016)
-	r, _, _, _ = pixelAt(ui2, 30+4*32+16, 40+32+4+36+2*32+16)
-	if r < 240 {
-		t.Fatalf("software raster hid the dialog-owned calendar, red %d", r)
+	white, dark := calendarPanelStrip(ui2, 30, 76)
+	if white < 15000 {
+		t.Fatalf("software raster hid the dialog-owned calendar, white %d", white)
 	}
+	if dark < 100 {
+		t.Fatalf("software raster hid the calendar day labels, dark %d", dark)
+	}
+}
+
+// calendarPanelStrip counts near-white and dark pixels in the left 100px of
+// an opened date picker popup (the popup is 224x260). That strip never
+// overlaps the dialog's own white body in the fixtures above, so near-white
+// pixels there can only come from the popup's opaque panel.
+//
+// A single-pixel probe is not usable for this: day-number glyphs are painted
+// on top of the panel, so a probe aimed at a day cell can land on a glyph
+// instead of the panel background. Glyph coverage also varies a lot between
+// font engines (real outlines cover far fewer pixels than the placeholder
+// engine's solid blocks). Counting the strip keeps the layer-ownership check
+// independent of which font engine the headless runtime selected.
+func calendarPanelStrip(ui *UI, x, y int) (white, dark int) {
+	for py := y; py < y+260; py++ {
+		for px := x; px < x+100; px++ {
+			r, g, b, _ := pixelAt(ui, px, py)
+			switch {
+			case r > 240 && g > 240 && b > 240:
+				white++
+			case r < 80 && g < 80 && b < 80:
+				dark++
+			}
+		}
+	}
+	return white, dark
 }
 
 func pixelAt(ui *UI, x, y int) (byte, byte, byte, byte) {

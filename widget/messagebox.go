@@ -188,7 +188,7 @@ func (mb *MessageBox) Draw(buf *render.CommandBuffer) {
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeLg)
 			ty := panelY + cfg.SpaceLG + (iconSize-lh)/2
-			cfg.TextRenderer.DrawText(buf, mb.title, titleX, ty, cfg.FontSizeLg, panelW-cfg.SpaceLG*2-iconSize-cfg.SpaceSM, cfg.TextColor, 1)
+			emitText(cfg, buf, mb.title, titleX, ty, cfg.FontSizeLg, panelW-cfg.SpaceLG*2-iconSize-cfg.SpaceSM, cfg.TextColor, 1, dialogTextZ)
 		} else {
 			tw := float32(len(mb.title)) * cfg.FontSizeLg * 0.55
 			th := cfg.FontSizeLg * 1.2
@@ -206,7 +206,7 @@ func (mb *MessageBox) Draw(buf *render.CommandBuffer) {
 		contentY := panelY + cfg.SpaceLG + iconSize + cfg.SpaceMD
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-			cfg.TextRenderer.DrawText(buf, mb.content, titleX, contentY, cfg.FontSize, panelW-cfg.SpaceLG*2-iconSize-cfg.SpaceSM, uimath.RGBA(0, 0, 0, 0.65), 1)
+			emitText(cfg, buf, mb.content, titleX, contentY, cfg.FontSize, panelW-cfg.SpaceLG*2-iconSize-cfg.SpaceSM, uimath.RGBA(0, 0, 0, 0.65), 1, dialogTextZ)
 			_ = lh
 		} else {
 			tw := float32(len(mb.content)) * cfg.FontSize * 0.55
@@ -242,7 +242,7 @@ func (mb *MessageBox) Draw(buf *render.CommandBuffer) {
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 			tw := cfg.TextRenderer.MeasureText("取消", cfg.FontSize)
-			cfg.TextRenderer.DrawText(buf, "取消", cancelX+(cancelW-tw)/2, btnY+(btnH-lh)/2, cfg.FontSize, cancelW, cfg.TextColor, 1)
+			emitText(cfg, buf, "取消", cancelX+(cancelW-tw)/2, btnY+(btnH-lh)/2, cfg.FontSize, cancelW, cfg.TextColor, 1, dialogTextZ)
 		}
 	}
 
@@ -255,7 +255,7 @@ func (mb *MessageBox) Draw(buf *render.CommandBuffer) {
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 		tw := cfg.TextRenderer.MeasureText("确定", cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, "确定", okX+(okW-tw)/2, btnY+(btnH-lh)/2, cfg.FontSize, okW, uimath.ColorWhite, 1)
+		emitText(cfg, buf, "确定", okX+(okW-tw)/2, btnY+(btnH-lh)/2, cfg.FontSize, okW, uimath.ColorWhite, 1, dialogTextZ)
 	}
 
 	mb.DrawChildren(buf)

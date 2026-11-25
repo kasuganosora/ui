@@ -148,7 +148,7 @@ func (ts *TreeSelect) Draw(buf *render.CommandBuffer) {
 		if ts.selected == "" {
 			color = cfg.DisabledColor
 		}
-		cfg.TextRenderer.DrawText(buf, label, bounds.X+cfg.SpaceSM, bounds.Y+(bounds.Height-lh)/2, cfg.FontSize, bounds.Width-cfg.SpaceSM*2, color, 1)
+		emitOverlayText(cfg, buf, label, bounds.X+cfg.SpaceSM, bounds.Y+(bounds.Height-lh)/2, cfg.FontSize, bounds.Width-cfg.SpaceSM*2, color, 1, dropdownTextZ)
 	}
 
 	// Dropdown tree
@@ -187,7 +187,7 @@ func (ts *TreeSelect) drawDropNode(buf *render.CommandBuffer, node *TreeNode, x,
 	}
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, node.Label, indent, y+(itemH-lh)/2, cfg.FontSizeSm, width-indent+x, cfg.TextColor, 1)
+		emitOverlayText(cfg, buf, node.Label, indent, y+(itemH-lh)/2, cfg.FontSizeSm, width-indent+x, cfg.TextColor, 1, dropdownTextZ)
 	}
 	y += itemH
 

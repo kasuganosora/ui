@@ -132,7 +132,7 @@ func (dp *DatePicker) Draw(buf *render.CommandBuffer) {
 	}, 1, 1)
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, label, bounds.X+cfg.SpaceSM, bounds.Y+(bounds.Height-lh)/2, cfg.FontSize, bounds.Width-cfg.SpaceSM*2, cfg.TextColor, 1)
+		emitOverlayText(cfg, buf, label, bounds.X+cfg.SpaceSM, bounds.Y+(bounds.Height-lh)/2, cfg.FontSize, bounds.Width-cfg.SpaceSM*2, cfg.TextColor, 1, dropdownTextZ)
 	}
 
 	// Calendar dropdown
@@ -163,7 +163,7 @@ func (dp *DatePicker) Draw(buf *render.CommandBuffer) {
 	if cfg.TextRenderer != nil {
 		header := monthName(dp.month) + " " + intToStr(dp.year)
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, header, cx+cfg.SpaceSM, cy+(36-lh)/2, cfg.FontSize, calW-cfg.SpaceSM*2, cfg.TextColor, 1)
+		emitOverlayText(cfg, buf, header, cx+cfg.SpaceSM, cy+(36-lh)/2, cfg.FontSize, calW-cfg.SpaceSM*2, cfg.TextColor, 1, dropdownTextZ)
 	}
 
 	// Day grid
@@ -189,7 +189,7 @@ func (dp *DatePicker) Draw(buf *render.CommandBuffer) {
 			if d == dp.day {
 				color = uimath.ColorWhite
 			}
-			cfg.TextRenderer.DrawText(buf, txt, dx+(cellSize-tw)/2, dy+(cellSize-lh)/2, cfg.FontSizeSm, cellSize, color, 1)
+			emitOverlayText(cfg, buf, txt, dx+(cellSize-tw)/2, dy+(cellSize-lh)/2, cfg.FontSizeSm, cellSize, color, 1, dropdownTextZ)
 		}
 		col++
 		if col > 6 {
@@ -329,7 +329,7 @@ func (tp *TimePicker) Draw(buf *render.CommandBuffer) {
 	}, 1, 1)
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, label, bounds.X+cfg.SpaceSM, bounds.Y+(bounds.Height-lh)/2, cfg.FontSize, bounds.Width-cfg.SpaceSM*2, cfg.TextColor, 1)
+		emitOverlayText(cfg, buf, label, bounds.X+cfg.SpaceSM, bounds.Y+(bounds.Height-lh)/2, cfg.FontSize, bounds.Width-cfg.SpaceSM*2, cfg.TextColor, 1, dropdownTextZ)
 	}
 }
 

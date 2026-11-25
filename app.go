@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/kasuganosora/ui/core"
@@ -10,6 +11,7 @@ import (
 	"github.com/kasuganosora/ui/font"
 	"github.com/kasuganosora/ui/font/atlas"
 	"github.com/kasuganosora/ui/font/textrender"
+	"github.com/kasuganosora/ui/font/ttf"
 	"github.com/kasuganosora/ui/icon/material"
 	"github.com/kasuganosora/ui/layout"
 	uimath "github.com/kasuganosora/ui/math"
@@ -86,10 +88,16 @@ type App struct {
 
 	// Font
 	fontEngine      font.Engine
+	fontMgr         font.Manager
 	fontID          font.ID
 	fallbackFontIDs []font.ID
 	glyphAtlas      *atlas.Atlas
 	textRenderer    *textrender.Renderer
+
+	// Auxiliary OS windows for floating widgets (tooltips). Each window owns
+	// its own backend and glyph atlas; see overlay_host.go.
+	overlaysMu sync.Mutex
+	overlays   map[widget.Widget]*overlayWindow
 
 	// Document
 	doc  *Document
@@ -163,13 +171,19 @@ func NewApp(opts AppOptions) (*App, error) {
 	}
 
 	// --- Font System ---
+	// Prefer the native engine (FreeType). When it is unavailable, fall back to
+	// pure Go outline rasterization so text still renders as real glyphs; the
+	// placeholder engine is only a last resort.
 	if fe := platformNewFontEngine(); fe != nil {
+		a.fontEngine = fe
+	} else if fe := FallbackFontEngine(); fe != nil {
 		a.fontEngine = fe
 	} else {
 		a.fontEngine = newMockEngine()
 	}
 
 	mgr := font.NewManager(a.fontEngine)
+	a.fontMgr = mgr
 	fontPath := opts.Font
 	if fontPath == "" {
 		fontPath = platformDefaultFont()
@@ -219,6 +233,9 @@ func NewApp(opts AppOptions) (*App, error) {
 	a.cfg.IconRegistry = material.NewRegistry(a.backend)
 	// Create default network client for remote image loading.
 	a.cfg.NetClient = uinet.New(uinet.Options{})
+	// Floating widgets (tooltips) render into their own OS windows.
+	a.cfg.OverlayHost = a
+	a.overlays = make(map[widget.Widget]*overlayWindow)
 	a.buf = render.NewCommandBuffer()
 
 	// Wire DevTools server if provided.
@@ -373,6 +390,10 @@ func (a *App) Run() error {
 		_ = a.textRenderer.Upload()
 		a.backend.Submit(a.buf)
 		a.backend.EndFrame()
+
+		// Auxiliary OS windows have their own backends and must be submitted
+		// separately; they do not share the main window's command buffer.
+		a.renderOverlays()
 	}
 
 	// Register resize callback if the platform window supports it (win32-specific).
@@ -424,6 +445,9 @@ func (a *App) Run() error {
 
 // Destroy releases all resources.
 func (a *App) Destroy() {
+	// Auxiliary windows own separate GPU resources; release them before the
+	// platform tears down its window list.
+	a.destroyOverlays()
 	if a.textRenderer != nil {
 		a.textRenderer.Destroy()
 	}
@@ -945,11 +969,18 @@ func layoutSpaceHorizontal(tree *core.Tree, space widget.Widget, x, y, w, h floa
 	}
 	cx := x
 	for _, child := range children {
+		childW := itemW
+		// Some children size themselves from their content (e.g. Message pills
+		// reserve room for their label). Honour an explicit width instead of
+		// forcing every item into the shared 120px cap.
+		if v, ok := child.Style().Width.Resolve(w); ok && v > 0 {
+			childW = v
+		}
 		tree.SetLayout(child.ElementID(), core.LayoutResult{
-			Bounds: uimath.NewRect(cx, y, itemW, h),
+			Bounds: uimath.NewRect(cx, y, childW, h),
 		})
-		fillDescendants(tree, child, cx+2, y+2, itemW-4, h-4)
-		cx += itemW + gap
+		fillDescendants(tree, child, cx+2, y+2, childW-4, h-4)
+		cx += childW + gap
 	}
 }
 
@@ -1101,6 +1132,16 @@ func CreateBackend(bt BackendType, win platform.Window) (render.Backend, error) 
 // NewFontEngine creates a font engine for the current platform.
 // Returns nil if the platform font engine (e.g. FreeType) is unavailable.
 func NewFontEngine() font.Engine { return platformNewFontEngine() }
+
+// FallbackFontEngine creates the pure Go outline engine preloaded with the
+// platform default font. It returns nil when no usable system font exists.
+func FallbackFontEngine() font.Engine {
+	fe, err := ttf.NewFromFile(platformDefaultFont())
+	if err != nil {
+		return nil
+	}
+	return fe
+}
 
 // DefaultFont returns the path to the default system font for the current OS.
 func DefaultFont() string { return platformDefaultFont() }

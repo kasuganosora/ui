@@ -190,13 +190,13 @@ func (st *SkillTree) Draw(buf *render.CommandBuffer) {
 			lvlText := itoa(node.Level) + "/" + itoa(node.MaxLevel)
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 			tw := cfg.TextRenderer.MeasureText(lvlText, cfg.FontSizeSm)
-			cfg.TextRenderer.DrawText(buf, lvlText, nx+(s-tw)/2, ny+s-lh-2, cfg.FontSizeSm, s, color, 1)
+			emitTextAt(cfg, buf, lvlText, nx+(s-tw)/2, ny+s-lh-2, cfg.FontSizeSm, s, color, 1, barTextZ)
 		}
 
 		// Name below node
 		if cfg.TextRenderer != nil {
 			tw := cfg.TextRenderer.MeasureText(node.Name, cfg.FontSizeSm)
-			cfg.TextRenderer.DrawText(buf, node.Name, nx+(s-tw)/2, ny+s+2, cfg.FontSizeSm, s*2, uimath.RGBA(0.8, 0.8, 0.8, 1), 1)
+			emitTextAt(cfg, buf, node.Name, nx+(s-tw)/2, ny+s+2, cfg.FontSizeSm, s*2, uimath.RGBA(0.8, 0.8, 0.8, 1), 1, barTextZ)
 		}
 	}
 }

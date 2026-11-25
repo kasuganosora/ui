@@ -172,7 +172,7 @@ func (ac *AutoComplete) Draw(buf *render.CommandBuffer) {
 	}, 1, 1)
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, ac.text, bounds.X+cfg.SpaceSM, bounds.Y+(bounds.Height-lh)/2, cfg.FontSize, bounds.Width-cfg.SpaceSM*2, cfg.TextColor, 1)
+		emitOverlayText(cfg, buf, ac.text, bounds.X+cfg.SpaceSM, bounds.Y+(bounds.Height-lh)/2, cfg.FontSize, bounds.Width-cfg.SpaceSM*2, cfg.TextColor, 1, dropdownTextZ)
 	}
 
 	// Dropdown
@@ -208,7 +208,7 @@ func (ac *AutoComplete) Draw(buf *render.CommandBuffer) {
 		}
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-			cfg.TextRenderer.DrawText(buf, item, dx+cfg.SpaceSM, iy+(itemH-lh)/2, cfg.FontSize, bounds.Width-cfg.SpaceSM*2, cfg.TextColor, 1)
+			emitOverlayText(cfg, buf, item, dx+cfg.SpaceSM, iy+(itemH-lh)/2, cfg.FontSize, bounds.Width-cfg.SpaceSM*2, cfg.TextColor, 1, dropdownTextZ)
 		}
 	}
 }

@@ -11,6 +11,13 @@ import (
 	"github.com/kasuganosora/ui/platform"
 )
 
+// NSWindowLevel values (AppKit). A floating auxiliary panel sits above
+// ordinary windows but below screen saver / fullscreen layers.
+const (
+	nsNormalWindowLevel    = 0
+	nsPopUpMenuWindowLevel = 101
+)
+
 // Window implements platform.Window using Cocoa NSWindow.
 type Window struct {
 	nswindow     id
@@ -26,11 +33,15 @@ type Window struct {
 	fullscreen        bool
 	decorated         bool
 	resizable         bool
+	transparent       bool
+	topMost           bool
+	passthrough       bool
 	visible           bool
 	deferredVisible   bool
 	shouldClose       bool
 	mouseDown         bool
 	lastModifiers     event.Modifiers
+	hitTest           func(x, y int) bool
 
 	// Size constraints
 	minWidth, minHeight int
@@ -73,16 +84,19 @@ func initWindowWithContentRect(rect NSRect, styleMask uint64) id {
 // newWindow creates a new Cocoa window.
 func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 	w := &Window{
-		p:         p,
-		width:     opts.Width,
-		height:    opts.Height,
-		decorated: opts.Decorated,
-		resizable: opts.Resizable,
-		dpiScale:  1.0,
-		minWidth:  opts.MinWidth,
-		minHeight: opts.MinHeight,
-		maxWidth:  opts.MaxWidth,
-		maxHeight: opts.MaxHeight,
+		p:           p,
+		width:       opts.Width,
+		height:      opts.Height,
+		decorated:   opts.Decorated,
+		resizable:   opts.Resizable,
+		transparent: opts.Transparent,
+		topMost:     opts.TopMost,
+		passthrough: opts.Passthrough,
+		dpiScale:    1.0,
+		minWidth:    opts.MinWidth,
+		minHeight:   opts.MinHeight,
+		maxWidth:    opts.MaxWidth,
+		maxHeight:   opts.MaxHeight,
 	}
 
 	// Build window style mask
@@ -142,11 +156,31 @@ func newWindow(p *Platform, opts platform.WindowOptions) (*Window, error) {
 		msgSendSizeArg(w.nswindow, selSetMaxSize, maxSize)
 	}
 
-	// Set opaque and background color
-	msgSend(w.nswindow, selSetOpaque, 1)
-	// Set background color to white
-	whiteColor := msgSend(id(classNSColor), objcSelector("whiteColor"))
-	msgSend(w.nswindow, selSetBackgroundColor, uintptr(whiteColor))
+	// Set opacity and background color. Transparent windows need a clear
+	// background and an opaque:NO layer so the render backend's alpha clear
+	// actually shows through; otherwise the window is a solid white rectangle.
+	if opts.Transparent {
+		msgSend(w.nswindow, selSetOpaque, 0)
+		clearColor := msgSend(id(classNSColor), selClearColor)
+		msgSend(w.nswindow, selSetBackgroundColor, uintptr(clearColor))
+		// Borderless floating panels have no shadow of their own; the UI draws it.
+		msgSend(w.nswindow, selSetHasShadow, 0)
+	} else {
+		msgSend(w.nswindow, selSetOpaque, 1)
+		whiteColor := msgSend(id(classNSColor), objcSelector("whiteColor"))
+		msgSend(w.nswindow, selSetBackgroundColor, uintptr(whiteColor))
+	}
+	if opts.TopMost {
+		// NSPopUpMenuWindowLevel keeps auxiliary panels above ordinary windows
+		// without making them key windows.
+		msgSend(w.nswindow, selSetLevel, nsPopUpMenuWindowLevel)
+	}
+	if opts.Passthrough {
+		// Auxiliary floating panels must not swallow clicks meant for the
+		// window below. Transparent windows with per-pixel hit testing keep
+		// normal input delivery and filter events in Go instead.
+		msgSend(w.nswindow, selSetIgnoresMouseEvents, 1)
+	}
 
 	// Create tracking area for mouse enter/exit events
 	// NOTE: Disabled temporarily on darwin to avoid ObjC struct-call ABI issues in purego path.
@@ -278,7 +312,10 @@ func (w *Window) SetVisible(visible bool) {
 		// Activate the application so it becomes frontmost.
 		ActivateApplication()
 	} else {
-		msgSend(w.nswindow, selClose)
+		// orderOut: hides without releasing the NSWindow, so a floating panel
+		// can be shown again on the next hover. close would tear the window
+		// down and make Show() a no-op.
+		msgSend(w.nswindow, selOrderOut, 0)
 	}
 }
 
@@ -389,6 +426,19 @@ func (w *Window) ClientToScreen(x, y int) (int, int) {
 	return int(screenPt.X), int(screenPt.Y)
 }
 
+// ClientToTopLeftScreen converts client coordinates to top-left-origin screen
+// coordinates, which is the convention used by SetPosition. ClientToScreen
+// returns Cocoa's bottom-left-origin coordinates (used by ShowContextMenu).
+func (w *Window) ClientToTopLeftScreen(x, y int) (int, int) {
+	sx, sy := w.ClientToScreen(x, y)
+	screen := msgSend(w.nswindow, selScreen)
+	if screen != 0 {
+		frame := msgSendRectReturn(screen, selFrame)
+		sy = int(frame.Size.Height) - sy
+	}
+	return sx, sy
+}
+
 func (w *Window) ShowContextMenu(clientX, clientY int, items []platform.ContextMenuItem) int {
 	// Create an NSMenu
 	menu := msgSend(msgSend(id(classNSMenu), selAlloc), selInitWithTitle, 0)
@@ -452,9 +502,25 @@ func (w *Window) ShowContextMenu(clientX, clientY int, items []platform.ContextM
 	return -1
 }
 
-func (w *Window) IsTransparent() bool                { return false }
-func (w *Window) SetTopMost(topmost bool)            {}
-func (w *Window) SetHitTestFunc(func(int, int) bool) {}
+func (w *Window) IsTransparent() bool { return w.transparent }
+
+func (w *Window) SetTopMost(topmost bool) {
+	w.topMost = topmost
+	level := uintptr(nsNormalWindowLevel)
+	if topmost {
+		// Must match newWindow(opts.TopMost): a later SetTopMost call on an
+		// auxiliary panel must not lower it to a weaker floating level.
+		level = nsPopUpMenuWindowLevel
+	}
+	msgSend(w.nswindow, selSetLevel, level)
+}
+
+// SetHitTestFunc stores a per-pixel predicate. Events at rejected points are
+// dropped by Platform.convertAndStoreEvent, so transparent shaped windows can
+// let clicks through pixel by pixel without a custom NSView subclass.
+func (w *Window) SetHitTestFunc(fn func(int, int) bool) {
+	w.hitTest = fn
+}
 
 func (w *Window) Destroy() {
 	if w.trackingArea != 0 {

@@ -215,6 +215,12 @@ func (p *Platform) convertAndStoreEvent(nsevent id) {
 		location = msgSendPointReturn(nsevent, selLocationInWindow)
 		// Flip Y coordinate (Cocoa has Y=0 at bottom, we want Y=0 at top)
 		location.Y = float64(w.height) - location.Y
+
+		// Per-pixel hit testing: reject events on transparent/auxiliary windows
+		// instead of feeding them to the main widget tree as main-window coords.
+		if w.hitTest != nil && !w.hitTest(int(location.X), int(location.Y)) {
+			return
+		}
 	}
 
 	// Get modifier flags

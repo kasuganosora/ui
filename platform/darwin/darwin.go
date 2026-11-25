@@ -100,6 +100,11 @@ var (
 	selConvertRectToScreen     SEL
 	selScreen                  SEL
 	selWindow                  SEL
+	selSetLevel                SEL
+	selSetHasShadow            SEL
+	selSetIgnoresMouseEvents   SEL
+	selOrderOut                SEL
+	selClearColor              SEL
 )
 
 // NSView selectors
@@ -805,6 +810,11 @@ func init() {
 	selConvertRectToScreen = objcSelector("convertRectToScreen:")
 	selScreen = objcSelector("screen")
 	selWindow = objcSelector("window")
+	selSetLevel = objcSelector("setLevel:")
+	selSetHasShadow = objcSelector("setHasShadow:")
+	selSetIgnoresMouseEvents = objcSelector("setIgnoresMouseEvents:")
+	selOrderOut = objcSelector("orderOut:")
+	selClearColor = objcSelector("clearColor")
 
 	// NSView
 	selSetWantsLayer = objcSelector("setWantsLayer:")

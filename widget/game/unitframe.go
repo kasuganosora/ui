@@ -144,7 +144,7 @@ func drawUnitFrame(buf *render.CommandBuffer, cfg *widget.Config, x, y, w, h flo
 		if data.Dead {
 			nameColor = uimath.RGBA(0.5, 0.5, 0.5, 1)
 		}
-		cfg.TextRenderer.DrawText(buf, nameText, x+cfg.SpaceXS, y+2, cfg.FontSizeSm, w-cfg.SpaceXS*2, nameColor, 1)
+		emitTextAt(cfg, buf, nameText, x+cfg.SpaceXS, y+2, cfg.FontSizeSm, w-cfg.SpaceXS*2, nameColor, 1, unitFrameTextZ)
 	}
 
 	// HP bar

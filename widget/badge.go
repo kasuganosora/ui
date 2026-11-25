@@ -137,6 +137,6 @@ func (b *Badge) Draw(buf *render.CommandBuffer) {
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(fontSize)
 		tw := cfg.TextRenderer.MeasureText(text, fontSize)
-		cfg.TextRenderer.DrawText(buf, text, bx+(badgeW-tw)/2, by+(badgeH-lh)/2, fontSize, badgeW, uimath.ColorWhite, 1)
+		emitText(cfg, buf, text, bx+(badgeW-tw)/2, by+(badgeH-lh)/2, fontSize, badgeW, uimath.ColorWhite, 1, badgeTextZ)
 	}
 }

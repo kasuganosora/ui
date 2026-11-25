@@ -138,14 +138,14 @@ func (db *DialogueBox) Draw(buf *render.CommandBuffer) {
 	// Speaker name (in embedded mode, drawn as content text)
 	if db.embedded && db.speaker != "" && cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, db.speaker, cx, textY, cfg.FontSize, cw, uimath.ColorHex("#ffd700"), 1)
+		emitTextAt(cfg, buf, db.speaker, cx, textY, cfg.FontSize, cw, uimath.ColorHex("#ffd700"), 1, panelTextZ)
 		textY += lh + 4
 	}
 
 	// Dialogue text
 	if cfg.TextRenderer != nil && db.text != "" {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, db.text, cx, textY, cfg.FontSize, cw, uimath.RGBA(0.9, 0.9, 0.9, 1), 1)
+		emitTextAt(cfg, buf, db.text, cx, textY, cfg.FontSize, cw, uimath.RGBA(0.9, 0.9, 0.9, 1), 1, panelTextZ)
 		textY += lh + 8
 	}
 
@@ -155,7 +155,7 @@ func (db *DialogueBox) Draw(buf *render.CommandBuffer) {
 		if cfg.TextRenderer != nil {
 			label := itoa(i+1) + ". " + choice.Text
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-			cfg.TextRenderer.DrawText(buf, label, cx+cfg.SpaceSM, cy+(choiceH-lh)/2, cfg.FontSizeSm, cw-cfg.SpaceSM, uimath.ColorHex("#88bbff"), 1)
+			emitTextAt(cfg, buf, label, cx+cfg.SpaceSM, cy+(choiceH-lh)/2, cfg.FontSizeSm, cw-cfg.SpaceSM, uimath.ColorHex("#88bbff"), 1, panelTextZ)
 		}
 	}
 
@@ -163,6 +163,6 @@ func (db *DialogueBox) Draw(buf *render.CommandBuffer) {
 	if len(db.choices) == 0 && cfg.TextRenderer != nil {
 		hint := "▼"
 		tw := cfg.TextRenderer.MeasureText(hint, cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, hint, px+pw-tw-cfg.SpaceMD, py+ph-cfg.TextRenderer.LineHeight(cfg.FontSizeSm)-cfg.SpaceSM, cfg.FontSizeSm, tw+4, uimath.RGBA(0.6, 0.6, 0.6, 0.8), 1)
+		emitTextAt(cfg, buf, hint, px+pw-tw-cfg.SpaceMD, py+ph-cfg.TextRenderer.LineHeight(cfg.FontSizeSm)-cfg.SpaceSM, cfg.FontSizeSm, tw+4, uimath.RGBA(0.6, 0.6, 0.6, 0.8), 1, panelTextZ)
 	}
 }

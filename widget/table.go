@@ -411,7 +411,7 @@ func (t *Table) Draw(buf *render.CommandBuffer) {
 			case TableAlignRight:
 				tx = cx + colWidths[i] - tw - cfg.SpaceMD
 			}
-			cfg.TextRenderer.DrawText(buf, col.Title, tx, bounds.Y+(t.headerH-lh)/2, cfg.FontSizeSm, colWidths[i]-cfg.SpaceMD*2, headerTextColor, 1)
+			emitText(cfg, buf, col.Title, tx, bounds.Y+(t.headerH-lh)/2, cfg.FontSizeSm, colWidths[i]-cfg.SpaceMD*2, headerTextColor, 1, tableTextZ)
 		}
 
 		// Vertical column divider in header (bordered mode)
@@ -477,7 +477,7 @@ func (t *Table) Draw(buf *render.CommandBuffer) {
 				case TableAlignRight:
 					tx = cx + colWidths[ci] - tw - cfg.SpaceMD
 				}
-				cfg.TextRenderer.DrawText(buf, cell, tx, ry+(t.rowHeight-lh)/2, cfg.FontSize, colWidths[ci]-cfg.SpaceMD*2, cfg.TextColor, 1)
+				emitText(cfg, buf, cell, tx, ry+(t.rowHeight-lh)/2, cfg.FontSize, colWidths[ci]-cfg.SpaceMD*2, cfg.TextColor, 1, tableTextZ)
 			}
 
 			// Vertical column divider (bordered mode)

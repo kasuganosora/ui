@@ -201,9 +201,9 @@ func (n *Notification) Draw(buf *render.CommandBuffer) {
 				iconFontSize := float32(10)
 				tw := cfg.TextRenderer.MeasureText(iconFallback, iconFontSize)
 				lh := cfg.TextRenderer.LineHeight(iconFontSize)
-				cfg.TextRenderer.DrawText(buf, iconFallback,
+				emitOverlayText(cfg, buf, iconFallback,
 					iconX+(iconSize-tw)/2, iconY+(iconSize-lh)/2,
-					iconFontSize, iconSize, uimath.ColorWhite, 1)
+					iconFontSize, iconSize, uimath.ColorWhite, 1, notificationTextZ)
 			}
 		}
 	}
@@ -212,10 +212,10 @@ func (n *Notification) Draw(buf *render.CommandBuffer) {
 	textLeftOffset := float32(36) // after icon area
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, n.title, n.x+textLeftOffset, n.y+cfg.SpaceSM, cfg.FontSize, n.width-textLeftOffset-cfg.SpaceMD, cfg.TextColor, 1)
+		emitOverlayText(cfg, buf, n.title, n.x+textLeftOffset, n.y+cfg.SpaceSM, cfg.FontSize, n.width-textLeftOffset-cfg.SpaceMD, cfg.TextColor, 1, notificationTextZ)
 		// Content
 		if n.content != "" {
-			cfg.TextRenderer.DrawText(buf, n.content, n.x+textLeftOffset, n.y+cfg.SpaceSM+lh+4, cfg.FontSizeSm, n.width-textLeftOffset-cfg.SpaceMD, cfg.DisabledColor, 1)
+			emitOverlayText(cfg, buf, n.content, n.x+textLeftOffset, n.y+cfg.SpaceSM+lh+4, cfg.FontSizeSm, n.width-textLeftOffset-cfg.SpaceMD, cfg.DisabledColor, 1, notificationTextZ)
 		}
 	}
 

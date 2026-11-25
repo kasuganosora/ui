@@ -226,13 +226,13 @@ func (s *Steps) Draw(buf *render.CommandBuffer) {
 			lh := cfg.TextRenderer.LineHeight(titleFont)
 			tw := cfg.TextRenderer.MeasureText(item.Title, titleFont)
 			tx := cx - tw/2
-			cfg.TextRenderer.DrawText(buf, item.Title, tx, titleY, titleFont, stepW, titleColor, 1)
+			emitText(cfg, buf, item.Title, tx, titleY, titleFont, stepW, titleColor, 1, stepsTextZ)
 
 			// --- Content (description) ---
 			if item.Content != "" {
 				descY := titleY + lh + 2
 				descColor := cfg.DisabledColor
-				cfg.TextRenderer.DrawText(buf, item.Content, bounds.X+float32(i)*stepW+4, descY, cfg.FontSizeSm, stepW-8, descColor, 1)
+				emitText(cfg, buf, item.Content, bounds.X+float32(i)*stepW+4, descY, cfg.FontSizeSm, stepW-8, descColor, 1, stepsTextZ)
 			}
 		} else {
 			tw := float32(len(item.Title)) * titleFont * 0.55
@@ -257,7 +257,7 @@ func (s *Steps) drawCheckmark(buf *render.CommandBuffer, cx, cy, size float32, c
 	if cfg.TextRenderer != nil {
 		tw := cfg.TextRenderer.MeasureText("✓", cfg.FontSizeSm)
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, "✓", cx-tw/2, cy-lh/2, cfg.FontSizeSm, stepDotSize, color, 1)
+		emitText(cfg, buf, "✓", cx-tw/2, cy-lh/2, cfg.FontSizeSm, stepDotSize, color, 1, stepsTextZ)
 		return
 	}
 	t := float32(1.5)
@@ -287,7 +287,7 @@ func (s *Steps) drawCross(buf *render.CommandBuffer, cx, cy, size float32, color
 	if cfg.TextRenderer != nil {
 		tw := cfg.TextRenderer.MeasureText("×", cfg.FontSizeSm)
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, "×", cx-tw/2, cy-lh/2, cfg.FontSizeSm, stepDotSize, color, 1)
+		emitText(cfg, buf, "×", cx-tw/2, cy-lh/2, cfg.FontSizeSm, stepDotSize, color, 1, stepsTextZ)
 		return
 	}
 	t := float32(1.5)
@@ -313,7 +313,7 @@ func (s *Steps) drawNumber(buf *render.CommandBuffer, cx, cy float32, num int, c
 	if cfg.TextRenderer != nil {
 		tw := cfg.TextRenderer.MeasureText(str, cfg.FontSizeSm)
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, str, cx-tw/2, cy-lh/2, cfg.FontSizeSm, stepDotSize, color, 1)
+		emitText(cfg, buf, str, cx-tw/2, cy-lh/2, cfg.FontSizeSm, stepDotSize, color, 1, stepsTextZ)
 	} else {
 		tw := float32(len(str)) * cfg.FontSizeSm * 0.55
 		th := cfg.FontSizeSm * 1.2

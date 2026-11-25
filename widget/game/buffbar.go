@@ -125,7 +125,7 @@ func (bb *BuffBar) Draw(buf *render.CommandBuffer) {
 		if b.Label != "" && cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 			tw := cfg.TextRenderer.MeasureText(b.Label, cfg.FontSizeSm)
-			cfg.TextRenderer.DrawText(buf, b.Label, x+(s-tw)/2, y+(s-lh)/2, cfg.FontSizeSm, s, uimath.ColorWhite, 1)
+			emitTextAt(cfg, buf, b.Label, x+(s-tw)/2, y+(s-lh)/2, cfg.FontSizeSm, s, uimath.ColorWhite, 1, barTextZ)
 		}
 
 		// Duration overlay (cooldown sweep from bottom)
@@ -142,7 +142,7 @@ func (bb *BuffBar) Draw(buf *render.CommandBuffer) {
 		if b.Stacks > 1 && cfg.TextRenderer != nil {
 			txt := itoa(b.Stacks)
 			tw := cfg.TextRenderer.MeasureText(txt, cfg.FontSizeSm)
-			cfg.TextRenderer.DrawText(buf, txt, x+s-tw-2, y+s-cfg.TextRenderer.LineHeight(cfg.FontSizeSm)-1, cfg.FontSizeSm, s, uimath.ColorWhite, 1)
+			emitTextAt(cfg, buf, txt, x+s-tw-2, y+s-cfg.TextRenderer.LineHeight(cfg.FontSizeSm)-1, cfg.FontSizeSm, s, uimath.ColorWhite, 1, barTextZ)
 		}
 	}
 }

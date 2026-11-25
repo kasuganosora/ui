@@ -264,7 +264,7 @@ func (d *Drawer) Draw(buf *render.CommandBuffer) {
 
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeLg)
-		cfg.TextRenderer.DrawText(buf, d.header, px+cfg.SpaceLG, py+(headerH-lh)/2, cfg.FontSizeLg, pw-cfg.SpaceLG*2, cfg.TextColor, 1)
+		emitOverlayText(cfg, buf, d.header, px+cfg.SpaceLG, py+(headerH-lh)/2, cfg.FontSizeLg, pw-cfg.SpaceLG*2, cfg.TextColor, 1, drawerTextZ)
 	}
 
 	// Close button (X) in title bar top-right
@@ -336,9 +336,9 @@ func (d *Drawer) Draw(buf *render.CommandBuffer) {
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 			tw := cfg.TextRenderer.MeasureText(d.cancelBtn, cfg.FontSize)
-			cfg.TextRenderer.DrawText(buf, d.cancelBtn,
+			emitOverlayText(cfg, buf, d.cancelBtn,
 				cancelBtnX+(cancelBtnW-tw)/2, btnY+(btnH-lh)/2,
-				cfg.FontSize, cancelBtnW, cfg.TextColor, 1)
+				cfg.FontSize, cancelBtnW, cfg.TextColor, 1, drawerTextZ)
 		} else {
 			th := cfg.FontSize * 1.2
 			buf.DrawOverlay(render.RectCmd{
@@ -357,9 +357,9 @@ func (d *Drawer) Draw(buf *render.CommandBuffer) {
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 			tw := cfg.TextRenderer.MeasureText(d.confirmBtn, cfg.FontSize)
-			cfg.TextRenderer.DrawText(buf, d.confirmBtn,
+			emitOverlayText(cfg, buf, d.confirmBtn,
 				confirmBtnX+(confirmBtnW-tw)/2, btnY+(btnH-lh)/2,
-				cfg.FontSize, confirmBtnW, uimath.ColorWhite, 1)
+				cfg.FontSize, confirmBtnW, uimath.ColorWhite, 1, drawerTextZ)
 		} else {
 			th := cfg.FontSize * 1.2
 			buf.DrawOverlay(render.RectCmd{

@@ -283,7 +283,7 @@ func (inv *Inventory) Draw(buf *render.CommandBuffer) {
 				qText := itoa(item.Quantity)
 				lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 				tw := cfg.TextRenderer.MeasureText(qText, cfg.FontSizeSm)
-				cfg.TextRenderer.DrawText(buf, qText, sx+s-tw-2, sy+s-lh-2, cfg.FontSizeSm, s, uimath.ColorWhite, 1)
+				emitTextAt(cfg, buf, qText, sx+s-tw-2, sy+s-lh-2, cfg.FontSizeSm, s, uimath.ColorWhite, 1, panelTextZ)
 			}
 		}
 	}
@@ -313,7 +313,7 @@ func (inv *Inventory) Draw(buf *render.CommandBuffer) {
 				qText := itoa(dragItem.Quantity)
 				lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 				tw := cfg.TextRenderer.MeasureText(qText, cfg.FontSizeSm)
-				cfg.TextRenderer.DrawText(buf, qText, dx+s-tw-2, dy+s-lh-2, cfg.FontSizeSm, s, uimath.ColorWhite, 1)
+				emitTextAt(cfg, buf, qText, dx+s-tw-2, dy+s-lh-2, cfg.FontSizeSm, s, uimath.ColorWhite, 1, panelTextZ)
 			}
 		}
 	}

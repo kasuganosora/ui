@@ -107,7 +107,7 @@ func (sb *Scoreboard) Draw(buf *render.CommandBuffer) {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 		hy := contentY + (colHeaderH-lh)/2
 		for ci, h := range headers {
-			cfg.TextRenderer.DrawText(buf, h, panelX+float32(ci)*colW+cfg.SpaceXS, hy, cfg.FontSizeSm, colW, uimath.RGBA(0.6, 0.6, 0.6, 1), 1)
+			emitTextAt(cfg, buf, h, panelX+float32(ci)*colW+cfg.SpaceXS, hy, cfg.FontSizeSm, colW, uimath.RGBA(0.6, 0.6, 0.6, 1), 1, panelTextZ)
 		}
 	}
 
@@ -124,10 +124,10 @@ func (sb *Scoreboard) Draw(buf *render.CommandBuffer) {
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 			ty := ry + (sb.rowH-lh)/2
-			cfg.TextRenderer.DrawText(buf, e.Name, panelX+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorWhite, 1)
-			cfg.TextRenderer.DrawText(buf, itoa(e.Score), panelX+colW+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorWhite, 1)
-			cfg.TextRenderer.DrawText(buf, itoa(e.Kills), panelX+colW*2+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorHex("#52c41a"), 1)
-			cfg.TextRenderer.DrawText(buf, itoa(e.Deaths), panelX+colW*3+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorHex("#ff4d4f"), 1)
+			emitTextAt(cfg, buf, e.Name, panelX+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorWhite, 1, panelTextZ)
+			emitTextAt(cfg, buf, itoa(e.Score), panelX+colW+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorWhite, 1, panelTextZ)
+			emitTextAt(cfg, buf, itoa(e.Kills), panelX+colW*2+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorHex("#52c41a"), 1, panelTextZ)
+			emitTextAt(cfg, buf, itoa(e.Deaths), panelX+colW*3+cfg.SpaceXS, ty, cfg.FontSizeSm, colW, uimath.ColorHex("#ff4d4f"), 1, panelTextZ)
 		}
 	}
 }

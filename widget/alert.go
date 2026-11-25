@@ -144,9 +144,9 @@ func (a *Alert) Draw(buf *render.CommandBuffer) {
 			iconFontSize := float32(10)
 			lh := cfg.TextRenderer.LineHeight(iconFontSize)
 			iw := cfg.TextRenderer.MeasureText(iconFallback, iconFontSize)
-			cfg.TextRenderer.DrawText(buf, iconFallback,
+			emitText(cfg, buf, iconFallback,
 				dotX+(dotSize-iw)/2, dotY+(dotSize-lh)/2,
-				iconFontSize, dotSize, uimath.ColorWhite, 1)
+				iconFontSize, dotSize, uimath.ColorWhite, 1, alertTextZ)
 		}
 	}
 
@@ -163,15 +163,15 @@ func (a *Alert) Draw(buf *render.CommandBuffer) {
 		titleY := bounds.Y + cfg.SpaceMD
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-			cfg.TextRenderer.DrawText(buf, a.title, textX, titleY, cfg.FontSize, maxW, cfg.TextColor, 1)
+			emitText(cfg, buf, a.title, textX, titleY, cfg.FontSize, maxW, cfg.TextColor, 1, alertTextZ)
 			// Message below title
 			msgY := titleY + lh + 4
-			cfg.TextRenderer.DrawText(buf, a.message, textX, msgY, cfg.FontSizeSm, maxW, cfg.TextColor, 1)
+			emitText(cfg, buf, a.message, textX, msgY, cfg.FontSizeSm, maxW, cfg.TextColor, 1, alertTextZ)
 			// Operation text after message
 			if a.operation != "" {
 				msgW := cfg.TextRenderer.MeasureText(a.message, cfg.FontSizeSm)
 				opX := textX + msgW + cfg.SpaceSM
-				cfg.TextRenderer.DrawText(buf, a.operation, opX, msgY, cfg.FontSizeSm, maxW-msgW-cfg.SpaceSM, textClr, 1)
+				emitText(cfg, buf, a.operation, opX, msgY, cfg.FontSizeSm, maxW-msgW-cfg.SpaceSM, textClr, 1, alertTextZ)
 			}
 		} else {
 			// Title placeholder
@@ -197,12 +197,12 @@ func (a *Alert) Draw(buf *render.CommandBuffer) {
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 			msgY := bounds.Y + (bounds.Height-lh)/2
-			cfg.TextRenderer.DrawText(buf, a.message, textX, msgY, cfg.FontSize, maxW, cfg.TextColor, 1)
+			emitText(cfg, buf, a.message, textX, msgY, cfg.FontSize, maxW, cfg.TextColor, 1, alertTextZ)
 			// Operation text after message
 			if a.operation != "" {
 				msgW := cfg.TextRenderer.MeasureText(a.message, cfg.FontSize)
 				opX := textX + msgW + cfg.SpaceSM
-				cfg.TextRenderer.DrawText(buf, a.operation, opX, msgY, cfg.FontSize, maxW-msgW-cfg.SpaceSM, textClr, 1)
+				emitText(cfg, buf, a.operation, opX, msgY, cfg.FontSize, maxW-msgW-cfg.SpaceSM, textClr, 1, alertTextZ)
 			}
 		} else {
 			tw := float32(len(a.message)) * cfg.FontSize * 0.55

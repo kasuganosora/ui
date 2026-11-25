@@ -20,8 +20,9 @@ type UIOptions struct {
 	Height   int     // Viewport height in logical pixels (default 540)
 	DPIScale float32 // DPI scale factor (default 1.0)
 
-	// Font is the path to the primary font file.
-	// If empty, a mock font engine is used (suitable for testing).
+	// Font is the path to the primary font file. If empty, the default system
+	// font is used. When no font is available, a placeholder engine is used
+	// (suitable for testing on minimal runtime images).
 	Font string
 
 	// FallbackFonts are additional font paths for symbol/CJK fallback.
@@ -93,16 +94,23 @@ func NewUI(opts UIOptions) (*UI, error) {
 		return nil, fmt.Errorf("backend init: %w", err)
 	}
 
-	// Font engine
-	u.fontEngine = newMockEngine()
+	// Font engine: prefer real glyph outlines so headless frames render
+	// readable text. The placeholder engine is used only when no font can be
+	// loaded, which keeps the UI testable on minimal runtime images.
+	engine, fontPath := resolveFontEngine(opts.Font)
+	u.fontEngine = engine
 	mgr := font.NewManager(u.fontEngine)
 
-	if opts.Font != "" {
-		if id, err := mgr.RegisterFile("Default", font.WeightRegular, font.StyleNormal, opts.Font); err == nil {
+	if fontPath != "" {
+		if id, err := mgr.RegisterFile("Default", font.WeightRegular, font.StyleNormal, fontPath); err == nil {
 			u.fontID = id
 		}
 	}
 	if u.fontID == font.InvalidFontID {
+		// The real font was missing or corrupt. Rebuild the manager on the
+		// placeholder engine so every downstream component stays consistent.
+		u.fontEngine = newMockEngine()
+		mgr = font.NewManager(u.fontEngine)
 		u.fontID, _ = mgr.Register("Default", font.WeightRegular, font.StyleNormal, nil)
 	}
 

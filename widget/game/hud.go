@@ -288,7 +288,7 @@ func (hb *HealthBar) Draw(buf *render.CommandBuffer) {
 		tw := cfg.TextRenderer.MeasureText(text, cfg.FontSizeSm)
 		tx := bounds.X + (bounds.Width-tw)/2
 		ty := bounds.Y + (bounds.Height-lh)/2
-		cfg.TextRenderer.DrawText(buf, text, tx, ty, cfg.FontSizeSm, bounds.Width, uimath.ColorWhite, 1)
+		emitTextAt(cfg, buf, text, tx, ty, cfg.FontSizeSm, bounds.Width, uimath.ColorWhite, 1, barTextZ)
 	}
 }
 
@@ -387,7 +387,7 @@ func (h *Hotbar) Draw(buf *render.CommandBuffer) {
 		// Keybind label
 		if slot.Keybind != "" && cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-			cfg.TextRenderer.DrawText(buf, slot.Keybind, sx+2, y+s-lh-2, cfg.FontSizeSm, s, uimath.RGBA(1, 1, 1, 0.7), 1)
+			emitTextAt(cfg, buf, slot.Keybind, sx+2, y+s-lh-2, cfg.FontSizeSm, s, uimath.RGBA(1, 1, 1, 0.7), 1, panelTextZ)
 		}
 	}
 }

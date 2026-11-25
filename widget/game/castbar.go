@@ -107,6 +107,6 @@ func (cb *CastBar) Draw(buf *render.CommandBuffer) {
 	if cfg.TextRenderer != nil && cb.spellName != "" {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 		tw := cfg.TextRenderer.MeasureText(cb.spellName, cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, cb.spellName, x+(cb.width-tw)/2, y+(cb.height-lh)/2, cfg.FontSizeSm, cb.width, uimath.ColorWhite, 1)
+		emitTextAt(cfg, buf, cb.spellName, x+(cb.width-tw)/2, y+(cb.height-lh)/2, cfg.FontSizeSm, cb.width, uimath.ColorWhite, 1, castBarTextZ)
 	}
 }

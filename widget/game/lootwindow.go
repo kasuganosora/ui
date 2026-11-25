@@ -147,7 +147,7 @@ func (lw *LootWindow) Draw(buf *render.CommandBuffer) {
 				nameColor = uimath.RGBA(0.4, 0.4, 0.4, 1)
 			}
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-			cfg.TextRenderer.DrawText(buf, li.Item.Name, contentX+s+cfg.SpaceXS, iy+(s-lh)/2, cfg.FontSizeSm, contentW-s-cfg.SpaceXS, nameColor, 1)
+			emitTextAt(cfg, buf, li.Item.Name, contentX+s+cfg.SpaceXS, iy+(s-lh)/2, cfg.FontSizeSm, contentW-s-cfg.SpaceXS, nameColor, 1, lootTextZ)
 		}
 	}
 }

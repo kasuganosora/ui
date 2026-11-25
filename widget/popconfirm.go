@@ -226,7 +226,7 @@ func (p *Popconfirm) Draw(buf *render.CommandBuffer) {
 		if cfg.TextRenderer != nil {
 			bangW := cfg.TextRenderer.MeasureText("!", cfg.FontSizeSm)
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-			cfg.TextRenderer.DrawText(buf, "!", iconX+(iconSize-bangW)/2, iconY+(iconSize-lh)/2, cfg.FontSizeSm, iconSize, uimath.ColorWhite, 1)
+			emitOverlayText(cfg, buf, "!", iconX+(iconSize-bangW)/2, iconY+(iconSize-lh)/2, cfg.FontSizeSm, iconSize, uimath.ColorWhite, 1, popconfirmTextZ)
 		} else {
 			buf.DrawOverlay(render.RectCmd{
 				Bounds:    uimath.NewRect(iconX+6, iconY+3, 4, 10),
@@ -238,7 +238,7 @@ func (p *Popconfirm) Draw(buf *render.CommandBuffer) {
 
 	// Title text
 	if cfg.TextRenderer != nil {
-		cfg.TextRenderer.DrawText(buf, p.content, x+cfg.SpaceSM+iconSize+4, y+cfg.SpaceSM, cfg.FontSize, p.width-cfg.SpaceSM*2-iconSize-4, cfg.TextColor, 1)
+		emitOverlayText(cfg, buf, p.content, x+cfg.SpaceSM+iconSize+4, y+cfg.SpaceSM, cfg.FontSize, p.width-cfg.SpaceSM*2-iconSize-4, cfg.TextColor, 1, popconfirmTextZ)
 	}
 
 	// Buttons area
@@ -260,7 +260,7 @@ func (p *Popconfirm) Draw(buf *render.CommandBuffer) {
 	if cfg.TextRenderer != nil {
 		tw := cfg.TextRenderer.MeasureText(p.cancelBtn, cfg.FontSizeSm)
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, p.cancelBtn, cancelX+(btnW-tw)/2, btnY+(btnH-lh)/2, cfg.FontSizeSm, btnW, cfg.TextColor, 1)
+		emitOverlayText(cfg, buf, p.cancelBtn, cancelX+(btnW-tw)/2, btnY+(btnH-lh)/2, cfg.FontSizeSm, btnW, cfg.TextColor, 1, popconfirmTextZ)
 	}
 
 	// Set layout on cancel button element for hit testing
@@ -281,7 +281,7 @@ func (p *Popconfirm) Draw(buf *render.CommandBuffer) {
 	if cfg.TextRenderer != nil {
 		tw := cfg.TextRenderer.MeasureText(p.confirmBtn, cfg.FontSizeSm)
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, p.confirmBtn, confirmX+(btnW-tw)/2, btnY+(btnH-lh)/2, cfg.FontSizeSm, btnW, uimath.ColorWhite, 1)
+		emitOverlayText(cfg, buf, p.confirmBtn, confirmX+(btnW-tw)/2, btnY+(btnH-lh)/2, cfg.FontSizeSm, btnW, uimath.ColorWhite, 1, popconfirmTextZ)
 	}
 
 	// Set layout on confirm button element for hit testing

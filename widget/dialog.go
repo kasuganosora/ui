@@ -293,7 +293,7 @@ func (d *Dialog) Draw(buf *render.CommandBuffer) {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeLg)
 			tx := panelX + cfg.SpaceLG
 			ty := panelY + (titleH-lh)/2
-			cfg.TextRenderer.DrawText(buf, d.header, tx, ty, cfg.FontSizeLg, panelW-cfg.SpaceLG*2, cfg.TextColor, 1)
+			emitText(cfg, buf, d.header, tx, ty, cfg.FontSizeLg, panelW-cfg.SpaceLG*2, cfg.TextColor, 1, dialogTextZ)
 		} else {
 			textW := float32(len(d.header)) * cfg.FontSizeLg * 0.55
 			textH := cfg.FontSizeLg * 1.2
@@ -384,9 +384,9 @@ func (d *Dialog) Draw(buf *render.CommandBuffer) {
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 			tw := cfg.TextRenderer.MeasureText(d.cancelBtn, cfg.FontSize)
-			cfg.TextRenderer.DrawText(buf, d.cancelBtn,
+			emitText(cfg, buf, d.cancelBtn,
 				cancelBtnX+(cancelBtnW-tw)/2, btnY+(btnH-lh)/2,
-				cfg.FontSize, cancelBtnW, cfg.TextColor, 1)
+				cfg.FontSize, cancelBtnW, cfg.TextColor, 1, dialogTextZ)
 		} else {
 			th := cfg.FontSize * 1.2
 			buf.DrawRect(render.RectCmd{
@@ -405,9 +405,9 @@ func (d *Dialog) Draw(buf *render.CommandBuffer) {
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 			tw := cfg.TextRenderer.MeasureText(d.confirmBtn, cfg.FontSize)
-			cfg.TextRenderer.DrawText(buf, d.confirmBtn,
+			emitText(cfg, buf, d.confirmBtn,
 				confirmBtnX+(confirmBtnW-tw)/2, btnY+(btnH-lh)/2,
-				cfg.FontSize, confirmBtnW, uimath.ColorWhite, 1)
+				cfg.FontSize, confirmBtnW, uimath.ColorWhite, 1, dialogTextZ)
 		} else {
 			th := cfg.FontSize * 1.2
 			buf.DrawRect(render.RectCmd{

@@ -222,7 +222,7 @@ func (it *ItemTooltip) Draw(buf *render.CommandBuffer) {
 
 	// Item name
 	if cfg.TextRenderer != nil {
-		cfg.TextRenderer.DrawText(buf, it.item.Name, it.x+8, it.y+4, cfg.FontSize, it.width-16, rarityColor(it.item.Rarity), 1)
+		emitTextAt(cfg, buf, it.item.Name, it.x+8, it.y+4, cfg.FontSize, it.width-16, rarityColor(it.item.Rarity), 1, itemTipTextZ)
 	}
 }
 
@@ -307,6 +307,6 @@ func (nt *NotificationToast) Draw(buf *render.CommandBuffer) {
 	// Text
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, nt.text, nt.x+12, nt.y+(h-lh)/2, cfg.FontSize, nt.width-20, uimath.ColorWhite, 1)
+		emitTextAt(cfg, buf, nt.text, nt.x+12, nt.y+(h-lh)/2, cfg.FontSize, nt.width-20, uimath.ColorWhite, 1, toastTextZ)
 	}
 }

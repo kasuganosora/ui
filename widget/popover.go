@@ -130,7 +130,7 @@ func (p *Popover) Draw(buf *render.CommandBuffer) {
 	// Title
 	if p.title != "" && cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, p.title, x+cfg.SpaceMD, y+cfg.SpaceSM, cfg.FontSize, p.width-cfg.SpaceMD*2, cfg.TextColor, 1)
+		emitOverlayText(cfg, buf, p.title, x+cfg.SpaceMD, y+cfg.SpaceSM, cfg.FontSize, p.width-cfg.SpaceMD*2, cfg.TextColor, 1, popoverTextZ)
 		_ = lh
 	}
 

@@ -24,6 +24,55 @@ type ZTextDrawer interface {
 	DrawTextZ(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32, z int32)
 }
 
+// OverlayWindowHost owns OS-level auxiliary windows for floating widgets such
+// as tooltips. It is implemented by the application shell, which keeps the
+// widget package independent of the root package.
+//
+// draw is invoked once per frame with the Config bound to that auxiliary
+// window's own renderer. Texture handles are local to a render backend, so a
+// floating window must not reuse the main window's glyph atlas or icons.
+// Coordinates passed to OpenOverlay are in the main window's client space;
+// the host converts them to screen coordinates.
+type OverlayWindowHost interface {
+	OpenOverlay(key Widget, draw func(cfg *Config, buf *render.CommandBuffer), x, y, w, h float32) error
+	CloseOverlay(key Widget)
+}
+
+// Glyph z-orders for widgets that paint an opaque fill with a non-zero z.
+// Backends submit commands by ascending ZOrder, so a label emitted at the
+// default z=0 is hidden by any fill with a higher z. Each value is exactly
+// one above the highest fill inside that widget; keeping them local (instead
+// of one global "always on top" value) preserves overlay/modal layering.
+const (
+	alertTextZ   int32 = 2  // icon dot fill: z=1
+	tableTextZ   int32 = 3  // header/stripe fills: z=1, dividers: z=2
+	stepsTextZ   int32 = 4  // dot fills: z=2, icon fragments: z=3
+	badgeTextZ   int32 = 6  // badge pill fill: z=5
+	messageTextZ int32 = 23 // pill: z=20, icon dot: z=21, close marks: z=22
+)
+
+// Glyph z-orders for overlay, dropdown and modal widgets. These states are
+// usually inactive in a normal frame, so the same "background at z>0 but label
+// at z=0" defect stayed hidden until the state was activated. Each value is
+// one above the highest opaque fill that widget emits; staying local keeps a
+// modal from painting over an even higher overlay layer.
+const (
+	sliderMarkTextZ   int32 = 3  // slider track/ticks: up to z=2
+	dropdownTextZ     int32 = 43 // calendar/dropdown panels: up to z=42
+	tooltipTextZ      int32 = 22 // tooltip / slider bubble: up to z=21
+	dialogTextZ       int32 = 14 // dialog / message box: up to z=13
+	drawerTextZ       int32 = 20 // drawer: up to z=19
+	popoverTextZ      int32 = 42 // popover: up to z=41
+	popconfirmTextZ   int32 = 54 // popconfirm: up to z=53
+	notificationTextZ int32 = 55 // notification: up to z=54
+	dockFloatTextZ    int32 = 53 // floating dock panel: up to z=52
+	menuTextZ         int32 = 63 // context menu: up to z=62
+	guideTextZ        int32 = 84 // guide card: up to z=83
+	subwindowTextZ    int32 = 33 // sub window: up to z=32
+)
+
+// emitText draws with an explicit z when the host text drawer supports it,
+// and falls back to the plain DrawText call for simpler implementations.
 func emitText(cfg *Config, buf *render.CommandBuffer, text string, x, y, size, maxW float32, color uimath.Color, opacity float32, z int32) {
 	if cfg == nil || cfg.TextRenderer == nil || text == "" {
 		return
@@ -33,6 +82,26 @@ func emitText(cfg *Config, buf *render.CommandBuffer, text string, x, y, size, m
 		return
 	}
 	cfg.TextRenderer.DrawText(buf, text, x, y, size, maxW, color, opacity)
+}
+
+// emitOverlayText draws text into the overlay command list. Backends submit
+// Commands() and Overlays() as two independently z-sorted batches, overlays
+// last. A widget that paints its panel with DrawOverlay therefore hides any
+// glyph left in Commands(), no matter how high that glyph's z-order is. This
+// helper lifts the glyph commands into the same list (the same mechanism
+// Select already uses for its dropdown labels).
+func emitOverlayText(cfg *Config, buf *render.CommandBuffer, text string, x, y, size, maxW float32, color uimath.Color, opacity float32, z int32) {
+	if cfg == nil || cfg.TextRenderer == nil || text == "" {
+		return
+	}
+	if buf.LayerBase() != 0 {
+		// place() already routes commands emitted inside a layer into Overlays().
+		emitText(cfg, buf, text, x, y, size, maxW, color, opacity, z)
+		return
+	}
+	before := buf.Len()
+	emitText(cfg, buf, text, x, y, size, maxW, color, opacity, z)
+	buf.MoveToOverlay(before, z)
 }
 
 // Size represents component size variants.
@@ -85,6 +154,10 @@ type Config struct {
 
 	// Platform reference for clipboard operations (optional)
 	Platform platform.Platform
+
+	// OverlayHost owns auxiliary OS windows for floating widgets (optional).
+	// When nil, floating widgets fall back to drawing inside the main tree.
+	OverlayHost OverlayWindowHost
 
 	// Spacing
 	SpaceXS float32

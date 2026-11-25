@@ -110,7 +110,7 @@ func (w *SubWindow) Draw(buf *render.CommandBuffer) {
 	// Title text
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, w.title, w.x+cfg.SpaceMD, w.y+(headerH-lh)/2, cfg.FontSize, w.width-cfg.SpaceMD*2, cfg.TextColor, 1)
+		emitOverlayText(cfg, buf, w.title, w.x+cfg.SpaceMD, w.y+(headerH-lh)/2, cfg.FontSize, w.width-cfg.SpaceMD*2, cfg.TextColor, 1, subwindowTextZ)
 	}
 
 	// Close button (X)

@@ -69,6 +69,8 @@ func newTestEnv(t *testing.T, width, height int) *testEnv {
 	var fontEngine font.Engine
 	if fe := ui.NewFontEngine(); fe != nil {
 		fontEngine = fe
+	} else if fe := ui.FallbackFontEngine(); fe != nil {
+		fontEngine = fe
 	} else {
 		fontEngine = ui.NewMockEngine()
 	}
@@ -507,11 +509,9 @@ func TestVisualFrameConsistency(t *testing.T) {
 }
 
 func TestVisualFontSpecimen(t *testing.T) {
-	// The >50 distinct colors assertion measures real glyph antialiasing;
-	// the mock font engine can only produce flat placeholder rectangles.
-	if ui.NewFontEngine() == nil {
-		t.Skip("rich text rendering requires FreeType (libfreetype.dylib not available)")
-	}
+	// This measures real glyph antialiasing. Both the native engine and the
+	// pure Go outline fallback produce it, so the old FreeType-only skip is
+	// no longer needed.
 	env := newTestEnv(t, 1200, 900)
 	defer env.close()
 

@@ -124,16 +124,16 @@ func (g *Guide) Draw(buf *render.CommandBuffer) {
 	if cfg.TextRenderer != nil {
 		// Title
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-		cfg.TextRenderer.DrawText(buf, step.Title, cardX+cfg.SpaceSM, cardY+cfg.SpaceSM, cfg.FontSize, cardW-cfg.SpaceSM*2, cfg.TextColor, 1)
+		emitOverlayText(cfg, buf, step.Title, cardX+cfg.SpaceSM, cardY+cfg.SpaceSM, cfg.FontSize, cardW-cfg.SpaceSM*2, cfg.TextColor, 1, guideTextZ)
 
 		// Description
 		if step.Description != "" {
-			cfg.TextRenderer.DrawText(buf, step.Description, cardX+cfg.SpaceSM, cardY+cfg.SpaceSM+lh+4, cfg.FontSizeSm, cardW-cfg.SpaceSM*2, cfg.DisabledColor, 1)
+			emitOverlayText(cfg, buf, step.Description, cardX+cfg.SpaceSM, cardY+cfg.SpaceSM+lh+4, cfg.FontSizeSm, cardW-cfg.SpaceSM*2, cfg.DisabledColor, 1, guideTextZ)
 		}
 
 		// Step indicator
 		indicator := intToStr(g.current+1) + " / " + intToStr(len(g.steps))
 		tw := cfg.TextRenderer.MeasureText(indicator, cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, indicator, cardX+cardW-tw-cfg.SpaceSM, cardY+cardH-cfg.TextRenderer.LineHeight(cfg.FontSizeSm)-cfg.SpaceSM, cfg.FontSizeSm, tw+4, cfg.DisabledColor, 1)
+		emitOverlayText(cfg, buf, indicator, cardX+cardW-tw-cfg.SpaceSM, cardY+cardH-cfg.TextRenderer.LineHeight(cfg.FontSizeSm)-cfg.SpaceSM, cfg.FontSizeSm, tw+4, cfg.DisabledColor, 1, guideTextZ)
 	}
 }

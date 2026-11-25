@@ -1359,3 +1359,30 @@ func TestDocumentGetDataNilMap(t *testing.T) {
 		t.Error("expected nil from nil data map")
 	}
 }
+
+// TestAutoLayoutSpaceHonorsExplicitChildWidth guards the horizontal Space
+// layout: a child that sized itself from its content must not be forced into
+// the shared 120px cap, otherwise its label is ellipsized.
+func TestAutoLayoutSpaceHonorsExplicitChildWidth(t *testing.T) {
+	tree := core.NewTree()
+	cfg := widget.DefaultConfig()
+	space := widget.NewSpace(tree, cfg)
+
+	explicit := widget.NewMessage(tree, "发生了一个错误", cfg)
+	st := explicit.Style()
+	st.Width = layout.Px(220)
+	explicit.SetStyle(st)
+	space.AppendChild(explicit)
+
+	implicit := widget.NewMessage(tree, "请注意", cfg)
+	space.AppendChild(implicit)
+
+	layoutSpaceHorizontal(tree, space, 0, 0, 800, 40)
+
+	if got := explicit.Bounds().Width; got != 220 {
+		t.Errorf("explicit child width ignored: got %.1f, want 220", got)
+	}
+	if got := implicit.Bounds().Width; got > 120 {
+		t.Errorf("implicit child should keep the shared cap: got %.1f", got)
+	}
+}
