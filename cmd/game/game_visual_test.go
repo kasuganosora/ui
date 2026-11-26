@@ -61,6 +61,8 @@ func newGameTestEnv(t *testing.T, w, h int) *gameTestEnv {
 	var fe font.Engine
 	if e := ui.NewFontEngine(); e != nil {
 		fe = e
+	} else if e := ui.FallbackFontEngine(); e != nil {
+		fe = e
 	} else {
 		fe = ui.NewMockEngine()
 	}

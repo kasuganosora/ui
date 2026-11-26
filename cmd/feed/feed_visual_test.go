@@ -66,6 +66,8 @@ func newFeedTestEnv(t *testing.T, width, height int) *feedTestEnv {
 	var fontEngine font.Engine
 	if fe := ui.NewFontEngine(); fe != nil {
 		fontEngine = fe
+	} else if fe := ui.FallbackFontEngine(); fe != nil {
+		fontEngine = fe
 	} else {
 		fontEngine = ui.NewMockEngine()
 	}
@@ -108,6 +110,18 @@ func (e *feedTestEnv) close() {
 	e.plat.Terminate()
 }
 
+// regionColors counts distinct colors in a region specified in logical UI
+// coordinates. Layout uses logical coordinates, but Screenshot() returns the
+// framebuffer at win.DPIScale() (2x on Retina), so probing with raw logical
+// coordinates would sample the wrong part of a high-DPI screenshot.
+func (e *feedTestEnv) regionColors(img *image.RGBA, x, y, w, h int) int {
+	scale := int(e.win.DPIScale())
+	if scale < 1 {
+		scale = 1
+	}
+	return countDistinctColorsInRegion(img, x*scale, y*scale, w*scale, h*scale)
+}
+
 func (e *feedTestEnv) renderFrames(root widget.Widget, n int) {
 	w, h := float32(e.width), float32(e.height)
 	for i := 0; i < n; i++ {
@@ -120,6 +134,14 @@ func (e *feedTestEnv) renderFrames(root widget.Widget, n int) {
 		e.backend.BeginFrame()
 		e.textRenderer.BeginFrame()
 		e.buf.Reset()
+		// The single-card test loads only a card fragment, without the page
+		// element that supplies the dark background. Paint it explicitly so the
+		// screenshot matches the real app and does not depend on the backend's
+		// clear colour, which differs between display scales.
+		e.buf.DrawRect(render.RectCmd{
+			Bounds:    uimath.NewRect(0, 0, w, h),
+			FillColor: uimath.ColorHex("#000000"),
+		}, 0, 1)
 		root.Draw(e.buf)
 		_ = e.textRenderer.Upload()
 		e.backend.Submit(e.buf)
@@ -309,14 +331,14 @@ func TestVisualFeedTimeline(t *testing.T) {
 	}
 
 	// Check header region has content (tab bar at top ~53px)
-	headerColors := countDistinctColorsInRegion(img, 0, 0, 600, 53)
+	headerColors := env.regionColors(img, 0, 0, 600, 53)
 	t.Logf("header distinct colors: %d", headerColors)
 	if headerColors < 3 {
 		t.Errorf("header region has too few colors (%d): tab bar not rendering", headerColors)
 	}
 
 	// Check timeline area has tweet cards (below header ~150px from top)
-	timelineColors := countDistinctColorsInRegion(img, 0, 150, 600, 400)
+	timelineColors := env.regionColors(img, 0, 150, 600, 400)
 	t.Logf("timeline distinct colors: %d", timelineColors)
 	if timelineColors < 5 {
 		t.Errorf("timeline region has too few colors (%d): tweets not rendering", timelineColors)
@@ -348,8 +370,9 @@ func TestVisualFeedTweetCard(t *testing.T) {
 	pct := float64(nonBlack) / float64(totalPixels) * 100
 	t.Logf("tweet card non-black: %.1f%%", pct)
 
-	// Avatar color check: left ~40px should have the avatar color
-	avatarColors := countDistinctColorsInRegion(img, 16, 12, 40, 40)
+	// The avatar is an empty placeholder in tweetHTML (the real Avatar widget
+	// is inserted by makeTweet), so this is diagnostic only, not an assertion.
+	avatarColors := env.regionColors(img, 16, 12, 40, 40)
 	t.Logf("avatar region colors: %d", avatarColors)
 
 	// Text should be present
@@ -357,10 +380,13 @@ func TestVisualFeedTweetCard(t *testing.T) {
 		t.Errorf("tweet card renders as blank (%.1f%% non-black)", pct)
 	}
 
-	// Check distinct colors in the name area (top right, after avatar)
-	nameColors := countDistinctColorsInRegion(img, 68, 12, 400, 20)
+	// Name/meta row sits at logical y=15..35; cover the whole glyph band.
+	// Real glyph outlines produce many antialiased greys (measured ~500),
+	// while a solid placeholder block yields only ~3 flat colors. Keep the
+	// threshold high enough to catch a regression to placeholder glyphs.
+	nameColors := env.regionColors(img, 68, 12, 400, 28)
 	t.Logf("name row colors: %d", nameColors)
-	if nameColors < 2 {
-		t.Errorf("tweet name/meta not rendering (only %d colors in name area)", nameColors)
+	if nameColors < 16 {
+		t.Errorf("tweet name/meta not rendered with real glyphs (%d colors; placeholder blocks yield ~3)", nameColors)
 	}
 }
