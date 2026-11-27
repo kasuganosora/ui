@@ -1294,19 +1294,21 @@ func TestContentScroll(t *testing.T) {
 		t.Errorf("expected scrollY=80, got %f", c.ScrollY())
 	}
 
-	// Clamp to 0
+	// Soft boundary (Apple §9): the surface yields past the edge instead of
+	// stopping hard, but the resistance grows so it can never leave by more
+	// than one viewport. See scroll_physics_test.go for the full curve.
 	c.HandleWheel(100)
-	if c.ScrollY() != 0 {
-		t.Errorf("scrollY should clamp to 0, got %f", c.ScrollY())
+	if y := c.ScrollY(); y >= 0 || y <= -c.Bounds().Height {
+		t.Errorf("expected a damped overscroll above the top edge, got %f", y)
 	}
 
-	// Clamp to max (1000 - 400 = 600)
+	// Bottom edge behaves identically (max = 1000 - 400 = 600).
 	c.HandleWheel(-1000)
-	if c.ScrollY() != 600 {
-		t.Errorf("scrollY should clamp to 600, got %f", c.ScrollY())
+	if y := c.ScrollY(); y <= 600 || y >= 600+c.Bounds().Height {
+		t.Errorf("expected a damped overscroll below the bottom edge, got %f", y)
 	}
 
-	// ScrollTo
+	// Programmatic scrolls still land exactly and end the gesture.
 	c.ScrollTo(200)
 	if c.ScrollY() != 200 {
 		t.Errorf("expected scrollY=200, got %f", c.ScrollY())

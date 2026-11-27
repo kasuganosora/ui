@@ -49,6 +49,7 @@ type RecyclerView struct {
 	scrollBarDrag bool
 	dragStartY    float32
 	dragStartScrl float32
+	edge          ScrollEdge
 
 	// Active widgets: data index → widget
 	active map[int]Widget
@@ -156,21 +157,44 @@ func (rv *RecyclerView) ScrollY() float32       { return rv.scrollY }
 func (rv *RecyclerView) ContentHeight() float32 { return rv.contentHeight }
 func (rv *RecyclerView) ActiveCount() int       { return len(rv.active) }
 
-// ScrollTo sets the scroll position.
+// ScrollTo sets the scroll position. Programmatic callers land exactly.
 func (rv *RecyclerView) ScrollTo(y float32) {
+	rv.edge.Reset()
 	rv.scrollY = y
 	rv.clampScroll()
 }
 
 // ScrollBy adjusts scroll by delta.
 func (rv *RecyclerView) ScrollBy(dy float32) {
+	rv.edge.Reset()
 	rv.scrollY += dy
 	rv.clampScroll()
 }
 
 // HandleWheel processes mouse wheel events.
 func (rv *RecyclerView) HandleWheel(dy float32) {
-	rv.ScrollBy(-dy * 40)
+	rv.applyScrollDelta(-dy * 40)
+}
+
+func (rv *RecyclerView) maxScroll() float32 {
+	maxScroll := rv.contentHeight - rv.Bounds().Height
+	if maxScroll < 0 {
+		return 0
+	}
+	return maxScroll
+}
+
+func (rv *RecyclerView) applyScrollDelta(delta float32) {
+	rv.scrollY = applyScrollGesture(&rv.edge, rv.scrollY, delta, 0, rv.maxScroll(),
+		rv.Bounds().Height, rv.config.Animate())
+	rv.tree.MarkDirty(rv.id)
+}
+
+func (rv *RecyclerView) settleScroll() {
+	if next, changed := settleScrollGesture(&rv.edge, rv.scrollY, 0, rv.maxScroll(), rv.Bounds().Height); changed {
+		rv.scrollY = next
+		rv.tree.MarkDirty(rv.id)
+	}
 }
 
 // SetMeasuredHeight records the actual height of item[index] after layout.
@@ -251,17 +275,7 @@ func (rv *RecyclerView) updateContentHeight() {
 }
 
 func (rv *RecyclerView) clampScroll() {
-	bounds := rv.Bounds()
-	maxScroll := rv.contentHeight - bounds.Height
-	if maxScroll < 0 {
-		maxScroll = 0
-	}
-	if rv.scrollY < 0 {
-		rv.scrollY = 0
-	}
-	if rv.scrollY > maxScroll {
-		rv.scrollY = maxScroll
-	}
+	rv.scrollY = clampScrollValue(rv.scrollY, 0, rv.maxScroll())
 }
 
 // visibleRange returns the [startIdx, endIdx) of items that should be materialized.
@@ -320,8 +334,14 @@ func (rv *RecyclerView) Reconcile() {
 		return
 	}
 
+	prevHeight := rv.contentHeight
 	rv.updateContentHeight()
-	rv.clampScroll()
+	// Layout callbacks call Reconcile every frame. Only a real content-size
+	// change may re-clamp; otherwise it would erase an in-flight overscroll.
+	if rv.contentHeight != prevHeight {
+		rv.edge.Reset()
+		rv.clampScroll()
+	}
 
 	start, end := rv.visibleRange()
 
@@ -384,6 +404,7 @@ func (rv *RecyclerView) Draw(buf *render.CommandBuffer) {
 	if bounds.IsEmpty() {
 		return
 	}
+	rv.settleScroll()
 
 	buf.PushClip(bounds)
 
@@ -451,7 +472,7 @@ func (rv *RecyclerView) drawScrollbar(buf *render.CommandBuffer, bounds uimath.R
 	maxScroll := rv.contentHeight - bounds.Height
 	scrollRatio := float32(0)
 	if maxScroll > 0 {
-		scrollRatio = rv.scrollY / maxScroll
+		scrollRatio = clampScrollValue(rv.scrollY/maxScroll, 0, 1)
 	}
 	thumbY := bounds.Y + 2 + (trackH-thumbH)*scrollRatio
 
@@ -474,6 +495,7 @@ func (rv *RecyclerView) HandleScrollBarDown(globalY float32) bool {
 	bounds := rv.Bounds()
 	thumbY, thumbH := rv.thumbRect(bounds)
 	if globalY >= thumbY && globalY <= thumbY+thumbH {
+		rv.edge.Reset()
 		rv.scrollBarDrag = true
 		rv.dragStartY = globalY
 		rv.dragStartScrl = rv.scrollY
@@ -497,8 +519,8 @@ func (rv *RecyclerView) HandleScrollBarMove(globalY float32) {
 	dy := globalY - rv.dragStartY
 	maxScroll := rv.contentHeight - bounds.Height
 	scrollDelta := dy * maxScroll / maxThumbY
-	rv.scrollY = rv.dragStartScrl + scrollDelta
-	rv.clampScroll()
+	target := rv.dragStartScrl + scrollDelta
+	rv.applyScrollDelta(target - rv.edge.Target(rv.scrollY))
 }
 
 // HandleScrollBarUp ends a scrollbar drag.
@@ -529,7 +551,7 @@ func (rv *RecyclerView) thumbRect(bounds uimath.Rect) (y, h float32) {
 	if maxScroll <= 0 {
 		return bounds.Y + 2, h
 	}
-	ratio := rv.scrollY / maxScroll
+	ratio := clampScrollValue(rv.scrollY/maxScroll, 0, 1)
 	return bounds.Y + 2 + maxThumbY*ratio, h
 }
 

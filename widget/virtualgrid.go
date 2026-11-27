@@ -16,6 +16,7 @@ type VirtualGrid struct {
 	cellH      float32
 	gap        float32
 	scrollY    float32
+	edge       ScrollEdge
 	renderCell func(buf *render.CommandBuffer, row, col int, bounds uimath.Rect)
 }
 
@@ -32,12 +33,33 @@ func NewVirtualGrid(tree *core.Tree, cols, rowCount int, cfg *Config) *VirtualGr
 		gap:      8,
 	}
 	tree.AddHandler(vg.id, event.MouseWheel, func(e *event.Event) {
-		vg.scrollY += e.WheelDY
-		if vg.scrollY < 0 {
-			vg.scrollY = 0
-		}
+		vg.HandleWheel(e.WheelDY)
 	})
 	return vg
+}
+
+// HandleWheel is the user-gesture entry point for a virtual grid.
+func (vg *VirtualGrid) HandleWheel(dy float32) { vg.applyScrollDelta(dy) }
+
+func (vg *VirtualGrid) maxScroll() float32 {
+	max := vg.TotalHeight() - vg.Bounds().Height
+	if max < 0 {
+		return 0
+	}
+	return max
+}
+
+func (vg *VirtualGrid) applyScrollDelta(delta float32) {
+	vg.scrollY = applyScrollGesture(&vg.edge, vg.scrollY, delta, 0, vg.maxScroll(),
+		vg.Bounds().Height, vg.config.Animate())
+	vg.tree.MarkDirty(vg.id)
+}
+
+func (vg *VirtualGrid) settleScroll() {
+	if next, changed := settleScrollGesture(&vg.edge, vg.scrollY, 0, vg.maxScroll(), vg.Bounds().Height); changed {
+		vg.scrollY = next
+		vg.tree.MarkDirty(vg.id)
+	}
 }
 
 func (vg *VirtualGrid) Cols() int                { return vg.cols }
@@ -46,7 +68,7 @@ func (vg *VirtualGrid) SetCols(c int)            { vg.cols = c }
 func (vg *VirtualGrid) SetRowCount(r int)        { vg.rowCount = r }
 func (vg *VirtualGrid) SetCellSize(w, h float32) { vg.cellW = w; vg.cellH = h }
 func (vg *VirtualGrid) SetGap(g float32)         { vg.gap = g }
-func (vg *VirtualGrid) SetScrollY(y float32)     { vg.scrollY = y }
+func (vg *VirtualGrid) SetScrollY(y float32)     { vg.edge.Reset(); vg.scrollY = y }
 func (vg *VirtualGrid) ScrollY() float32         { return vg.scrollY }
 
 func (vg *VirtualGrid) SetRenderCell(fn func(*render.CommandBuffer, int, int, uimath.Rect)) {
@@ -62,6 +84,7 @@ func (vg *VirtualGrid) Draw(buf *render.CommandBuffer) {
 	if bounds.IsEmpty() || vg.cols <= 0 {
 		return
 	}
+	vg.settleScroll()
 
 	rowStride := vg.cellH + vg.gap
 	startRow := int(vg.scrollY / rowStride)

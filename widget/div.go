@@ -24,6 +24,7 @@ type Div struct {
 	gradientEnd   uimath.Color
 	gradientAngle float32 // radians; 0 = no gradient
 	shadows       []css.BoxShadowLayer
+	edge          ScrollEdge
 }
 
 // NewDiv creates a div container.
@@ -60,18 +61,36 @@ func NewDiv(tree *core.Tree, cfg *Config) *Div {
 	return d
 }
 
+// clampScroll is the hard bound used by discrete keyboard paging and by
+// content-size reconciliation. Continuous gestures go through HandleWheel.
 func (d *Div) clampScroll(y float32) float32 {
-	if y < 0 {
-		y = 0
-	}
+	return clampScrollValue(y, 0, d.maxScroll())
+}
+
+func (d *Div) maxScroll() float32 {
 	max := d.contentHeight - d.Bounds().Height
 	if max < 0 {
-		max = 0
+		return 0
 	}
-	if y > max {
-		y = max
+	return max
+}
+
+// HandleWheel is the user-gesture entry point for a scrollable Div.
+func (d *Div) HandleWheel(dy float32) {
+	d.applyScrollDelta(-dy * 30)
+}
+
+func (d *Div) applyScrollDelta(delta float32) {
+	d.scrollY = applyScrollGesture(&d.edge, d.scrollY, delta, 0, d.maxScroll(),
+		d.Bounds().Height, d.config.Animate())
+	d.tree.MarkDirty(d.id)
+}
+
+func (d *Div) settleScroll() {
+	if next, changed := settleScrollGesture(&d.edge, d.scrollY, 0, d.maxScroll(), d.Bounds().Height); changed {
+		d.scrollY = next
+		d.tree.MarkDirty(d.id)
 	}
-	return y
 }
 
 func (d *Div) BgColor() uimath.Color     { return d.bgColor }
@@ -105,10 +124,23 @@ func (d *Div) SetBoxShadow(layers []css.BoxShadowLayer) {
 	d.shadows = layers
 }
 
-func (d *Div) ContentHeight() float32     { return d.contentHeight }
-func (d *Div) SetContentHeight(h float32) { d.contentHeight = h }
+func (d *Div) ContentHeight() float32 { return d.contentHeight }
 
+// SetContentHeight reconciles the legal range only when the content size
+// actually changes. Layout callbacks call this every frame; a reset here
+// would erase an in-flight overscroll.
+func (d *Div) SetContentHeight(h float32) {
+	if h == d.contentHeight {
+		return
+	}
+	d.contentHeight = h
+	d.edge.Reset()
+	d.scrollY = d.clampScroll(d.scrollY)
+}
+
+// ScrollTo is a programmatic jump: it ends any gesture and lands exactly.
 func (d *Div) ScrollTo(x, y float32) {
+	d.edge.Reset()
 	d.scrollX = x
 	d.scrollY = y
 }
@@ -118,6 +150,7 @@ func (d *Div) Draw(buf *render.CommandBuffer) {
 	if bounds.IsEmpty() {
 		return
 	}
+	d.settleScroll()
 
 	// Draw box shadows (behind the background), back-to-front (last layer first).
 	//
@@ -196,7 +229,8 @@ func (d *Div) Draw(buf *render.CommandBuffer) {
 		maxScroll := d.contentHeight - bounds.Height
 		thumbY := bounds.Y
 		if maxScroll > 0 {
-			thumbY += (bounds.Height - thumbH) * (d.scrollY / maxScroll)
+			// The thumb stays in its track while the content stretches.
+			thumbY += (bounds.Height - thumbH) * clampScrollValue(d.scrollY/maxScroll, 0, 1)
 		}
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(trackX, thumbY, barW, thumbH),

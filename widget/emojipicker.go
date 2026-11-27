@@ -17,6 +17,7 @@ type EmojiPicker struct {
 	category string
 	onPick   func(Emoji)
 	scroll   float32
+	edge     ScrollEdge
 	drawn    int
 	cols     int
 	cell     float32
@@ -33,6 +34,7 @@ func NewEmojiPicker(tree *core.Tree, cfg *Config) *EmojiPicker {
 			return
 		}
 		e.query += string(ev.Char)
+		e.edge.Reset()
 		e.scroll = 0
 		ev.StopPropagation()
 	})
@@ -46,10 +48,7 @@ func NewEmojiPicker(tree *core.Tree, cfg *Config) *EmojiPicker {
 		}
 	})
 	tree.AddHandler(e.id, event.MouseWheel, func(ev *event.Event) {
-		e.scroll += ev.WheelDY
-		if e.scroll < 0 {
-			e.scroll = 0
-		}
+		e.HandleWheel(ev.WheelDY)
 	})
 	tree.AddHandler(e.id, event.MouseClick, func(ev *event.Event) {
 		if !targetPhase(ev) {
@@ -62,8 +61,50 @@ func NewEmojiPicker(tree *core.Tree, cfg *Config) *EmojiPicker {
 	return e
 }
 
-func (e *EmojiPicker) SetCategory(c string)    { e.category = c; e.scroll = 0 }
-func (e *EmojiPicker) SetQuery(q string)       { e.query = q; e.scroll = 0 }
+func (e *EmojiPicker) SetCategory(c string) {
+	e.edge.Reset()
+	e.category = c
+	e.scroll = 0
+}
+func (e *EmojiPicker) SetQuery(q string) {
+	e.edge.Reset()
+	e.query = q
+	e.scroll = 0
+}
+
+// HandleWheel is the user-gesture entry point for the emoji grid.
+func (e *EmojiPicker) HandleWheel(dy float32) { e.applyScrollDelta(dy) }
+func (e *EmojiPicker) ScrollY() float32       { return e.scroll }
+func (e *EmojiPicker) SetScrollY(y float32)   { e.edge.Reset(); e.scroll = y }
+
+func (e *EmojiPicker) maxScroll() float32 {
+	if e.cols < 1 || e.cell <= 0 {
+		return 0
+	}
+	n := len(e.Filtered())
+	rows := n / e.cols
+	if n%e.cols != 0 {
+		rows++
+	}
+	max := float32(rows)*e.cell - e.Bounds().Height
+	if max < 0 {
+		return 0
+	}
+	return max
+}
+
+func (e *EmojiPicker) applyScrollDelta(delta float32) {
+	e.scroll = applyScrollGesture(&e.edge, e.scroll, delta, 0, e.maxScroll(),
+		e.Bounds().Height, e.config.Animate())
+	e.tree.MarkDirty(e.id)
+}
+
+func (e *EmojiPicker) settleScroll() {
+	if next, changed := settleScrollGesture(&e.edge, e.scroll, 0, e.maxScroll(), e.Bounds().Height); changed {
+		e.scroll = next
+		e.tree.MarkDirty(e.id)
+	}
+}
 func (e *EmojiPicker) Query() string           { return e.query }
 func (e *EmojiPicker) OnSelect(fn func(Emoji)) { e.onPick = fn }
 func (e *EmojiPicker) DrawnCount() int         { return e.drawn }
@@ -128,6 +169,7 @@ func (e *EmojiPicker) Draw(buf *render.CommandBuffer) {
 	if b.IsEmpty() {
 		return
 	}
+	e.settleScroll()
 	buf.DrawRect(render.RectCmd{Bounds: b, FillColor: e.config.BgColor, BorderColor: e.config.BorderColor, BorderWidth: 1}, 1, 1)
 	start, end, _ := e.visibleRange()
 	for i := start; i < end; i++ {

@@ -58,6 +58,7 @@ type List struct {
 	onAction      func(itemIndex, actionIndex int)
 	onLoadMore    func()
 	onScroll      func(scrollTop, scrollBottom float32)
+	edge          ScrollEdge
 }
 
 func NewList(tree *core.Tree, cfg *Config) *List {
@@ -176,12 +177,38 @@ func (l *List) SetItems(items []ListItem) {
 	l.items = items
 	l.updatePreferredHeight()
 }
-func (l *List) Items() []ListItem                                 { return l.items }
-func (l *List) SetItemHeight(h float32)                           { l.itemHeight = h }
-func (l *List) SetBordered(b bool)                                { l.bordered = b }
-func (l *List) OnSelect(fn func(int))                             { l.onSelect = fn }
-func (l *List) ScrollY() float32                                  { return l.scrollY }
-func (l *List) SetScrollY(y float32)                              { l.scrollY = y }
+func (l *List) Items() []ListItem       { return l.items }
+func (l *List) SetItemHeight(h float32) { l.itemHeight = h }
+func (l *List) SetBordered(b bool)      { l.bordered = b }
+func (l *List) OnSelect(fn func(int))   { l.onSelect = fn }
+func (l *List) ScrollY() float32        { return l.scrollY }
+func (l *List) SetScrollY(y float32)    { l.edge.Reset(); l.scrollY = y }
+
+// HandleWheel is the user-gesture entry point for the sidebar list.
+func (l *List) HandleWheel(dy float32) {
+	l.applyScrollDelta(-dy * 30)
+}
+
+func (l *List) maxScroll() float32 {
+	max := l.TotalHeight() - l.Bounds().Height
+	if max < 0 {
+		return 0
+	}
+	return max
+}
+
+func (l *List) applyScrollDelta(delta float32) {
+	l.scrollY = applyScrollGesture(&l.edge, l.scrollY, delta, 0, l.maxScroll(),
+		l.Bounds().Height, l.config.Animate())
+	l.tree.MarkDirty(l.id)
+}
+
+func (l *List) settleScroll() {
+	if next, changed := settleScrollGesture(&l.edge, l.scrollY, 0, l.maxScroll(), l.Bounds().Height); changed {
+		l.scrollY = next
+		l.tree.MarkDirty(l.id)
+	}
+}
 func (l *List) SetSplit(v bool)                                   { l.split = v }
 func (l *List) SetStripe(v bool)                                  { l.stripe = v }
 func (l *List) SetHoverable(v bool)                               { l.hoverable = v }
@@ -281,6 +308,7 @@ func (l *List) Draw(buf *render.CommandBuffer) {
 	if bounds.IsEmpty() {
 		return
 	}
+	l.settleScroll()
 	cfg := l.config
 
 	// Background (skip for selectable nav lists — use parent's bg)
@@ -389,7 +417,7 @@ func (l *List) Draw(buf *render.CommandBuffer) {
 		maxScroll := totalH - bounds.Height
 		scrollRatio := float32(0)
 		if maxScroll > 0 {
-			scrollRatio = l.scrollY / maxScroll
+			scrollRatio = clampScrollValue(l.scrollY/maxScroll, 0, 1)
 		}
 		thumbY := bounds.Y + 2 + (trackH-thumbH)*scrollRatio
 		buf.DrawRect(render.RectCmd{
@@ -633,6 +661,7 @@ type VirtualList struct {
 	itemCount  int
 	itemHeight float32
 	scrollY    float32
+	edge       ScrollEdge
 	renderItem func(index int, buf *render.CommandBuffer, x, y, w, h float32)
 }
 
@@ -645,24 +674,38 @@ func NewVirtualList(tree *core.Tree, cfg *Config) *VirtualList {
 		itemHeight: 40,
 	}
 	tree.AddHandler(vl.id, event.MouseWheel, func(e *event.Event) {
-		vl.scrollY += e.WheelDY
-		if vl.scrollY < 0 {
-			vl.scrollY = 0
-		}
-		max := vl.ContentHeight() - vl.Bounds().Height
-		if max < 0 {
-			max = 0
-		}
-		if vl.scrollY > max {
-			vl.scrollY = max
-		}
+		vl.HandleWheel(e.WheelDY)
 	})
 	return vl
 }
 
+// HandleWheel is the user-gesture entry point for a virtual list.
+func (vl *VirtualList) HandleWheel(dy float32) { vl.applyScrollDelta(dy) }
+
+func (vl *VirtualList) maxScroll() float32 {
+	max := vl.ContentHeight() - vl.Bounds().Height
+	if max < 0 {
+		return 0
+	}
+	return max
+}
+
+func (vl *VirtualList) applyScrollDelta(delta float32) {
+	vl.scrollY = applyScrollGesture(&vl.edge, vl.scrollY, delta, 0, vl.maxScroll(),
+		vl.Bounds().Height, vl.config.Animate())
+	vl.tree.MarkDirty(vl.id)
+}
+
+func (vl *VirtualList) settleScroll() {
+	if next, changed := settleScrollGesture(&vl.edge, vl.scrollY, 0, vl.maxScroll(), vl.Bounds().Height); changed {
+		vl.scrollY = next
+		vl.tree.MarkDirty(vl.id)
+	}
+}
+
 func (vl *VirtualList) SetItemCount(n int)      { vl.itemCount = n }
 func (vl *VirtualList) SetItemHeight(h float32) { vl.itemHeight = h }
-func (vl *VirtualList) SetScrollY(y float32)    { vl.scrollY = y }
+func (vl *VirtualList) SetScrollY(y float32)    { vl.edge.Reset(); vl.scrollY = y }
 func (vl *VirtualList) ScrollY() float32        { return vl.scrollY }
 func (vl *VirtualList) SetRenderItem(fn func(int, *render.CommandBuffer, float32, float32, float32, float32)) {
 	vl.renderItem = fn
@@ -677,6 +720,7 @@ func (vl *VirtualList) Draw(buf *render.CommandBuffer) {
 	if bounds.IsEmpty() || vl.renderItem == nil {
 		return
 	}
+	vl.settleScroll()
 	buf.PushClip(bounds)
 
 	startIdx := int(vl.scrollY / vl.itemHeight)

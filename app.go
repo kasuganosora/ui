@@ -533,7 +533,7 @@ func (a *App) handleEvent(evt *event.Event) {
 			sb := a.sidebarDiv.Bounds()
 			if mx >= sb.X && mx < sb.X+sb.Width &&
 				my >= sb.Y && my < sb.Y+sb.Height {
-				a.sidebarDiv.ScrollTo(0, a.sidebarDiv.ScrollY()-evt.WheelDY*30)
+				a.sidebarDiv.HandleWheel(evt.WheelDY)
 				handled = true
 			}
 		}
@@ -541,19 +541,7 @@ func (a *App) handleEvent(evt *event.Event) {
 			sb := a.sidebarList.Bounds()
 			if mx >= sb.X && mx < sb.X+sb.Width &&
 				my >= sb.Y && my < sb.Y+sb.Height {
-				newY := a.sidebarList.ScrollY() - evt.WheelDY*30
-				if newY < 0 {
-					newY = 0
-				}
-				maxScroll := a.sidebarList.TotalHeight() - sb.Height
-				if maxScroll < 0 {
-					maxScroll = 0
-				}
-				if newY > maxScroll {
-					newY = maxScroll
-				}
-				a.sidebarList.SetScrollY(newY)
-				a.tree.MarkDirty(a.sidebarList.ElementID())
+				a.sidebarList.HandleWheel(evt.WheelDY)
 				handled = true
 			}
 		}
@@ -790,23 +778,13 @@ func layoutSidebar(tree *core.Tree, aside widget.Widget, x, y, w, h float32) {
 	}
 	totalH += 8 // bottom padding
 
-	// Apply and clamp scroll offset
+	// The widget owns its legal range (reconciled in SetContentHeight).
+	// Reading the visible offset here preserves an in-flight rubber-band
+	// overscroll instead of clamping it away every frame.
 	scrollY := float32(0)
 	if scrollDiv != nil {
 		scrollDiv.SetContentHeight(totalH)
-		maxScroll := totalH - h
-		if maxScroll < 0 {
-			maxScroll = 0
-		}
-		sy := scrollDiv.ScrollY()
-		if sy < 0 {
-			sy = 0
-		}
-		if sy > maxScroll {
-			sy = maxScroll
-		}
-		scrollDiv.ScrollTo(0, sy)
-		scrollY = sy
+		scrollY = scrollDiv.ScrollY()
 	}
 
 	cy := y + 8 - scrollY
@@ -844,7 +822,6 @@ func layoutContentArea(tree *core.Tree, content widget.Widget, x, y, w, h float3
 
 	if c, ok := content.(*widget.Content); ok {
 		c.SetContentHeight(totalH)
-		c.ScrollBy(0)
 	}
 
 	scrollY := float32(0)

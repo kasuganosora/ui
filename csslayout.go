@@ -187,8 +187,9 @@ func applyLayoutResults(tree *core.Tree, engine *layout.Engine, nodeID layout.No
 	scrollOffsetY := float32(0)
 	if c, ok := w.(*widget.Content); ok {
 		if result.ContentHeight > 0 {
+			// SetContentHeight owns the range reconciliation; do not re-clamp
+			// here or the rubber-band overscroll is erased every layout pass.
 			c.SetContentHeight(result.ContentHeight)
-			c.ScrollBy(0) // clamp
 		}
 		scrollOffsetY = c.ScrollY()
 	}

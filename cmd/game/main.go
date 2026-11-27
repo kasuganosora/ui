@@ -382,19 +382,7 @@ func main() {
 	addChatMsg("治疗", "注意躲地板火！", uimath.ColorHex("#52c41a"))
 
 	chatMsgDiv.On(event.MouseWheel, func(e *event.Event) {
-		chatMsgDiv.ScrollTo(0, chatMsgDiv.ScrollY()-e.WheelDY*30)
-		maxScroll := chatMsgDiv.ContentHeight() - 172
-		if maxScroll < 0 {
-			maxScroll = 0
-		}
-		sy := chatMsgDiv.ScrollY()
-		if sy < 0 {
-			sy = 0
-		}
-		if sy > maxScroll {
-			sy = maxScroll
-		}
-		chatMsgDiv.ScrollTo(0, sy)
+		chatMsgDiv.HandleWheel(e.WheelDY)
 	})
 
 	chatInput.OnEnter(func(text string) {

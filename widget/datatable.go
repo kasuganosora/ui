@@ -20,6 +20,7 @@ type DataTable struct {
 	frozenR int
 	scrollX float32
 	scrollY float32
+	edge    ScrollEdge
 	onCell  func(CellEventContext)
 	resize  int
 	resizeX float32
@@ -95,14 +96,7 @@ func NewDataTable(tree *core.Tree, columns []TableColumn, cfg *Config) *DataTabl
 		}
 	})
 	tree.AddHandler(d.id, event.MouseWheel, func(e *event.Event) {
-		if e.WheelDY == 0 {
-			return
-		}
-		step := d.rowH
-		if e.WheelDY < 0 {
-			step = -step
-		}
-		d.SetScrollY(d.scrollY + step)
+		d.HandleWheel(e.WheelDY)
 	})
 	return d
 }
@@ -228,15 +222,43 @@ func (d *DataTable) SetScrollX(x float32) {
 	d.clampScroll()
 }
 
+// SetScrollY is a programmatic jump: it ends any gesture and lands exactly.
 func (d *DataTable) SetScrollY(y float32) {
-	if y < 0 {
-		y = 0
+	d.edge.Reset()
+	d.scrollY = clampScrollValue(y, 0, d.maxScrollY())
+}
+
+func (d *DataTable) scrollDimension() float32 {
+	dim := d.Bounds().Height - d.headerH
+	if dim < 0 {
+		return 0
 	}
-	max := d.maxScrollY()
-	if y > max {
-		y = max
+	return dim
+}
+
+// HandleWheel is the user-gesture entry point for vertical table scrolling.
+func (d *DataTable) HandleWheel(dy float32) {
+	if dy == 0 {
+		return
 	}
-	d.scrollY = y
+	step := d.rowH
+	if dy < 0 {
+		step = -step
+	}
+	d.applyScrollDelta(step)
+}
+
+func (d *DataTable) applyScrollDelta(delta float32) {
+	d.scrollY = applyScrollGesture(&d.edge, d.scrollY, delta, 0, d.maxScrollY(),
+		d.scrollDimension(), d.config.Animate())
+	d.tree.MarkDirty(d.id)
+}
+
+func (d *DataTable) settleScroll() {
+	if next, changed := settleScrollGesture(&d.edge, d.scrollY, 0, d.maxScrollY(), d.scrollDimension()); changed {
+		d.scrollY = next
+		d.tree.MarkDirty(d.id)
+	}
 }
 
 func (d *DataTable) ColumnHeader(i int) uimath.Rect {
@@ -423,6 +445,7 @@ func (d *DataTable) Draw(buf *render.CommandBuffer) {
 	if b.IsEmpty() || len(d.columns) == 0 {
 		return
 	}
+	d.settleScroll()
 	headerBand := uimath.NewRect(b.X, b.Y, b.Width, d.headerH)
 	bodyH := b.Height - d.headerH
 	if bodyH < 0 {

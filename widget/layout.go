@@ -94,6 +94,7 @@ type Content struct {
 	scrollBarDrag bool    // true when dragging the scrollbar thumb
 	dragStartY    float32 // mouse Y when drag started
 	dragStartScrl float32 // scrollY when drag started
+	edge          ScrollEdge
 }
 
 // NewContent creates a content section that grows to fill available space.
@@ -114,31 +115,62 @@ func NewContent(tree *core.Tree, cfg *Config) *Content {
 func (c *Content) SetBgColor(clr uimath.Color) { c.bgColor = clr }
 func (c *Content) ScrollY() float32            { return c.scrollY }
 func (c *Content) ContentHeight() float32      { return c.contentHeight }
-func (c *Content) SetContentHeight(h float32)  { c.contentHeight = h }
+
+// SetContentHeight reconciles the legal range when the content size changes.
+// It deliberately does nothing when the height is unchanged: layout callbacks
+// call this every frame, and resetting here would instantly erase an in-flight
+// rubber-band overscroll.
+func (c *Content) SetContentHeight(h float32) {
+	if h == c.contentHeight {
+		return
+	}
+	c.contentHeight = h
+	c.edge.Reset()
+	c.clampScroll()
+}
+
+// maxScroll is the single legal upper bound, shared by clamping, gestures and
+// the scrollbar thumb.
+func (c *Content) maxScroll() float32 {
+	maxScroll := c.contentHeight - c.Bounds().Height
+	if maxScroll < 0 {
+		return 0
+	}
+	return maxScroll
+}
 
 // ScrollBy adjusts scroll offset by delta, clamping to valid range.
+// Programmatic callers must land on an exact offset, so they end any gesture.
 func (c *Content) ScrollBy(dy float32) {
+	c.edge.Reset()
 	c.scrollY += dy
 	c.clampScroll()
 }
 
 // ScrollTo sets the scroll offset, clamping to valid range.
 func (c *Content) ScrollTo(y float32) {
+	c.edge.Reset()
 	c.scrollY = y
 	c.clampScroll()
 }
 
 func (c *Content) clampScroll() {
-	bounds := c.Bounds()
-	maxScroll := c.contentHeight - bounds.Height
-	if maxScroll < 0 {
-		maxScroll = 0
-	}
-	if c.scrollY < 0 {
-		c.scrollY = 0
-	}
-	if c.scrollY > maxScroll {
-		c.scrollY = maxScroll
+	c.scrollY = clampScrollValue(c.scrollY, 0, c.maxScroll())
+}
+
+// applyScrollDelta routes a user gesture through the shared soft-boundary
+// physics. Wheel ticks and scrollbar drags both land here.
+func (c *Content) applyScrollDelta(delta float32) {
+	c.scrollY = applyScrollGesture(&c.edge, c.scrollY, delta, 0, c.maxScroll(),
+		c.Bounds().Height, c.config.Animate())
+	c.tree.MarkDirty(c.id)
+}
+
+// settleScroll springs the surface back once the gesture stops.
+func (c *Content) settleScroll() {
+	if next, changed := settleScrollGesture(&c.edge, c.scrollY, 0, c.maxScroll(), c.Bounds().Height); changed {
+		c.scrollY = next
+		c.tree.MarkDirty(c.id)
 	}
 }
 
@@ -153,7 +185,7 @@ func (c *Content) needsScroll() bool {
 
 // HandleWheel processes a mouse wheel event for scrolling.
 func (c *Content) HandleWheel(dy float32) {
-	c.ScrollBy(-dy * 40) // 40px per scroll tick
+	c.applyScrollDelta(-dy * 40) // 40px per scroll tick
 }
 
 // HandleScrollBarDown starts a scrollbar thumb drag.
@@ -164,6 +196,7 @@ func (c *Content) HandleScrollBarDown(globalY float32) bool {
 	bounds := c.Bounds()
 	thumbY, thumbH := c.thumbRect(bounds)
 	if globalY >= thumbY && globalY <= thumbY+thumbH {
+		c.edge.Reset()
 		c.scrollBarDrag = true
 		c.dragStartY = globalY
 		c.dragStartScrl = c.scrollY
@@ -187,8 +220,8 @@ func (c *Content) HandleScrollBarMove(globalY float32) {
 	dy := globalY - c.dragStartY
 	maxScroll := c.contentHeight - bounds.Height
 	scrollDelta := dy * maxScroll / maxThumbY
-	c.scrollY = c.dragStartScrl + scrollDelta
-	c.clampScroll()
+	target := c.dragStartScrl + scrollDelta
+	c.applyScrollDelta(target - c.edge.Target(c.scrollY))
 }
 
 // HandleScrollBarUp ends a scrollbar drag.
@@ -224,7 +257,9 @@ func (c *Content) thumbRect(bounds uimath.Rect) (y, h float32) {
 	if maxScroll <= 0 {
 		return bounds.Y + 2, h
 	}
-	ratio := c.scrollY / maxScroll
+	// The thumb stays pinned to its track while the content stretches past
+	// the boundary; only the content itself rubber-bands.
+	ratio := clampScrollValue(c.scrollY/maxScroll, 0, 1)
 	return bounds.Y + 2 + maxThumbY*ratio, h
 }
 
@@ -233,6 +268,7 @@ func (c *Content) Draw(buf *render.CommandBuffer) {
 	if bounds.IsEmpty() {
 		return
 	}
+	c.settleScroll()
 
 	// Background
 	if !c.bgColor.IsTransparent() {
