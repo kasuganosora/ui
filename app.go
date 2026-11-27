@@ -222,6 +222,10 @@ func NewApp(opts AppOptions) (*App, error) {
 	a.dispatch = core.NewDispatcher(a.tree)
 	a.input = core.HostInput{Tree: a.tree}
 	a.cfg = widget.DefaultConfig()
+	// §14: adopt the OS accessibility settings on startup. Explicit GOUI_*
+	// variables can override them, and SetAccessibility() still wins at
+	// runtime. Widgets share this Config pointer, so no tree rebuild is needed.
+	a.cfg.ApplyAccessibility(resolveAccessibility(a.plat))
 	a.cfg.TextRenderer = &textDrawerAdapter{
 		renderer:        a.textRenderer,
 		fontID:          a.fontID,
@@ -301,6 +305,30 @@ func (a *App) Tree() *core.Tree { return a.tree }
 
 // Config returns the widget configuration.
 func (a *App) Config() *widget.Config { return a.cfg }
+
+// SetAccessibility applies the three independent §14 signals to the shared
+// widget.Config. Every widget holds the same pointer, so materials, outlines
+// and looping motion all update on the next frame without rebuilding the tree.
+func (a *App) SetAccessibility(p widget.AccessibilityPreferences) {
+	a.cfg.ApplyAccessibility(p)
+	a.tree.MarkDirty(a.tree.Root())
+}
+
+// Accessibility returns the currently applied preferences.
+func (a *App) Accessibility() widget.AccessibilityPreferences {
+	return a.cfg.Accessibility()
+}
+
+// SetReducedMotion is a single-signal convenience wrapper. It preserves the
+// other two preferences instead of resetting them.
+func (a *App) SetReducedMotion(reduced bool) {
+	p := a.cfg.Accessibility()
+	p.ReducedMotion = reduced
+	a.SetAccessibility(p)
+}
+
+// ReducedMotion reports whether decorative looping motion is currently frozen.
+func (a *App) ReducedMotion() bool { return a.cfg.ReducedMotion }
 
 // SetTextScale applies the Dynamic Type multiplier (§15). Type sizes, line
 // height and spacing tokens all scale together, then the whole tree is marked

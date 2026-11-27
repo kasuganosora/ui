@@ -454,8 +454,10 @@ func (a *Avatar) Draw(buf *render.CommandBuffer) {
 		radius = 0
 	}
 
-	// Advance GIF animation
-	if a.playing && len(a.frames) > 1 {
+	// Advance GIF animation. Reduced motion freezes playback on the first
+	// frame (§14); keeping `playing` set lets it resume if the preference is
+	// turned back off, without reloading the image.
+	if a.playing && len(a.frames) > 1 && cfg.Animate() {
 		now := time.Now()
 		elapsed := now.Sub(a.lastUpdate)
 		frame := a.frames[a.frameIdx]
@@ -570,8 +572,14 @@ func (a *Avatar) drawLoadingSpinner(buf *render.CommandBuffer, bounds uimath.Rec
 	}
 	ringR := bounds.Width * 0.28
 
-	// Phase rotates over time (one full rotation per 1.2s)
-	phase := float64(time.Now().UnixMilli()%1200) / 1200.0 * 2 * math.Pi
+	// Phase rotates over time (one full rotation per 1.2s). Reduced motion
+	// freezes the ring; the trailing opacity gradient still reads as a
+	// loading indicator without vestibular motion (§14).
+	animate := a.config.Animate()
+	phase := float64(0)
+	if animate {
+		phase = float64(time.Now().UnixMilli()%1200) / 1200.0 * 2 * math.Pi
+	}
 
 	for i := 0; i < dotCount; i++ {
 		angle := float64(i)*2*math.Pi/float64(dotCount) - math.Pi/2 + phase
@@ -587,7 +595,9 @@ func (a *Avatar) drawLoadingSpinner(buf *render.CommandBuffer, bounds uimath.Rec
 			Corners:   uimath.CornersAll(dotR),
 		}, 2, opacity)
 	}
-	a.tree.MarkDirty(a.id) // continue animation
+	if animate {
+		a.tree.MarkDirty(a.id) // continue animation
+	}
 }
 
 // drawDefaultIcon draws a simple user silhouette placeholder.

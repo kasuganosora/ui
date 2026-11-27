@@ -905,13 +905,16 @@ func (ta *TextArea) Draw(buf *render.CommandBuffer) {
 		}
 	}
 
-	// Cursor (visible for 500ms after any edit, then blinks)
+	// Cursor. Reduced motion keeps it steadily visible instead of blinking,
+	// and stops requesting a frame per blink phase (§14).
 	if focused && !ta.disabled {
-		// Request continuous redraws for cursor blink animation
-		ta.tree.MarkDirty(ta.id)
+		animate := cfg.Animate()
+		if animate {
+			ta.tree.MarkDirty(ta.id)
+		}
 		ms := time.Now().UnixMilli()
 		sinceReset := ms - ta.blinkReset
-		if sinceReset < 500 || (ms/500)%2 == 0 {
+		if !animate || sinceReset < 500 || (ms/500)%2 == 0 {
 			vlines := ta.visualLines(contentW)
 			vLine, vCol := ta.runeOffsetToVisualLineCol(ta.cursorPos, contentW)
 			cx := float32(0)

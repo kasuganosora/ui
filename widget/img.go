@@ -427,8 +427,10 @@ func (img *Img) Draw(buf *render.CommandBuffer) {
 		return
 	}
 
-	// Advance GIF animation
-	if img.playing && len(img.frames) > 1 {
+	// Advance GIF animation. Reduced motion freezes playback on the first
+	// frame (§14); `playing` stays set so it can resume when the preference
+	// is turned back off, without reloading the image.
+	if img.playing && len(img.frames) > 1 && img.config.Animate() {
 		now := time.Now()
 		elapsed := now.Sub(img.lastUpdate)
 		frame := img.frames[img.frameIdx]

@@ -313,7 +313,7 @@ func (c *Config) DrawMDIconOverlay(buf *render.CommandBuffer, name string, x, y,
 
 // DefaultConfig returns a default configuration with light theme defaults.
 func DefaultConfig() *Config {
-	return &Config{
+	cfg := &Config{
 		// brand-color-7 (#0052d9)
 		PrimaryColor:       uimath.ColorHex("#0052d9"),
 		TextColor:          uimath.RGBA(0, 0, 0, 0.9),
@@ -353,6 +353,8 @@ func DefaultConfig() *Config {
 		InputHeight:  32,
 		IconSize:     16,
 	}
+	cfg.ApplyAccessibility(AccessibilityFromEnv())
+	return cfg
 }
 
 // Hairline returns a low-contrast separator derived from the theme border.

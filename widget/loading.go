@@ -63,15 +63,22 @@ func (l *Loading) Draw(buf *render.CommandBuffer) {
 		return
 	}
 
-	// Request continuous redraws for animation
-	l.tree.MarkDirty(l.id)
-
 	cfg := l.config
+	animate := cfg.Animate()
+	// Only a looping effect needs continuous frames. Reduced motion keeps a
+	// static, evenly lit indicator instead of a bouncing one (§14).
+	if animate {
+		l.tree.MarkDirty(l.id)
+	}
+
 	color := cfg.PrimaryColor
 
-	// Animated three dots: each dot bounces up with a phase offset
-	elapsed := float32(time.Since(l.start).Seconds())
+	// Animated three dots: each dot bounces up with a phase offset.
 	const period = float32(1.2) // full cycle duration in seconds
+	elapsed := float32(0)
+	if animate {
+		elapsed = float32(time.Since(l.start).Seconds())
+	}
 
 	dotY := bounds.Y + (bounds.Height-loadingDotSize)/2
 	if l.text != "" {
@@ -81,19 +88,18 @@ func (l *Loading) Draw(buf *render.CommandBuffer) {
 	dotX := bounds.X + (bounds.Width-totalDotsW)/2
 
 	for i := 0; i < 3; i++ {
-		// Each dot has a phase offset: 0, 0.15, 0.3 seconds
-		phase := elapsed - float32(i)*0.15
-		// Normalize to [0, period), then compute bounce
-		t := float32(math.Mod(float64(phase), float64(period))) / period
-		// Bounce: active during first half, using sin curve
 		bounce := float32(0)
-		if t < 0.5 {
-			bounce = float32(math.Sin(float64(t)*2*math.Pi)) * 6
-		}
-		// Opacity: brighter when bouncing
-		opacity := float32(0.35)
-		if t < 0.5 {
-			opacity = 0.35 + 0.65*float32(math.Sin(float64(t)*2*math.Pi))
+		// Static equivalent: no bounce, a legible mid-tone rather than the
+		// dimmest frame of the oscillation.
+		opacity := float32(0.7)
+		if animate {
+			phase := elapsed - float32(i)*0.15
+			t := float32(math.Mod(float64(phase), float64(period))) / period
+			opacity = 0.35
+			if t < 0.5 {
+				bounce = float32(math.Sin(float64(t)*2*math.Pi)) * 6
+				opacity = 0.35 + 0.65*float32(math.Sin(float64(t)*2*math.Pi))
+			}
 		}
 
 		buf.DrawRect(render.RectCmd{

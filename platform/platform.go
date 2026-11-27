@@ -36,6 +36,25 @@ type Platform interface {
 	Terminate()
 }
 
+// AccessibilityPreferences carries the three independent OS accessibility
+// signals (apple-design §14). Names intentionally mirror the OS wording:
+// macOS reports "increase contrast" while the widget layer calls the same
+// signal "more contrast".
+type AccessibilityPreferences struct {
+	ReduceMotion       bool
+	ReduceTransparency bool
+	IncreaseContrast   bool
+}
+
+// AccessibilityProvider is an optional Platform capability. Platforms that do
+// not expose OS-level accessibility settings simply omit it; the application
+// shell then falls back to environment variables and explicit API calls.
+// Keeping it optional avoids forcing Windows/Linux backends to implement a
+// macOS-only query.
+type AccessibilityProvider interface {
+	AccessibilityPreferences() AccessibilityPreferences
+}
+
 // Window represents a native OS window.
 type Window interface {
 	// Size returns the window size in logical pixels.

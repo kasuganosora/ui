@@ -89,26 +89,36 @@ func (s *Skeleton) Draw(buf *render.CommandBuffer) {
 		return
 	}
 
-	// Animation opacity modulation
+	// Gradient is a slow ~0.3Hz oscillation and Flashed is an abrupt
+	// brightness jump — exactly the patterns §14 asks to avoid. Reduced motion
+	// uses one steady mid-tone, with no continuous redraw requests.
+	cfg := s.config
+	animate := cfg.Animate()
 	opacity := float32(1.0)
 	switch s.animation {
 	case AnimationGradient:
-		elapsed := time.Since(s.startTime).Seconds()
-		opacity = float32(0.4 + 0.6*gomath.Abs(gomath.Sin(elapsed*2.0)))
-		s.tree.MarkDirty(s.id) // continuous redraw
-	case AnimationFlashed:
-		elapsed := time.Since(s.startTime).Seconds()
-		// Flash: alternate between 0.3 and 1.0
-		phase := gomath.Mod(elapsed*2.0, 2.0)
-		if phase < 1.0 {
-			opacity = 0.3
+		if animate {
+			elapsed := time.Since(s.startTime).Seconds()
+			opacity = float32(0.4 + 0.6*gomath.Abs(gomath.Sin(elapsed*2.0)))
+			s.tree.MarkDirty(s.id) // continuous redraw
 		} else {
-			opacity = 1.0
+			opacity = 0.7
 		}
-		s.tree.MarkDirty(s.id)
+	case AnimationFlashed:
+		if animate {
+			elapsed := time.Since(s.startTime).Seconds()
+			// Flash: alternate between 0.3 and 1.0
+			phase := gomath.Mod(elapsed*2.0, 2.0)
+			if phase < 1.0 {
+				opacity = 0.3
+			} else {
+				opacity = 1.0
+			}
+			s.tree.MarkDirty(s.id)
+		} else {
+			opacity = 0.7
+		}
 	}
-
-	cfg := s.config
 	skColor := uimath.RGBA(0, 0, 0, 0.06*opacity)
 
 	switch s.theme {

@@ -844,13 +844,16 @@ func (inp *Input) Draw(buf *render.CommandBuffer) {
 		}
 	}
 
-	// Blinking cursor when focused (visible for 500ms after any edit, then blinks)
+	// Cursor when focused. Reduced motion keeps it steadily visible instead
+	// of blinking, and stops requesting a frame per blink phase (§14).
 	if focused && !inp.disabled && !inp.readonly {
-		// Request continuous redraws for cursor blink animation
-		inp.tree.MarkDirty(inp.id)
+		animate := cfg.Animate()
+		if animate {
+			inp.tree.MarkDirty(inp.id)
+		}
 		ms := time.Now().UnixMilli()
 		sinceReset := ms - inp.blinkReset
-		if sinceReset < 500 || (ms/500)%2 == 0 {
+		if !animate || sinceReset < 500 || (ms/500)%2 == 0 {
 			cx := bounds.X + padLeft + inp.cursorX()
 			var lh float32
 			if cfg.TextRenderer != nil {
