@@ -27,6 +27,7 @@ const (
 
 // Drawer is a sliding panel from the edge of the screen.
 type Drawer struct {
+	motion OverlayMotion
 	Base
 	header              string
 	visible             bool
@@ -214,8 +215,9 @@ func (d *Drawer) drawerSize() float32 {
 }
 
 func (d *Drawer) Draw(buf *render.CommandBuffer) {
+	defer d.motion.DrawScope(buf, d.config, d.tree, d.id, d.visible, DrawerAnchorVector(d.placement))()
 	defer withLayer(buf, d.tree, d.id)()
-	if !d.visible {
+	if !d.visible && !d.motion.Closing() {
 		return
 	}
 	bounds := d.Bounds()

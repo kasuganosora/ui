@@ -21,6 +21,7 @@ const (
 
 // Notification is a stacking toast notification.
 type Notification struct {
+	motion OverlayMotion
 	Base
 	title           string
 	content         string
@@ -137,8 +138,9 @@ func notificationIconInfo(t NotificationTheme) (string, string) {
 }
 
 func (n *Notification) Draw(buf *render.CommandBuffer) {
+	defer n.motion.DrawScope(buf, n.config, n.tree, n.id, n.visible, AnchorVector(PlacementRight))()
 	defer withLayer(buf, n.tree, n.id)()
-	if !n.visible {
+	if !n.visible && !n.motion.Closing() {
 		return
 	}
 

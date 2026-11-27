@@ -38,6 +38,7 @@ const (
 
 // Dialog is a modal overlay dialog.
 type Dialog struct {
+	motion OverlayMotion
 	Base
 	header  string
 	visible bool
@@ -248,7 +249,8 @@ func (d *Dialog) restoreFocus() {
 }
 
 func (d *Dialog) Draw(buf *render.CommandBuffer) {
-	if !d.visible {
+	defer d.motion.DrawScope(buf, d.config, d.tree, d.id, d.visible, AnchorVector(PlacementBottom))()
+	if !d.visible && !d.motion.Closing() {
 		return
 	}
 	defer withLayer(buf, d.tree, d.id)()

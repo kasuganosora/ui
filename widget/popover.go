@@ -17,6 +17,7 @@ const (
 
 // Popover is a floating content panel anchored to a trigger element.
 type Popover struct {
+	motion OverlayMotion
 	Base
 	title     string
 	content   Widget
@@ -87,29 +88,20 @@ func (p *Popover) Close() {
 }
 
 func (p *Popover) Draw(buf *render.CommandBuffer) {
+	defer p.motion.DrawScope(buf, p.config, p.tree, p.id, p.visible, AnchorVector(p.placement))()
 	defer withLayer(buf, p.tree, p.id)()
-	if !p.visible {
+	if !p.visible && !p.motion.Closing() {
 		return
 	}
 	cfg := p.config
 	h := float32(120)
 
-	// Position based on placement
-	var x, y float32
-	switch p.placement {
-	case PlacementTop:
-		x = p.anchorX + p.anchorW/2 - p.width/2
-		y = p.anchorY - h - 8
-	case PlacementLeft:
-		x = p.anchorX - p.width - 8
-		y = p.anchorY + p.anchorH/2 - h/2
-	case PlacementRight:
-		x = p.anchorX + p.anchorW + 8
-		y = p.anchorY + p.anchorH/2 - h/2
-	default: // Bottom
-		x = p.anchorX + p.anchorW/2 - p.width/2
-		y = p.anchorY + p.anchorH + 8
-	}
+	// §7: one shared placement implementation for every anchored panel, so
+	// the gap and the transform-origin direction never drift apart.
+	x, y := PlacePanel(
+		uimath.NewRect(p.anchorX, p.anchorY, p.anchorW, p.anchorH),
+		p.width, h, p.placement, uimath.Rect{},
+	)
 
 	// A real blurred shadow separates the panel from its background; a hard
 	// 1px outline reads as a divider rather than a floating surface.

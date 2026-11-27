@@ -412,6 +412,90 @@ func (cb *CommandBuffer) DrawOverlayTextCmd(cmd TextCmd, zOrder int32, opacity f
 	})
 }
 
+// FrameScope marks a position in the command stream. A composite widget can
+// snapshot it at the start of Draw and then transform exactly the commands it
+// emitted, including commands produced by its children.
+type FrameScope struct {
+	commands int
+	overlays int
+}
+
+// MarkScope snapshots the current command/overlay lengths.
+func (cb *CommandBuffer) MarkScope() FrameScope {
+	return FrameScope{commands: len(cb.commands), overlays: len(cb.overlays)}
+}
+
+// TransformScope translates and fades every command emitted since s. Apple §7
+// asks a floating panel to enter and leave along the same anchored path;
+// applying one transform to the whole subtree (panel, shadow, glyphs, clips
+// and child widgets) keeps that path identical for all of them. With an
+// identity transform it is a no-op, so widgets outside a transition are
+// unaffected.
+func (cb *CommandBuffer) TransformScope(s FrameScope, dx, dy, alpha float32) {
+	if dx == 0 && dy == 0 && alpha == 1 {
+		return
+	}
+	if alpha < 0 {
+		alpha = 0
+	}
+	if alpha > 1 {
+		alpha = 1
+	}
+	for i := s.commands; i < len(cb.commands); i++ {
+		transformCommand(&cb.commands[i], dx, dy, alpha)
+	}
+	for i := s.overlays; i < len(cb.overlays); i++ {
+		transformCommand(&cb.overlays[i], dx, dy, alpha)
+	}
+}
+
+func transformCommand(cmd *Command, dx, dy, alpha float32) {
+	cmd.Opacity *= alpha
+	switch cmd.Type {
+	case CmdRect:
+		if cmd.Rect != nil {
+			cmd.Rect.Bounds.X += dx
+			cmd.Rect.Bounds.Y += dy
+		}
+	case CmdShadow:
+		if cmd.Shadow != nil {
+			cmd.Shadow.Bounds.X += dx
+			cmd.Shadow.Bounds.Y += dy
+		}
+	case CmdImage:
+		if cmd.Image != nil {
+			cmd.Image.DstRect.X += dx
+			cmd.Image.DstRect.Y += dy
+		}
+	case CmdClip:
+		if cmd.Clip != nil {
+			cmd.Clip.Bounds.X += dx
+			cmd.Clip.Bounds.Y += dy
+		}
+	case CmdShader:
+		if cmd.Shader != nil {
+			cmd.Shader.Bounds.X += dx
+			cmd.Shader.Bounds.Y += dy
+		}
+	case CmdText:
+		if cmd.Text != nil {
+			cmd.Text.X += dx
+			cmd.Text.Y += dy
+			if len(cmd.Text.Glyphs) > 0 {
+				// Glyph slices come from the text renderer and may be shared;
+				// copy before translating so a transition cannot corrupt them.
+				glyphs := make([]GlyphInstance, len(cmd.Text.Glyphs))
+				copy(glyphs, cmd.Text.Glyphs)
+				for i := range glyphs {
+					glyphs[i].X += dx
+					glyphs[i].Y += dy
+				}
+				cmd.Text.Glyphs = glyphs
+			}
+		}
+	}
+}
+
 // MoveToOverlay moves commands added after position 'from' (by count of
 // commands + overlays) from the main command list into the overlay list,
 // overriding their z-order.

@@ -24,6 +24,7 @@ const (
 
 // Message is a global notification message (toast).
 type Message struct {
+	motion OverlayMotion
 	Base
 	content         string
 	theme           MessageTheme
@@ -143,7 +144,8 @@ func (m *Message) iconInfo() (string, string) {
 }
 
 func (m *Message) Draw(buf *render.CommandBuffer) {
-	if !m.visible {
+	defer m.motion.DrawScope(buf, m.config, m.tree, m.id, m.visible, AnchorVector(PlacementBottom))()
+	if !m.visible && !m.motion.Closing() {
 		return
 	}
 

@@ -18,6 +18,7 @@ const (
 
 // Popconfirm is a confirmation popup anchored to a trigger element.
 type Popconfirm struct {
+	motion OverlayMotion
 	Base
 	content         string
 	visible         bool
@@ -172,8 +173,9 @@ func (p *Popconfirm) drawArrow(buf *render.CommandBuffer, popBounds uimath.Rect,
 }
 
 func (p *Popconfirm) Draw(buf *render.CommandBuffer) {
+	defer p.motion.DrawScope(buf, p.config, p.tree, p.id, p.visible, AnchorVector(p.placement))()
 	defer withLayer(buf, p.tree, p.id)()
-	if !p.visible {
+	if !p.visible && !p.motion.Closing() {
 		return
 	}
 	cfg := p.config

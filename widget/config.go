@@ -211,6 +211,12 @@ type Config struct {
 	// grows with the text instead of clipping it (§15).
 	TextScale float32
 
+	// AnimateOverlays enables the anchored enter/exit transition (§7) for
+	// floating widgets. It is off for Config values created directly so
+	// headless renderers and visual regression frames stay deterministic;
+	// the GUI host turns it on. ReducedMotion still removes the spatial travel.
+	AnimateOverlays bool
+
 	// Text renderer (optional — falls back to placeholder rects if nil)
 	TextRenderer TextDrawer
 

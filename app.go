@@ -226,6 +226,10 @@ func NewApp(opts AppOptions) (*App, error) {
 	// variables can override them, and SetAccessibility() still wins at
 	// runtime. Widgets share this Config pointer, so no tree rebuild is needed.
 	a.cfg.ApplyAccessibility(resolveAccessibility(a.plat))
+	// §7: the GUI host plays anchored enter/exit transitions. Config values
+	// built directly (headless/software renderers, visual regression) keep
+	// deterministic static frames.
+	a.cfg.AnimateOverlays = true
 	a.cfg.TextRenderer = &textDrawerAdapter{
 		renderer:        a.textRenderer,
 		fontID:          a.fontID,
@@ -347,6 +351,16 @@ func (a *App) TextScale() float32 {
 		return 1
 	}
 	return a.cfg.TextScale
+}
+
+// SetOverlayMotion toggles the anchored floating-panel transitions (§7).
+// The GUI host enables them by default; this lets an embedding host opt out.
+func (a *App) SetOverlayMotion(enabled bool) {
+	if a.cfg == nil {
+		return
+	}
+	a.cfg.AnimateOverlays = enabled
+	a.tree.MarkDirty(a.tree.Root())
 }
 
 // Window returns the platform window.

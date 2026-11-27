@@ -18,6 +18,7 @@ type ContextMenuItem struct {
 
 // ContextMenu is a right-click context menu.
 type ContextMenu struct {
+	motion OverlayMotion
 	Base
 	items     []ContextMenuItem
 	visible   bool
@@ -108,8 +109,12 @@ func (cm *ContextMenu) Hide() {
 }
 
 func (cm *ContextMenu) Draw(buf *render.CommandBuffer) {
+	defer cm.motion.DrawScope(buf, cm.config, cm.tree, cm.id, cm.visible, AnchorVector(PlacementBottom))()
 	defer withLayer(buf, cm.tree, cm.id)()
-	if !cm.visible || len(cm.items) == 0 {
+	if !cm.visible && !cm.motion.Closing() {
+		return
+	}
+	if len(cm.items) == 0 {
 		return
 	}
 	cfg := cm.config

@@ -9,6 +9,7 @@ import (
 
 // SubWindow is a draggable, floating window within the UI.
 type SubWindow struct {
+	motion OverlayMotion
 	Base
 	title    string
 	x, y     float32
@@ -68,8 +69,9 @@ func (w *SubWindow) Close() {
 }
 
 func (w *SubWindow) Draw(buf *render.CommandBuffer) {
+	defer w.motion.DrawScope(buf, w.config, w.tree, w.id, w.visible, AnchorVector(PlacementBottom))()
 	defer withLayer(buf, w.tree, w.id)()
-	if !w.visible {
+	if !w.visible && !w.motion.Closing() {
 		return
 	}
 	cfg := w.config
