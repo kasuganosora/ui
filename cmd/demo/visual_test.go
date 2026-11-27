@@ -13,6 +13,7 @@ import (
 	"github.com/kasuganosora/ui/font"
 	"github.com/kasuganosora/ui/font/atlas"
 	"github.com/kasuganosora/ui/font/textrender"
+	"github.com/kasuganosora/ui/layout"
 	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/platform"
 	"github.com/kasuganosora/ui/render"
@@ -129,6 +130,64 @@ func (e *testEnv) buildUI() widget.Widget {
 	return doc.Root
 }
 
+// minControlColors is the distinct-color floor for a rendered control region.
+// Measured on real Metal frames: the flattest button (disabled) has 39 colors
+// and the flattest input (empty placeholder) has 35. One third of that floor
+// keeps ~3x headroom while still failing a control that collapsed into a flat
+// fill with a single 1px edge. The old threshold of 2 could never fail.
+const minControlColors = 12
+
+// assertSingleSection enforces the precondition every section-focused visual
+// test relies on: navigation must have hidden all other sections. Without it
+// the content column is ~10000pt tall and sections below the 800pt viewport
+// silently fall outside the framebuffer. Checking the precondition catches a
+// broken navigation path even for the first section, whose own pixels look
+// perfectly fine either way.
+func assertSingleSection(t *testing.T, doc *ui.Document, sectionID string) {
+	t.Helper()
+	target := doc.QueryByID(sectionID)
+	if target == nil {
+		t.Fatalf("section %q missing from demoHTML", sectionID)
+	}
+	if target.Style().Display == layout.DisplayNone {
+		t.Errorf("section %q is hidden; navigation did not select it", sectionID)
+	}
+	for _, n := range nav {
+		if n.section == sectionID {
+			continue
+		}
+		w := doc.QueryByID(n.section)
+		if w == nil {
+			continue
+		}
+		if d := w.Style().Display; d != layout.DisplayNone {
+			t.Errorf("section %q is still displayed (display=%d); only %q should be visible",
+				n.section, d, sectionID)
+		}
+	}
+}
+
+// buildSectionUI loads the real demo document and switches it to a single
+// section through setupNavigation — the exact path the running demo takes.
+//
+// buildUI() deliberately keeps every section visible, which makes the content
+// column ~10000pt tall. Four visual tests used to call it and therefore saved
+// the identical first screen under four different names; sections below the
+// fold were never actually captured. Showing one section brings its controls
+// into the viewport so their bounds are real and assertable.
+func (e *testEnv) buildSectionUI(t *testing.T, sectionID string) (widget.Widget, *ui.Document) {
+	t.Helper()
+	doc := ui.LoadHTMLDocument(e.tree, e.cfg, demoHTML, "")
+	setupNavigation(doc, sectionID)
+	setupDemoWidgets(doc, e.tree, e.cfg)
+	assertSingleSection(t, doc, sectionID)
+	root := widget.Widget(doc.Root)
+	if len(doc.Root.Children()) > 0 {
+		root = doc.Root.Children()[0]
+	}
+	return root, doc
+}
+
 // renderFrames builds layout, draws, and submits N frames.
 func (e *testEnv) renderFrames(root widget.Widget, n int) {
 	w, h := float32(e.width), float32(e.height)
@@ -150,14 +209,8 @@ func (e *testEnv) renderFrames(root widget.Widget, n int) {
 	}
 }
 
-// screenshot captures current framebuffer and saves to testdata/.
-func (e *testEnv) screenshot(t *testing.T, name string) (string, *image.RGBA) {
+func saveScreenshot(t *testing.T, name string, img *image.RGBA) string {
 	t.Helper()
-
-	img, err := capture.Screenshot(e.backend)
-	if err != nil {
-		t.Fatalf("screenshot failed: %v", err)
-	}
 
 	dir := filepath.Join("testdata", "screenshots")
 	_ = os.MkdirAll(dir, 0755)
@@ -167,7 +220,132 @@ func (e *testEnv) screenshot(t *testing.T, name string) (string, *image.RGBA) {
 		t.Fatalf("save screenshot: %v", err)
 	}
 	t.Logf("screenshot saved: %s (%dx%d)", path, img.Bounds().Dx(), img.Bounds().Dy())
-	return path, img
+	return path
+}
+
+// screenshot captures the full framebuffer and saves it to testdata/.
+func (e *testEnv) screenshot(t *testing.T, name string) (string, *image.RGBA) {
+	t.Helper()
+
+	img, err := capture.Screenshot(e.backend)
+	if err != nil {
+		t.Fatalf("screenshot failed: %v", err)
+	}
+	return saveScreenshot(t, name, img), img
+}
+
+// logicalRect converts logical UI coordinates into framebuffer pixels.
+// Layout bounds are in points while Metal runs at 2x on Retina; every visual
+// assertion has to go through this conversion or it silently samples the
+// wrong quarter of the frame.
+func (e *testEnv) logicalRect(r uimath.Rect) image.Rectangle {
+	dpi := e.backend.DPIScale()
+	return image.Rect(
+		int(r.X*dpi),
+		int(r.Y*dpi),
+		int((r.X+r.Width)*dpi),
+		int((r.Y+r.Height)*dpi),
+	)
+}
+
+// cropLogical clips a framebuffer to a logical rectangle. The result is a
+// fresh image with origin (0,0), so the pixel helpers below keep working on
+// the cropped image without any coordinate translation.
+func (e *testEnv) cropLogical(img *image.RGBA, r uimath.Rect) *image.RGBA {
+	px := e.logicalRect(r).Intersect(img.Bounds())
+	if px.Empty() {
+		return image.NewRGBA(image.Rect(0, 0, 1, 1))
+	}
+	out := image.NewRGBA(image.Rect(0, 0, px.Dx(), px.Dy()))
+	for y := 0; y < px.Dy(); y++ {
+		for x := 0; x < px.Dx(); x++ {
+			out.SetRGBA(x, y, img.RGBAAt(px.Min.X+x, px.Min.Y+y))
+		}
+	}
+	return out
+}
+
+// screenshotSection captures only the section's own rectangle instead of the
+// whole window, and returns its logical bounds as the coordinate origin for
+// converting element bounds into cropped-image coordinates.
+func (e *testEnv) screenshotSection(t *testing.T, name string, section widget.Widget) (string, *image.RGBA, uimath.Rect) {
+	t.Helper()
+	img, err := capture.Screenshot(e.backend)
+	if err != nil {
+		t.Fatalf("screenshot failed: %v", err)
+	}
+	elem := e.tree.Get(section.ElementID())
+	if elem == nil {
+		t.Fatalf("section %d has no tree element", section.ElementID())
+	}
+	origin := elem.Layout().Bounds
+	if origin.Width < 10 || origin.Height < 10 {
+		t.Fatalf("section %d has no layout bounds: %+v", section.ElementID(), origin)
+	}
+
+	// Cross-check the DPI used by logicalRect against the real framebuffer.
+	// These come from independent sources (backend.DPIScale vs. window size),
+	// so a wrong scale cannot quietly satisfy the crop and the pixel
+	// assertions at the same time.
+	dpiFromFrame := float64(img.Bounds().Dx()) / float64(e.width)
+	if diff := float64(e.backend.DPIScale()) - dpiFromFrame; diff > 0.01 || diff < -0.01 {
+		t.Fatalf("DPI mismatch: backend=%.2f framebuffer/window=%.2f",
+			e.backend.DPIScale(), dpiFromFrame)
+	}
+	wantW := int(float64(origin.Width)*dpiFromFrame + 0.5)
+	wantH := int(float64(origin.Height)*dpiFromFrame + 0.5)
+
+	cropped := e.cropLogical(img, origin)
+	if d := cropped.Bounds().Dx() - wantW; d > 2 || d < -2 {
+		t.Errorf("cropped width %d, want %d (section %.0fpt @ %.1fx)",
+			cropped.Bounds().Dx(), wantW, origin.Width, dpiFromFrame)
+	}
+	if d := cropped.Bounds().Dy() - wantH; d > 2 || d < -2 {
+		t.Errorf("cropped height %d, want %d (section %.0fpt @ %.1fx)",
+			cropped.Bounds().Dy(), wantH, origin.Height, dpiFromFrame)
+	}
+	return saveScreenshot(t, name, cropped), cropped, origin
+}
+
+// relativeRect re-bases an element's absolute logical bounds into the cropped
+// section image's coordinate space.
+func relativeRect(origin, b uimath.Rect) uimath.Rect {
+	return uimath.NewRect(b.X-origin.X, b.Y-origin.Y, b.Width, b.Height)
+}
+
+// sectionPixels converts an absolute element bounds into a pixel rectangle
+// inside a cropped section image. It returns false for elements that are not
+// fully inside the section (hidden sections, off-screen controls, etc.).
+func (e *testEnv) sectionPixels(origin, b uimath.Rect, img *image.RGBA) (image.Rectangle, bool) {
+	rel := relativeRect(origin, b)
+	if rel.X < 0 || rel.Y < 0 || rel.X+rel.Width > origin.Width || rel.Y+rel.Height > origin.Height {
+		return image.Rectangle{}, false
+	}
+	px := e.logicalRect(rel)
+	if px.Empty() || px.Min.X < 0 || px.Min.Y < 0 ||
+		px.Max.X > img.Bounds().Dx() || px.Max.Y > img.Bounds().Dy() {
+		return image.Rectangle{}, false
+	}
+	return px, true
+}
+
+// dominantColorKey returns the most frequent RGBA value in a pixel rectangle.
+// It isolates a swatch's fill from its rounded border and centered label.
+func dominantColorKey(img *image.RGBA, r image.Rectangle) uint32 {
+	counts := make(map[uint32]int)
+	best, bestN := uint32(0), -1
+	bounds := img.Bounds().Intersect(r)
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			c := img.RGBAAt(x, y)
+			key := uint32(c.R)<<24 | uint32(c.G)<<16 | uint32(c.B)<<8 | uint32(c.A)
+			counts[key]++
+			if counts[key] > bestN {
+				bestN, best = counts[key], key
+			}
+		}
+	}
+	return best
 }
 
 // --- Tree inspection helpers ---
@@ -275,8 +453,11 @@ func TestVisualDemoFullUI(t *testing.T) {
 	verifyNotUniform(t, img, "demo_full_ui")
 
 	w := img.Bounds().Dx()
-	topColors := countDistinctColors(img, 0, 0, w, 60)
-	t.Logf("distinct colors in top 60px: %d", topColors)
+	// 60 is a logical height (the demo header is 48pt tall); the framebuffer
+	// is 2x on Retina, so the sampled band must be scaled too.
+	top := int(60 * env.backend.DPIScale())
+	topColors := countDistinctColors(img, 0, 0, w, top)
+	t.Logf("distinct colors in top %dpx (60pt): %d", top, topColors)
 	if topColors < 2 {
 		t.Errorf("top region has only %d colors, expected header rendering", topColors)
 	}
@@ -286,12 +467,18 @@ func TestVisualButtonRendering(t *testing.T) {
 	env := newTestEnv(t, 1280, 800)
 	defer env.close()
 
-	root := env.buildUI()
+	root, doc := env.buildSectionUI(t, "sec-button")
 	env.tree.AppendChild(env.tree.Root(), root.ElementID())
 	env.renderFrames(root, 3)
 
-	_, img := env.screenshot(t, "button_rendering")
+	section := doc.QueryByID("sec-button")
+	if section == nil {
+		t.Fatal("sec-button missing from demoHTML")
+	}
+	_, img, origin := env.screenshotSection(t, "button_rendering", section)
+	verifyNotUniform(t, img, "button_rendering")
 
+	checked, minNC := 0, 1<<30
 	env.tree.Walk(env.tree.Root(), func(id core.ElementID, depth int) bool {
 		elem := env.tree.Get(id)
 		if elem == nil || elem.Type() != core.TypeButton {
@@ -301,69 +488,131 @@ func TestVisualButtonRendering(t *testing.T) {
 		if b.Width < 10 || b.Height < 10 {
 			return true
 		}
-		dpi := env.backend.DPIScale()
-		rx, ry := int(b.X*dpi), int(b.Y*dpi)
-		rw, rh := int(b.Width*dpi), int(b.Height*dpi)
-		if rx >= img.Bounds().Dx() || ry >= img.Bounds().Dy() {
-			return true
+		px, ok := env.sectionPixels(origin, b, img)
+		if !ok {
+			return true // belongs to a hidden section or falls outside the crop
 		}
-		nc := countDistinctColors(img, rx, ry, min(rw, img.Bounds().Dx()-rx), min(rh, img.Bounds().Dy()-ry))
-		if nc < 2 {
-			t.Logf("button %d %q: only %d color(s)", id, elem.TextContent(), nc)
+		checked++
+		nc := countDistinctColors(img, px.Min.X, px.Min.Y, px.Dx(), px.Dy())
+		if nc < minNC {
+			minNC = nc
+		}
+		if nc < minControlColors {
+			t.Errorf("button %d %q rendered only %d color(s), want >= %d",
+				id, elem.TextContent(), nc, minControlColors)
 		}
 		return true
 	})
+	// A log line is not an assertion: if navigation broke and no button was
+	// visible at all, the old test still passed.
+	if checked < 10 {
+		t.Errorf("only %d buttons were checked in sec-button, expected at least 10", checked)
+	}
+	if minNC == 1<<30 {
+		minNC = 0
+	}
+	t.Logf("checked %d buttons in sec-button; minimum distinct colors=%d (floor=%d)",
+		checked, minNC, minControlColors)
 }
 
 func TestVisualInputRendering(t *testing.T) {
 	env := newTestEnv(t, 1280, 800)
 	defer env.close()
 
-	root := env.buildUI()
+	root, doc := env.buildSectionUI(t, "sec-input")
 	env.tree.AppendChild(env.tree.Root(), root.ElementID())
 	env.renderFrames(root, 3)
 
-	_, img := env.screenshot(t, "input_rendering")
+	section := doc.QueryByID("sec-input")
+	if section == nil {
+		t.Fatal("sec-input missing from demoHTML")
+	}
+	_, img, origin := env.screenshotSection(t, "input_rendering", section)
+	verifyNotUniform(t, img, "input_rendering")
 
-	inputCount := 0
+	checked, minNC := 0, 1<<30
 	env.tree.Walk(env.tree.Root(), func(id core.ElementID, depth int) bool {
 		elem := env.tree.Get(id)
 		if elem == nil || elem.Type() != core.TypeInput {
 			return true
 		}
-		inputCount++
 		b := elem.Layout().Bounds
 		if b.Width < 10 || b.Height < 10 {
 			return true
 		}
-		if int(b.Y) >= img.Bounds().Dy() || int(b.X) >= img.Bounds().Dx() {
+		px, ok := env.sectionPixels(origin, b, img)
+		if !ok {
 			return true
 		}
+		checked++
+		// Coordinates are now DPI-scaled and rebased to the cropped section.
 		verifyRegionNotBlack(t, img, fmt.Sprintf("input_%d", id),
-			int(b.X), int(b.Y), int(b.Width), int(b.Height))
+			px.Min.X, px.Min.Y, px.Dx(), px.Dy())
+		// A single bright pixel used to satisfy verifyRegionNotBlack; require
+		// the full border/background/text antialiasing footprint instead.
+		nc := countDistinctColors(img, px.Min.X, px.Min.Y, px.Dx(), px.Dy())
+		if nc < minNC {
+			minNC = nc
+		}
+		if nc < minControlColors {
+			t.Errorf("input %d rendered only %d color(s), want >= %d", id, nc, minControlColors)
+		}
 		return true
 	})
-	if inputCount < 3 {
-		t.Errorf("expected at least 3 inputs, got %d", inputCount)
+	if checked < 3 {
+		t.Errorf("only %d inputs were checked in sec-input, expected at least 3", checked)
 	}
+	if minNC == 1<<30 {
+		minNC = 0
+	}
+	t.Logf("checked %d inputs in sec-input; minimum distinct colors=%d (floor=%d)",
+		checked, minNC, minControlColors)
 }
 
 func TestVisualGridColors(t *testing.T) {
 	env := newTestEnv(t, 1280, 800)
 	defer env.close()
 
-	root := env.buildUI()
+	root, doc := env.buildSectionUI(t, "sec-grid")
 	env.tree.AppendChild(env.tree.Root(), root.ElementID())
 	env.renderFrames(root, 3)
 
-	_, img := env.screenshot(t, "grid_colors")
-
-	w := img.Bounds().Dx()
+	section := doc.QueryByID("sec-grid")
+	if section == nil {
+		t.Fatal("sec-grid missing from demoHTML")
+	}
+	_, img, origin := env.screenshotSection(t, "grid_colors", section)
 	verifyNotUniform(t, img, "grid_colors")
-	nc := countDistinctColors(img, 0, 0, w, 60)
-	t.Logf("top region colors: %d", nc)
-	if nc < 2 {
-		t.Errorf("top has only %d colors, expected rendered content", nc)
+
+	// "GridColors" should check the four column swatches, not the window's
+	// top 60px (which only ever contained the header).
+	seen := make(map[uint32]string)
+	for _, cls := range []string{"grid-col-1", "grid-col-2", "grid-col-3", "grid-col-4"} {
+		ws := doc.QueryByClass(cls)
+		if len(ws) == 0 {
+			t.Errorf("no widget with class %q in sec-grid", cls)
+			continue
+		}
+		b := env.tree.Get(ws[0].ElementID()).Layout().Bounds
+		px, ok := env.sectionPixels(origin, b, img)
+		if !ok {
+			t.Errorf("swatch %q at (%.0f,%.0f %.0fx%.0f) is outside sec-grid", cls, b.X, b.Y, b.Width, b.Height)
+			continue
+		}
+		// Inset past the rounded border and the centered "col-N" label.
+		key := dominantColorKey(img, px.Inset(4))
+		if prev, dup := seen[key]; dup {
+			t.Errorf("swatch %q has the same dominant color as %q (#%06X)", cls, prev, key>>8)
+		}
+		seen[key] = cls
+		t.Logf("swatch %q dominant color #%06X", cls, key>>8)
+	}
+	if len(seen) < 4 {
+		t.Errorf("only %d distinct grid swatch colors, expected 4", len(seen))
+	}
+	nc := countDistinctColors(img, 0, 0, img.Bounds().Dx(), img.Bounds().Dy())
+	if nc < 4 {
+		t.Errorf("grid section has only %d colors, expected a rendered grid", nc)
 	}
 }
 
