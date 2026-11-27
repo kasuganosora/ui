@@ -224,11 +224,12 @@ func (d *Drawer) Draw(buf *render.CommandBuffer) {
 	}
 	cfg := d.config
 
-	// Backdrop
+	// Backdrop dims the content behind a modal task; read the theme token so
+	// dark themes are not washed out by a hardcoded light-mode scrim.
 	if d.showOverlay {
 		buf.DrawOverlay(render.RectCmd{
 			Bounds:    bounds,
-			FillColor: uimath.RGBA(0, 0, 0, 0.45),
+			FillColor: cfg.EffectiveMaskColor(),
 		}, 15, 1)
 	}
 
@@ -250,16 +251,23 @@ func (d *Drawer) Draw(buf *render.CommandBuffer) {
 		px, py = bounds.X, bounds.Y+bounds.Height-ph
 	}
 
+	// A real blurred shadow gives the sheet depth over the scrim. It is
+	// emitted after the backdrop at the same z, so stable z-order keeps it
+	// above the scrim and below the panel.
+	buf.DrawOverlayShadow(cfg.FloatingShadow(uimath.NewRect(px, py, pw, ph), true), 15, 1)
+
 	buf.DrawOverlay(render.RectCmd{
-		Bounds:    uimath.NewRect(px, py, pw, ph),
-		FillColor: uimath.ColorWhite,
+		Bounds:      uimath.NewRect(px, py, pw, ph),
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
 	}, 16, 1)
 
-	// Header
+	// Header divider — a soft hairline derived from the theme border.
 	headerH := float32(48)
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:    uimath.NewRect(px, py+headerH-1, pw, 1),
-		FillColor: uimath.RGBA(0, 0, 0, 0.06),
+		FillColor: cfg.Hairline(),
 	}, 17, 1)
 
 	if cfg.TextRenderer != nil {
@@ -293,10 +301,10 @@ func (d *Drawer) Draw(buf *render.CommandBuffer) {
 		footerH := float32(56)
 		footerY := py + ph - footerH
 
-		// Footer top border
+		// Footer top border — a soft hairline derived from the theme border.
 		buf.DrawOverlay(render.RectCmd{
 			Bounds:    uimath.NewRect(px, footerY, pw, 1),
-			FillColor: cfg.BorderColor,
+			FillColor: cfg.Hairline(),
 		}, 17, 1)
 
 		// Buttons area (right-aligned)
@@ -325,10 +333,11 @@ func (d *Drawer) Draw(buf *render.CommandBuffer) {
 		confirmBtnX := px + pw - cfg.SpaceLG - confirmBtnW
 		cancelBtnX := confirmBtnX - btnGap - cancelBtnW
 
-		// Cancel button (outline style)
+		// Cancel button (outline style) — fill follows the sheet surface so
+		// dark themes no longer show a white rectangle inside the drawer.
 		buf.DrawOverlay(render.RectCmd{
 			Bounds:      uimath.NewRect(cancelBtnX, btnY, cancelBtnW, btnH),
-			FillColor:   uimath.ColorWhite,
+			FillColor:   cfg.BgColor,
 			BorderColor: cfg.BorderColor,
 			BorderWidth: 1,
 			Corners:     uimath.CornersAll(cfg.BorderRadius),

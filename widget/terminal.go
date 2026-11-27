@@ -5,7 +5,6 @@ import (
 
 	"github.com/kasuganosora/ui/core"
 	"github.com/kasuganosora/ui/event"
-	uimath "github.com/kasuganosora/ui/math"
 	"github.com/kasuganosora/ui/render"
 )
 
@@ -105,7 +104,7 @@ func (t *Terminal) Draw(buf *render.CommandBuffer) {
 		return
 	}
 	buf.PushClip(b)
-	buf.DrawRect(render.RectCmd{Bounds: b, FillColor: uimath.ColorWhite}, 0, 1)
+	buf.DrawRect(render.RectCmd{Bounds: b, FillColor: t.config.BgColor}, 0, 1)
 	lines := textLines(t.text)
 	size := t.config.FontSizeSm
 	for i, line := range lines {

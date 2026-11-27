@@ -133,14 +133,14 @@ func (s *Space) Draw(buf *render.CommandBuffer) {
 						sepY := childBounds.Y + childBounds.Height + s.gap/2
 						tw := cfg.TextRenderer.MeasureText(s.separator, cfg.FontSizeSm)
 						lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-						cfg.TextRenderer.DrawText(buf, s.separator, sepX+(childBounds.Width-tw)/2, sepY-lh/2, cfg.FontSizeSm, childBounds.Width, cfg.DisabledColor, 1)
+						cfg.TextRenderer.DrawText(buf, s.separator, sepX+(childBounds.Width-tw)/2, sepY-lh/2, cfg.FontSizeSm, childBounds.Width, cfg.TextSecondaryColor, 1)
 					} else {
 						// Vertical separator between horizontally placed children
 						sepX := childBounds.X + childBounds.Width + s.gap/2
 						sepY := childBounds.Y
 						tw := cfg.TextRenderer.MeasureText(s.separator, cfg.FontSizeSm)
 						lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-						cfg.TextRenderer.DrawText(buf, s.separator, sepX-tw/2, sepY+(childBounds.Height-lh)/2, cfg.FontSizeSm, tw+4, cfg.DisabledColor, 1)
+						cfg.TextRenderer.DrawText(buf, s.separator, sepX-tw/2, sepY+(childBounds.Height-lh)/2, cfg.FontSizeSm, tw+4, cfg.TextSecondaryColor, 1)
 					}
 				}
 			}

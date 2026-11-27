@@ -193,7 +193,7 @@ func (ti *TagInput) Draw(buf *render.CommandBuffer) {
 		}
 	} else if len(ti.tags) == 0 && ti.placeholder != "" {
 		// Draw placeholder text
-		placeholderColor := uimath.RGBA(0, 0, 0, 0.25)
+		placeholderColor := cfg.TextSecondaryColor
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 			cfg.TextRenderer.DrawText(buf, ti.placeholder, inputX+cfg.SpaceXS, inputY+(ti.tagH-lh)/2, cfg.FontSizeSm, inputW-cfg.SpaceXS, placeholderColor, 1)

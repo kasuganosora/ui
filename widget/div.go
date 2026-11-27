@@ -119,7 +119,13 @@ func (d *Div) Draw(buf *render.CommandBuffer) {
 		return
 	}
 
-	// Draw box shadows (behind the background), back-to-front (last layer first)
+	// Draw box shadows (behind the background), back-to-front (last layer first).
+	//
+	// Use the same z as the background: backends stable-sort the WHOLE frame
+	// by ZOrder, so a negative z would sort every shadow in front of every
+	// z=0 ancestor background. An opaque parent (layout/main) then paints
+	// over the shadow and the material disappears entirely. Equal z keeps
+	// emission order: parent background, this shadow, this background.
 	for i := len(d.shadows) - 1; i >= 0; i-- {
 		sh := d.shadows[i]
 		if sh.Inset {
@@ -133,7 +139,7 @@ func (d *Div) Draw(buf *render.CommandBuffer) {
 			BlurRadius:   sh.Blur,
 			SpreadRadius: sh.Spread,
 			Color:        sh.Color,
-		}, -1, 1)
+		}, 0, 1)
 	}
 
 	// Draw background

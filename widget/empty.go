@@ -61,7 +61,7 @@ func (e *Empty) Draw(buf *render.CommandBuffer) {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 			tw := cfg.TextRenderer.MeasureText(e.description, cfg.FontSize)
 			tx := bounds.X + (bounds.Width-tw)/2
-			cfg.TextRenderer.DrawText(buf, e.description, tx, textY, cfg.FontSize, bounds.Width, color, 1)
+			cfg.TextRenderer.DrawText(buf, e.description, tx, textY, cfg.FontSize, bounds.Width, cfg.TextSecondaryColor, 1)
 			_ = lh
 		} else {
 			textW := float32(len(e.description)) * cfg.FontSize * 0.55
@@ -69,7 +69,7 @@ func (e *Empty) Draw(buf *render.CommandBuffer) {
 			tx := bounds.X + (bounds.Width-textW)/2
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(tx, textY, textW, textH),
-				FillColor: color,
+				FillColor: cfg.TextSecondaryColor,
 				Corners:   uimath.CornersAll(2),
 			}, 1, 1)
 		}

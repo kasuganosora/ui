@@ -287,7 +287,7 @@ func (l *List) Draw(buf *render.CommandBuffer) {
 	if !l.selectable {
 		buf.DrawRect(render.RectCmd{
 			Bounds:    bounds,
-			FillColor: uimath.ColorWhite,
+			FillColor: cfg.BgColor,
 			Corners:   uimath.CornersAll(cfg.BorderRadius),
 		}, 0, 1)
 	}
@@ -413,7 +413,9 @@ func (l *List) Draw(buf *render.CommandBuffer) {
 // that. Hosts without a caption-capable drawer keep the regular face.
 func (l *List) drawGroupHeader(buf *render.CommandBuffer, title string, x, y, w float32, cfg *Config) {
 	gh := l.groupHeight
-	textClr := uimath.RGBA(0, 0, 0, 0.4)
+	// Group captions are read, not disabled controls. A hardcoded 40% black
+	// was both too faint on light surfaces and nearly invisible on dark ones.
+	textClr := cfg.TextSecondaryColor
 	fs := cfg.CaptionSize()
 	lh := cfg.Leading(fs)
 	if cfg.TextRenderer != nil {
@@ -529,7 +531,7 @@ func (l *List) drawItem(buf *render.CommandBuffer, item ListItem, bounds uimath.
 	// Description below title
 	if hasDesc {
 		descFs := cfg.FontSizeSm
-		descColor := uimath.RGBA(0, 0, 0, 0.45)
+		descColor := cfg.TextSecondaryColor
 		if cfg.TextRenderer != nil {
 			descY := y + ih/2 + 2
 			cfg.TextRenderer.DrawText(buf, item.Description, textX, descY, descFs, textMaxW, descColor, 1)
@@ -609,7 +611,7 @@ func (l *List) drawActions(buf *render.CommandBuffer, actions []string, bounds u
 // drawExtra renders a single extra text on the right.
 func (l *List) drawExtra(buf *render.CommandBuffer, extra string, bounds uimath.Rect, y, ih float32, cfg *Config, rightPad float32) {
 	extraX := bounds.X + bounds.Width - rightPad
-	extraColor := uimath.RGBA(0, 0, 0, 0.45)
+	extraColor := cfg.TextSecondaryColor
 	if cfg.TextRenderer != nil {
 		ew := cfg.TextRenderer.MeasureText(extra, cfg.FontSizeSm)
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)

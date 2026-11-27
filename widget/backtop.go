@@ -53,11 +53,12 @@ func (bt *BackTop) Draw(buf *render.CommandBuffer) {
 	r := s / 2
 
 	// Use overlay rendering
+	buf.DrawOverlayShadow(cfg.FloatingShadow(uimath.NewRect(0, 0, s, s), false), 89, 1)
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:      uimath.NewRect(0, 0, s, s), // position set externally
-		FillColor:   uimath.ColorWhite,
-		BorderColor: cfg.BorderColor,
-		BorderWidth: 1,
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
 		Corners:     uimath.CornersAll(r),
 	}, 90, 1)
 

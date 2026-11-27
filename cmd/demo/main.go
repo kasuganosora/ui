@@ -560,7 +560,7 @@ const demoHTML = `
 		--bg-card: #ffffff;
 		--bg-header: #ffffff;
 		--text-title: rgba(0,0,0,0.9);
-		--text-body: rgba(0,0,0,0.6);
+		--text-body: rgba(0,0,0,0.7);
 		--border: #dcdcdc;
 	}
 
@@ -575,8 +575,7 @@ const demoHTML = `
 	.demo-card {
 		background-color: var(--bg-card);
 		border-radius: 6px;
-		border-width: 1px;
-		border-color: var(--border);
+		box-shadow: 0px 2px 8px rgba(0,0,0,0.08);
 		padding: 20px;
 	}
 	.demo-label { font-size: 12px; color: var(--text-body); }
@@ -587,7 +586,6 @@ const demoHTML = `
 	.grid-col-4 { background-color: #8eabff; border-radius: 4px; padding: 8px; }
 	.grid-text { color: #003cab; font-size: 13px; }
 
-	.cat-title { color: rgba(0,0,0,0.4); font-size: 12px; }
 	.logo { color: rgba(0,0,0,0.9); font-size: 18px; }
 </style>
 

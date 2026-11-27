@@ -492,7 +492,7 @@ func (t *Tabs) drawCardTab(buf *render.CommandBuffer, x, y, w, h float32, active
 		// Draw white background covering the bottom border line
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(x, y, w, h),
-			FillColor: uimath.ColorWhite,
+			FillColor: t.config.BgColor,
 			Corners:   uimath.Corners{TopLeft: radius, TopRight: radius},
 		}, 0, 1)
 		// Top border

@@ -158,19 +158,15 @@ func (n *Notification) Draw(buf *render.CommandBuffer) {
 	cfg := n.config
 	h := float32(80)
 
-	// Shadow
-	buf.DrawOverlay(render.RectCmd{
-		Bounds:    uimath.NewRect(n.x+2, n.y+2, n.width, h),
-		FillColor: uimath.RGBA(0, 0, 0, 0.1),
-		Corners:   uimath.CornersAll(cfg.BorderRadius),
-	}, 50, 1)
+	// Real depth instead of an offset rectangle + hard outline.
+	buf.DrawOverlayShadow(cfg.FloatingShadow(uimath.NewRect(n.x, n.y, n.width, h), false), 50, 1)
 
 	// Background
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:      uimath.NewRect(n.x, n.y, n.width, h),
-		FillColor:   uimath.ColorWhite,
-		BorderColor: cfg.BorderColor,
-		BorderWidth: 1,
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 51, 1)
 
@@ -215,7 +211,7 @@ func (n *Notification) Draw(buf *render.CommandBuffer) {
 		emitOverlayText(cfg, buf, n.title, n.x+textLeftOffset, n.y+cfg.SpaceSM, cfg.FontSize, n.width-textLeftOffset-cfg.SpaceMD, cfg.TextColor, 1, notificationTextZ)
 		// Content
 		if n.content != "" {
-			emitOverlayText(cfg, buf, n.content, n.x+textLeftOffset, n.y+cfg.SpaceSM+lh+4, cfg.FontSizeSm, n.width-textLeftOffset-cfg.SpaceMD, cfg.DisabledColor, 1, notificationTextZ)
+			emitOverlayText(cfg, buf, n.content, n.x+textLeftOffset, n.y+cfg.SpaceSM+lh+4, cfg.FontSizeSm, n.width-textLeftOffset-cfg.SpaceMD, cfg.TextSecondaryColor, 1, notificationTextZ)
 		}
 	}
 
@@ -226,14 +222,14 @@ func (n *Notification) Draw(buf *render.CommandBuffer) {
 		closeY := n.y + cfg.SpaceSM
 
 		// Draw close icon
-		if !cfg.DrawMDIconOverlay(buf, "close", closeX, closeY, closeSize, cfg.DisabledColor, 54, 1) {
+		if !cfg.DrawMDIconOverlay(buf, "close", closeX, closeY, closeSize, cfg.TextSecondaryColor, 54, 1) {
 			buf.DrawOverlay(render.RectCmd{
 				Bounds:    uimath.NewRect(closeX+closeSize/2-1, closeY, 2, closeSize),
-				FillColor: cfg.DisabledColor,
+				FillColor: cfg.TextSecondaryColor,
 			}, 54, 1)
 			buf.DrawOverlay(render.RectCmd{
 				Bounds:    uimath.NewRect(closeX, closeY+closeSize/2-1, closeSize, 2),
-				FillColor: cfg.DisabledColor,
+				FillColor: cfg.TextSecondaryColor,
 			}, 54, 1)
 		}
 

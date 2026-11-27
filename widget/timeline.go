@@ -138,7 +138,7 @@ func (t *Timeline) Draw(buf *render.CommandBuffer) {
 		// Dot (outlined ring)
 		buf.DrawRect(render.RectCmd{
 			Bounds:      uimath.NewRect(bounds.X, y, t.dotSize, t.dotSize),
-			FillColor:   uimath.ColorWhite,
+			FillColor:   cfg.BgColor,
 			BorderColor: dotColor,
 			BorderWidth: 2,
 			Corners:     uimath.CornersAll(dotR),
@@ -150,7 +150,7 @@ func (t *Timeline) Draw(buf *render.CommandBuffer) {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 			cfg.TextRenderer.DrawText(buf, item.Label, textX, y, cfg.FontSize, bounds.Width-textX+bounds.X, cfg.TextColor, 1)
 			if item.Content != "" {
-				cfg.TextRenderer.DrawText(buf, item.Content, textX, y+lh+2, cfg.FontSizeSm, bounds.Width-textX+bounds.X, cfg.DisabledColor, 1)
+				cfg.TextRenderer.DrawText(buf, item.Content, textX, y+lh+2, cfg.FontSizeSm, bounds.Width-textX+bounds.X, cfg.TextSecondaryColor, 1)
 			}
 		}
 	}

@@ -145,17 +145,13 @@ func (dp *DatePicker) Draw(buf *render.CommandBuffer) {
 	cx := bounds.X
 	cy := bounds.Y + bounds.Height + 4
 
-	// Shadow + background
-	buf.DrawOverlay(render.RectCmd{
-		Bounds:    uimath.NewRect(cx+2, cy+2, calW, calH),
-		FillColor: uimath.RGBA(0, 0, 0, 0.1),
-		Corners:   uimath.CornersAll(cfg.BorderRadius),
-	}, 40, 1)
+	// Real blurred shadow instead of an offset rectangle (§12 materials).
+	buf.DrawOverlayShadow(cfg.FloatingShadow(uimath.NewRect(cx, cy, calW, calH), false), 40, 1)
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:      uimath.NewRect(cx, cy, calW, calH),
-		FillColor:   uimath.ColorWhite,
-		BorderColor: cfg.BorderColor,
-		BorderWidth: 1,
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 41, 1)
 
@@ -330,6 +326,71 @@ func (tp *TimePicker) Draw(buf *render.CommandBuffer) {
 	if cfg.TextRenderer != nil {
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
 		emitOverlayText(cfg, buf, label, bounds.X+cfg.SpaceSM, bounds.Y+(bounds.Height-lh)/2, cfg.FontSize, bounds.Width-cfg.SpaceSM*2, cfg.TextColor, 1, dropdownTextZ)
+	}
+
+	// Time dropdown. The hit cells were always registered, but the panel
+	// itself was never painted, leaving an invisible clickable surface.
+	// Draw it as real floating material (§12), using the exact geometry
+	// from placeCells() so labels line up with their hit targets.
+	if !tp.open {
+		return
+	}
+	const cell = float32(28)
+	originY := bounds.Y + bounds.Height + 4
+	minY := originY + 6*cell + 8
+	panelW := float32(4 * 40)
+	panelH := minY - originY + 28
+
+	buf.DrawOverlayShadow(cfg.FloatingShadow(uimath.NewRect(bounds.X, originY, panelW, panelH), false), 40, 1)
+	buf.DrawOverlay(render.RectCmd{
+		Bounds:      uimath.NewRect(bounds.X, originY, panelW, panelH),
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
+		Corners:     uimath.CornersAll(cfg.BorderRadius),
+	}, 41, 1)
+
+	if cfg.TextRenderer == nil {
+		return
+	}
+	lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
+	for h := 0; h < 24; h++ {
+		col, row := h/6, h%6
+		rx := bounds.X + float32(col)*cell
+		ry := originY + float32(row)*cell
+		selected := h == tp.hour
+		if selected {
+			buf.DrawOverlay(render.RectCmd{
+				Bounds:    uimath.NewRect(rx+2, ry+2, cell-4, cell-4),
+				FillColor: cfg.PrimaryColor,
+				Corners:   uimath.CornersAll(cell / 2),
+			}, 42, 1)
+		}
+		txt := pad2(h)
+		tw := cfg.TextRenderer.MeasureText(txt, cfg.FontSizeSm)
+		color := cfg.TextColor
+		if selected {
+			color = uimath.ColorWhite
+		}
+		emitOverlayText(cfg, buf, txt, rx+(cell-tw)/2, ry+(cell-lh)/2, cfg.FontSizeSm, cell, color, 1, dropdownTextZ)
+	}
+	for i, m := range []int{0, 15, 30, 45} {
+		rx := bounds.X + float32(i)*40
+		selected := m == tp.minute
+		if selected {
+			buf.DrawOverlay(render.RectCmd{
+				Bounds:    uimath.NewRect(rx+2, minY+2, 36, 24),
+				FillColor: cfg.PrimaryColor,
+				Corners:   uimath.CornersAll(12),
+			}, 42, 1)
+		}
+		txt := pad2(m)
+		tw := cfg.TextRenderer.MeasureText(txt, cfg.FontSizeSm)
+		color := cfg.TextColor
+		if selected {
+			color = uimath.ColorWhite
+		}
+		emitOverlayText(cfg, buf, txt, rx+(40-tw)/2, minY+(28-lh)/2, cfg.FontSizeSm, 40, color, 1, dropdownTextZ)
 	}
 }
 

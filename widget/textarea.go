@@ -942,7 +942,7 @@ func (ta *TextArea) Draw(buf *render.CommandBuffer) {
 	// Draw character counter at bottom-right
 	if ta.showLimitNumber && ta.maxLength > 0 {
 		counterText := fmt.Sprintf("%d/%d", len([]rune(ta.value)), ta.maxLength)
-		counterColor := cfg.DisabledColor
+		counterColor := cfg.TextSecondaryColor
 		if len([]rune(ta.value)) > ta.maxLength {
 			counterColor = cfg.ErrorColor
 		}
@@ -965,7 +965,7 @@ func (ta *TextArea) Draw(buf *render.CommandBuffer) {
 	if ta.tips != "" {
 		tipsColor := cfg.StatusBorderColor(ta.status)
 		if ta.status == StatusDefault {
-			tipsColor = cfg.DisabledColor
+			tipsColor = cfg.TextSecondaryColor
 		}
 		tipsFontSize := cfg.FontSizeSm
 		tipsY := bounds.Y + bounds.Height + 4

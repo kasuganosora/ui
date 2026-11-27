@@ -383,7 +383,7 @@ func (e *RichEditor) Draw(buf *render.CommandBuffer) {
 	cfg := e.config
 	lines := textLines(e.text)
 	buf.PushClip(b)
-	buf.DrawRect(render.RectCmd{Bounds: b, FillColor: uimath.ColorWhite}, 0, 1)
+	buf.DrawRect(render.RectCmd{Bounds: b, FillColor: cfg.BgColor}, 0, 1)
 	lo, hi := orderPos(e.anchor, e.caret)
 	for i, line := range lines {
 		y := b.Y + float32(i)*e.lineH - e.scrollY

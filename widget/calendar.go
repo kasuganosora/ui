@@ -107,7 +107,7 @@ func (c *Calendar) Draw(buf *render.CommandBuffer) {
 		if cfg.TextRenderer != nil {
 			tw := cfg.TextRenderer.MeasureText(d, cfg.FontSizeSm)
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-			cfg.TextRenderer.DrawText(buf, d, dx+(cs-tw)/2, bounds.Y+headerH+(cs-lh)/2, cfg.FontSizeSm, cs, cfg.DisabledColor, 1)
+			cfg.TextRenderer.DrawText(buf, d, dx+(cs-tw)/2, bounds.Y+headerH+(cs-lh)/2, cfg.FontSizeSm, cs, cfg.TextSecondaryColor, 1)
 		}
 	}
 

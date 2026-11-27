@@ -116,7 +116,7 @@ func (u *Upload) Draw(buf *render.CommandBuffer) {
 		text := "Click or drag to upload"
 		lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 		tw := cfg.TextRenderer.MeasureText(text, cfg.FontSizeSm)
-		cfg.TextRenderer.DrawText(buf, text, cx-tw/2, cy+18, cfg.FontSizeSm, bounds.Width, cfg.DisabledColor, 1)
+		cfg.TextRenderer.DrawText(buf, text, cx-tw/2, cy+18, cfg.FontSizeSm, bounds.Width, cfg.TextSecondaryColor, 1)
 		_ = lh
 	}
 }

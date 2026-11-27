@@ -136,7 +136,7 @@ func (p *Popconfirm) Cancel() {
 // drawArrow draws a small triangle pointing toward the anchor using stacked rects.
 func (p *Popconfirm) drawArrow(buf *render.CommandBuffer, popBounds uimath.Rect, z int32) {
 	arrowSize := float32(6)
-	bgColor := uimath.ColorWhite
+	bgColor := p.config.BgColor
 	switch p.placement {
 	case PlacementBottom:
 		// Arrow points up at top-center
@@ -192,19 +192,15 @@ func (p *Popconfirm) Draw(buf *render.CommandBuffer) {
 
 	popBounds := uimath.NewRect(x, y, p.width, h)
 
-	// Shadow
-	buf.DrawOverlay(render.RectCmd{
-		Bounds:    uimath.NewRect(x+2, y+2, p.width, h),
-		FillColor: uimath.RGBA(0, 0, 0, 0.12),
-		Corners:   uimath.CornersAll(cfg.BorderRadius),
-	}, 50, 1)
+	// Real blurred shadow instead of an offset rectangle (§12 materials).
+	buf.DrawOverlayShadow(cfg.FloatingShadow(popBounds, false), 50, 1)
 
 	// Background
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:      uimath.NewRect(x, y, p.width, h),
-		FillColor:   uimath.ColorWhite,
-		BorderColor: cfg.BorderColor,
-		BorderWidth: 1,
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 51, 1)
 
@@ -250,7 +246,7 @@ func (p *Popconfirm) Draw(buf *render.CommandBuffer) {
 	cancelBounds := uimath.NewRect(cancelX, btnY, btnW, btnH)
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:      cancelBounds,
-		FillColor:   uimath.ColorWhite,
+		FillColor:   cfg.BgColor,
 		BorderColor: cfg.BorderColor,
 		BorderWidth: 1,
 		Corners:     uimath.CornersAll(cfg.BorderRadius),

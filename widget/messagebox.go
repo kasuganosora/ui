@@ -154,7 +154,7 @@ func (mb *MessageBox) Draw(buf *render.CommandBuffer) {
 	// Backdrop
 	buf.DrawRect(render.RectCmd{
 		Bounds:    bounds,
-		FillColor: uimath.RGBA(0, 0, 0, 0.45),
+		FillColor: cfg.EffectiveMaskColor(),
 	}, 10, 1)
 
 	// Panel
@@ -166,10 +166,17 @@ func (mb *MessageBox) Draw(buf *render.CommandBuffer) {
 	panelX := bounds.X + (bounds.Width-panelW)/2
 	panelY := bounds.Y + (bounds.Height-panelH)/2
 
+	// A modal surface needs depth against the scrim, not just a flat fill.
+	// Emitted at the backdrop's z: backends stable-sort the whole frame, so
+	// the shadow lands above the scrim and below the panel (§12 materials).
+	buf.DrawShadow(cfg.FloatingShadow(uimath.NewRect(panelX, panelY, panelW, panelH), true), 10, 1)
+
 	buf.DrawRect(render.RectCmd{
-		Bounds:    uimath.NewRect(panelX, panelY, panelW, panelH),
-		FillColor: uimath.ColorWhite,
-		Corners:   uimath.CornersAll(cfg.BorderRadius),
+		Bounds:      uimath.NewRect(panelX, panelY, panelW, panelH),
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
+		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 11, 1)
 
 	// Icon dot
@@ -206,14 +213,14 @@ func (mb *MessageBox) Draw(buf *render.CommandBuffer) {
 		contentY := panelY + cfg.SpaceLG + iconSize + cfg.SpaceMD
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSize)
-			emitText(cfg, buf, mb.content, titleX, contentY, cfg.FontSize, panelW-cfg.SpaceLG*2-iconSize-cfg.SpaceSM, uimath.RGBA(0, 0, 0, 0.65), 1, dialogTextZ)
+			emitText(cfg, buf, mb.content, titleX, contentY, cfg.FontSize, panelW-cfg.SpaceLG*2-iconSize-cfg.SpaceSM, cfg.TextSecondaryColor, 1, dialogTextZ)
 			_ = lh
 		} else {
 			tw := float32(len(mb.content)) * cfg.FontSize * 0.55
 			th := cfg.Leading(cfg.FontSize)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(titleX, contentY, tw, th),
-				FillColor: uimath.RGBA(0, 0, 0, 0.65),
+				FillColor: cfg.TextSecondaryColor,
 				Corners:   uimath.CornersAll(2),
 			}, 12, 1)
 		}
@@ -234,7 +241,7 @@ func (mb *MessageBox) Draw(buf *render.CommandBuffer) {
 		cancelX := panelX + panelW - cfg.SpaceLG - cancelW
 		buf.DrawRect(render.RectCmd{
 			Bounds:      uimath.NewRect(cancelX, btnY, cancelW, btnH),
-			FillColor:   uimath.ColorWhite,
+			FillColor:   cfg.BgColor,
 			BorderColor: cfg.BorderColor,
 			BorderWidth: 1,
 			Corners:     uimath.CornersAll(cfg.BorderRadius),

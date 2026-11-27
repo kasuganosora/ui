@@ -115,7 +115,7 @@ func (f *Formula) Draw(buf *render.CommandBuffer) {
 		return
 	}
 	buf.PushClip(b)
-	buf.DrawRect(render.RectCmd{Bounds: b, FillColor: uimath.ColorWhite}, 0, 1)
+	buf.DrawRect(render.RectCmd{Bounds: b, FillColor: f.config.BgColor}, 0, 1)
 	f.drawNode(buf, f.root)
 	buf.PopClip()
 }

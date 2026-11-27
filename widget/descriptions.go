@@ -96,7 +96,7 @@ func (d *Descriptions) Draw(buf *render.CommandBuffer) {
 
 		if cfg.TextRenderer != nil {
 			lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-			cfg.TextRenderer.DrawText(buf, item.Label, cx+cfg.SpaceSM, cy+(d.rowH-lh)/2, cfg.FontSizeSm, labelW-cfg.SpaceSM*2, cfg.DisabledColor, 1)
+			cfg.TextRenderer.DrawText(buf, item.Label, cx+cfg.SpaceSM, cy+(d.rowH-lh)/2, cfg.FontSizeSm, labelW-cfg.SpaceSM*2, cfg.TextSecondaryColor, 1)
 			cfg.TextRenderer.DrawText(buf, item.Value, cx+labelW+cfg.SpaceSM, cy+(d.rowH-lh)/2, cfg.FontSizeSm, colW-labelW-cfg.SpaceSM*2, cfg.TextColor, 1)
 		}
 	}

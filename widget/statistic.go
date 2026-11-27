@@ -176,7 +176,7 @@ func (s *Statistic) Draw(buf *render.CommandBuffer) {
 
 	// Title
 	lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-	cfg.TextRenderer.DrawText(buf, s.title, bounds.X, bounds.Y, cfg.FontSizeSm, bounds.Width, cfg.DisabledColor, 1)
+	cfg.TextRenderer.DrawText(buf, s.title, bounds.X, bounds.Y, cfg.FontSizeSm, bounds.Width, cfg.TextSecondaryColor, 1)
 
 	// Determine value color
 	color := cfg.TextColor

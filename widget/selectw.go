@@ -513,20 +513,14 @@ func (s *Select) drawDropdown(buf *render.CommandBuffer, triggerBounds uimath.Re
 
 	// Draw dropdown as overlay — escapes parent clip regions
 	// Shadow
-	shadowOffset := float32(2)
-	shadowBlur := float32(8)
-	buf.DrawOverlay(render.RectCmd{
-		Bounds:    uimath.NewRect(dropRect.X+shadowOffset, dropRect.Y+shadowOffset, dropRect.Width+shadowBlur, dropRect.Height+shadowBlur),
-		FillColor: uimath.RGBA(0, 0, 0, 0.12),
-		Corners:   uimath.CornersAll(cfg.BorderRadius + 2),
-	}, 100, 1)
+	buf.DrawOverlayShadow(cfg.FloatingShadow(dropRect, false), 100, 1)
 
 	// Background
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:      dropRect,
-		FillColor:   uimath.ColorWhite,
-		BorderColor: cfg.BorderColor,
-		BorderWidth: 1,
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 101, 1)
 

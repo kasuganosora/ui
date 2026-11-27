@@ -338,6 +338,10 @@ func (a *App) SetTheme(t *theme.Theme) {
 	a.cfg.ActiveColor = cv.ActiveColor
 	a.cfg.FocusBorderColor = cv.FocusBorderColor
 	a.cfg.ErrorColor = cv.ErrorColor
+	a.cfg.TextSecondaryColor = cv.TextSecondaryColor
+	a.cfg.MaskColor = cv.MaskColor
+	a.cfg.ShadowColor = cv.ShadowColor
+	a.cfg.ShadowY = cv.ShadowY
 	a.cfg.FontSize = cv.FontSize
 	a.cfg.FontSizeSm = cv.FontSizeSm
 	a.cfg.FontSizeLg = cv.FontSizeLg

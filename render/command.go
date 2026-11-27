@@ -305,6 +305,21 @@ func (cb *CommandBuffer) DrawShadow(cmd ShadowCmd, zOrder int32, opacity float32
 	})
 }
 
+// DrawOverlayShadow adds a shadow command to the overlay layer. Backends
+// submit Commands() and Overlays() as two independently z-sorted batches, so
+// a shadow behind a panel painted with DrawOverlay must live in the same
+// batch; otherwise the panel is drawn over it regardless of z-order.
+func (cb *CommandBuffer) DrawOverlayShadow(cmd ShadowCmd, zOrder int32, opacity float32) {
+	sc := cb.acquireShadow()
+	*sc = cmd
+	cb.overlays = append(cb.overlays, Command{
+		Type:    CmdShadow,
+		ZOrder:  zOrder + cb.layerBase,
+		Opacity: opacity,
+		Shadow:  sc,
+	})
+}
+
 // CurrentClip returns the current active clip rectangle.
 // Returns a very large rect if no clip is active (everything visible).
 func (cb *CommandBuffer) CurrentClip() uimath.Rect {

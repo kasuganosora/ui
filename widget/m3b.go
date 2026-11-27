@@ -312,7 +312,8 @@ func (h *HoverCard) Draw(buf *render.CommandBuffer) {
 	buf.DrawRect(render.RectCmd{Bounds: b, FillColor: h.config.BgColor, BorderColor: h.config.BorderColor, BorderWidth: 1}, 1, 1)
 	if h.open {
 		card := uimath.NewRect(b.X, b.Y+b.Height+4, 160, 64)
-		buf.DrawOverlay(render.RectCmd{Bounds: card, FillColor: uimath.ColorWhite, BorderColor: h.config.BorderColor, BorderWidth: 1}, 20, 1)
+		buf.DrawOverlayShadow(h.config.FloatingShadow(card, false), 19, 1)
+		buf.DrawOverlay(render.RectCmd{Bounds: card, FillColor: h.config.BgColor, BorderColor: h.config.PanelBorderColor(), BorderWidth: h.config.PanelBorderWidth(), Corners: uimath.CornersAll(h.config.BorderRadius)}, 20, 1)
 	}
 }
 
@@ -549,7 +550,8 @@ func (s *SuggestList) Draw(buf *render.CommandBuffer) {
 	defer withLayer(buf, s.tree, s.id)()
 	for i := range s.items {
 		r := uimath.NewRect(s.anchor.X, s.anchor.Y+s.anchor.Height+2+float32(i)*24, s.anchor.Width, 24)
-		buf.DrawOverlay(render.RectCmd{Bounds: r, FillColor: uimath.ColorWhite, BorderColor: s.config.BorderColor, BorderWidth: 1}, 30, 1)
+		buf.DrawOverlayShadow(s.config.FloatingShadow(r, false), 29, 1)
+		buf.DrawOverlay(render.RectCmd{Bounds: r, FillColor: s.config.BgColor, BorderColor: s.config.PanelBorderColor(), BorderWidth: s.config.PanelBorderWidth(), Corners: uimath.CornersAll(s.config.BorderRadius)}, 30, 1)
 	}
 }
 
@@ -701,15 +703,37 @@ func (c *Command) Draw(buf *render.CommandBuffer) {
 	if b.IsEmpty() {
 		return
 	}
-	buf.DrawRect(render.RectCmd{Bounds: uimath.NewRect(b.X, b.Y, b.Width, 28), FillColor: c.config.BgColor, BorderColor: c.config.BorderColor, BorderWidth: 1}, 1, 1)
 	start, end, _ := c.window()
+	panel := uimath.NewRect(b.X, b.Y, b.Width, 32+float32(end-start)*28)
+
+	// One floating material surface replaces the old stack of white rows
+	// separated by hard 1px rules. The shadow shares the scrim's z so the
+	// stable frame sort keeps scrim -> shadow -> panel (§12 materials).
+	buf.DrawOverlayShadow(c.config.FloatingShadow(panel, true), 10, 1)
+	buf.DrawOverlay(render.RectCmd{
+		Bounds:      panel,
+		FillColor:   c.config.BgColor,
+		BorderColor: c.config.PanelBorderColor(),
+		BorderWidth: c.config.PanelBorderWidth(),
+		Corners:     uimath.CornersAll(c.config.BorderRadius),
+	}, 11, 1)
+	buf.DrawOverlay(render.RectCmd{
+		Bounds:    uimath.NewRect(b.X, b.Y, b.Width, 28),
+		FillColor: c.config.BgColor,
+		Corners:   uimath.CornersAll(c.config.BorderRadius),
+	}, 12, 1)
+
 	vis := 0
 	for i := start; i < end; i++ {
-		fill := uimath.ColorWhite
+		fill := c.config.BgColor
 		if i == c.index {
 			fill = c.config.PrimaryColor
 		}
-		buf.DrawOverlay(render.RectCmd{Bounds: c.rowBounds(vis), FillColor: fill, BorderColor: c.config.BorderColor, BorderWidth: 1}, 40, 1)
+		buf.DrawOverlay(render.RectCmd{
+			Bounds:    c.rowBounds(vis),
+			FillColor: fill,
+			Corners:   uimath.CornersAll(c.config.BorderRadius),
+		}, 40, 1)
 		vis++
 	}
 }
@@ -796,6 +820,6 @@ func (d *CommandDialog) Draw(buf *render.CommandBuffer) {
 	if b.IsEmpty() {
 		return
 	}
-	buf.DrawRect(render.RectCmd{Bounds: b, FillColor: uimath.Color{R: 0, G: 0, B: 0, A: 0.45}}, 10, 1)
+	buf.DrawRect(render.RectCmd{Bounds: b, FillColor: d.config.EffectiveMaskColor()}, 10, 1)
 	d.cmd.Draw(buf)
 }

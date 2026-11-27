@@ -259,10 +259,11 @@ func (d *Dialog) Draw(buf *render.CommandBuffer) {
 
 	cfg := d.config
 
-	// Backdrop (semi-transparent overlay)
+	// Backdrop dims the content behind a modal task. Read the theme token so
+	// dark themes are not washed out by a hardcoded light-mode scrim.
 	buf.DrawRect(render.RectCmd{
 		Bounds:    bounds,
-		FillColor: uimath.Color{R: 0, G: 0, B: 0, A: 0.45},
+		FillColor: cfg.EffectiveMaskColor(),
 	}, 10, 1)
 
 	// Dialog panel centered
@@ -279,11 +280,19 @@ func (d *Dialog) Draw(buf *render.CommandBuffer) {
 	panelX := bounds.X + (bounds.Width-panelW)/2
 	panelY := bounds.Y + (bounds.Height-panelH)/2
 
+	// A real blurred shadow separates the modal surface from the scrim; a
+	// hard 1px outline reads as a divider instead of depth. Emitted after
+	// the backdrop at the same z: stable z-order keeps it above the scrim
+	// and below the panel.
+	buf.DrawShadow(cfg.FloatingShadow(uimath.NewRect(panelX, panelY, panelW, panelH), true), 10, 1)
+
 	// Panel background
 	buf.DrawRect(render.RectCmd{
-		Bounds:    uimath.NewRect(panelX, panelY, panelW, panelH),
-		FillColor: uimath.ColorWhite,
-		Corners:   uimath.CornersAll(cfg.BorderRadius),
+		Bounds:      uimath.NewRect(panelX, panelY, panelW, panelH),
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
+		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 11, 1)
 
 	// Title bar
@@ -326,10 +335,10 @@ func (d *Dialog) Draw(buf *render.CommandBuffer) {
 		Bounds: uimath.NewRect(closeX-4, closeY-4, closeHit, closeHit),
 	})
 
-	// Title divider
+	// Title divider — a soft hairline rather than a hard 1px rule.
 	buf.DrawRect(render.RectCmd{
 		Bounds:    uimath.NewRect(panelX, panelY+titleH, panelW, 1),
-		FillColor: cfg.BorderColor,
+		FillColor: cfg.Hairline(),
 	}, 12, 1)
 
 	// Content area
@@ -341,10 +350,10 @@ func (d *Dialog) Draw(buf *render.CommandBuffer) {
 	if d.footer {
 		footerY := panelY + panelH - footerH
 
-		// Footer top border
+		// Footer top border — a soft hairline rather than a hard 1px rule.
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(panelX, footerY, panelW, 1),
-			FillColor: cfg.BorderColor,
+			FillColor: cfg.Hairline(),
 		}, 12, 1)
 
 		// Buttons area (right-aligned)
@@ -373,10 +382,11 @@ func (d *Dialog) Draw(buf *render.CommandBuffer) {
 		confirmBtnX := panelX + panelW - cfg.SpaceLG - confirmBtnW
 		cancelBtnX := confirmBtnX - btnGap - cancelBtnW
 
-		// Cancel button (outline style)
+		// Cancel button (outline style) — fill follows the panel surface so
+		// dark themes no longer show a white rectangle inside the dialog.
 		buf.DrawRect(render.RectCmd{
 			Bounds:      uimath.NewRect(cancelBtnX, btnY, cancelBtnW, btnH),
-			FillColor:   uimath.ColorWhite,
+			FillColor:   cfg.BgColor,
 			BorderColor: cfg.BorderColor,
 			BorderWidth: 1,
 			Corners:     uimath.CornersAll(cfg.BorderRadius),

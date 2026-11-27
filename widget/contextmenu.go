@@ -125,19 +125,15 @@ func (cm *ContextMenu) Draw(buf *render.CommandBuffer) {
 	}
 	totalH += cfg.SpaceXS * 2 // padding top/bottom
 
-	// Shadow
-	buf.DrawOverlay(render.RectCmd{
-		Bounds:    uimath.NewRect(cm.x+2, cm.y+2, cm.width, totalH),
-		FillColor: uimath.RGBA(0, 0, 0, 0.12),
-		Corners:   uimath.CornersAll(cfg.BorderRadius),
-	}, 60, 1)
+	// Real blurred shadow instead of an offset rectangle (§12 materials).
+	buf.DrawOverlayShadow(cfg.FloatingShadow(uimath.NewRect(cm.x, cm.y, cm.width, totalH), false), 60, 1)
 
 	// Background
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:      uimath.NewRect(cm.x, cm.y, cm.width, totalH),
-		FillColor:   uimath.ColorWhite,
-		BorderColor: cfg.BorderColor,
-		BorderWidth: 1,
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 61, 1)
 

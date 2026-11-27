@@ -178,7 +178,7 @@ func (d *Divider) Draw(buf *render.CommandBuffer) {
 			// Text
 			if cfg.TextRenderer != nil {
 				lh := cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
-				cfg.TextRenderer.DrawText(buf, d.content, textX, bounds.Y+(bounds.Height-lh)/2, cfg.FontSizeSm, textW, uimath.RGBA(0, 0, 0, 0.45), 1)
+				cfg.TextRenderer.DrawText(buf, d.content, textX, bounds.Y+(bounds.Height-lh)/2, cfg.FontSizeSm, textW, cfg.TextSecondaryColor, 1)
 			}
 		}
 	}

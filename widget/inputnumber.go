@@ -212,7 +212,7 @@ func (n *InputNumber) drawNormal(buf *render.CommandBuffer, bounds uimath.Rect) 
 	}
 	buf.DrawRect(render.RectCmd{
 		Bounds:      bounds,
-		FillColor:   uimath.ColorWhite,
+		FillColor:   cfg.BgColor,
 		BorderColor: borderClr,
 		BorderWidth: cfg.BorderWidth,
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
@@ -273,7 +273,7 @@ func (n *InputNumber) drawColumn(buf *render.CommandBuffer, bounds uimath.Rect) 
 	}
 	buf.DrawRect(render.RectCmd{
 		Bounds:      bounds,
-		FillColor:   uimath.ColorWhite,
+		FillColor:   cfg.BgColor,
 		BorderColor: borderClr,
 		BorderWidth: cfg.BorderWidth,
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
@@ -335,7 +335,7 @@ func (n *InputNumber) drawInputOnly(buf *render.CommandBuffer, bounds uimath.Rec
 	}
 	buf.DrawRect(render.RectCmd{
 		Bounds:      bounds,
-		FillColor:   uimath.ColorWhite,
+		FillColor:   cfg.BgColor,
 		BorderColor: borderClr,
 		BorderWidth: cfg.BorderWidth,
 		Corners:     uimath.CornersAll(cfg.BorderRadius),

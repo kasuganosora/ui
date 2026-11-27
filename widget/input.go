@@ -801,7 +801,7 @@ func (inp *Input) Draw(buf *render.CommandBuffer) {
 	// Draw limit counter on right side
 	if inp.showLimitNumber && inp.maxLength > 0 {
 		counterText := fmt.Sprintf("%d/%d", len([]rune(inp.value)), inp.maxLength)
-		counterColor := cfg.DisabledColor
+		counterColor := cfg.TextSecondaryColor
 		if len([]rune(inp.value)) > inp.maxLength {
 			counterColor = cfg.ErrorColor
 		}
@@ -872,7 +872,7 @@ func (inp *Input) Draw(buf *render.CommandBuffer) {
 	if inp.tips != "" {
 		tipsColor := cfg.StatusBorderColor(inp.status)
 		if inp.status == StatusDefault {
-			tipsColor = cfg.DisabledColor
+			tipsColor = cfg.TextSecondaryColor
 		}
 		tipsFontSize := cfg.FontSizeSm
 		tipsY := bounds.Y + bounds.Height + 4

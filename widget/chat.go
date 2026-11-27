@@ -310,7 +310,7 @@ func (c *Chat) Draw(buf *render.CommandBuffer) {
 	buf.PopClip()
 	comp := uimath.NewRect(b.X, list.Y+list.Height, b.Width, c.composerH)
 	buf.PushClip(comp)
-	buf.DrawRect(render.RectCmd{Bounds: comp, FillColor: uimath.ColorWhite}, 1, 1)
+	buf.DrawRect(render.RectCmd{Bounds: comp, FillColor: c.config.BgColor}, 1, 1)
 	if c.draft != "" {
 		emitText(c.config, buf, c.draft, comp.X+c.pad, comp.Y+6, c.config.FontSizeSm, comp.Width, c.config.TextColor, 1, 4)
 	}

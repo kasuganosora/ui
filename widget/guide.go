@@ -19,12 +19,13 @@ type GuideStep struct {
 // Guide provides a step-by-step onboarding overlay.
 type Guide struct {
 	Base
-	steps     []GuideStep
-	current   int
-	visible   bool
-	maskColor uimath.Color
-	onFinish  func()
-	onChange  func(int)
+	steps          []GuideStep
+	current        int
+	visible        bool
+	maskColor      uimath.Color
+	maskOverridden bool
+	onFinish       func()
+	onChange       func(int)
 }
 
 func NewGuide(tree *core.Tree, cfg *Config) *Guide {
@@ -32,17 +33,19 @@ func NewGuide(tree *core.Tree, cfg *Config) *Guide {
 		cfg = DefaultConfig()
 	}
 	return &Guide{
-		Base:      NewBase(tree, core.TypeCustom, cfg),
-		maskColor: uimath.RGBA(0, 0, 0, 0.5),
+		Base: NewBase(tree, core.TypeCustom, cfg),
 	}
 }
 
-func (g *Guide) Steps() []GuideStep          { return g.steps }
-func (g *Guide) Current() int                { return g.current }
-func (g *Guide) IsVisible() bool             { return g.visible }
-func (g *Guide) SetMaskColor(c uimath.Color) { g.maskColor = c }
-func (g *Guide) OnFinish(fn func())          { g.onFinish = fn }
-func (g *Guide) OnChange(fn func(int))       { g.onChange = fn }
+func (g *Guide) Steps() []GuideStep { return g.steps }
+func (g *Guide) Current() int       { return g.current }
+func (g *Guide) IsVisible() bool    { return g.visible }
+func (g *Guide) SetMaskColor(c uimath.Color) {
+	g.maskColor = c
+	g.maskOverridden = true
+}
+func (g *Guide) OnFinish(fn func())    { g.onFinish = fn }
+func (g *Guide) OnChange(fn func(int)) { g.onChange = fn }
 
 func (g *Guide) SetSteps(steps []GuideStep) {
 	g.steps = make([]GuideStep, len(steps))
@@ -90,11 +93,15 @@ func (g *Guide) Draw(buf *render.CommandBuffer) {
 	}
 	cfg := g.config
 	step := g.steps[g.current]
+	mask := cfg.EffectiveMaskColor()
+	if g.maskOverridden {
+		mask = g.maskColor
+	}
 
 	// Semi-transparent mask overlay (full screen — using large bounds)
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:    uimath.NewRect(0, 0, 9999, 9999),
-		FillColor: g.maskColor,
+		FillColor: mask,
 	}, 80, 1)
 
 	// Highlight cutout (clear area around target)
@@ -113,11 +120,12 @@ func (g *Guide) Draw(buf *render.CommandBuffer) {
 	cardX := step.TargetX + step.TargetW + 12
 	cardY := step.TargetY
 
+	buf.DrawOverlayShadow(cfg.FloatingShadow(uimath.NewRect(cardX, cardY, cardW, cardH), true), 82, 1)
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:      uimath.NewRect(cardX, cardY, cardW, cardH),
-		FillColor:   uimath.ColorWhite,
-		BorderColor: cfg.BorderColor,
-		BorderWidth: 1,
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 83, 1)
 
@@ -128,12 +136,12 @@ func (g *Guide) Draw(buf *render.CommandBuffer) {
 
 		// Description
 		if step.Description != "" {
-			emitOverlayText(cfg, buf, step.Description, cardX+cfg.SpaceSM, cardY+cfg.SpaceSM+lh+4, cfg.FontSizeSm, cardW-cfg.SpaceSM*2, cfg.DisabledColor, 1, guideTextZ)
+			emitOverlayText(cfg, buf, step.Description, cardX+cfg.SpaceSM, cardY+cfg.SpaceSM+lh+4, cfg.FontSizeSm, cardW-cfg.SpaceSM*2, cfg.TextSecondaryColor, 1, guideTextZ)
 		}
 
 		// Step indicator
 		indicator := intToStr(g.current+1) + " / " + intToStr(len(g.steps))
 		tw := cfg.TextRenderer.MeasureText(indicator, cfg.FontSizeSm)
-		emitOverlayText(cfg, buf, indicator, cardX+cardW-tw-cfg.SpaceSM, cardY+cardH-cfg.TextRenderer.LineHeight(cfg.FontSizeSm)-cfg.SpaceSM, cfg.FontSizeSm, tw+4, cfg.DisabledColor, 1, guideTextZ)
+		emitOverlayText(cfg, buf, indicator, cardX+cardW-tw-cfg.SpaceSM, cardY+cardH-cfg.TextRenderer.LineHeight(cfg.FontSizeSm)-cfg.SpaceSM, cfg.FontSizeSm, tw+4, cfg.TextSecondaryColor, 1, guideTextZ)
 	}
 }

@@ -71,7 +71,7 @@ func (c *Comment) Draw(buf *render.CommandBuffer) {
 		// Time
 		if c.data.Time != "" {
 			authorW := cfg.TextRenderer.MeasureText(c.data.Author, cfg.FontSizeSm)
-			cfg.TextRenderer.DrawText(buf, c.data.Time, textX+authorW+cfg.SpaceSM, bounds.Y, cfg.FontSizeSm, bounds.Width, cfg.DisabledColor, 1)
+			cfg.TextRenderer.DrawText(buf, c.data.Time, textX+authorW+cfg.SpaceSM, bounds.Y, cfg.FontSizeSm, bounds.Width, cfg.TextSecondaryColor, 1)
 		}
 		// Content
 		cfg.TextRenderer.DrawText(buf, c.data.Content, textX, bounds.Y+lh+4, cfg.FontSize, bounds.Width-textX+bounds.X, cfg.TextColor, 1)

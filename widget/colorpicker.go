@@ -227,11 +227,12 @@ func (cp *ColorPicker) Draw(buf *render.CommandBuffer) {
 	panelX := bounds.X
 	panelY := bounds.Y + swatchSize + 4
 
+	buf.DrawOverlayShadow(cfg.FloatingShadow(uimath.NewRect(panelX, panelY, panelW, panelH), false), 19, 1)
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:      uimath.NewRect(panelX, panelY, panelW, panelH),
-		FillColor:   uimath.ColorWhite,
-		BorderColor: cfg.BorderColor,
-		BorderWidth: 1,
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 20, 1)
 

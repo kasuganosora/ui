@@ -22,7 +22,7 @@ func NewPanel(tree *core.Tree, title string, cfg *Config) *Panel {
 	p := &Panel{
 		Base:     NewBase(tree, core.TypeDiv, cfg),
 		title:    title,
-		bgColor:  uimath.ColorWhite,
+		bgColor:  cfg.BgColor,
 		bordered: true,
 	}
 	p.style.Display = layout.DisplayFlex

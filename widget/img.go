@@ -575,7 +575,7 @@ func (img *Img) drawFallback(buf *render.CommandBuffer, bounds uimath.Rect) {
 			if img.alt != "" && cfg.TextRenderer != nil {
 				textY := iy + iconSize + 4
 				maxW := bounds.Width - 8
-				cfg.TextRenderer.DrawText(buf, img.alt, bounds.X+4, textY, cfg.FontSizeSm, maxW, cfg.DisabledColor, 1)
+				cfg.TextRenderer.DrawText(buf, img.alt, bounds.X+4, textY, cfg.FontSizeSm, maxW, cfg.TextSecondaryColor, 1)
 			}
 		}
 		return

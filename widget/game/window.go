@@ -129,11 +129,7 @@ func (w *Window) Draw(buf *render.CommandBuffer) {
 	bw, bh := bounds.Width, bounds.Height
 
 	if w.shadow {
-		buf.DrawRect(render.RectCmd{
-			Bounds:    uimath.NewRect(x+3, y+3, bw, bh),
-			FillColor: uimath.RGBA(0, 0, 0, 0.25),
-			Corners:   uimath.CornersAll(radius),
-		}, 0, 1)
+		buf.DrawShadow(cfg.FloatingShadow(uimath.NewRect(x, y, bw, bh), true), 0, 1)
 	}
 
 	buf.DrawRect(render.RectCmd{

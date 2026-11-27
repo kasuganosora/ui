@@ -248,11 +248,12 @@ func (c *Cascader) Draw(buf *render.CommandBuffer) {
 
 	for level := 0; opts != nil; level++ {
 		panelH := float32(len(opts)) * itemH
+		buf.DrawOverlayShadow(cfg.FloatingShadow(uimath.NewRect(dx, dy, panelW, panelH), false), int32(39+level), 1)
 		buf.DrawOverlay(render.RectCmd{
 			Bounds:      uimath.NewRect(dx, dy, panelW, panelH),
-			FillColor:   uimath.ColorWhite,
-			BorderColor: cfg.BorderColor,
-			BorderWidth: 1,
+			FillColor:   cfg.BgColor,
+			BorderColor: cfg.PanelBorderColor(),
+			BorderWidth: cfg.PanelBorderWidth(),
 			Corners:     uimath.CornersAll(cfg.BorderRadius),
 		}, int32(40+level), 1)
 

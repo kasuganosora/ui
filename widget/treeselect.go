@@ -156,11 +156,12 @@ func (ts *TreeSelect) Draw(buf *render.CommandBuffer) {
 		return
 	}
 	dy := bounds.Y + bounds.Height + 4
+	buf.DrawOverlayShadow(cfg.FloatingShadow(uimath.NewRect(bounds.X, dy, bounds.Width, ts.dropH), false), 39, 1)
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:      uimath.NewRect(bounds.X, dy, bounds.Width, ts.dropH),
-		FillColor:   uimath.ColorWhite,
-		BorderColor: cfg.BorderColor,
-		BorderWidth: 1,
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 40, 1)
 

@@ -177,6 +177,29 @@ type Config struct {
 	WarningColor     uimath.Color
 	SuccessColor     uimath.Color
 
+	// Semantic colors for hierarchy. Secondary text must stay legible on
+	// floating surfaces; using DisabledColor for body copy drops contrast
+	// below readable levels. Mask dims the background behind modal tasks.
+	TextSecondaryColor uimath.Color
+	MaskColor          uimath.Color
+
+	// Floating-surface material. A real blurred shadow separates a panel from
+	// its background without a hard 1px outline; heavier values read as
+	// thicker surfaces.
+	ShadowColor uimath.Color
+	ShadowY     float32
+	ShadowBlur  float32
+
+	// Accessibility (apple-design §14). The three signals are independent.
+	// ReducedMotion freezes decorative loops at a legible static state; it
+	// never disables functional state changes such as auto-dismiss timers.
+	// ReducedTransparency makes translucent materials (scrim, hairline,
+	// shadow) frostier and more solid. MoreContrast gives floating surfaces a
+	// defined, contrasting outline instead of relying on shadow alone.
+	ReducedMotion       bool
+	ReducedTransparency bool
+	MoreContrast        bool
+
 	// Typography
 	FontID     uint32
 	FontSize   float32
@@ -292,17 +315,22 @@ func (c *Config) DrawMDIconOverlay(buf *render.CommandBuffer, name string, x, y,
 func DefaultConfig() *Config {
 	return &Config{
 		// brand-color-7 (#0052d9)
-		PrimaryColor:     uimath.ColorHex("#0052d9"),
-		TextColor:        uimath.RGBA(0, 0, 0, 0.9),
-		BgColor:          uimath.ColorWhite,
-		BorderColor:      uimath.ColorHex("#dcdcdc"),
-		DisabledColor:    uimath.RGBA(0, 0, 0, 0.26),
-		HoverColor:       uimath.ColorHex("#366ef4"),
-		ActiveColor:      uimath.ColorHex("#003cab"),
-		FocusBorderColor: uimath.ColorHex("#0052d9"),
-		ErrorColor:       uimath.ColorHex("#d54941"),
-		WarningColor:     uimath.ColorHex("#e37318"),
-		SuccessColor:     uimath.ColorHex("#2ba471"),
+		PrimaryColor:       uimath.ColorHex("#0052d9"),
+		TextColor:          uimath.RGBA(0, 0, 0, 0.9),
+		BgColor:            uimath.ColorWhite,
+		BorderColor:        uimath.ColorHex("#dcdcdc"),
+		DisabledColor:      uimath.RGBA(0, 0, 0, 0.26),
+		HoverColor:         uimath.ColorHex("#366ef4"),
+		ActiveColor:        uimath.ColorHex("#003cab"),
+		FocusBorderColor:   uimath.ColorHex("#0052d9"),
+		ErrorColor:         uimath.ColorHex("#d54941"),
+		WarningColor:       uimath.ColorHex("#e37318"),
+		SuccessColor:       uimath.ColorHex("#2ba471"),
+		TextSecondaryColor: uimath.RGBA(0, 0, 0, 0.6),
+		MaskColor:          uimath.RGBA(0, 0, 0, 0.45),
+		ShadowColor:        uimath.RGBA(0, 0, 0, 0.12),
+		ShadowY:            4,
+		ShadowBlur:         16,
 
 		FontID:     0,
 		FontSize:   14,
@@ -324,6 +352,80 @@ func DefaultConfig() *Config {
 		ButtonHeight: 32,
 		InputHeight:  32,
 		IconSize:     16,
+	}
+}
+
+// Hairline returns a low-contrast separator derived from the theme border.
+// Section dividers should recede instead of reading as a hard 1px outline,
+// and deriving the color keeps dark themes consistent without a new token.
+// Reduced transparency / more contrast keep the full border so the divider
+// no longer depends on a faint alpha overlay (§14).
+func (c *Config) Hairline() uimath.Color {
+	clr := c.BorderColor
+	if c.ReducedTransparency || c.MoreContrast {
+		return clr
+	}
+	clr.A *= 0.45
+	return clr
+}
+
+// EffectiveMaskColor dims the background behind a modal task. The theme's
+// translucent scrim stays for normal rendering; reduced transparency and
+// higher contrast both ask for a frostier, near-solid surface (§14).
+func (c *Config) EffectiveMaskColor() uimath.Color {
+	m := c.MaskColor
+	if (c.ReducedTransparency || c.MoreContrast) && m.A < 0.75 {
+		m.A = 0.75
+	}
+	return m
+}
+
+// PanelBorderColor and PanelBorderWidth describe the outline of a floating
+// surface. They are zero normally (depth comes from the shadow) and become a
+// defined, contrasting edge under prefers-contrast: more (§14). Splitting the
+// two lets each RectCmd add both fields without introducing a local variable.
+func (c *Config) PanelBorderColor() uimath.Color {
+	if !c.MoreContrast {
+		return uimath.Color{}
+	}
+	return c.TextColor
+}
+
+func (c *Config) PanelBorderWidth() float32 {
+	if !c.MoreContrast {
+		return 0
+	}
+	if c.BorderWidth > 0 {
+		return c.BorderWidth
+	}
+	return 1
+}
+
+// FloatingShadow builds the SDF shadow for a floating panel. Material weight
+// follows surface size (apple-design §12): sheets, dialogs and subwindows use
+// heavy=true so they read as thicker than chips, menus and small popovers.
+// Reduced transparency / more contrast make the shadow itself more solid so
+// depth no longer relies on a faint translucent overlay (§14). Every floating
+// panel must pair this with a BgColor surface in the SAME command batch —
+// backends z-sort Commands() and Overlays() independently.
+func (c *Config) FloatingShadow(bounds uimath.Rect, heavy bool) render.ShadowCmd {
+	blur := c.ShadowBlur
+	if heavy {
+		blur *= 2
+	}
+	color := c.ShadowColor
+	if c.ReducedTransparency || c.MoreContrast {
+		color.A *= 2
+		if color.A > 1 {
+			color.A = 1
+		}
+	}
+	return render.ShadowCmd{
+		Bounds:     bounds,
+		Corners:    uimath.CornersAll(c.BorderRadius),
+		OffsetY:    c.ShadowY,
+		BlurRadius: blur,
+		Color:      color,
 	}
 }
 

@@ -330,27 +330,31 @@ func Compact() *Theme {
 // This allows gradual migration from Config to Theme.
 func (t *Theme) ToConfig() ConfigValues {
 	return ConfigValues{
-		PrimaryColor:     t.Primary,
-		TextColor:        t.TextPrimary,
-		BgColor:          t.BgPrimary,
-		BorderColor:      t.Border,
-		DisabledColor:    t.TextDisabled,
-		HoverColor:       t.PrimaryHover,
-		ActiveColor:      t.PrimaryActive,
-		FocusBorderColor: t.BorderFocus,
-		ErrorColor:       t.Error,
-		FontSize:         t.FontSizeMD,
-		FontSizeSm:       t.FontSizeSM,
-		FontSizeLg:       t.FontSizeLG,
-		SpaceXS:          t.SpaceXS,
-		SpaceSM:          t.SpaceSM,
-		SpaceMD:          t.SpaceMD,
-		SpaceLG:          t.SpaceLG,
-		SpaceXL:          t.SpaceXL,
-		BorderRadius:     t.RadiusMD,
-		BorderWidth:      t.BorderWidth,
-		ButtonHeight:     t.HeightMD,
-		InputHeight:      t.HeightMD,
+		PrimaryColor:       t.Primary,
+		TextColor:          t.TextPrimary,
+		BgColor:            t.BgPrimary,
+		BorderColor:        t.Border,
+		DisabledColor:      t.TextDisabled,
+		HoverColor:         t.PrimaryHover,
+		ActiveColor:        t.PrimaryActive,
+		FocusBorderColor:   t.BorderFocus,
+		ErrorColor:         t.Error,
+		TextSecondaryColor: t.TextSecondary,
+		MaskColor:          t.Mask,
+		ShadowColor:        t.ShadowColor,
+		ShadowY:            t.ShadowMdY,
+		FontSize:           t.FontSizeMD,
+		FontSizeSm:         t.FontSizeSM,
+		FontSizeLg:         t.FontSizeLG,
+		SpaceXS:            t.SpaceXS,
+		SpaceSM:            t.SpaceSM,
+		SpaceMD:            t.SpaceMD,
+		SpaceLG:            t.SpaceLG,
+		SpaceXL:            t.SpaceXL,
+		BorderRadius:       t.RadiusMD,
+		BorderWidth:        t.BorderWidth,
+		ButtonHeight:       t.HeightMD,
+		InputHeight:        t.HeightMD,
 	}
 }
 
@@ -436,25 +440,29 @@ func (t *Theme) ToCSSVariables() map[string]string {
 
 // ConfigValues holds the flattened values that map to widget.Config fields.
 type ConfigValues struct {
-	PrimaryColor     uimath.Color
-	TextColor        uimath.Color
-	BgColor          uimath.Color
-	BorderColor      uimath.Color
-	DisabledColor    uimath.Color
-	HoverColor       uimath.Color
-	ActiveColor      uimath.Color
-	FocusBorderColor uimath.Color
-	ErrorColor       uimath.Color
-	FontSize         float32
-	FontSizeSm       float32
-	FontSizeLg       float32
-	SpaceXS          float32
-	SpaceSM          float32
-	SpaceMD          float32
-	SpaceLG          float32
-	SpaceXL          float32
-	BorderRadius     float32
-	BorderWidth      float32
-	ButtonHeight     float32
-	InputHeight      float32
+	PrimaryColor       uimath.Color
+	TextColor          uimath.Color
+	BgColor            uimath.Color
+	BorderColor        uimath.Color
+	DisabledColor      uimath.Color
+	HoverColor         uimath.Color
+	ActiveColor        uimath.Color
+	FocusBorderColor   uimath.Color
+	ErrorColor         uimath.Color
+	TextSecondaryColor uimath.Color
+	MaskColor          uimath.Color
+	ShadowColor        uimath.Color
+	ShadowY            float32
+	FontSize           float32
+	FontSizeSm         float32
+	FontSizeLg         float32
+	SpaceXS            float32
+	SpaceSM            float32
+	SpaceMD            float32
+	SpaceLG            float32
+	SpaceXL            float32
+	BorderRadius       float32
+	BorderWidth        float32
+	ButtonHeight       float32
+	InputHeight        float32
 }

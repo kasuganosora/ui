@@ -201,7 +201,7 @@ func (s *Steps) Draw(buf *render.CommandBuffer) {
 			// Outlined circle with number
 			buf.DrawRect(render.RectCmd{
 				Bounds:      uimath.NewRect(cx-dotR, cy-dotR, stepDotSize, stepDotSize),
-				FillColor:   uimath.ColorWhite,
+				FillColor:   cfg.BgColor,
 				BorderColor: cfg.BorderColor,
 				BorderWidth: 1,
 				Corners:     uimath.CornersAll(dotR),
@@ -231,7 +231,7 @@ func (s *Steps) Draw(buf *render.CommandBuffer) {
 			// --- Content (description) ---
 			if item.Content != "" {
 				descY := titleY + lh + 2
-				descColor := cfg.DisabledColor
+				descColor := cfg.TextSecondaryColor
 				emitText(cfg, buf, item.Content, bounds.X+float32(i)*stepW+4, descY, cfg.FontSizeSm, stepW-8, descColor, 1, stepsTextZ)
 			}
 		} else {

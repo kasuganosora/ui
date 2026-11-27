@@ -75,19 +75,15 @@ func (w *SubWindow) Draw(buf *render.CommandBuffer) {
 	cfg := w.config
 	headerH := float32(36)
 
-	// Shadow
-	buf.DrawOverlay(render.RectCmd{
-		Bounds:    uimath.NewRect(w.x+2, w.y+2, w.width, w.height),
-		FillColor: uimath.RGBA(0, 0, 0, 0.15),
-		Corners:   uimath.CornersAll(cfg.BorderRadius),
-	}, 30, 1)
+	// A window-sized surface reads thicker than a chip (§12 material weight).
+	buf.DrawOverlayShadow(cfg.FloatingShadow(uimath.NewRect(w.x, w.y, w.width, w.height), true), 30, 1)
 
 	// Window body
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:      uimath.NewRect(w.x, w.y, w.width, w.height),
-		FillColor:   uimath.ColorWhite,
-		BorderColor: cfg.BorderColor,
-		BorderWidth: 1,
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 31, 1)
 

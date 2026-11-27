@@ -128,7 +128,7 @@ func (b *Breadcrumb) Draw(buf *render.CommandBuffer) {
 
 		x += tw
 		if !isLast {
-			sepClr := uimath.RGBA(0, 0, 0, 0.45)
+			sepClr := cfg.TextSecondaryColor
 			if cfg.TextRenderer != nil {
 				sw := cfg.TextRenderer.MeasureText(b.separator, cfg.FontSize)
 				lh := cfg.TextRenderer.LineHeight(cfg.FontSize)

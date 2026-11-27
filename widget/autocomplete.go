@@ -187,11 +187,12 @@ func (ac *AutoComplete) Draw(buf *render.CommandBuffer) {
 	dx := bounds.X
 	dy := bounds.Y + bounds.Height + 4
 
+	buf.DrawOverlayShadow(cfg.FloatingShadow(uimath.NewRect(dx, dy, bounds.Width, dropH), false), 39, 1)
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:      uimath.NewRect(dx, dy, bounds.Width, dropH),
-		FillColor:   uimath.ColorWhite,
-		BorderColor: cfg.BorderColor,
-		BorderWidth: 1,
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 40, 1)
 

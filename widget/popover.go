@@ -111,19 +111,16 @@ func (p *Popover) Draw(buf *render.CommandBuffer) {
 		y = p.anchorY + p.anchorH + 8
 	}
 
-	// Shadow
-	buf.DrawOverlay(render.RectCmd{
-		Bounds:    uimath.NewRect(x+2, y+2, p.width, h),
-		FillColor: uimath.RGBA(0, 0, 0, 0.12),
-		Corners:   uimath.CornersAll(cfg.BorderRadius),
-	}, 40, 1)
+	// A real blurred shadow separates the panel from its background; a hard
+	// 1px outline reads as a divider rather than a floating surface.
+	buf.DrawOverlayShadow(cfg.FloatingShadow(uimath.NewRect(x, y, p.width, h), false), 40, 1)
 
 	// Background
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:      uimath.NewRect(x, y, p.width, h),
-		FillColor:   uimath.ColorWhite,
-		BorderColor: cfg.BorderColor,
-		BorderWidth: 1,
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 41, 1)
 

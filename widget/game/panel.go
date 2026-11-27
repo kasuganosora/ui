@@ -97,11 +97,7 @@ func (p *Panel) Draw(buf *render.CommandBuffer, bounds uimath.Rect, cfg *widget.
 
 	// Shadow
 	if p.Shadow {
-		buf.DrawRect(render.RectCmd{
-			Bounds:    uimath.NewRect(x+3, y+3, w, h),
-			FillColor: uimath.RGBA(0, 0, 0, 0.2),
-			Corners:   uimath.CornersAll(radius),
-		}, 1, 1)
+		buf.DrawShadow(cfg.FloatingShadow(uimath.NewRect(x, y, w, h), true), 1, 1)
 	}
 
 	// Background

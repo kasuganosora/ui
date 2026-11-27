@@ -49,7 +49,7 @@ func NewCard(tree *core.Tree, cfg *Config) *Card {
 	c := &Card{
 		Base:           NewBase(tree, core.TypeDiv, cfg),
 		bordered:       true,
-		bgColor:        uimath.ColorWhite,
+		bgColor:        cfg.BgColor,
 		headerBordered: true,
 		size:           SizeMedium,
 	}
@@ -227,7 +227,7 @@ func (c *Card) Draw(buf *render.CommandBuffer) {
 			// Subtitle
 			if c.subtitle != "" {
 				subtitleFs := cfg.FontSizeSm
-				subtitleColor := uimath.RGBA(0, 0, 0, 0.4)
+				subtitleColor := cfg.TextSecondaryColor
 				subY := titleY + lh + 2
 				cfg.TextRenderer.DrawText(buf, c.subtitle,
 					bounds.X+pad, subY,
@@ -252,7 +252,7 @@ func (c *Card) Draw(buf *render.CommandBuffer) {
 				sh := cfg.Leading(cfg.FontSizeSm)
 				buf.DrawRect(render.RectCmd{
 					Bounds:    uimath.NewRect(bounds.X+pad, titleY+th+4, sw, sh),
-					FillColor: uimath.RGBA(0, 0, 0, 0.4),
+					FillColor: cfg.TextSecondaryColor,
 					Corners:   uimath.CornersAll(2),
 				}, 1, 1)
 			}

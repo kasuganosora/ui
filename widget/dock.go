@@ -515,18 +515,15 @@ func (dl *DockLayout) drawFloating(buf *render.CommandBuffer, p *DockPanel, cfg 
 	s := dl.scaleOr1()
 	x, y := p.FloatX*s, p.FloatY*s
 	w, h := p.FloatW*s, p.FloatH*s
-	// Shadow
-	buf.DrawOverlay(render.RectCmd{
-		Bounds:    uimath.NewRect(x+3, y+3, w, h),
-		FillColor: uimath.RGBA(0, 0, 0, 0.15),
-		Corners:   uimath.CornersAll(cfg.BorderRadius),
-	}, 50, 1)
-	// Window body
+	// A real blurred shadow instead of an offset dark rectangle, so the
+	// floating dock panel reads as a raised material surface (§12).
+	buf.DrawOverlayShadow(cfg.FloatingShadow(uimath.NewRect(x, y, w, h), true), 50, 1)
+	// Window body — the shadow supplies the edge, so no hard 1px outline.
 	buf.DrawOverlay(render.RectCmd{
 		Bounds:      uimath.NewRect(x, y, w, h),
 		FillColor:   cfg.BgColor,
-		BorderColor: cfg.BorderColor,
-		BorderWidth: 1,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 51, 1)
 	// Title bar

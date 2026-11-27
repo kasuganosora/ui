@@ -170,12 +170,15 @@ func (m *Message) Draw(buf *render.CommandBuffer) {
 
 	cfg := m.config
 
-	// Message pill background with shadow effect
+	// A soft shadow gives the pill depth without a hard 1px outline.
+	buf.DrawShadow(cfg.FloatingShadow(bounds, false), 19, 1)
+
+	// Message pill background
 	buf.DrawRect(render.RectCmd{
 		Bounds:      bounds,
-		FillColor:   uimath.ColorWhite,
-		BorderColor: uimath.ColorHex("#dcdcdc"),
-		BorderWidth: 1,
+		FillColor:   cfg.BgColor,
+		BorderColor: cfg.PanelBorderColor(),
+		BorderWidth: cfg.PanelBorderWidth(),
 		Corners:     uimath.CornersAll(cfg.BorderRadius),
 	}, 20, 1)
 
@@ -240,11 +243,11 @@ func (m *Message) Draw(buf *render.CommandBuffer) {
 		// Draw X as two crossing lines
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(closeX+closeSize/2-1, closeY, 2, closeSize),
-			FillColor: cfg.DisabledColor,
+			FillColor: cfg.TextSecondaryColor,
 		}, 22, 1)
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(closeX, closeY+closeSize/2-1, closeSize, 2),
-			FillColor: cfg.DisabledColor,
+			FillColor: cfg.TextSecondaryColor,
 		}, 22, 1)
 
 		// Set layout on close element for hit testing
