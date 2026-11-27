@@ -681,7 +681,7 @@ func (inp *Input) updateIMEPosition() {
 	if cfg.TextRenderer != nil {
 		lh = cfg.TextRenderer.LineHeight(cfg.FontSize)
 	} else {
-		lh = cfg.FontSize * 1.2
+		lh = cfg.Leading(cfg.FontSize)
 	}
 	cy := bounds.Y + (bounds.Height-lh)/2
 
@@ -754,7 +754,7 @@ func (inp *Input) Draw(buf *render.CommandBuffer) {
 		if cfg.TextRenderer != nil {
 			lh = cfg.TextRenderer.LineHeight(fontSize)
 		} else {
-			lh = fontSize * 1.2
+			lh = cfg.Leading(fontSize)
 		}
 		selY := bounds.Y + (bounds.Height-lh)/2
 
@@ -784,7 +784,7 @@ func (inp *Input) Draw(buf *render.CommandBuffer) {
 			cfg.TextRenderer.DrawText(buf, displayText, tx, ty, fontSize, maxW, textColor, 1)
 		} else {
 			textW := float32(len(displayText)) * fontSize * 0.55
-			textH := fontSize * 1.2
+			textH := cfg.Leading(fontSize)
 			maxW := bounds.Width - padLeft - padRight - rightExtra
 			if textW > maxW {
 				textW = maxW
@@ -812,7 +812,7 @@ func (inp *Input) Draw(buf *render.CommandBuffer) {
 			counterY := bounds.Y + (bounds.Height-lh)/2
 			cfg.TextRenderer.DrawText(buf, counterText, counterX, counterY, fontSize, counterW, counterColor, 1)
 		} else {
-			textH := fontSize * 1.2
+			textH := cfg.Leading(fontSize)
 			counterY := bounds.Y + (bounds.Height-textH)/2
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(counterX, counterY, counterW, textH),
@@ -856,7 +856,7 @@ func (inp *Input) Draw(buf *render.CommandBuffer) {
 			if cfg.TextRenderer != nil {
 				lh = cfg.TextRenderer.LineHeight(fontSize)
 			} else {
-				lh = fontSize * 1.2
+				lh = cfg.Leading(fontSize)
 			}
 			cursorH := lh
 			cursorY := bounds.Y + (bounds.Height-cursorH)/2
@@ -880,7 +880,7 @@ func (inp *Input) Draw(buf *render.CommandBuffer) {
 			cfg.TextRenderer.DrawText(buf, inp.tips, bounds.X, tipsY, tipsFontSize, bounds.Width, tipsColor, 1)
 		} else {
 			tipsW := float32(len([]rune(inp.tips))) * tipsFontSize * 0.55
-			tipsH := tipsFontSize * 1.2
+			tipsH := cfg.Leading(tipsFontSize)
 			if tipsW > bounds.Width {
 				tipsW = bounds.Width
 			}

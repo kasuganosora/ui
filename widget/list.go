@@ -403,18 +403,25 @@ func (l *List) Draw(buf *render.CommandBuffer) {
 }
 
 // drawGroupHeader renders a group title row.
+//
+// §15: a caption's hierarchy comes from weight + size + leading together.
+// The caption size follows Dynamic Type (and never drops below the 12px
+// legibility floor), leading comes from the size-aware scale, and the host
+// selects a medium-weight face via emitCaptionText. At 12px a regular CJK
+// outline has almost no fully covered pixels and renders as grey mush even
+// with a perfectly good theme color — the earlier token fix could not change
+// that. Hosts without a caption-capable drawer keep the regular face.
 func (l *List) drawGroupHeader(buf *render.CommandBuffer, title string, x, y, w float32, cfg *Config) {
 	gh := l.groupHeight
 	textClr := uimath.RGBA(0, 0, 0, 0.4)
-	fs := cfg.FontSizeSm
+	fs := cfg.CaptionSize()
+	lh := cfg.Leading(fs)
 	if cfg.TextRenderer != nil {
-		lh := cfg.TextRenderer.LineHeight(fs)
-		cfg.TextRenderer.DrawText(buf, title, x+cfg.SpaceMD, y+(gh-lh)/2, fs, w-cfg.SpaceMD*2, textClr, 1)
+		emitCaptionText(cfg, buf, title, x+cfg.SpaceMD, y+(gh-lh)/2, fs, w-cfg.SpaceMD*2, textClr, 1, 1)
 	} else {
 		tw := float32(len(title)) * fs * 0.55
-		th := fs * 1.2
 		buf.DrawRect(render.RectCmd{
-			Bounds:    uimath.NewRect(x+cfg.SpaceMD, y+(gh-th)/2, tw, th),
+			Bounds:    uimath.NewRect(x+cfg.SpaceMD, y+(gh-lh)/2, tw, lh),
 			FillColor: textClr,
 			Corners:   uimath.CornersAll(2),
 		}, 1, 1)
@@ -505,7 +512,7 @@ func (l *List) drawItem(buf *render.CommandBuffer, item ListItem, bounds uimath.
 		if tw > textMaxW {
 			tw = textMaxW
 		}
-		th := titleFs * 1.2
+		th := cfg.Leading(titleFs)
 		var titleY float32
 		if hasDesc {
 			titleY = y + (ih/2 - th) - 2
@@ -531,7 +538,7 @@ func (l *List) drawItem(buf *render.CommandBuffer, item ListItem, bounds uimath.
 			if dw > textMaxW {
 				dw = textMaxW
 			}
-			dh := descFs * 1.2
+			dh := cfg.Leading(descFs)
 			descY := y + ih/2 + 2
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(textX, descY, dw, dh),
@@ -588,7 +595,7 @@ func (l *List) drawActions(buf *render.CommandBuffer, actions []string, bounds u
 				cfg.FontSizeSm, aw, actionColor, 1)
 		} else {
 			aw = float32(len(act)) * cfg.FontSizeSm * 0.55
-			ah := cfg.FontSizeSm * 1.2
+			ah := cfg.Leading(cfg.FontSizeSm)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(rightX-aw, y+(ih-ah)/2, aw, ah),
 				FillColor: actionColor,
@@ -609,7 +616,7 @@ func (l *List) drawExtra(buf *render.CommandBuffer, extra string, bounds uimath.
 		cfg.TextRenderer.DrawText(buf, extra, extraX-ew, y+(ih-lh)/2, cfg.FontSizeSm, ew, extraColor, 1)
 	} else {
 		ew := float32(len(extra)) * cfg.FontSizeSm * 0.55
-		eh := cfg.FontSizeSm * 1.2
+		eh := cfg.Leading(cfg.FontSizeSm)
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(extraX-ew, y+(ih-eh)/2, ew, eh),
 			FillColor: uimath.RGBA(0, 0, 0, 0.25),

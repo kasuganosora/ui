@@ -236,7 +236,7 @@ func (s *Steps) Draw(buf *render.CommandBuffer) {
 			}
 		} else {
 			tw := float32(len(item.Title)) * titleFont * 0.55
-			th := titleFont * 1.2
+			th := cfg.Leading(titleFont)
 			tx := cx - tw/2
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(tx, titleY, tw, th),
@@ -316,7 +316,7 @@ func (s *Steps) drawNumber(buf *render.CommandBuffer, cx, cy float32, num int, c
 		emitText(cfg, buf, str, cx-tw/2, cy-lh/2, cfg.FontSizeSm, stepDotSize, color, 1, stepsTextZ)
 	} else {
 		tw := float32(len(str)) * cfg.FontSizeSm * 0.55
-		th := cfg.FontSizeSm * 1.2
+		th := cfg.Leading(cfg.FontSizeSm)
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(cx-tw/2, cy-th/2, tw, th),
 			FillColor: color,

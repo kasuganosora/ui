@@ -235,12 +235,12 @@ func (c *Card) Draw(buf *render.CommandBuffer) {
 			}
 		} else {
 			// Placeholder rects
-			titleY := y + (headerH-titleFs*1.2)/2
+			titleY := y + (headerH-cfg.Leading(titleFs))/2
 			if c.subtitle != "" {
 				titleY = y + pad*0.6
 			}
 			tw := float32(len(c.title)) * titleFs * 0.55
-			th := titleFs * 1.2
+			th := cfg.Leading(titleFs)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(bounds.X+pad, titleY, tw, th),
 				FillColor: cfg.TextColor,
@@ -249,7 +249,7 @@ func (c *Card) Draw(buf *render.CommandBuffer) {
 
 			if c.subtitle != "" {
 				sw := float32(len(c.subtitle)) * cfg.FontSizeSm * 0.55
-				sh := cfg.FontSizeSm * 1.2
+				sh := cfg.Leading(cfg.FontSizeSm)
 				buf.DrawRect(render.RectCmd{
 					Bounds:    uimath.NewRect(bounds.X+pad, titleY+th+4, sw, sh),
 					FillColor: uimath.RGBA(0, 0, 0, 0.4),

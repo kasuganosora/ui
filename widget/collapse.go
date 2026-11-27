@@ -303,7 +303,7 @@ func (c *Collapse) Draw(buf *render.CommandBuffer) {
 			cfg.TextRenderer.DrawText(buf, panel.Header, textX, y+(headerH-lh)/2, cfg.FontSize, bounds.Width-textX+bounds.X-cfg.SpaceMD, titleClr, iconOpacity)
 		} else {
 			tw := float32(len(panel.Header)) * cfg.FontSize * 0.55
-			th := cfg.FontSize * 1.2
+			th := cfg.Leading(cfg.FontSize)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(textX, y+(headerH-th)/2, tw, th),
 				FillColor: titleClr,

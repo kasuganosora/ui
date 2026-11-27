@@ -296,7 +296,7 @@ func (d *Dialog) Draw(buf *render.CommandBuffer) {
 			emitText(cfg, buf, d.header, tx, ty, cfg.FontSizeLg, panelW-cfg.SpaceLG*2, cfg.TextColor, 1, dialogTextZ)
 		} else {
 			textW := float32(len(d.header)) * cfg.FontSizeLg * 0.55
-			textH := cfg.FontSizeLg * 1.2
+			textH := cfg.Leading(cfg.FontSizeLg)
 			tx := panelX + cfg.SpaceLG
 			ty := panelY + (titleH-textH)/2
 			buf.DrawRect(render.RectCmd{
@@ -388,7 +388,7 @@ func (d *Dialog) Draw(buf *render.CommandBuffer) {
 				cancelBtnX+(cancelBtnW-tw)/2, btnY+(btnH-lh)/2,
 				cfg.FontSize, cancelBtnW, cfg.TextColor, 1, dialogTextZ)
 		} else {
-			th := cfg.FontSize * 1.2
+			th := cfg.Leading(cfg.FontSize)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(cancelBtnX+(cancelBtnW-cancelTextW)/2, btnY+(btnH-th)/2, cancelTextW, th),
 				FillColor: cfg.TextColor,
@@ -409,7 +409,7 @@ func (d *Dialog) Draw(buf *render.CommandBuffer) {
 				confirmBtnX+(confirmBtnW-tw)/2, btnY+(btnH-lh)/2,
 				cfg.FontSize, confirmBtnW, uimath.ColorWhite, 1, dialogTextZ)
 		} else {
-			th := cfg.FontSize * 1.2
+			th := cfg.Leading(cfg.FontSize)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(confirmBtnX+(confirmBtnW-confirmTextW)/2, btnY+(btnH-th)/2, confirmTextW, th),
 				FillColor: uimath.ColorWhite,

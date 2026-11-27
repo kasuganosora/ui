@@ -185,7 +185,7 @@ func (r *Rate) Draw(buf *render.CommandBuffer) {
 				cfg.TextRenderer.DrawText(buf, label, textX, textY, cfg.FontSize, maxW, cfg.TextColor, 1)
 			} else {
 				tw := float32(len(label)) * cfg.FontSize * 0.55
-				th := cfg.FontSize * 1.2
+				th := cfg.Leading(cfg.FontSize)
 				textY := bounds.Y + (bounds.Height-th)/2
 				buf.DrawRect(render.RectCmd{
 					Bounds:    uimath.NewRect(textX, textY, tw, th),

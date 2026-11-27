@@ -304,7 +304,7 @@ func (s *Slider) Draw(buf *render.CommandBuffer) {
 					emitText(cfg, buf, label, lx, labelY, cfg.FontSizeSm, tw+4, cfg.TextColor, 1, sliderMarkTextZ)
 				} else {
 					tw := float32(len(label)) * cfg.FontSizeSm * 0.55
-					th := cfg.FontSizeSm * 1.2
+					th := cfg.Leading(cfg.FontSizeSm)
 					lx := bounds.X + bounds.Width*mr - tw/2
 					buf.DrawRect(render.RectCmd{
 						Bounds:    uimath.NewRect(lx, labelY, tw, th),
@@ -343,7 +343,7 @@ func (s *Slider) Draw(buf *render.CommandBuffer) {
 			emitText(cfg, buf, valStr, tooltipX+tooltipPadX, ty, cfg.FontSizeSm, tooltipW, uimath.ColorWhite, 1, tooltipTextZ)
 		} else {
 			tw := float32(len(valStr)) * cfg.FontSizeSm * 0.55
-			th := cfg.FontSizeSm * 1.2
+			th := cfg.Leading(cfg.FontSizeSm)
 			ty := tooltipY + (tooltipH-th)/2
 			tx := tooltipX + (tooltipW-tw)/2
 			buf.DrawRect(render.RectCmd{

@@ -361,7 +361,7 @@ func (p *Pagination) drawText(buf *render.CommandBuffer, text string, x, y, w, h
 		cfg.TextRenderer.DrawText(buf, text, x+(w-tw)/2, y+(h-lh)/2, fontSize, w, clr, 1)
 	} else {
 		tw := float32(len(text)) * fontSize * 0.55
-		th := fontSize * 1.2
+		th := cfg.Leading(fontSize)
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(x+(w-tw)/2, y+(h-th)/2, tw, th),
 			FillColor: clr,

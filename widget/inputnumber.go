@@ -358,7 +358,7 @@ func (n *InputNumber) drawValueText(buf *render.CommandBuffer, x, y, w, h float3
 		cfg.TextRenderer.DrawText(buf, text, x+(w-tw)/2, y+(h-lh)/2, cfg.FontSize, w, cfg.TextColor, 1)
 	} else {
 		tw := float32(len(text)) * cfg.FontSize * 0.55
-		th := cfg.FontSize * 1.2
+		th := cfg.Leading(cfg.FontSize)
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(x+(w-tw)/2, y+(h-th)/2, tw, th),
 			FillColor: cfg.TextColor,

@@ -168,7 +168,7 @@ func (ft *FloatingText) Draw(buf *render.CommandBuffer) {
 		cfg.TextRenderer.DrawText(buf, ft.text, ft.x, ft.y, cfg.FontSizeLg, 200, ft.color, 1)
 	} else {
 		tw := float32(len(ft.text)) * cfg.FontSizeLg * 0.55
-		th := cfg.FontSizeLg * 1.2
+		th := cfg.Leading(cfg.FontSizeLg)
 		buf.DrawRect(render.RectCmd{
 			Bounds:    uimath.NewRect(ft.x, ft.y, tw, th),
 			FillColor: ft.color,

@@ -90,6 +90,7 @@ type App struct {
 	fontEngine      font.Engine
 	fontMgr         font.Manager
 	fontID          font.ID
+	captionFontID   font.ID // medium-weight face for §15 captions (optional)
 	fallbackFontIDs []font.ID
 	glyphAtlas      *atlas.Atlas
 	textRenderer    *textrender.Renderer
@@ -227,6 +228,9 @@ func NewApp(opts AppOptions) (*App, error) {
 		fallbackFontIDs: a.fallbackFontIDs,
 		engine:          a.fontEngine,
 	}
+	// §15: register a medium-weight face for 12px captions when the font
+	// engine can select one. Failure is a visual downgrade, not a fatal error.
+	a.captionFontID = ConfigureCaptionFont(mgr, fontPath, a.cfg.TextRenderer)
 	a.cfg.Window = a.win
 	a.cfg.Platform = a.plat
 	a.cfg.Backend = a.backend
@@ -297,6 +301,25 @@ func (a *App) Tree() *core.Tree { return a.tree }
 
 // Config returns the widget configuration.
 func (a *App) Config() *widget.Config { return a.cfg }
+
+// SetTextScale applies the Dynamic Type multiplier (§15). Type sizes, line
+// height and spacing tokens all scale together, then the whole tree is marked
+// dirty so layout grows with the text on the next frame.
+func (a *App) SetTextScale(scale float32) {
+	if a.cfg == nil || scale <= 0 || scale == a.cfg.TextScale {
+		return
+	}
+	a.cfg.SetTextScale(scale)
+	a.tree.MarkDirty(a.tree.Root())
+}
+
+// TextScale returns the current Dynamic Type multiplier.
+func (a *App) TextScale() float32 {
+	if a.cfg == nil {
+		return 1
+	}
+	return a.cfg.TextScale
+}
 
 // Window returns the platform window.
 func (a *App) Window() platform.Window { return a.win }
@@ -1071,6 +1094,7 @@ func NewTextDrawer(renderer *textrender.Renderer, fontID font.ID, engine font.En
 type textDrawerAdapter struct {
 	renderer        *textrender.Renderer
 	fontID          font.ID
+	captionFontID   font.ID
 	fallbackFontIDs []font.ID
 	engine          font.Engine
 }
@@ -1082,6 +1106,12 @@ func (a *textDrawerAdapter) DrawText(buf *render.CommandBuffer, text string, x, 
 // DrawTextZ is DrawText with an explicit z-order so glyphs stay above the
 // fills they label.
 func (a *textDrawerAdapter) DrawTextZ(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32, z int32) {
+	a.DrawTextTracked(buf, text, x, y, fontSize, maxWidth, color, opacity, z, 0)
+}
+
+// DrawTextTracked applies size-specific letter spacing (§15). Text scaling
+// stays 1:1 with the font; only the advance between glyphs is adjusted.
+func (a *textDrawerAdapter) DrawTextTracked(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32, z int32, tracking float32) {
 	a.renderer.DrawText(buf, text, textrender.DrawOptions{
 		ShapeOpts: font.ShapeOptions{
 			FontID:          a.fontID,
@@ -1091,11 +1121,43 @@ func (a *textDrawerAdapter) DrawTextZ(buf *render.CommandBuffer, text string, x,
 			Truncate:        font.TruncateChar,
 			MaxLines:        1,
 		},
-		OriginX: x,
-		OriginY: y,
-		Color:   color,
-		Opacity: opacity,
-		ZOrder:  z,
+		OriginX:  x,
+		OriginY:  y,
+		Color:    color,
+		Opacity:  opacity,
+		ZOrder:   z,
+		Tracking: tracking,
+	})
+}
+
+// SetCaptionFont wires a medium-weight face into the optional
+// widget.CaptionTextDrawer implementation. InvalidFontID restores the
+// regular face.
+func (a *textDrawerAdapter) SetCaptionFont(id font.ID) { a.captionFontID = id }
+
+// DrawCaptionText implements widget.CaptionTextDrawer (§15). Small CJK labels
+// need a heavier outline to reach full pixel coverage; keep the same size,
+// tracking and fallback chain as regular text so only the weight changes.
+func (a *textDrawerAdapter) DrawCaptionText(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32, z int32, tracking float32) {
+	id := a.captionFontID
+	if id == font.InvalidFontID {
+		id = a.fontID
+	}
+	a.renderer.DrawText(buf, text, textrender.DrawOptions{
+		ShapeOpts: font.ShapeOptions{
+			FontID:          id,
+			FallbackFontIDs: a.fallbackFontIDs,
+			FontSize:        fontSize,
+			MaxWidth:        maxWidth,
+			Truncate:        font.TruncateChar,
+			MaxLines:        1,
+		},
+		OriginX:  x,
+		OriginY:  y,
+		Color:    color,
+		Opacity:  opacity,
+		ZOrder:   z,
+		Tracking: tracking,
 	})
 }
 

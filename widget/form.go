@@ -171,7 +171,7 @@ func (fi *FormItem) Draw(buf *render.CommandBuffer) {
 			if textW > labelW {
 				textW = labelW
 			}
-			textH := cfg.FontSize * 1.2
+			textH := cfg.Leading(cfg.FontSize)
 			ty := bounds.Y + (bounds.Height-textH)/2
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(bounds.X, ty, textW, textH),
@@ -197,7 +197,7 @@ func (fi *FormItem) Draw(buf *render.CommandBuffer) {
 		} else {
 			textW := float32(len(fi.error)) * cfg.FontSizeSm * 0.55
 			buf.DrawRect(render.RectCmd{
-				Bounds:    uimath.NewRect(bounds.X+labelW+cfg.SpaceSM, errorY, textW, cfg.FontSizeSm*1.2),
+				Bounds:    uimath.NewRect(bounds.X+labelW+cfg.SpaceSM, errorY, textW, cfg.Leading(cfg.FontSizeSm)),
 				FillColor: errorColor,
 				Corners:   uimath.CornersAll(2),
 			}, 0, 1)

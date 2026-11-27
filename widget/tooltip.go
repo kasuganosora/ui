@@ -138,7 +138,7 @@ func (t *Tooltip) measure(cfg *Config) (float32, float32) {
 		lh = cfg.TextRenderer.LineHeight(cfg.FontSizeSm)
 	} else {
 		textW = float32(len([]rune(t.text))) * cfg.FontSizeSm * 0.55
-		lh = cfg.FontSizeSm * 1.2
+		lh = cfg.Leading(cfg.FontSizeSm)
 	}
 	w := textW + cfg.SpaceSM*2
 	h := lh + cfg.SpaceXS*2
@@ -331,7 +331,7 @@ func (t *Tooltip) paint(cfg *Config, buf *render.CommandBuffer, bounds uimath.Re
 			emitText(cfg, buf, t.text, tx, ty, cfg.FontSizeSm, maxW, textColor, 1, tooltipTextZ)
 		} else {
 			textW := float32(len([]rune(t.text))) * cfg.FontSizeSm * 0.55
-			textH := cfg.FontSizeSm * 1.2
+			textH := cfg.Leading(cfg.FontSizeSm)
 			maxW := bounds.Width - cfg.SpaceSM*2
 			if textW > maxW {
 				textW = maxW

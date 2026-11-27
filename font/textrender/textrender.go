@@ -142,7 +142,9 @@ func (r *Renderer) drawRun(buf *render.CommandBuffer, run font.GlyphRun, opts Dr
 		gm := entry.Metrics
 		// Snap glyph positions to pixel grid for crisp rendering.
 		// All values are in logical pixels (metrics already divided by dpiScale).
-		gx := float32(math.Floor(float64(opts.OriginX + pg.X + gm.BearingX)))
+		// Tracking accumulates per emitted glyph (§15): positive opens up small
+		// captions, negative tightens large headings.
+		gx := float32(math.Floor(float64(opts.OriginX + pg.X + gm.BearingX + float32(len(instances))*opts.Tracking)))
 		gy := float32(math.Floor(float64(opts.OriginY + pg.Y - gm.BearingY)))
 		// Atlas bitmap is in physical pixels; convert to logical.
 		instances = append(instances, render.GlyphInstance{
@@ -183,6 +185,7 @@ func (r *Renderer) drawColorRun(buf *render.CommandBuffer, run font.GlyphRun, op
 		return
 	}
 	ca := r.ensureColorAtlas()
+	emitted := 0
 
 	for _, pg := range run.Glyphs {
 		entry := r.ensureColorGlyph(run.FontID, pg.GlyphID, run.FontSize)
@@ -191,7 +194,8 @@ func (r *Renderer) drawColorRun(buf *render.CommandBuffer, run font.GlyphRun, op
 		}
 
 		gm := entry.Metrics
-		gx := float32(math.Floor(float64(opts.OriginX + pg.X + gm.BearingX)))
+		gx := float32(math.Floor(float64(opts.OriginX + pg.X + gm.BearingX + float32(emitted)*opts.Tracking)))
+		emitted++
 		gy := float32(math.Floor(float64(opts.OriginY + pg.Y - gm.BearingY)))
 		w := float32(entry.Region.Width) / r.dpiScale
 		h := float32(entry.Region.Height) / r.dpiScale
@@ -322,4 +326,7 @@ type DrawOptions struct {
 	// Overlay routes the text command into the overlay layer (rendered above all
 	// normal content, no clip applied). Used for DevTools labels and debug UI.
 	Overlay bool
+	// Tracking is size-specific letter spacing in logical pixels (§15).
+	// Small captions use a small positive value, large headings a negative one.
+	Tracking float32
 }

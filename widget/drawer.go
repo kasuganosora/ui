@@ -340,7 +340,7 @@ func (d *Drawer) Draw(buf *render.CommandBuffer) {
 				cancelBtnX+(cancelBtnW-tw)/2, btnY+(btnH-lh)/2,
 				cfg.FontSize, cancelBtnW, cfg.TextColor, 1, drawerTextZ)
 		} else {
-			th := cfg.FontSize * 1.2
+			th := cfg.Leading(cfg.FontSize)
 			buf.DrawOverlay(render.RectCmd{
 				Bounds:    uimath.NewRect(cancelBtnX+(cancelBtnW-cancelTextW)/2, btnY+(btnH-th)/2, cancelTextW, th),
 				FillColor: cfg.TextColor,
@@ -361,7 +361,7 @@ func (d *Drawer) Draw(buf *render.CommandBuffer) {
 				confirmBtnX+(confirmBtnW-tw)/2, btnY+(btnH-lh)/2,
 				cfg.FontSize, confirmBtnW, uimath.ColorWhite, 1, drawerTextZ)
 		} else {
-			th := cfg.FontSize * 1.2
+			th := cfg.Leading(cfg.FontSize)
 			buf.DrawOverlay(render.RectCmd{
 				Bounds:    uimath.NewRect(confirmBtnX+(confirmBtnW-confirmTextW)/2, btnY+(btnH-th)/2, confirmTextW, th),
 				FillColor: uimath.ColorWhite,

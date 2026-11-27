@@ -184,7 +184,7 @@ func (ti *TagInput) Draw(buf *render.CommandBuffer) {
 			cfg.TextRenderer.DrawText(buf, ti.inputText, inputX+cfg.SpaceXS, inputY+(ti.tagH-lh)/2, cfg.FontSizeSm, inputW-cfg.SpaceXS, cfg.TextColor, 1)
 		} else {
 			itw := float32(len(ti.inputText)) * cfg.FontSizeSm * 0.6
-			ith := cfg.FontSizeSm * 1.2
+			ith := cfg.Leading(cfg.FontSizeSm)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(inputX+cfg.SpaceXS, inputY+(ti.tagH-ith)/2, itw, ith),
 				FillColor: cfg.TextColor,
@@ -199,7 +199,7 @@ func (ti *TagInput) Draw(buf *render.CommandBuffer) {
 			cfg.TextRenderer.DrawText(buf, ti.placeholder, inputX+cfg.SpaceXS, inputY+(ti.tagH-lh)/2, cfg.FontSizeSm, inputW-cfg.SpaceXS, placeholderColor, 1)
 		} else {
 			pw := float32(len(ti.placeholder)) * cfg.FontSizeSm * 0.6
-			ph := cfg.FontSizeSm * 1.2
+			ph := cfg.Leading(cfg.FontSizeSm)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(inputX+cfg.SpaceXS, inputY+(ti.tagH-ph)/2, pw, ph),
 				FillColor: placeholderColor,

@@ -743,7 +743,7 @@ func (ta *TextArea) updateIMEPosition() {
 	if cfg.TextRenderer != nil {
 		lh = cfg.TextRenderer.LineHeight(cfg.FontSize)
 	} else {
-		lh = cfg.FontSize * 1.2
+		lh = cfg.Leading(cfg.FontSize)
 	}
 
 	cursorX := bounds.X + padLeft + cx
@@ -894,7 +894,7 @@ func (ta *TextArea) Draw(buf *render.CommandBuffer) {
 				if textW > contentW {
 					textW = contentW
 				}
-				textH := cfg.FontSize * 1.2
+				textH := cfg.Leading(cfg.FontSize)
 				ty := y + (lineH-textH)/2
 				buf.DrawRect(render.RectCmd{
 					Bounds:    uimath.NewRect(bounds.X+padLeft, ty, textW, textH),
@@ -928,7 +928,7 @@ func (ta *TextArea) Draw(buf *render.CommandBuffer) {
 			if cfg.TextRenderer != nil {
 				cursorH = cfg.TextRenderer.LineHeight(cfg.FontSize)
 			} else {
-				cursorH = cfg.FontSize * 1.2
+				cursorH = cfg.Leading(cfg.FontSize)
 			}
 			cursorY += (lineH - cursorH) / 2
 
@@ -949,12 +949,12 @@ func (ta *TextArea) Draw(buf *render.CommandBuffer) {
 		counterFontSize := cfg.FontSizeSm
 		counterW := float32(len(counterText)) * counterFontSize * 0.55
 		counterX := bounds.X + bounds.Width - cfg.SpaceSM - counterW
-		counterY := bounds.Y + bounds.Height - cfg.SpaceSM - counterFontSize*1.2
+		counterY := bounds.Y + bounds.Height - cfg.SpaceSM - cfg.Leading(counterFontSize)
 		if cfg.TextRenderer != nil {
 			cfg.TextRenderer.DrawText(buf, counterText, counterX, counterY, counterFontSize, counterW, counterColor, 1)
 		} else {
 			buf.DrawRect(render.RectCmd{
-				Bounds:    uimath.NewRect(counterX, counterY, counterW, counterFontSize*1.2),
+				Bounds:    uimath.NewRect(counterX, counterY, counterW, cfg.Leading(counterFontSize)),
 				FillColor: counterColor,
 				Corners:   uimath.CornersAll(2),
 			}, 3, 1)
@@ -973,7 +973,7 @@ func (ta *TextArea) Draw(buf *render.CommandBuffer) {
 			cfg.TextRenderer.DrawText(buf, ta.tips, bounds.X, tipsY, tipsFontSize, bounds.Width, tipsColor, 1)
 		} else {
 			tipsW := float32(len([]rune(ta.tips))) * tipsFontSize * 0.55
-			tipsH := tipsFontSize * 1.2
+			tipsH := cfg.Leading(tipsFontSize)
 			if tipsW > bounds.Width {
 				tipsW = bounds.Width
 			}
@@ -1001,7 +1001,7 @@ func (ta *TextArea) drawSelection(buf *render.CommandBuffer, bounds uimath.Rect,
 	if cfg.TextRenderer != nil {
 		lh = cfg.TextRenderer.LineHeight(cfg.FontSize)
 	} else {
-		lh = cfg.FontSize * 1.2
+		lh = cfg.Leading(cfg.FontSize)
 	}
 
 	for lineIdx := loLine; lineIdx <= hiLine && lineIdx < len(vlines); lineIdx++ {

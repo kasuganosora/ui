@@ -124,6 +124,7 @@ func (a *App) createOverlay(w, h float32) (*overlayWindow, error) {
 	cfg.TextRenderer = &textDrawerAdapter{
 		renderer:        text,
 		fontID:          a.fontID,
+		captionFontID:   a.captionFontID,
 		fallbackFontIDs: a.fallbackFontIDs,
 		engine:          a.fontEngine,
 	}

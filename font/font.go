@@ -143,6 +143,16 @@ type Engine interface {
 	Destroy()
 }
 
+// WeightedLoader is an optional Engine capability. System CJK collections
+// ship several weights in one file; an engine that can select a face by
+// weight lets a host register a caption weight without changing the default
+// face selection. Engines without this capability simply reuse the regular
+// face, so callers must treat the returned ID as an optional improvement.
+type WeightedLoader interface {
+	LoadFontWithWeight(data []byte, weight Weight) (ID, error)
+	LoadFontFileWithWeight(path string, weight Weight) (ID, error)
+}
+
 // Manager manages font registration, lookup, and fallback chains.
 // This is an aggregate root for the font bounded context.
 type Manager interface {
@@ -164,6 +174,13 @@ type Manager interface {
 
 	// Engine returns the underlying font engine.
 	Engine() Engine
+}
+
+// WeightedManager is an optional Manager capability backed by a
+// WeightedLoader. Registering a weight-specific face keeps the family lookup
+// intact (including ResolveRune fallback), which a raw engine ID would not.
+type WeightedManager interface {
+	RegisterFileWithWeight(family string, weight Weight, style Style, path string) (ID, error)
 }
 
 // Shaper performs text layout (shaping, line breaking, alignment).

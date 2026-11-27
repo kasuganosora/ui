@@ -428,7 +428,7 @@ func (m *Menu) drawItem(buf *render.CommandBuffer, item MenuItem, x, y, w float3
 			cfg.TextRenderer.DrawText(buf, item.Content, labelX, y+(h-lh)/2, cfg.FontSize, availW, textClr, 1)
 		} else {
 			tw := float32(len(item.Content)) * cfg.FontSize * 0.55
-			th := cfg.FontSize * 1.2
+			th := cfg.Leading(cfg.FontSize)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(labelX, y+(h-th)/2, tw, th),
 				FillColor: textClr,

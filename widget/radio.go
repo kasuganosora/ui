@@ -168,7 +168,7 @@ func (r *Radio) Draw(buf *render.CommandBuffer) {
 				if textW > labelW {
 					textW = labelW
 				}
-				textH := cfg.FontSize * 1.2
+				textH := cfg.Leading(cfg.FontSize)
 				labelY := bounds.Y + (bounds.Height-textH)/2
 				buf.DrawRect(render.RectCmd{
 					Bounds:    uimath.NewRect(labelX, labelY, textW, textH),

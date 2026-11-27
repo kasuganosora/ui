@@ -107,7 +107,7 @@ func (t *Text) Draw(buf *render.CommandBuffer) {
 	if textW > bounds.Width {
 		textW = bounds.Width
 	}
-	textH := t.fontSize * 1.2
+	textH := t.config.Leading(t.fontSize)
 	if textH > bounds.Height {
 		textH = bounds.Height
 	}

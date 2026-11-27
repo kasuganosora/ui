@@ -193,7 +193,7 @@ func (p *Progress) drawLine(buf *render.CommandBuffer) {
 			cfg.TextRenderer.DrawText(buf, text, textX, bounds.Y+(bounds.Height-lh)/2, cfg.FontSize, labelW, textClr, 1)
 		} else {
 			tw := float32(len(text)) * cfg.FontSize * 0.55
-			th := cfg.FontSize * 1.2
+			th := cfg.Leading(cfg.FontSize)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(textX, bounds.Y+(bounds.Height-th)/2, tw, th),
 				FillColor: textClr,
@@ -254,7 +254,7 @@ func (p *Progress) drawCircle(buf *render.CommandBuffer) {
 			cfg.TextRenderer.DrawText(buf, text, cx+(diameter-tw)/2, cy+(diameter-lh)/2, fontSize, diameter, textClr, 1)
 		} else {
 			tw := float32(len(text)) * fontSize * 0.55
-			th := fontSize * 1.2
+			th := cfg.Leading(fontSize)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(cx+(diameter-tw)/2, cy+(diameter-th)/2, tw, th),
 				FillColor: textClr,
@@ -315,7 +315,7 @@ func (p *Progress) drawPlump(buf *render.CommandBuffer) {
 			cfg.TextRenderer.DrawText(buf, text, textX, trackY+(barH-lh)/2, fontSize, bounds.Width, textClr, 1)
 		} else {
 			tw := float32(len(text)) * fontSize * 0.55
-			th := fontSize * 1.2
+			th := cfg.Leading(fontSize)
 			textX := bounds.X + fillW - tw - 4
 			if textX < bounds.X+4 {
 				textX = bounds.X + fillW + 4

@@ -67,7 +67,7 @@ func (p *Panel) Draw(buf *render.CommandBuffer) {
 			cfg.TextRenderer.DrawText(buf, p.title, bounds.X+cfg.SpaceMD, bounds.Y+(headerH-lh)/2, cfg.FontSize, bounds.Width-cfg.SpaceMD*2, cfg.TextColor, 1)
 		} else {
 			tw := float32(len(p.title)) * cfg.FontSize * 0.55
-			th := cfg.FontSize * 1.2
+			th := cfg.Leading(cfg.FontSize)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(bounds.X+cfg.SpaceMD, bounds.Y+(headerH-th)/2, tw, th),
 				FillColor: cfg.TextColor,

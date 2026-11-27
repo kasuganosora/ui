@@ -258,7 +258,7 @@ func (t *Tag) Draw(buf *render.CommandBuffer) {
 			if textW > maxW {
 				textW = maxW
 			}
-			textH := fontSize * 1.2
+			textH := cfg.Leading(fontSize)
 			tx := bounds.X + (bounds.Width-textW-closeSpace)/2
 			ty := bounds.Y + (bounds.Height-textH)/2
 			buf.DrawRect(render.RectCmd{

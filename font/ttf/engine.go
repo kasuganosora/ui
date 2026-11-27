@@ -10,6 +10,7 @@ import (
 	"image"
 	"image/draw"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/kasuganosora/ui/font"
@@ -103,16 +104,87 @@ func chooseCollectionFace(col *sfnt.Collection) (*sfnt.Font, error) {
 	return best, nil
 }
 
-// LoadFont implements font.Engine. Both single fonts and font collections are
-// accepted; for a collection the face with the widest cmap coverage is used.
-func (e *Engine) LoadFont(data []byte) (font.ID, error) {
+// weightToken maps a font weight to the subfamily name used by typical
+// collections. An unknown weight returns "" so the caller falls back to the
+// coverage-based default instead of guessing a face.
+func weightToken(w font.Weight) string {
+	switch w {
+	case font.WeightThin:
+		return "thin"
+	case font.WeightExtraLight, font.WeightLight:
+		return "light"
+	case font.WeightRegular:
+		return "regular"
+	case font.WeightMedium:
+		return "medium"
+	case font.WeightSemiBold:
+		return "semibold"
+	case font.WeightBold, font.WeightExtraBold, font.WeightBlack:
+		return "bold"
+	default:
+		return ""
+	}
+}
+
+// weightMatches compares whole words so "Semibold" never satisfies a request
+// for "Bold", and localized subfamily names (which carry no English weight
+// word) are simply skipped.
+func weightMatches(subfamily, token string) bool {
+	for _, word := range strings.FieldsFunc(strings.ToLower(subfamily), func(r rune) bool {
+		return r < 'a' || r > 'z'
+	}) {
+		if word == token {
+			return true
+		}
+	}
+	return false
+}
+
+// chooseCollectionFaceForWeight keeps the coverage rule but restricts it to
+// faces of the requested weight. A collection can contain regional variants
+// of every weight, so picking the first Medium face would silently lose
+// simplified Chinese glyphs. If no weight matches, the regular
+// coverage-based selection is used unchanged.
+func chooseCollectionFaceForWeight(col *sfnt.Collection, weight font.Weight) (*sfnt.Font, error) {
+	token := weightToken(weight)
+	if token != "" {
+		buf := &sfnt.Buffer{}
+		var best *sfnt.Font
+		bestScore := -1
+		for i := 0; i < col.NumFonts(); i++ {
+			f, err := col.Font(i)
+			if err != nil {
+				continue
+			}
+			sub, err := f.Name(buf, sfnt.NameIDSubfamily)
+			if err != nil || !weightMatches(sub, token) {
+				continue
+			}
+			score := faceCoverage(f, buf)
+			if score > bestScore {
+				best, bestScore = f, score
+			}
+		}
+		if best != nil {
+			return best, nil
+		}
+	}
+	return chooseCollectionFace(col)
+}
+
+// loadFont implements both the plain and weight-specific entry points.
+func (e *Engine) loadFont(data []byte, weight *font.Weight) (font.ID, error) {
 	var f *sfnt.Font
 	var err error
 	if len(data) >= 4 && string(data[:4]) == "ttcf" {
 		var col *sfnt.Collection
 		col, err = sfnt.ParseCollection(data)
 		if err == nil {
-			f, err = chooseCollectionFace(col)
+			if weight != nil {
+				f, err = chooseCollectionFaceForWeight(col, *weight)
+			} else {
+				f, err = chooseCollectionFace(col)
+			}
 		}
 	} else {
 		f, err = sfnt.Parse(data)
@@ -129,17 +201,39 @@ func (e *Engine) LoadFont(data []byte) (font.ID, error) {
 	return id, nil
 }
 
-// LoadFontFile implements font.Engine.
-func (e *Engine) LoadFontFile(path string) (font.ID, error) {
+func (e *Engine) loadFontFile(path string, weight *font.Weight) (font.ID, error) {
 	if cached, ok := fontFileCache.Load(path); ok {
-		return e.LoadFont(cached.([]byte))
+		return e.loadFont(cached.([]byte), weight)
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return font.InvalidFontID, fmt.Errorf("ttf: read font %q: %w", path, err)
 	}
 	fontFileCache.Store(path, data)
-	return e.LoadFont(data)
+	return e.loadFont(data, weight)
+}
+
+// LoadFont implements font.Engine. Both single fonts and font collections are
+// accepted; for a collection the face with the widest cmap coverage is used.
+func (e *Engine) LoadFont(data []byte) (font.ID, error) {
+	return e.loadFont(data, nil)
+}
+
+// LoadFontFile implements font.Engine.
+func (e *Engine) LoadFontFile(path string) (font.ID, error) {
+	return e.loadFontFile(path, nil)
+}
+
+// LoadFontWithWeight implements font.WeightedLoader. Single-font files have
+// only one face, so the weight request is a no-op there; collections select
+// the widest-coverage face of that weight.
+func (e *Engine) LoadFontWithWeight(data []byte, weight font.Weight) (font.ID, error) {
+	return e.loadFont(data, &weight)
+}
+
+// LoadFontFileWithWeight implements font.WeightedLoader.
+func (e *Engine) LoadFontFileWithWeight(path string, weight font.Weight) (font.ID, error) {
+	return e.loadFontFile(path, &weight)
 }
 
 // UnloadFont implements font.Engine.

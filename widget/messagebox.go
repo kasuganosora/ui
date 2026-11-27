@@ -191,7 +191,7 @@ func (mb *MessageBox) Draw(buf *render.CommandBuffer) {
 			emitText(cfg, buf, mb.title, titleX, ty, cfg.FontSizeLg, panelW-cfg.SpaceLG*2-iconSize-cfg.SpaceSM, cfg.TextColor, 1, dialogTextZ)
 		} else {
 			tw := float32(len(mb.title)) * cfg.FontSizeLg * 0.55
-			th := cfg.FontSizeLg * 1.2
+			th := cfg.Leading(cfg.FontSizeLg)
 			ty := panelY + cfg.SpaceLG + (iconSize-th)/2
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(titleX, ty, tw, th),
@@ -210,7 +210,7 @@ func (mb *MessageBox) Draw(buf *render.CommandBuffer) {
 			_ = lh
 		} else {
 			tw := float32(len(mb.content)) * cfg.FontSize * 0.55
-			th := cfg.FontSize * 1.2
+			th := cfg.Leading(cfg.FontSize)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(titleX, contentY, tw, th),
 				FillColor: uimath.RGBA(0, 0, 0, 0.65),

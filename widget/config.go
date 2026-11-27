@@ -24,6 +24,25 @@ type ZTextDrawer interface {
 	DrawTextZ(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32, z int32)
 }
 
+// TrackingTextDrawer is an optional extension for size-specific letter
+// spacing (§15). Widgets keep working with a plain TextDrawer; only hosts
+// that implement this interface get optical tracking. Keeping it optional
+// avoids breaking the many embedded/test drawers in the repository.
+type TrackingTextDrawer interface {
+	DrawTextTracked(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32, z int32, tracking float32)
+}
+
+// CaptionTextDrawer is an optional extension for small-text hierarchy (§15).
+// At 12px a regular-weight CJK outline has almost no fully covered pixels,
+// so glyphs read as ~#A3A3A3 grey even when the theme color is much darker.
+// Hosts that can select a medium-weight face use it for captions; hosts that
+// cannot simply fall back to emitText. The weight is a property of the host's
+// font registration, not a widget parameter, so no widget learns about font
+// IDs or platform font files.
+type CaptionTextDrawer interface {
+	DrawCaptionText(buf *render.CommandBuffer, text string, x, y, fontSize, maxWidth float32, color uimath.Color, opacity float32, z int32, tracking float32)
+}
+
 // OverlayWindowHost owns OS-level auxiliary windows for floating widgets such
 // as tooltips. It is implemented by the application shell, which keeps the
 // widget package independent of the root package.
@@ -77,6 +96,11 @@ func emitText(cfg *Config, buf *render.CommandBuffer, text string, x, y, size, m
 	if cfg == nil || cfg.TextRenderer == nil || text == "" {
 		return
 	}
+	// §15: pass the size-specific tracking when the host renderer supports it.
+	if tracked, ok := cfg.TextRenderer.(TrackingTextDrawer); ok {
+		tracked.DrawTextTracked(buf, text, x, y, size, maxW, color, opacity, z, cfg.Tracking(size))
+		return
+	}
 	if zdraw, ok := cfg.TextRenderer.(ZTextDrawer); ok {
 		zdraw.DrawTextZ(buf, text, x, y, size, maxW, color, opacity, z)
 		return
@@ -102,6 +126,20 @@ func emitOverlayText(cfg *Config, buf *render.CommandBuffer, text string, x, y, 
 	before := buf.Len()
 	emitText(cfg, buf, text, x, y, size, maxW, color, opacity, z)
 	buf.MoveToOverlay(before, z)
+}
+
+// emitCaptionText draws a small label with the caption weight when the host
+// supports it. Size, tracking and leading stay in Config so Dynamic Type
+// scales them together (§15: weight + size + leading as a set).
+func emitCaptionText(cfg *Config, buf *render.CommandBuffer, text string, x, y, size, maxW float32, color uimath.Color, opacity float32, z int32) {
+	if cfg == nil || cfg.TextRenderer == nil || text == "" {
+		return
+	}
+	if caption, ok := cfg.TextRenderer.(CaptionTextDrawer); ok {
+		caption.DrawCaptionText(buf, text, x, y, size, maxW, color, opacity, z, cfg.Tracking(size))
+		return
+	}
+	emitText(cfg, buf, text, x, y, size, maxW, color, opacity, z)
 }
 
 // Size represents component size variants.
@@ -145,6 +183,10 @@ type Config struct {
 	FontSizeSm float32
 	FontSizeLg float32
 	LineHeight float32
+	// TextScale is the Dynamic Type multiplier. SetTextScale rescales the
+	// three type sizes, line height and spacing tokens together so layout
+	// grows with the text instead of clipping it (§15).
+	TextScale float32
 
 	// Text renderer (optional — falls back to placeholder rects if nil)
 	TextRenderer TextDrawer
@@ -267,6 +309,7 @@ func DefaultConfig() *Config {
 		FontSizeSm: 12,
 		FontSizeLg: 16,
 		LineHeight: 1.5,
+		TextScale:  1,
 
 		SpaceXS: 4,
 		SpaceSM: 8,
@@ -306,6 +349,101 @@ func (c *Config) SizeFontSize(s Size) float32 {
 	default:
 		return c.FontSize
 	}
+}
+
+// Apple §15 — optical sizing. Tracking and leading are size-specific: large
+// display text wants negative tracking and tight leading, small captions want
+// positive tracking and looser leading. A single fixed value is wrong
+// somewhere in the hierarchy.
+//
+// LeadingRatio is anchored at 1.2 for the 14px body size (the framework's
+// existing placeholder leading), then tightens as the type grows and loosens
+// as it shrinks. That keeps every existing body-size layout pixel-identical
+// while making captions and headings optically correct.
+func (c *Config) LeadingRatio(size float32) float32 {
+	switch {
+	case size <= 10:
+		return 1.4
+	case size <= 12:
+		return 1.32
+	case size <= 14:
+		return 1.2
+	case size <= 18:
+		return 1.15
+	case size <= 24:
+		return 1.1
+	default:
+		return 1.05
+	}
+}
+
+// Leading returns the line box height for a given size.
+func (c *Config) Leading(size float32) float32 {
+	if c == nil {
+		return size * 1.2
+	}
+	return size * c.LeadingRatio(size)
+}
+
+// Tracking returns the letter-spacing for a given size, in logical pixels.
+// Small captions get a small positive bump for legibility; large headings get
+// negative tracking so they do not read as spaced-out letters.
+func (c *Config) Tracking(size float32) float32 {
+	switch {
+	case size <= 10:
+		return size * 0.03
+	case size <= 12:
+		return size * 0.02
+	case size <= 16:
+		return 0
+	case size <= 24:
+		return -size * 0.01
+	default:
+		return -size * 0.02
+	}
+}
+
+// CaptionSize is the small-text size after Dynamic Type scaling. It never
+// drops below the 12px legibility floor, so shrinking the type scale cannot
+// make a caption unreadable.
+//
+// SetTextScale already multiplies FontSizeSm in place: TextScale records the
+// applied multiplier, it is not a second factor to apply here. Multiplying
+// twice would turn a 2x setting into a 4x caption and overflow every row.
+func (c *Config) CaptionSize() float32 {
+	if c == nil {
+		return 12
+	}
+	size := c.FontSizeSm
+	if size < 12 {
+		size = 12
+	}
+	return size
+}
+
+// SetTextScale applies a Dynamic Type multiplier to the whole type system,
+// including spacing tokens. Apple §15 asks layout to scale *with* the text;
+// scaling only the three font sizes would let a larger caption overflow the
+// fixed padding around it.
+func (c *Config) SetTextScale(scale float32) {
+	if c == nil || scale <= 0 {
+		return
+	}
+	old := c.TextScale
+	if old <= 0 {
+		old = 1
+	}
+	ratio := scale / old
+	c.FontSize *= ratio
+	c.FontSizeSm *= ratio
+	c.FontSizeLg *= ratio
+	c.LineHeight *= ratio
+	c.SpaceXS *= ratio
+	c.SpaceSM *= ratio
+	c.SpaceMD *= ratio
+	c.SpaceLG *= ratio
+	c.SpaceXL *= ratio
+	c.TextScale = scale
 }
 
 // StatusBorderColor returns the border color for a validation status.

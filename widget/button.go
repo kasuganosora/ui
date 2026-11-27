@@ -475,7 +475,7 @@ func (b *Button) Draw(buf *render.CommandBuffer) {
 			cfg.TextRenderer.DrawText(buf, displayLabel, tx, ty, fontSize, maxW, b.textColor(), 1)
 		} else {
 			textW := float32(len(displayLabel)) * fontSize * 0.55
-			textH := fontSize * 1.2
+			textH := cfg.Leading(fontSize)
 			if textW > bounds.Width-8 {
 				textW = bounds.Width - 8
 			}

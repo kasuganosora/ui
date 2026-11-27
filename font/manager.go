@@ -48,19 +48,7 @@ func (m *fontManager) Register(family string, weight Weight, style Style, data [
 	if err != nil {
 		return InvalidFontID, fmt.Errorf("font: load failed: %w", err)
 	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	entry := &fontEntry{
-		id:     id,
-		family: family,
-		weight: weight,
-		style:  style,
-	}
-	m.entries[id] = entry
-	m.families[family] = append(m.families[family], entry)
-	return id, nil
+	return m.registerID(id, family, weight, style), nil
 }
 
 func (m *fontManager) RegisterFile(family string, weight Weight, style Style, path string) (ID, error) {
@@ -68,7 +56,27 @@ func (m *fontManager) RegisterFile(family string, weight Weight, style Style, pa
 	if err != nil {
 		return InvalidFontID, fmt.Errorf("font: load file failed: %w", err)
 	}
+	return m.registerID(id, family, weight, style), nil
+}
 
+// RegisterFileWithWeight implements WeightedManager. Engines that cannot
+// select a face by weight fall back to the regular face; the entry is still
+// registered under the requested weight so resolution stays consistent.
+func (m *fontManager) RegisterFileWithWeight(family string, weight Weight, style Style, path string) (ID, error) {
+	var id ID
+	var err error
+	if wl, ok := m.engine.(WeightedLoader); ok {
+		id, err = wl.LoadFontFileWithWeight(path, weight)
+	} else {
+		id, err = m.engine.LoadFontFile(path)
+	}
+	if err != nil {
+		return InvalidFontID, fmt.Errorf("font: load file failed: %w", err)
+	}
+	return m.registerID(id, family, weight, style), nil
+}
+
+func (m *fontManager) registerID(id ID, family string, weight Weight, style Style) ID {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -80,7 +88,7 @@ func (m *fontManager) RegisterFile(family string, weight Weight, style Style, pa
 	}
 	m.entries[id] = entry
 	m.families[family] = append(m.families[family], entry)
-	return id, nil
+	return id
 }
 
 func (m *fontManager) Resolve(props Properties) (ID, bool) {

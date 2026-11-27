@@ -220,7 +220,7 @@ func (m *Message) Draw(buf *render.CommandBuffer) {
 				if tw > textW {
 					tw = textW
 				}
-				th := cfg.FontSize * 1.2
+				th := cfg.Leading(cfg.FontSize)
 				textY := bounds.Y + (bounds.Height-th)/2
 				buf.DrawRect(render.RectCmd{
 					Bounds:    uimath.NewRect(textX, textY, tw, th),

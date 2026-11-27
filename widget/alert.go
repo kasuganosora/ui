@@ -176,7 +176,7 @@ func (a *Alert) Draw(buf *render.CommandBuffer) {
 		} else {
 			// Title placeholder
 			titleW := float32(len(a.title)) * cfg.FontSize * 0.55
-			titleH := cfg.FontSize * 1.2
+			titleH := cfg.Leading(cfg.FontSize)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(textX, titleY, titleW, titleH),
 				FillColor: cfg.TextColor,
@@ -185,7 +185,7 @@ func (a *Alert) Draw(buf *render.CommandBuffer) {
 			// Message placeholder
 			msgY := titleY + titleH + 4
 			tw := float32(len(a.message)) * cfg.FontSizeSm * 0.55
-			th := cfg.FontSizeSm * 1.2
+			th := cfg.Leading(cfg.FontSizeSm)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(textX, msgY, tw, th),
 				FillColor: cfg.TextColor,
@@ -206,7 +206,7 @@ func (a *Alert) Draw(buf *render.CommandBuffer) {
 			}
 		} else {
 			tw := float32(len(a.message)) * cfg.FontSize * 0.55
-			th := cfg.FontSize * 1.2
+			th := cfg.Leading(cfg.FontSize)
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(textX, bounds.Y+(bounds.Height-th)/2, tw, th),
 				FillColor: cfg.TextColor,

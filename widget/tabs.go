@@ -354,7 +354,7 @@ func (t *Tabs) drawHorizontalHeaders(buf *render.CommandBuffer, hb uimath.Rect) 
 				cfg.TextRenderer.DrawText(buf, item.Label, tx, ty, cfg.FontSize, labelW, textColor, 1)
 			} else {
 				textW := float32(len(item.Label)) * cfg.FontSize * 0.55
-				textH := cfg.FontSize * 1.2
+				textH := cfg.Leading(cfg.FontSize)
 				tx := tabX + (tabW-textW)/2
 				ty := hb.Y + (hb.Height-textH)/2
 				buf.DrawRect(render.RectCmd{
@@ -436,7 +436,7 @@ func (t *Tabs) drawVerticalHeaders(buf *render.CommandBuffer, hb uimath.Rect) {
 				cfg.TextRenderer.DrawText(buf, item.Label, hb.X+cfg.SpaceMD, tabY+(tabH-lh)/2, cfg.FontSize, tabW-cfg.SpaceMD*2, textColor, 1)
 			} else {
 				tw := float32(len(item.Label)) * cfg.FontSize * 0.55
-				th := cfg.FontSize * 1.2
+				th := cfg.Leading(cfg.FontSize)
 				buf.DrawRect(render.RectCmd{
 					Bounds:    uimath.NewRect(hb.X+cfg.SpaceMD, tabY+(tabH-th)/2, tw, th),
 					FillColor: textColor,

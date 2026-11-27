@@ -430,7 +430,7 @@ func (s *Select) Draw(buf *render.CommandBuffer) {
 			if textW > textMaxW {
 				textW = textMaxW
 			}
-			textH := fontSize * 1.2
+			textH := cfg.Leading(fontSize)
 			ty := bounds.Y + (bounds.Height-textH)/2
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(bounds.X+padLeft, ty, textW, textH),
@@ -585,7 +585,7 @@ func (s *Select) drawDropdown(buf *render.CommandBuffer, triggerBounds uimath.Re
 			if textW > maxW {
 				textW = maxW
 			}
-			textH := cfg.FontSize * 1.2
+			textH := cfg.Leading(cfg.FontSize)
 			tx := optRect.X + cfg.SpaceSM
 			ty := optRect.Y + (optH-textH)/2
 			buf.DrawOverlay(render.RectCmd{

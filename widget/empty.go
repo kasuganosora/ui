@@ -65,7 +65,7 @@ func (e *Empty) Draw(buf *render.CommandBuffer) {
 			_ = lh
 		} else {
 			textW := float32(len(e.description)) * cfg.FontSize * 0.55
-			textH := cfg.FontSize * 1.2
+			textH := cfg.Leading(cfg.FontSize)
 			tx := bounds.X + (bounds.Width-textW)/2
 			buf.DrawRect(render.RectCmd{
 				Bounds:    uimath.NewRect(tx, textY, textW, textH),

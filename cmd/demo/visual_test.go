@@ -29,7 +29,9 @@ type testEnv struct {
 	cfg          *widget.Config
 	buf          *render.CommandBuffer
 	textRenderer *textrender.Renderer
+	glyphAtlas   *atlas.Atlas
 	fontEngine   font.Engine
+	fontMgr      font.Manager
 	fontID       font.ID
 	width        int
 	height       int
@@ -74,13 +76,13 @@ func newTestEnv(t *testing.T, width, height int) *testEnv {
 	} else {
 		fontEngine = ui.NewMockEngine()
 	}
-	fontMgr := font.NewManager(fontEngine)
-	fontID, _ := fontMgr.RegisterFile("Default", font.WeightRegular, font.StyleNormal, ui.DefaultFont())
+	mgr := font.NewManager(fontEngine)
+	fontID, _ := mgr.RegisterFile("Default", font.WeightRegular, font.StyleNormal, ui.DefaultFont())
 	if fontID == font.InvalidFontID {
-		fontID, _ = fontMgr.Register("Default", font.WeightRegular, font.StyleNormal, nil)
+		fontID, _ = mgr.Register("Default", font.WeightRegular, font.StyleNormal, nil)
 	}
 	glyphAtlas := atlas.New(atlas.Options{Width: 1024, Height: 1024, Backend: backend})
-	tr := textrender.New(textrender.Options{Manager: fontMgr, Atlas: glyphAtlas})
+	tr := textrender.New(textrender.Options{Manager: mgr, Atlas: glyphAtlas})
 
 	cfg := widget.DefaultConfig()
 	cfg.TextRenderer = ui.NewTextDrawer(tr, fontID, fontEngine)
@@ -93,11 +95,22 @@ func newTestEnv(t *testing.T, width, height int) *testEnv {
 		cfg:          cfg,
 		buf:          render.NewCommandBuffer(),
 		textRenderer: tr,
+		glyphAtlas:   glyphAtlas,
 		fontEngine:   fontEngine,
+		fontMgr:      mgr,
 		fontID:       fontID,
 		width:        width,
 		height:       height,
 	}
+}
+
+// enableCaptionFont opts a single visual test into the §15 medium-weight
+// caption face. Keeping it opt-in leaves the existing golden screenshots on
+// the regular face (they are static regression baselines, not typography
+// specimens).
+func (e *testEnv) enableCaptionFont() font.ID {
+	e.cfg.TextRenderer = ui.NewTextDrawer(e.textRenderer, e.fontID, e.fontEngine)
+	return ui.ConfigureCaptionFont(e.fontMgr, ui.DefaultFont(), e.cfg.TextRenderer)
 }
 
 func (e *testEnv) close() {
