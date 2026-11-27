@@ -59,6 +59,9 @@ func (h *HostInput) pointer(evt *event.Event) {
 		if hit != InvalidElementID {
 			d.Dispatch(hit, evt)
 			h.pressed = hit
+			// §1: publish the press on pointer-down so every renderer can
+			// respond immediately, before the synthesized click on release.
+			h.Tree.SetPressed(h.Tree.InteractiveTarget(hit))
 		}
 	case event.MouseUp:
 		target := h.pressed
@@ -75,6 +78,7 @@ func (h *HostInput) pointer(evt *event.Event) {
 			}
 		}
 		h.pressed = InvalidElementID
+		h.Tree.SetPressed(InvalidElementID)
 	case event.MouseClick:
 		h.acquireFocus(hit)
 		if hit != InvalidElementID {
@@ -112,6 +116,7 @@ func (h *HostInput) releaseCapture() {
 		NewDispatcher(h.Tree).Dispatch(h.pressed, &event.Event{Type: event.MouseUp})
 	}
 	h.pressed = InvalidElementID
+	h.Tree.SetPressed(InvalidElementID)
 }
 
 func (h *HostInput) acquireFocus(hit ElementID) {

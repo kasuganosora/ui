@@ -449,6 +449,9 @@ func (a *App) Run() error {
 		a.textRenderer.BeginFrame()
 		a.buf.Reset()
 		a.root.Draw(a.buf)
+		// §1: the held-down control is highlighted on this very frame,
+		// before the click is synthesized on release.
+		widget.DrawPressFeedback(a.buf, a.tree, a.cfg)
 
 		// Draw DevTools element highlight on top of everything else.
 		if a.devtools != nil {
@@ -574,6 +577,10 @@ func (a *App) handleEvent(evt *event.Event) {
 		a.handleMouse(evt)
 	case event.KeyDown, event.KeyUp, event.KeyPress,
 		event.IMECompositionStart, event.IMECompositionUpdate, event.IMECompositionEnd:
+		a.input.Handle(evt)
+	case event.TouchCancel, event.WindowBlur:
+		// HostInput releases pointer capture here; without this case a lost
+		// window would keep a stale press highlight forever.
 		a.input.Handle(evt)
 	}
 }

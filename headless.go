@@ -70,6 +70,7 @@ func (h *HeadlessUI) Render() *render.CommandBuffer {
 	if h.root != nil {
 		h.root.Draw(h.buf)
 	}
+	widget.DrawPressFeedback(h.buf, h.tree, h.config)
 	h.tree.ClearAllDirty()
 	return h.buf
 }

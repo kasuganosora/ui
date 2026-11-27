@@ -143,6 +143,7 @@ func (e *testEnv) renderFrames(root widget.Widget, n int) {
 		e.textRenderer.BeginFrame()
 		e.buf.Reset()
 		root.Draw(e.buf)
+		widget.DrawPressFeedback(e.buf, e.tree, e.cfg)
 		_ = e.textRenderer.Upload()
 		e.backend.Submit(e.buf)
 		e.backend.EndFrame()

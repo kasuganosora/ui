@@ -210,6 +210,7 @@ func (u *UI) Frame(dt float32) {
 	u.textRenderer.BeginFrame()
 	u.buf.Reset()
 	u.root.Draw(u.buf)
+	widget.DrawPressFeedback(u.buf, u.tree, u.cfg)
 	_ = u.textRenderer.Upload()
 	u.backend.Submit(u.buf)
 	u.backend.EndFrame()

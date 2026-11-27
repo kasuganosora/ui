@@ -131,6 +131,7 @@ type Tree struct {
 	root        ElementID
 	nextID      ElementID
 	focused     ElementID
+	pressed     ElementID // interactive element currently held down (§1 response)
 	scopes      []ElementID
 	keyFallback ElementID
 	notifying   bool
@@ -454,6 +455,44 @@ func (t *Tree) SetHovered(id ElementID, hovered bool) {
 		elem.hovered = hovered
 		t.markDirty(id, DirtyPaint)
 	}
+}
+
+// Pressed returns the interactive element currently held down, or
+// InvalidElementID. HostInput owns the pointer capture; this is the shared
+// tree state every renderer reads to draw the immediate press response.
+func (t *Tree) Pressed() ElementID { return t.pressed }
+
+// SetPressed records which element should show press feedback. Both the old
+// and new targets are marked dirty so the highlight appears on pointer-down
+// and disappears on release without waiting for another input event.
+func (t *Tree) SetPressed(id ElementID) {
+	if id == t.pressed {
+		return
+	}
+	if t.pressed != InvalidElementID {
+		t.markDirty(t.pressed, DirtyPaint)
+	}
+	t.pressed = id
+	if id != InvalidElementID {
+		t.markDirty(id, DirtyPaint)
+	}
+}
+
+// InteractiveTarget walks up from a hit element to the nearest element that
+// responds to a press. The highlight then covers the whole control instead of
+// a tiny inner element, and never spreads to an inert container or the root.
+func (t *Tree) InteractiveTarget(id ElementID) ElementID {
+	for id != InvalidElementID && id != t.root {
+		elem := t.elements[id]
+		if elem == nil {
+			return InvalidElementID
+		}
+		if elem.HasHandler(event.MouseClick) || elem.HasHandler(event.MouseDown) || elem.elemType == TypeButton {
+			return id
+		}
+		id = elem.parent
+	}
+	return InvalidElementID
 }
 
 // SetLayout sets the computed layout for an element (called by layout engine).

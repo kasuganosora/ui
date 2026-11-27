@@ -83,6 +83,7 @@ func (e *EmbeddedUI) Render() *render.CommandBuffer {
 	if e.root != nil {
 		e.root.Draw(e.buf)
 	}
+	widget.DrawPressFeedback(e.buf, e.tree, e.config)
 	// Draw layers (HUD, dialog, chat, etc.)
 	e.layers.Draw(e.buf)
 	e.tree.ClearAllDirty()
